@@ -29,12 +29,14 @@
   ]);
 
   const XAI_URL = "https://api.x.ai/v1/chat/completions";
-  const XAI_DEFAULT_MODEL = "grok-2-latest";
+  const XAI_DEFAULT_MODEL = "grok-3";
   // Best-effort mapping from Claude model ids to a comparable Grok tier.
+  // Model names per xAI as of 2026-Q2; if a model is unavailable on the
+  // user's account the call falls through with a clear error.
   const XAI_MODEL_MAP = {
-    "claude-haiku-4-5-20251001": "grok-2-mini",
-    "claude-sonnet-4-6":         "grok-2-latest",
-    "claude-opus-4-7":           "grok-2-latest",
+    "claude-haiku-4-5-20251001": "grok-3-mini",
+    "claude-sonnet-4-6":         "grok-3",
+    "claude-opus-4-7":           "grok-4",
   };
 
   function loadKeys() {
