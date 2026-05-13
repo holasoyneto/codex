@@ -166,6 +166,47 @@ function ApiKeysSection() {
   );
 }
 
+// ── AutoCacheTick — pill that surfaces auto-cache progress in the footer.
+// Hidden when idle / done. Listens to the events fired by auto-cache.js.
+function AutoCacheTick() {
+  const [state, setState] = useState({ phase: "idle", done: 0, total: 0, pct: 0 });
+  useEffect(() => {
+    const onStart = (e) => setState({ phase: "running", done: 0, total: e.detail.total || 0, pct: 0 });
+    const onTick  = (e) => {
+      const d = e.detail || {};
+      const total = d.total || 0;
+      const done = d.done || 0;
+      const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+      setState({ phase: "running", done, total, pct });
+    };
+    const onDone  = () => {
+      setState({ phase: "done", done: 0, total: 0, pct: 100 });
+      // Briefly flash "✓ INSTALLED" then hide.
+      setTimeout(() => setState((s) => ({ ...s, phase: "hidden" })), 4000);
+    };
+    const onErr   = () => setState({ phase: "hidden", done: 0, total: 0, pct: 0 });
+    window.addEventListener("codex:autocache-start", onStart);
+    window.addEventListener("codex:autocache-tick",  onTick);
+    window.addEventListener("codex:autocache-done",  onDone);
+    window.addEventListener("codex:autocache-error", onErr);
+    return () => {
+      window.removeEventListener("codex:autocache-start", onStart);
+      window.removeEventListener("codex:autocache-tick",  onTick);
+      window.removeEventListener("codex:autocache-done",  onDone);
+      window.removeEventListener("codex:autocache-error", onErr);
+    };
+  }, []);
+  if (state.phase === "idle" || state.phase === "hidden") return null;
+  if (state.phase === "done") {
+    return <Tick className="cx-hide-mobile cx-autocache is-done">✓ INSTALLED</Tick>;
+  }
+  return (
+    <Tick className="cx-hide-mobile cx-autocache" title={`Caching scripture: ${state.done} / ${state.total} chapters`}>
+      INSTALL&nbsp;<b>{state.pct}%</b>
+    </Tick>
+  );
+}
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "autoTheme": true,
   "manualDark": true,
@@ -1709,6 +1750,7 @@ function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCou
           <Tick className="cx-hide-mobile">{tt("footer.compare")}&nbsp;<b>{pad(compareCount)}</b></Tick>
         ) : null}
         <Tick className="cx-hide-mobile">{tt("footer.cache")}&nbsp;<b>{tt("footer.cache.value")}</b></Tick>
+        <AutoCacheTick />
       </div>
       <div className="cx-footer-c">
         <button
