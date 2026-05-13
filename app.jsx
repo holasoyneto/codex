@@ -38,25 +38,57 @@ function ApiKeysSection() {
   const [keys, setKeys] = useState(loadApiKeys);
   const [showA, setShowA] = useState(false);
   const [showG, setShowG] = useState(false);
-  const [savingA, setSavingA] = useState(false);
+  const [busyA, setBusyA] = useState(false);
+  const [busyG, setBusyG] = useState(false);
   const [statusA, setStatusA] = useState("");
-  const update = (patch) => { const next = { ...keys, ...patch }; setKeys(next); saveApiKeys(next); };
-  const submitAnthropic = async () => {
+  const [statusG, setStatusG] = useState("");
+  // Persist on every keystroke so the direct-API shim always sees the
+  // latest values; Apply re-broadcasts so any open Oracle re-probes.
+  const update = (patch) => {
+    const next = { ...keys, ...patch };
+    setKeys(next);
+    saveApiKeys(next);
+    // Notify direct-api shim + any listeners so engine swaps take effect
+    // without a reload.
+    try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
+  };
+
+  // Try to push the Anthropic key to /api/key (only succeeds when the
+  // Node server is up). On static hosting the shim still has the key in
+  // localStorage, so we treat a failed POST as "applied locally".
+  const applyAnthropic = async () => {
     const key = (keys.anthropic || "").trim();
     if (!key.startsWith("sk-")) { setStatusA("Key must start with sk-"); return; }
-    setSavingA(true); setStatusA("");
+    setBusyA(true); setStatusA("");
     try {
       const r = await fetch("/api/key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key }),
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      setStatusA("✓ saved");
+      if (r.ok) { setStatusA("✓ applied"); }
+      else { setStatusA("✓ saved locally"); }
     } catch (e) {
-      setStatusA(String(e.message || e));
-    } finally { setSavingA(false); }
+      // No server — that's fine in direct mode, key is already in LS.
+      setStatusA("✓ saved locally");
+    } finally {
+      setBusyA(false);
+      try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
+    }
   };
+
+  // Grok lives entirely in localStorage (no server endpoint). Apply just
+  // validates the prefix and pings the engine-change listeners.
+  const applyGrok = () => {
+    const key = (keys.grok || "").trim();
+    if (!key.startsWith("xai-")) { setStatusG("Key must start with xai-"); return; }
+    setBusyG(true); setStatusG("");
+    // localStorage write already happened in update(); re-notify and done.
+    try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
+    setStatusG("✓ applied");
+    setBusyG(false);
+  };
+
   return (
     <div className="cx-api">
       <div className="cx-api-seg" role="tablist" aria-label="Active engine">
@@ -65,18 +97,22 @@ function ApiKeysSection() {
           aria-selected={keys.active === "anthropic"}
           className={`cx-api-seg-btn ${keys.active === "anthropic" ? "is-on" : ""}`}
           onClick={() => update({ active: "anthropic" })}
+          disabled={!keys.anthropic}
+          title={keys.anthropic ? "Use Claude as the Oracle engine" : "Add your Anthropic key first"}
         >
           <span className="cx-api-seg-glyph">◉</span>
-          <span><b>Anthropic</b><i>Claude · routes the Oracle</i></span>
+          <span><b>Anthropic</b><i>Claude{keys.active === "anthropic" ? " · active" : ""}</i></span>
         </button>
         <button
           role="tab"
           aria-selected={keys.active === "grok"}
           className={`cx-api-seg-btn ${keys.active === "grok" ? "is-on" : ""}`}
           onClick={() => update({ active: "grok" })}
+          disabled={!keys.grok}
+          title={keys.grok ? "Use Grok as the Oracle engine" : "Add your Grok key first"}
         >
           <span className="cx-api-seg-glyph">⌬</span>
-          <span><b>Grok</b><i>xAI · key stored locally</i></span>
+          <span><b>Grok</b><i>xAI{keys.active === "grok" ? " · active" : ""}</i></span>
         </button>
       </div>
 
@@ -92,18 +128,22 @@ function ApiKeysSection() {
             value={keys.anthropic}
             placeholder="sk-ant-..."
             onChange={(e) => update({ anthropic: e.target.value })}
+            onKeyDown={(e) => { if (e.key === "Enter") applyAnthropic(); }}
             spellCheck={false}
             autoComplete="off"
           />
           <button className="cx-api-eye" onClick={() => setShowA(s => !s)} title={showA ? "Hide" : "Show"}>{showA ? "◐" : "◌"}</button>
-          <button className="cx-api-save" onClick={submitAnthropic} disabled={savingA || !keys.anthropic}>
-            {savingA ? "···" : "SAVE"}
+          <button className="cx-api-save" onClick={applyAnthropic} disabled={busyA || !keys.anthropic}>
+            {busyA ? "···" : "APPLY"}
           </button>
         </div>
       </div>
 
       <div className="cx-api-field">
-        <label className="cx-api-lbl"><span>Grok API key</span></label>
+        <label className="cx-api-lbl">
+          <span>Grok API key</span>
+          {statusG ? <em className={`cx-api-status ${statusG.startsWith("✓") ? "is-ok" : "is-err"}`}>{statusG}</em> : null}
+        </label>
         <div className="cx-api-row">
           <input
             className="cx-api-input"
@@ -111,12 +151,16 @@ function ApiKeysSection() {
             value={keys.grok}
             placeholder="xai-..."
             onChange={(e) => update({ grok: e.target.value })}
+            onKeyDown={(e) => { if (e.key === "Enter") applyGrok(); }}
             spellCheck={false}
             autoComplete="off"
           />
           <button className="cx-api-eye" onClick={() => setShowG(s => !s)} title={showG ? "Hide" : "Show"}>{showG ? "◐" : "◌"}</button>
+          <button className="cx-api-save" onClick={applyGrok} disabled={busyG || !keys.grok}>
+            {busyG ? "···" : "APPLY"}
+          </button>
         </div>
-        <p className="cx-api-hint">Stored locally. Server-side Grok routing rolls out next.</p>
+        <p className="cx-api-hint">Both keys stay in your browser. Switch engines via the toggle above — takes effect on the next Oracle reply.</p>
       </div>
     </div>
   );

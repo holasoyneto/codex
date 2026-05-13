@@ -978,7 +978,16 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    fetch("/api/health").then(r => r.json()).then(d => setHasKey(!!d.hasKey)).catch(() => setHasKey(false));
+    const probe = () => fetch("/api/health")
+      .then(r => r.json())
+      .then(d => setHasKey(!!d.hasKey))
+      .catch(() => setHasKey(false));
+    probe();
+    // Re-probe whenever the user applies a key or switches engines via
+    // the settings panel (direct-api.js dispatches this event).
+    const onEngineChange = () => probe();
+    window.addEventListener("codex:engine-change", onEngineChange);
+    return () => window.removeEventListener("codex:engine-change", onEngineChange);
   }, []);
 
   const submitKey = async () => {

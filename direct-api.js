@@ -1,28 +1,63 @@
 // CODEX direct-API shim — when running without a Node backend (e.g. on
-// GitHub Pages), proxy /api/* fetches straight to api.anthropic.com using
-// the user's locally-stored key. The key never leaves the browser except
-// to Anthropic itself.
+// GitHub Pages), proxy /api/* fetches straight to the chosen AI provider
+// using the user's locally-stored key. Keys never leave the browser
+// except to the provider itself.
+//
+// Two providers are supported:
+//   • Anthropic Claude   — api.anthropic.com/v1/messages
+//   • xAI Grok           — api.x.ai/v1/chat/completions   (OpenAI-shape)
+//
+// The active engine is read from localStorage (codex.api.keys.v1, written
+// by the settings panel in app.jsx). Switching the engine in settings
+// takes effect on the next /api/chat call — no reload needed.
 //
 // Detection: we probe /api/health on load. If it fails or returns non-JSON
-// (e.g. GitHub Pages 404 HTML), we flip into "direct mode" and monkey-patch
+// (e.g. GitHub Pages 404 HTML) we flip into "direct mode" and monkey-patch
 // fetch to handle the three /api/* routes the client uses.
 
 (function () {
-  const KEY_LS = "codex.anthropic.key.v1";
-  const ALLOWED_MODELS = new Set([
+  const KEYS_LS = "codex.api.keys.v1";   // shared with app.jsx ApiKeysSection
+  const LEGACY_KEY_LS = "codex.anthropic.key.v1";  // pre-engine-switch fallback
+
+  const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+  const ANTHROPIC_VERSION = "2023-06-01";
+  const ANTHROPIC_DEFAULT_MODEL = "claude-haiku-4-5-20251001";
+  const ANTHROPIC_ALLOWED = new Set([
     "claude-haiku-4-5-20251001",
     "claude-sonnet-4-6",
     "claude-opus-4-7",
   ]);
-  const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
-  const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-  const ANTHROPIC_VERSION = "2023-06-01";
 
-  function getKey() {
-    try { return localStorage.getItem(KEY_LS) || ""; } catch { return ""; }
+  const XAI_URL = "https://api.x.ai/v1/chat/completions";
+  const XAI_DEFAULT_MODEL = "grok-2-latest";
+  // Best-effort mapping from Claude model ids to a comparable Grok tier.
+  const XAI_MODEL_MAP = {
+    "claude-haiku-4-5-20251001": "grok-2-mini",
+    "claude-sonnet-4-6":         "grok-2-latest",
+    "claude-opus-4-7":           "grok-2-latest",
+  };
+
+  function loadKeys() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEYS_LS) || "null");
+      if (raw && typeof raw === "object") {
+        return { active: "anthropic", anthropic: "", grok: "", ...raw };
+      }
+    } catch {}
+    // Fallback to the legacy single-key store if a key was set under the
+    // old shim before the engine switcher landed.
+    let legacy = "";
+    try { legacy = localStorage.getItem(LEGACY_KEY_LS) || ""; } catch {}
+    return { active: "anthropic", anthropic: legacy, grok: "" };
   }
-  function setKey(k) {
-    try { localStorage.setItem(KEY_LS, k); } catch {}
+  function activeEngine() { return loadKeys().active === "grok" ? "grok" : "anthropic"; }
+  function activeKey() {
+    const k = loadKeys();
+    return k.active === "grok" ? (k.grok || "") : (k.anthropic || "");
+  }
+  function hasAnyKey() {
+    const k = loadKeys();
+    return !!(k.anthropic || k.grok);
   }
 
   function jsonResponse(body, status = 200) {
@@ -35,13 +70,18 @@
   async function handleHealth() {
     return jsonResponse({
       ok: true,
-      hasKey: !!getKey(),
-      model: DEFAULT_MODEL,
+      hasKey: !!activeKey(),
+      engine: activeEngine(),
+      model: activeEngine() === "grok" ? XAI_DEFAULT_MODEL : ANTHROPIC_DEFAULT_MODEL,
       mode: "direct",
       usage: { input: 0, output: 0, cache_read: 0, cache_create: 0, calls: 0 },
     });
   }
 
+  // /api/key still exists for backwards-compat with oracle.jsx's inline
+  // key prompt. We always store it as the *Anthropic* key (the inline
+  // prompt only accepts sk- keys). Engine-aware key entry happens in
+  // the settings panel via direct localStorage writes.
   async function handleKey(init) {
     try {
       const body = JSON.parse(init.body || "{}");
@@ -49,25 +89,37 @@
       if (!key.startsWith("sk-")) {
         return jsonResponse({ error: "Invalid key — must start with sk-" }, 400);
       }
-      setKey(key);
-      return jsonResponse({ ok: true, hasKey: true });
+      const cur = loadKeys();
+      const next = { ...cur, anthropic: key, active: "anthropic" };
+      try { localStorage.setItem(KEYS_LS, JSON.stringify(next)); } catch {}
+      try { localStorage.setItem(LEGACY_KEY_LS, key); } catch {}
+      return jsonResponse({ ok: true, hasKey: true, engine: "anthropic" });
     } catch (e) {
       return jsonResponse({ error: String(e.message || e) }, 500);
     }
   }
 
-  async function handleChat(init) {
-    const key = getKey();
-    if (!key) {
-      return jsonResponse({
-        error: "No API key set. Click SET KEY and paste your Anthropic key first."
-      }, 503);
+  // Flatten Anthropic system blocks (which may be string, or array of
+  // {type:"text", text, cache_control}) down to a single string for Grok.
+  function flattenSystem(sys) {
+    if (!sys) return "";
+    if (typeof sys === "string") return sys;
+    if (Array.isArray(sys)) {
+      return sys.map(s => (typeof s === "string" ? s : (s && s.text) || "")).join("\n\n").trim();
     }
-    let payload;
-    try { payload = JSON.parse(init.body || "{}"); }
-    catch (e) { return jsonResponse({ error: "Bad JSON in request body" }, 400); }
+    if (typeof sys === "object" && sys.text) return sys.text;
+    return "";
+  }
+  // Flatten an Anthropic message content (string OR array of text blocks).
+  function flattenContent(c) {
+    if (typeof c === "string") return c;
+    if (Array.isArray(c)) return c.map(x => (typeof x === "string" ? x : (x && x.text) || "")).join("\n");
+    if (c && typeof c === "object" && c.text) return c.text;
+    return "";
+  }
 
-    const model = ALLOWED_MODELS.has(payload.model) ? payload.model : DEFAULT_MODEL;
+  async function callAnthropic(payload, key) {
+    const model = ANTHROPIC_ALLOWED.has(payload.model) ? payload.model : ANTHROPIC_DEFAULT_MODEL;
     const reqBody = {
       model,
       max_tokens: payload.max_tokens || 1024,
@@ -75,33 +127,93 @@
     };
     if (payload.system) reqBody.system = payload.system;
 
-    let resp;
-    try {
-      resp = await fetch(ANTHROPIC_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": key,
-          "anthropic-version": ANTHROPIC_VERSION,
-          "anthropic-dangerous-direct-browser-access": "true",
+    const resp = await fetch(ANTHROPIC_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify(reqBody),
+    });
+    let data;
+    try { data = await resp.json(); }
+    catch { return { status: 502, body: { error: "Anthropic returned non-JSON" } }; }
+    if (!resp.ok) {
+      const msg = (data && data.error && data.error.message) || data.error || `HTTP ${resp.status}`;
+      return { status: resp.status, body: { error: typeof msg === "string" ? msg : JSON.stringify(msg) } };
+    }
+    const text = ((data.content || []).filter(c => c.type === "text").map(c => c.text).join(""));
+    return { status: 200, body: { text, model: data.model, usage: data.usage || {}, engine: "anthropic" } };
+  }
+
+  async function callGrok(payload, key) {
+    const model = XAI_MODEL_MAP[payload.model] || (payload.model && payload.model.startsWith("grok") ? payload.model : XAI_DEFAULT_MODEL);
+    const sys = flattenSystem(payload.system);
+    const messages = [];
+    if (sys) messages.push({ role: "system", content: sys });
+    for (const m of (payload.messages || [])) {
+      messages.push({ role: m.role, content: flattenContent(m.content) });
+    }
+    const reqBody = {
+      model,
+      max_tokens: payload.max_tokens || 1024,
+      messages,
+      stream: false,
+    };
+    const resp = await fetch(XAI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + key,
+      },
+      body: JSON.stringify(reqBody),
+    });
+    let data;
+    try { data = await resp.json(); }
+    catch { return { status: 502, body: { error: "xAI returned non-JSON" } }; }
+    if (!resp.ok) {
+      const msg = (data && data.error && (data.error.message || data.error)) || `HTTP ${resp.status}`;
+      return { status: resp.status, body: { error: typeof msg === "string" ? msg : JSON.stringify(msg) } };
+    }
+    const text = (((data.choices || [])[0] || {}).message || {}).content || "";
+    const u = data.usage || {};
+    return {
+      status: 200,
+      body: {
+        text,
+        model: data.model,
+        usage: {
+          input_tokens: u.prompt_tokens || 0,
+          output_tokens: u.completion_tokens || 0,
         },
-        body: JSON.stringify(reqBody),
-      });
+        engine: "grok",
+      },
+    };
+  }
+
+  async function handleChat(init) {
+    const engine = activeEngine();
+    const key = activeKey();
+    if (!key) {
+      return jsonResponse({
+        error: `No ${engine === "grok" ? "Grok" : "Anthropic"} API key set. Open Settings → API keys and Apply your key.`
+      }, 503);
+    }
+    let payload;
+    try { payload = JSON.parse(init.body || "{}"); }
+    catch (e) { return jsonResponse({ error: "Bad JSON in request body" }, 400); }
+
+    let result;
+    try {
+      result = engine === "grok"
+        ? await callGrok(payload, key)
+        : await callAnthropic(payload, key);
     } catch (e) {
       return jsonResponse({ error: "Network error: " + String(e.message || e) }, 500);
     }
-
-    let data;
-    try { data = await resp.json(); }
-    catch { return jsonResponse({ error: "Anthropic returned non-JSON" }, 502); }
-
-    if (!resp.ok) {
-      const msg = (data && data.error && data.error.message) || data.error || `HTTP ${resp.status}`;
-      return jsonResponse({ error: typeof msg === "string" ? msg : JSON.stringify(msg) }, resp.status);
-    }
-
-    const text = ((data.content || []).filter(c => c.type === "text").map(c => c.text).join(""));
-    return jsonResponse({ text, model: data.model, usage: data.usage || {} });
+    return jsonResponse(result.body, result.status);
   }
 
   // Decide whether we're in direct mode. We're conservative: only flip on
@@ -115,11 +227,9 @@
       const ct = r.headers.get("content-type") || "";
       if (!ct.includes("application/json")) return true;
       const d = await r.json();
-      // If health returns ok and reports server-side hasKey support, we're
-      // talking to the real server. Stay in proxy mode.
-      return !d || d.mode === "direct";  // default false → stay proxied
+      return !d || d.mode === "direct";
     } catch {
-      return true;  // any failure → assume no server
+      return true;
     }
   }
 
@@ -129,7 +239,6 @@
     if (typeof input === "string") url = input;
     else if (input && input.url) url = input.url;
 
-    // Only intercept our own /api/* paths.
     const isApi = url.startsWith("/api/") || url.includes(location.host + "/api/");
     if (!isApi) return originalFetch(input, init);
 
@@ -143,10 +252,15 @@
     if (path === "/api/key" && (opts.method || "").toUpperCase() === "POST") return handleKey(opts);
     if (path === "/api/chat" && (opts.method || "").toUpperCase() === "POST") return handleChat(opts);
 
-    // Anything else under /api/ — fall through to a 404 JSON.
     return jsonResponse({ error: "Endpoint not available in direct mode: " + path }, 404);
   };
 
-  // Expose for debugging.
-  window.CODEX_DIRECT = { getKey, setKey, probeMode };
+  // Expose for debugging + so the settings panel can broadcast engine
+  // changes (Oracle re-probes hasKey when this fires).
+  window.CODEX_DIRECT = {
+    loadKeys, activeEngine, activeKey, hasAnyKey, probeMode,
+    notifyEngineChange() {
+      try { window.dispatchEvent(new CustomEvent("codex:engine-change", { detail: { engine: activeEngine() } })); } catch {}
+    },
+  };
 })();
