@@ -1,0 +1,14 @@
+{
+  "name": "CODEX · Bible Study Terminal",
+  "short_name": "CODEX",
+  "description": "Comparative-religion Bible-study terminal with red-letter detection across translations.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#06080e",
+  "theme_color": "#06080e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
