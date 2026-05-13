@@ -12,39 +12,44 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v124";
+const VERSION = "v125";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
 const ALL = [SHELL, DATA, PANELS];
 
+// Resolve every shell URL against the SW's scope so offline works whether
+// the app is mounted at "/" (local Node) or "/codex/" (GitHub Pages).
+const SCOPE = self.registration ? self.registration.scope : self.location.origin + "/";
+const r = (p) => new URL(p, SCOPE).toString();
+
 // Files we want available offline immediately. Anything fetched later is
 // added on-the-fly by the runtime handler below.
 const SHELL_FILES = [
-  "/",
-  "/index.html",
-  "/styles.css",
-  "/manifest.json",
-  "/icon.svg",
-  "/direct-api.js",
-  "/i18n.js",
-  "/data.js",
-  "/bible.js",
-  "/panels-gen.js",
-  "/tweaks-panel.jsx",
-  "/components.jsx",
-  "/panels.jsx",
-  "/oracle.jsx",
-  "/library.jsx",
-  "/verse-menu.jsx",
-  "/verse-map.jsx",
-  "/verse-art.jsx",
-  "/verse-compare.jsx",
-  "/verse-mirror.jsx",
-  "/repo-add.jsx",
-  "/notes.jsx",
-  "/quest-messiah.jsx",
-  "/app.jsx",
+  r("./"),
+  r("index.html"),
+  r("styles.css"),
+  r("manifest.json"),
+  r("icon.svg"),
+  r("direct-api.js"),
+  r("i18n.js"),
+  r("data.js"),
+  r("bible.js"),
+  r("panels-gen.js"),
+  r("tweaks-panel.jsx"),
+  r("components.jsx"),
+  r("panels.jsx"),
+  r("oracle.jsx"),
+  r("library.jsx"),
+  r("verse-menu.jsx"),
+  r("verse-map.jsx"),
+  r("verse-art.jsx"),
+  r("verse-compare.jsx"),
+  r("verse-mirror.jsx"),
+  r("repo-add.jsx"),
+  r("notes.jsx"),
+  r("quest-messiah.jsx"),
+  r("app.jsx"),
 ];
 
 self.addEventListener("install", (event) => {
@@ -74,9 +79,12 @@ self.addEventListener("activate", (event) => {
 const SAME_ORIGIN = self.location.origin;
 
 function isOwnAsset(url) {
+  // Match anything served from our origin EXCEPT api routes (handled by
+  // direct-api shim or proxied to a backend) and the SW itself. Works
+  // for both "/" and "/codex/" mounts.
   return url.origin === SAME_ORIGIN
-    && !url.pathname.startsWith("/api/")
-    && !url.pathname.startsWith("/sw.js");
+    && !/\/api\//.test(url.pathname)
+    && !/\/sw\.js$/.test(url.pathname);
 }
 
 function isFont(url) {
@@ -97,7 +105,7 @@ self.addEventListener("fetch", (event) => {
 
   // Anthropic chat endpoint — never cache, always go to network. Oracle
   // replies must stay live.
-  if (url.pathname === "/api/chat" || url.pathname === "/api/key" || url.pathname === "/api/health") {
+  if (/\/api\/(chat|key|health)$/.test(url.pathname)) {
     return;                                // let it fall through to network
   }
 

@@ -59,7 +59,9 @@
 // localStorage and are unaffected by SW updates.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(err => {
+    // Relative path so the SW works whether mounted at "/" (local Node)
+    // or under a sub-path like "/codex/" (GitHub Pages).
+    navigator.serviceWorker.register("./sw.js").catch(err => {
       console.warn("CODEX: service worker registration failed", err);
     });
   });

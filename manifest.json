@@ -1,9 +1,9 @@
 {
-  "name": "CODEX · Bible Study Terminal",
+  "name": "CODEX",
   "short_name": "CODEX",
-  "description": "Comparative-religion Bible-study terminal with red-letter detection across translations.",
-  "start_url": "/index.html",
-  "scope": "/",
+  "description": "Personal study terminal.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#06080e",
