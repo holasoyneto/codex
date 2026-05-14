@@ -17,8 +17,13 @@
   const inflight = new Map();
   const listeners = new Set();
 
+  // Cache key includes the active UI language so panels generated in
+  // Spanish never collide with the English ones — switching language and
+  // re-opening a chapter re-fetches in the new language.
   function cacheKey(bookId, chapter) {
-    return `${CACHE_PREFIX}${bookId}.${chapter}`;
+    const lang = (window.CODEX_LANG || "en");
+    const suffix = lang === "en" ? "" : `.${lang}`;
+    return `${CACHE_PREFIX}${bookId}.${chapter}${suffix}`;
   }
 
   // Cache format v2: { _v: 2, data, fetchedAt }. Old format (bare object)
@@ -195,8 +200,13 @@ Rules:
 
     notify({ type: "start", bookId, chapter });
 
+    const langName = (window.codexLangName && window.codexLangName()) || "English";
+    const langDirective = langName === "English"
+      ? ""
+      : `\n\nLANGUAGE: All HUMAN-READABLE STRING VALUES in the JSON (heading, body, subtitle, title, meaning, ref labels, gematriaNotes, gnosis bodies, etc.) MUST be written in ${langName}. EXCEPT: keep "from" enum values (Patristic|Reformation|Modern|Devotional) and "system" labels in English; keep native-script terms (Hebrew/Greek/Aramaic) and their transliterations as-is. Cross-reference book names should use the ${langName} convention.`;
+
     const userMsg = `Draft the CODEX panels for: ${bookName} ${chapter}.
-Return ONLY the JSON object as specified in the system instructions.`;
+Return ONLY the JSON object as specified in the system instructions.${langDirective}`;
 
     const p = (async () => {
       const r = await fetch("/api/chat", {
@@ -207,7 +217,7 @@ Return ONLY the JSON object as specified in the system instructions.`;
           // per chapter, so a panel call almost never repeats with the same
           // system within the 5-min cache window. Caching would only add
           // padding overhead to a one-shot call.
-          system: PROMPT_SYSTEM,
+          system: PROMPT_SYSTEM + langDirective,
           messages: [{ role: "user", content: userMsg }],
           max_tokens: 3000,
         }),

@@ -409,6 +409,20 @@ function App() {
     }
   }, [primary, compareSet, loadPanelData]);
 
+  // When the UI language changes, AI panels need to re-render in the
+  // new language. cacheKey is language-suffixed so getCached() returns
+  // null for the new lang (or the previously-cached translation if it
+  // exists). Re-invoking loadPanelData picks up that lookup.
+  useEffect(() => {
+    const onLang = () => {
+      if (passage.bookId && passage.chapter) {
+        loadPanelData(passage.bookId, passage.chapter, passage.book);
+      }
+    };
+    window.addEventListener("codex:lang", onLang);
+    return () => window.removeEventListener("codex:lang", onLang);
+  }, [passage.bookId, passage.chapter, passage.book, loadPanelData]);
+
   // Update passage title once panels finish generating, so the header reflects the AI title.
   useEffect(() => {
     if (panelData && (!passage.title || passage.title === `${passage.book} ${passage.chapter}`)) {

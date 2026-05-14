@@ -789,6 +789,15 @@
     if (!T[lang]) return;
     window.CODEX_LANG = lang;
     applyLangSideEffects(lang);
+    // Notify subtrees that resolve t() lazily (Oracle, panels) so they
+    // re-render or re-fetch in the new language.
+    try { window.dispatchEvent(new CustomEvent("codex:lang", { detail: { lang } })); } catch {}
+  };
+  // Map an i18n id to the human-readable name we tell the LLM to write in.
+  window.codexLangName = (id) => {
+    const map = { en: "English", es: "Spanish", de: "German", pt: "Portuguese",
+                  fr: "French", la: "Latin", he: "Hebrew", el: "Greek", hi: "Hindi" };
+    return map[id || window.CODEX_LANG || "en"] || "English";
   };
   window.applyCodexDrift = (on) => {
     window.CODEX_DRIFT = !!on;

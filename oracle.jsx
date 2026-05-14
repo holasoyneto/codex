@@ -1122,10 +1122,14 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
     setMessages(next);
     setBusy(true);
 
-    const context = `Reader cursor: ${currentRef}.\nCurrent verse (${primary.toUpperCase()}): "${verse[primary] || verse.kjv}"\nRed-letter overlay: ${redLetter ? "on" : "off"}.`;
+    const langName = (window.codexLangName && window.codexLangName()) || "English";
+    const langDirective = langName === "English"
+      ? ""
+      : `\n\nIMPORTANT: Reply ENTIRELY in ${langName}. All prose, headings, citations explanations, etc. The user has set the UI language to ${langName}. Bible verse text quoted from scripture stays in its original translation language.`;
+    const context = `Reader cursor: ${currentRef}.\nCurrent verse (${primary.toUpperCase()}): "${verse[primary] || verse.kjv}"\nRed-letter overlay: ${redLetter ? "on" : "off"}.${langDirective}`;
 
     const apiMessages = [
-      { role: "user", content: `${driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM}\n\n${context}\n\nConversation so far:\n${next.slice(-8).map(m => `${m.role === "user" ? "User" : "Oracle"}: ${m.text}`).join("\n")}\n\nReply as Oracle.` },
+      { role: "user", content: `${driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM}${langDirective}\n\n${context}\n\nConversation so far:\n${next.slice(-8).map(m => `${m.role === "user" ? "User" : "Oracle"}: ${m.text}`).join("\n")}\n\nReply as Oracle.` },
     ];
 
     try {
@@ -1139,7 +1143,7 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
           // we get better quality AND lower cost on multi-turn chats.
           model: "claude-sonnet-4-6",
           system: [
-            { type: "text", text: driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM, cache_control: { type: "ephemeral" } },
+            { type: "text", text: (driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM) + langDirective, cache_control: { type: "ephemeral" } },
           ],
           messages: [
             // Hoist any memory entries to the front as an assistant note so
