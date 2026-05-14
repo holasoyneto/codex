@@ -123,17 +123,19 @@ function PanelStatus({ status, passage, onRegenerate, kind }) {
   if (status.error) {
     return (
       <div className="cx-pane-status is-err">
-        <b>ORACLE OFFLINE</b>
+        <b>{(window.t && window.t("panel.offline")) || "ORACLE OFFLINE"}</b>
         <span>{status.error}</span>
-        <button className="cx-pane-retry" onClick={onRegenerate}>↻ RETRY</button>
+        <button className="cx-pane-retry" onClick={onRegenerate}>{(window.t && window.t("panel.retry")) || "↻ RETRY"}</button>
       </div>
     );
   }
+  const ref = `${passage.book} ${passage.chapter}`;
+  const emptyBody = ((window.t && window.t("panel.empty.body")) || "Generate companion material for {ref}.").replace("{ref}", ref);
   return (
     <div className="cx-pane-status">
-      <b>NO PANEL CACHE</b>
-      <span>Generate companion material for {passage.book} {passage.chapter}.</span>
-      <button className="cx-pane-retry" onClick={onRegenerate}>✦ DRAFT VIA ORACLE</button>
+      <b>{(window.t && window.t("panel.empty")) || "NO PANEL CACHE"}</b>
+      <span>{emptyBody}</span>
+      <button className="cx-pane-retry" onClick={onRegenerate}>{(window.t && window.t("panel.draft")) || "✦ DRAFT VIA ORACLE"}</button>
     </div>
   );
 }
@@ -589,21 +591,21 @@ function LinkifyRefs({ text }) {
 
 // ── TALMUD ──────────────────────────────────────────────────────────────
 function TalmudPanel({ panelData, status, meta, passage, onRegenerate }) {
-  if (!panelData) return <div className="cx-pane"><PaneHead title="TALMUDIC PARALLELS" sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="talmud" /></div>;
+  if (!panelData) return <div className="cx-pane"><PaneHead title=((window.t && window.t("panel.talmud.head")) || "TALMUDIC PARALLELS") sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="talmud" /></div>;
   // One-shot expand/collapse for all parallels — defaults to OPEN (per-card
   // toggle still works); the ⊟/⊞ button lets the user collapse/expand the
   // whole list at once when it gets noisy.
   const [allOpen, setAllOpen] = useState(true);
   return (
     <div className="cx-pane">
-      <PaneHead title="TALMUDIC PARALLELS"
-        sub={`${passage.book} ${passage.chapter} · ${panelData.talmud.length} parallels`}
+      <PaneHead title=((window.t && window.t("panel.talmud.head")) || "TALMUDIC PARALLELS")
+        sub={`${passage.book} ${passage.chapter} · ${((window.t && window.t("panel.parallels")) || "{n} parallels").replace("{n}", panelData.talmud.length)}`}
         meta={meta}
         action={
           <span className="cx-pane-actions">
             <button className="cx-pane-toggle"
               onClick={() => setAllOpen(o => !o)}
-              title={allOpen ? "Collapse all parallels" : "Expand all parallels"}
+              title={allOpen ? ((window.t && window.t("panel.collapseAll")) || "Collapse all parallels") : ((window.t && window.t("panel.expandAll")) || "Expand all parallels")}
               aria-label={allOpen ? "Collapse all" : "Expand all"}>
               {allOpen ? "⊟" : "⊞"}
             </button>
@@ -641,7 +643,7 @@ function TalmudPanel({ panelData, status, meta, passage, onRegenerate }) {
 
 // ── COMMENTARY ──────────────────────────────────────────────────────────
 function CommentaryPanel({ panelData, status, meta, passage, onRegenerate, onJumpRef }) {
-  if (!panelData) return <div className="cx-pane"><PaneHead title="CHRISTIAN COMMENTARY" sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="commentary" /></div>;
+  if (!panelData) return <div className="cx-pane"><PaneHead title=((window.t && window.t("panel.commentary.head")) || "CHRISTIAN COMMENTARY") sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="commentary" /></div>;
   // group by tradition
   const groups = ["Patristic", "Reformation", "Modern", "Devotional"];
   const byGroup = groups.map(g => ({
@@ -651,7 +653,7 @@ function CommentaryPanel({ panelData, status, meta, passage, onRegenerate, onJum
 
   return (
     <div className="cx-pane">
-      <PaneHead title="CHRISTIAN COMMENTARY"
+      <PaneHead title=((window.t && window.t("panel.commentary.head")) || "CHRISTIAN COMMENTARY")
         sub="Patristic · Reformation · Modern · Devotional"
         meta={meta}
         action={<RegenBtn onClick={onRegenerate} />} />
@@ -771,7 +773,7 @@ function GematriaPanel({ panelData, status, meta, passage, onRegenerate }) {
 
   return (
     <div className="cx-pane">
-      <PaneHead title="GEMATRIA · ISOPSEPHY"
+      <PaneHead title={(window.t && window.t("panel.gematria.head")) || "GEMATRIA · ISOPSEPHY"}
         sub={`Numerical resonance · ${passage.book} ${passage.chapter}`}
         meta={meta}
         action={panelData ? <RegenBtn onClick={onRegenerate} /> : null} />
@@ -860,7 +862,7 @@ function GematriaPanel({ panelData, status, meta, passage, onRegenerate }) {
 function GnosisPanel({ panelData, status, meta, passage, gnosisOn, onToggleGnosis, onRegenerate }) {
   return (
     <div className="cx-pane is-gnosis">
-      <PaneHead title="GNOSIS · INTERPRETIVE OVERLAY"
+      <PaneHead title={(window.t && window.t("panel.gnosis.head")) || "GNOSIS · INTERPRETIVE OVERLAY"}
         sub={`Esoteric readings · ${passage.book} ${passage.chapter}`}
         meta={meta}
         action={panelData ? <RegenBtn onClick={onRegenerate} /> : null} />
@@ -945,7 +947,7 @@ function PaneHead({ title, sub, action, meta }) {
 //   ✦ JUST FETCHED  (freshly generated by Claude this session)
 function CacheBadge({ meta }) {
   if (!meta) return null;
-  if (meta.seed) return <span className="cx-cache-pill is-seed">▣ SEED · BUILT-IN</span>;
+  if (meta.seed) return <span className="cx-cache-pill is-seed">{(window.t && window.t("panel.seed")) || "▣ SEED · BUILT-IN"}</span>;
   if (meta.fromCache) {
     const ago = humanAgo(meta.fetchedAt);
     return <span className="cx-cache-pill is-cached" title={meta.fetchedAt ? `Fetched ${new Date(meta.fetchedAt).toLocaleString()}` : "Cached — fetched date unknown"}>
@@ -971,7 +973,7 @@ function RegenBtn({ onClick }) {
   return (
     <button className="cx-regen" onClick={onClick} title="Re-draft via Oracle">
       <span className="cx-regen-dot" />
-      REDRAFT
+      {(window.t && window.t("panel.redraft")) || "REDRAFT"}
     </button>
   );
 }

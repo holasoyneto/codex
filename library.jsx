@@ -7,12 +7,24 @@
 // sections. The current book sits highlighted with its current chapter shown
 // as "31 / 50" so you always know where you are.
 
-function Library({ activeBookId, activeChapter, onSelectChapter }) {
+function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslation }) {
   const data = window.CODEX_DATA;
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState(activeBookId);
   const scrollRef = useRef(null);
   const openRowRef = useRef(null);
+
+  // Resolve which canons the active translation includes. Default is
+  // protestant-only (66 books) when the registry doesn't say otherwise.
+  const canons = useMemo(() => {
+    const t = (data.translations || []).find(x => x.id === activeTranslation);
+    const list = (t && t.canons && t.canons.length) ? t.canons : ["protestant"];
+    return new Set(list);
+  }, [activeTranslation, data.translations]);
+  const showsBook = (b) => {
+    if (b.testament === "OT" || b.testament === "NT") return canons.has("protestant");
+    return canons.has(b.canon);
+  };
   // Track whether the last openId change came from an external activeBookId
   // change (nav arrows etc.) so we only auto-scroll then. User taps should
   // expand in place — no jumping the viewport.
@@ -47,8 +59,24 @@ function Library({ activeBookId, activeChapter, onSelectChapter }) {
       .map(b => b.id));
   }, [q, data.books]);
 
-  const ot = useMemo(() => data.books.filter(b => b.testament === "OT"), [data.books]);
-  const nt = useMemo(() => data.books.filter(b => b.testament === "NT"), [data.books]);
+  const ot = useMemo(() => data.books.filter(b => b.testament === "OT" && showsBook(b)), [data.books, canons]);
+  const nt = useMemo(() => data.books.filter(b => b.testament === "NT" && showsBook(b)), [data.books, canons]);
+  // Group deuterocanonical/apocryphal books by canon so each "shelf"
+  // (Apocrypha, Orthodox additions, Ge'ez/Ethiopian) gets its own header.
+  const dcGroups = useMemo(() => {
+    const groups = [
+      { canon: "deuterocanon", labelKey: "lib.apocrypha", fallback: "Apocrypha · Deuterocanon" },
+      { canon: "orthodox",     labelKey: "lib.orthodox",  fallback: "Orthodox additions" },
+      { canon: "ethiopian",    labelKey: "lib.ethiopian", fallback: "Ge'ez · Ethiopian" },
+    ];
+    return groups
+      .filter(g => canons.has(g.canon))
+      .map(g => ({
+        ...g,
+        books: data.books.filter(b => b.testament === "DC" && b.canon === g.canon),
+      }))
+      .filter(g => g.books.length);
+  }, [data.books, canons]);
 
   const renderBook = (b) => {
     if (match && !match.has(b.id)) return null;
@@ -86,7 +114,12 @@ function Library({ activeBookId, activeChapter, onSelectChapter }) {
 
   const otShown = ot.filter(b => !match || match.has(b.id));
   const ntShown = nt.filter(b => !match || match.has(b.id));
-  const total   = (match ? match.size : 66);
+  const dcShown = dcGroups.map(g => ({
+    ...g,
+    books: g.books.filter(b => !match || match.has(b.id)),
+  })).filter(g => g.books.length);
+  const dcCount = dcShown.reduce((n, g) => n + g.books.length, 0);
+  const total   = (match ? match.size : (otShown.length + ntShown.length + dcCount));
 
   return (
     <div className="cx-lib">
@@ -111,7 +144,13 @@ function Library({ activeBookId, activeChapter, onSelectChapter }) {
         {otShown.map(renderBook)}
         {ntShown.length > 0 ? <h3 className="cx-lib-h">{(window.t && window.t("lib.nt")) || "The New Testament"}</h3> : null}
         {ntShown.map(renderBook)}
-        {otShown.length === 0 && ntShown.length === 0 ? (
+        {dcShown.map(g => (
+          <React.Fragment key={g.canon}>
+            <h3 className="cx-lib-h">{(window.t && window.t(g.labelKey)) || g.fallback}</h3>
+            {g.books.map(renderBook)}
+          </React.Fragment>
+        ))}
+        {otShown.length === 0 && ntShown.length === 0 && dcShown.length === 0 ? (
           <p className="cx-lib-empty">{(window.t && window.t("lib.empty")) || "No book by that name."}</p>
         ) : null}
       </div>

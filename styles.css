@@ -8731,3 +8731,41 @@ input, textarea, [contenteditable] { caret-color: var(--cx-accent); }
 }
 
 
+
+/* ── Install chip · Oracle inline button to install a translation ───── */
+.cx-install-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 9px; margin: 0 2px;
+  font-family: var(--cx-font-mono, ui-monospace, monospace);
+  font-size: 0.78em; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cx-accent, #6db4d6);
+  background: color-mix(in oklab, var(--cx-accent, #6db4d6) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--cx-accent, #6db4d6) 45%, transparent);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-install-chip:hover {
+  background: color-mix(in oklab, var(--cx-accent) 18%, transparent);
+  border-color: var(--cx-accent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--cx-accent) 40%, transparent);
+}
+.cx-install-chip.is-running {
+  color: color-mix(in oklab, var(--cx-accent) 70%, var(--cx-fg));
+  background: color-mix(in oklab, var(--cx-accent) 12%, transparent);
+  cursor: progress;
+}
+.cx-install-chip.is-done {
+  color: color-mix(in oklab, var(--cx-fg) 80%, var(--cx-accent));
+  background: transparent;
+  border-color: color-mix(in oklab, var(--cx-fg-dim, #88a) 50%, transparent);
+  cursor: default;
+}
+.cx-install-chip.is-err {
+  color: color-mix(in oklab, #c66 70%, var(--cx-fg));
+  background: color-mix(in oklab, #c66 8%, transparent);
+  border-color: color-mix(in oklab, #c66 45%, transparent);
+  cursor: default;
+}

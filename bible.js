@@ -338,6 +338,19 @@ window.BIBLE = (function () {
         text: String(v.text || "").replace(/\s+/g, " ").trim(),
       }));
     }
+    if (src.kind === "bundle") {
+      // Static-bundle source — fetch a JSON file shipped with the app
+      // (or hosted at any same-origin URL). Used for translations whose
+      // canon includes books no public CORS API serves (Enoch, Jubilees,
+      // Meqabyan, etc.). Layout: { [bookId]: { [chapter]: [{n,text}] } }
+      const url = src.bundleUrl || `data/bibles/${src.apiId}.json`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`bundle ${translation} ${bookId} ${chapter}: ${r.status}`);
+      const data = await r.json();
+      const ch = data && data[bookId] && data[bookId][chapter];
+      if (!Array.isArray(ch)) throw new Error(`bundle ${translation}: ${bookId} ${chapter} not in bundle`);
+      return ch.map(v => ({ n: v.n || v.verse, text: String(v.text || "").replace(/\s+/g, " ").trim() }));
+    }
     throw new Error("Unknown source kind: " + src.kind);
   }
 

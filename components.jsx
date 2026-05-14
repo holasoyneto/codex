@@ -510,6 +510,7 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
               activeBookId={activeBookId}
               activeChapter={activeChapter}
               onSelectChapter={onSelectChapter}
+              activeTranslation={(oracleProps && oracleProps.primary) || "kjv"}
             />
           ) : null}
         </CornerFrame>

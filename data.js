@@ -71,6 +71,37 @@ window.CODEX_DATA = {
     { id:"3jn",name:"III John",       testament:"NT", chapters:1 },
     { id:"jud",name:"Jude",           testament:"NT", chapters:1 },
     { id:"rev",name:"Revelation",     testament:"NT", chapters:22 },
+
+    // ── Deuterocanonical / Apocrypha (Catholic + Anglican KJV w/ Apocrypha) ──
+    // Shown in library only when the active translation declares one of
+    // these canons in its `canons` array.
+    { id:"tob",name:"Tobit",                    testament:"DC", canon:"deuterocanon", chapters:14 },
+    { id:"jdt",name:"Judith",                   testament:"DC", canon:"deuterocanon", chapters:16 },
+    { id:"wis",name:"Wisdom of Solomon",        testament:"DC", canon:"deuterocanon", chapters:19 },
+    { id:"sir",name:"Sirach (Ecclesiasticus)",  testament:"DC", canon:"deuterocanon", chapters:51 },
+    { id:"bar",name:"Baruch",                   testament:"DC", canon:"deuterocanon", chapters:6 },
+    { id:"1ma",name:"I Maccabees",              testament:"DC", canon:"deuterocanon", chapters:16 },
+    { id:"2ma",name:"II Maccabees",             testament:"DC", canon:"deuterocanon", chapters:15 },
+    { id:"esg",name:"Esther (Greek additions)", testament:"DC", canon:"deuterocanon", chapters:16 },
+    { id:"sus",name:"Susanna",                  testament:"DC", canon:"deuterocanon", chapters:1 },
+    { id:"bel",name:"Bel and the Dragon",       testament:"DC", canon:"deuterocanon", chapters:1 },
+    { id:"pra",name:"Prayer of Azariah",        testament:"DC", canon:"deuterocanon", chapters:1 },
+
+    // ── Anagignoskomena (Eastern Orthodox additions beyond Catholic) ──
+    { id:"1es",name:"I Esdras",                 testament:"DC", canon:"orthodox",     chapters:9 },
+    { id:"2es",name:"II Esdras (4 Ezra)",       testament:"DC", canon:"orthodox",     chapters:16 },
+    { id:"3ma",name:"III Maccabees",            testament:"DC", canon:"orthodox",     chapters:7 },
+    { id:"4ma",name:"IV Maccabees",             testament:"DC", canon:"orthodox",     chapters:18 },
+    { id:"pmn",name:"Prayer of Manasseh",       testament:"DC", canon:"orthodox",     chapters:1 },
+    { id:"ps151",name:"Psalm 151",              testament:"DC", canon:"orthodox",     chapters:1 },
+
+    // ── Ge'ez / Ethiopian (1 Enoch, Jubilees, Meqabyan, etc.) ──
+    { id:"1en",name:"I Enoch (Book of Enoch)",  testament:"DC", canon:"ethiopian",    chapters:108 },
+    { id:"jub",name:"Jubilees",                 testament:"DC", canon:"ethiopian",    chapters:50 },
+    { id:"1mq",name:"I Meqabyan",               testament:"DC", canon:"ethiopian",    chapters:36 },
+    { id:"2mq",name:"II Meqabyan",              testament:"DC", canon:"ethiopian",    chapters:21 },
+    { id:"3mq",name:"III Meqabyan",             testament:"DC", canon:"ethiopian",    chapters:10 },
+    { id:"4ezr",name:"IV Ezra",                 testament:"DC", canon:"ethiopian",    chapters:16 },
   ],
 
   // Translations exposed in the picker. KJV + WEB come from bible-api.com,
@@ -98,7 +129,18 @@ window.CODEX_DATA = {
     { id:"esv",    name:"English Standard",  year:"2001", license:"Crossway",      glyph:"ESV",  lang:"EN", source:"bolls", apiId:"ESV" },
     { id:"nasb",   name:"New American Std.", year:"1995", license:"Lockman Foundation", glyph:"NASB", lang:"EN", source:"bolls", apiId:"NASB" },
     { id:"geneva", name:"Geneva",            year:"1599", license:"Public Domain", glyph:"GNV",  lang:"EN", source:"bolls", apiId:"GNV" },
-    { id:"drb",    name:"Douay-Rheims",      year:"1899", license:"Public Domain", glyph:"DRB",  lang:"EN", source:"bolls", apiId:"DRB" },
+    { id:"drb",    name:"Douay-Rheims",      year:"1899", license:"Public Domain", glyph:"DRB",  lang:"EN", source:"bolls", apiId:"DRB",
+      canons:["protestant","deuterocanon"] },
+    // KJV with Apocrypha — the original 1611 included the deuterocanonical
+    // books between OT and NT. Bolls.life serves these as KJV2 / KJVA.
+    { id:"kjva",   name:"King James + Apocrypha (1611)", year:"1611", license:"Public Domain", glyph:"KJVA", lang:"EN", source:"bolls", apiId:"KJVA",
+      mirrors:[{kind:"bolls", apiId:"KJV2"}],
+      canons:["protestant","deuterocanon"] },
+    // Ethiopian (Ge'ez tradition) — broadest canon: Enoch, Jubilees,
+    // Meqabyan. Hosted as a static bundle in the repo since no public
+    // CORS-friendly API serves the full Ethiopian canon.
+    { id:"eth-en", name:"Ethiopian Canon (English)", year:"2024", license:"Public Domain", glyph:"ETH", lang:"EN", source:"bundle", apiId:"eth-en",
+      canons:["protestant","deuterocanon","orthodox","ethiopian"] },
 
     // ── Spanish ───────────────────────────────────────────────────────
     { id:"rv1960", name:"Reina-Valera",      year:"1960", license:"Public Domain", glyph:"RV60", lang:"ES", source:"bolls", apiId:"RV1960" },
@@ -138,7 +180,8 @@ window.CODEX_DATA = {
     // ── Greek (NT + LXX OT) ───────────────────────────────────────────
     { id:"tisch",  name:"Tischendorf NT (Greek)", year:"1869", license:"Public Domain", glyph:"TISCH", lang:"EL", source:"bolls", apiId:"TISCH" },
     { id:"tr",     name:"Textus Receptus (Greek)", year:"1624", license:"Public Domain", glyph:"TR", lang:"EL", source:"bolls", apiId:"TR" },
-    { id:"lxx",    name:"Septuagint (Greek OT)",  year:"-200", license:"Public Domain", glyph:"LXX", lang:"EL", source:"bolls", apiId:"LXX" },
+    { id:"lxx",    name:"Septuagint (Greek OT)",  year:"-200", license:"Public Domain", glyph:"LXX", lang:"EL", source:"bolls", apiId:"LXX",
+      canons:["protestant","deuterocanon","orthodox"] },
 
     // ── Hindi ─────────────────────────────────────────────────────────
     // bolls.life only carries one Hindi translation as of 2026: HIOV (Hindi

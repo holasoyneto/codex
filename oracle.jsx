@@ -395,17 +395,103 @@ function renderInline(text, onJumpTo, primary, keyPrefix = "") {
       out.push(<span key={`${keyPrefix}${key++}`} className={cls}>{b.text}</span>);
       continue;
     }
-    const segs = splitOnRefs(b.text);
-    for (const s of segs) {
-      if (s.type === "ref") {
-        out.push(<ScriptureLink key={`${keyPrefix}${key++}`} refData={s.ref} onJumpTo={onJumpTo} primary={primary} />);
-      } else {
-        // Inline markdown — bold / italic / code (regex tokenisation)
-        renderMarkdownInline(s.text, out, keyPrefix, () => key++);
+    // Pre-extract any [[INSTALL:id]] tokens so they render as buttons
+    // and don't get confused with scripture-ref / markdown parsers.
+    const installRe = /\[\[INSTALL:([a-z0-9_-]+)\]\]/gi;
+    const sub = [];
+    let lastIdx = 0, im;
+    while ((im = installRe.exec(b.text)) !== null) {
+      if (im.index > lastIdx) sub.push({ kind: "text", text: b.text.slice(lastIdx, im.index) });
+      sub.push({ kind: "install", id: im[1] });
+      lastIdx = im.index + im[0].length;
+    }
+    if (lastIdx < b.text.length) sub.push({ kind: "text", text: b.text.slice(lastIdx) });
+
+    for (const part of sub) {
+      if (part.kind === "install") {
+        out.push(<InstallChip key={`${keyPrefix}${key++}`} id={part.id} />);
+        continue;
+      }
+      const segs = splitOnRefs(part.text);
+      for (const s of segs) {
+        if (s.type === "ref") {
+          out.push(<ScriptureLink key={`${keyPrefix}${key++}`} refData={s.ref} onJumpTo={onJumpTo} primary={primary} />);
+        } else {
+          // Inline markdown — bold / italic / code (regex tokenisation)
+          renderMarkdownInline(s.text, out, keyPrefix, () => key++);
+        }
       }
     }
   }
   return out;
+}
+
+// Tiny inline button the Oracle can emit to offer a translation install.
+// Wire format: [[INSTALL:translation-id]] anywhere in a reply. Clicking
+// triggers BIBLE.downloadAll for that translation and shows live progress.
+function InstallChip({ id }) {
+  const data = window.CODEX_DATA || {};
+  const tr = (data.translations || []).find(x => x.id === id);
+  const [phase, setPhase] = useState("idle");  // idle | running | done | error
+  const [pct, setPct] = useState(0);
+  if (!tr) return <code className="cx-msg-code">[unknown translation: {id}]</code>;
+
+  const stats = window.BIBLE && window.BIBLE.cacheStats ? window.BIBLE.cacheStats(id, null) : null;
+  if (phase === "idle" && stats && stats.fully) {
+    return <span className="cx-install-chip is-done" title="Already installed">✓ {tr.glyph || tr.name} · INSTALLED</span>;
+  }
+  if (phase === "done") {
+    return <span className="cx-install-chip is-done">✓ {tr.glyph || tr.name} · INSTALLED</span>;
+  }
+  if (phase === "error") {
+    return <span className="cx-install-chip is-err">⚠ {tr.glyph || tr.name} · install failed</span>;
+  }
+  if (phase === "running") {
+    return <span className="cx-install-chip is-running">▰▰ {tr.glyph || tr.name} · {pct}%</span>;
+  }
+  const start = (e) => {
+    e.preventDefault();
+    if (!window.BIBLE || !window.BIBLE.downloadAll || !data.books) {
+      setPhase("error"); return;
+    }
+    setPhase("running"); setPct(0);
+    const books = data.books.filter(b => b.testament === "OT" || b.testament === "NT");
+    const total = books.reduce((n, b) => n + (b.chapters || 0), 0);
+    let done = 0;
+    const onProgress = () => {
+      done++;
+      setPct(Math.min(100, Math.round((done / total) * 100)));
+    };
+    try {
+      const ctrl = window.BIBLE.downloadAll(id, books, onProgress);
+      const p = (ctrl && typeof ctrl.then === "function") ? ctrl
+              : (ctrl && ctrl.done && typeof ctrl.done.then === "function") ? ctrl.done
+              : null;
+      if (p) {
+        p.then(() => setPhase("done")).catch(() => setPhase("error"));
+      } else {
+        // Polling fallback.
+        let i = 0;
+        const tick = () => {
+          i++;
+          try {
+            const s = window.BIBLE.cacheStats(id, null);
+            if (s && s.fully) { setPhase("done"); return; }
+          } catch {}
+          if (i > 600) { setPhase("error"); return; }
+          setTimeout(tick, 500);
+        };
+        setTimeout(tick, 500);
+      }
+    } catch (e) {
+      setPhase("error");
+    }
+  };
+  return (
+    <button className="cx-install-chip" onClick={start} title={`Install ${tr.name} (${tr.year})`}>
+      ⤓ INSTALL · {tr.glyph || tr.name}
+    </button>
+  );
 }
 
 // Tokenises inline markdown into spans + inserts into out[]. Recognised:
@@ -613,6 +699,41 @@ it with a subtle shimmer.
 Use these tags ONLY for verbatim quotation. Do not wrap paraphrases,
 commentary, or your own prose. Never tag the attribution clause itself
 (e.g. "Jesus said," stays plain). Plain prose stays plain.
+
+═══════════════════════════════════════════════════════════════════════════
+INSTALL-ON-DEMAND TRANSLATIONS
+═══════════════════════════════════════════════════════════════════════════
+CODEX ships with many translations cached locally. When the user asks
+about a passage that benefits from a translation they don't yet have —
+OR when they explicitly say "install / get / load / download" a
+translation — emit a single inline install token in your reply:
+
+  [[INSTALL:translation-id]]
+
+The client renders that token as a one-click install button. Use the
+exact registry id (lowercase). Available ids include:
+
+  · English:  kjv, asv, bsb, web, ylt, esv, nasb, geneva, drb, kjva, eth-en
+  · Spanish:  rv1960, rv2004, nvi-es, lbla
+  · German:   lut, elb, sch, sch2000
+  · French:   lsg, darby-fr, nbs, bds
+  · Portuguese: arc, ara, nvi-pt, acf
+  · Latin:    clementine, vulg
+  · Hebrew:   wlc, wlca, hac, dhnt
+  · Greek:    tisch, tr, lxx
+  · Hindi:    hi-hiov
+
+Special apocrypha-bearing canons:
+  · drb (Douay-Rheims, Catholic deuterocanon)
+  · kjva (King James 1611 with Apocrypha)
+  · lxx (Septuagint — Greek OT + deuterocanon + orthodox additions)
+  · eth-en (Ethiopian canon — INCLUDES 1 Enoch, Jubilees, Meqabyan)
+
+If the user asks for a translation NOT in the registry, say so plainly
+and suggest the closest available id. Don't fabricate ids.
+
+NEVER emit more than 2 install tokens in a single reply — pick the
+most relevant.
 
 ═══════════════════════════════════════════════════════════════════════════
 NEVER DO THIS
