@@ -469,14 +469,16 @@ window.BIBLE = (function () {
     "mat.2": [[1, 23]],                 // Magi, Herod, angel, prophets — no Jesus speech
     "mat.3": [[1, 12], [16, 17]],       // John the Baptist + Father's voice ("This is my beloved Son")
     // Mark — opening John-the-Baptist + transfiguration voice
-    "mrk.1": [[1, 8]],                  // John the Baptist's preaching
+    "mrk.1": [[1, 8], [27, 27]],        // JB's preaching + crowd's "What new doctrine"
     "mrk.9": [[7, 7]],                  // Father's voice at Transfiguration
     // Luke — entire infancy (Mary, Elisabeth, Zacharias, Simeon, angel)
     "luk.1": [[1, 80]],                 // Magnificat + Benedictus + Gabriel + Elisabeth
     "luk.2": [[1, 48], [50, 52]],       // Only Lk 2:49 is Jesus ("about my Father's business")
     "luk.3": [[1, 22]],                 // John the Baptist + Father's voice at baptism
     // John — prologue + every John-the-Baptist witness section + theological commentary
-    "jhn.1": [[1, 14], [15, 34]],       // Prologue + JB; Jesus speaks from v38 onward
+    // Jesus speaks only at: 38, 39, 42, 43, 47, 48b, 50, 51.
+    // Mask everything else in chapter 1 by carving around those.
+    "jhn.1": [[1, 14], [15, 37], [40, 41], [44, 46], [49, 49]],
     "jhn.3": [[27, 36]],                // John the Baptist's final witness + commentary
     "jhn.12": [[28, 30], [37, 50]],     // Father's voice; v44-50 is Johannine commentary
     // Acts — Stephen's vision in 7:55-60 is Stephen, not Jesus. We don't
