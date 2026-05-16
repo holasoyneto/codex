@@ -386,7 +386,7 @@ function BookSection({ title, books, activeBookId, activeChapter, onSelectChapte
 }
 
 // ─── Mark row · click to open, swatch shows colour, × clears highlight ──────
-function MarkRow({ mark, idx, onSelect, onClear, onTogglePin, swatch }) {
+function MarkRow({ mark, idx, onSelect, onClear, onTogglePin, swatch, aiReason }) {
   const onClick = (e) => {
     if (e.target.closest(".cx-bm-del")) return;
     if (e.target.closest(".cx-bm-pin")) return;
@@ -415,6 +415,7 @@ function MarkRow({ mark, idx, onSelect, onClear, onTogglePin, swatch }) {
         <div className="cx-bm-text">
           <span className="cx-bm-ref">{mark.ref}</span>
           {mark.note ? <span className="cx-bm-note">{mark.note}</span> : null}
+          {aiReason ? <span className="cx-bm-reason" title="Why the Oracle ranked this">✦ {aiReason}</span> : null}
         </div>
         <span className="cx-bm-ts">{relTs}</span>
         <button
@@ -458,16 +459,59 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
   }, []);
   const [libQuery, setLibQuery] = useState("");
   const [bmQuery, setBmQuery] = useState("");
+  // AI-ranked mark search — fires when the literal substring filter
+  // returns < 2 hits AND the query is long enough to be meaningful.
+  // null = inactive, "loading" = thinking, [{key,reason}] = ranked.
+  const [aiMarkResults, setAiMarkResults] = useState(null);
 
-  const filteredMarks = useMemo(() => {
+  const literalMatches = useMemo(() => {
     const q = bmQuery.trim().toLowerCase();
     if (!q) return marks;
     return marks.filter(b =>
       (b.ref || "").toLowerCase().includes(q) ||
       (b.note || "").toLowerCase().includes(q) ||
-      (b.color || "").toLowerCase().includes(q)
+      (b.color || "").toLowerCase().includes(q) ||
+      (b.text || "").toLowerCase().includes(q)
     );
   }, [marks, bmQuery]);
+
+  // Debounced semantic ranker. Escalates to the AI only when the local
+  // substring search is thin (≤1 hit) and the query has substance (≥3 chars).
+  // Cached in localStorage by query+marks signature so repeats are instant.
+  useEffect(() => {
+    const q = bmQuery.trim();
+    if (!q || q.length < 3 || !window.MarkSearch || !marks.length) {
+      setAiMarkResults(null);
+      return;
+    }
+    if (literalMatches.length >= 2) {
+      setAiMarkResults(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      setAiMarkResults("loading");
+      const ranked = await window.MarkSearch.rank(q, marks, currentRef);
+      if (cancelled) return;
+      setAiMarkResults(ranked);
+    }, 550);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [bmQuery, marks, literalMatches.length, currentRef]);
+
+  // Final list shown to the user — AI ranking when available + non-empty,
+  // otherwise the literal substring matches.
+  const aiActive = Array.isArray(aiMarkResults) && aiMarkResults.length > 0;
+  const aiLoading = aiMarkResults === "loading";
+  const aiReasonByKey = aiActive
+    ? Object.fromEntries(aiMarkResults.map(r => [r.key, r.reason]))
+    : {};
+  const filteredMarks = useMemo(() => {
+    if (aiActive) {
+      const byKey = Object.fromEntries(marks.map(m => [m.key, m]));
+      return aiMarkResults.map(r => byKey[r.key]).filter(Boolean);
+    }
+    return literalMatches;
+  }, [aiActive, aiMarkResults, marks, literalMatches]);
 
   const TABS = [
     { id: "library", label: tx("tab.library"), glyph: "📖", title: tx("tab.library.title") },
@@ -535,10 +579,22 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
               value={bmQuery}
               onChange={e => setBmQuery(e.target.value)}
             />
+            {aiLoading ? (
+              <span className="cx-bm-ai-chip is-loading" title="Semantic search thinking…">✦ AI…</span>
+            ) : aiActive ? (
+              <span className="cx-bm-ai-chip is-on" title="Showing semantic matches ranked by the Oracle">✦ AI</span>
+            ) : null}
             {bmQuery ? <button className="cx-search-x" onClick={() => setBmQuery("")}>×</button> : null}
           </div>
+          {aiActive ? (
+            <div className="cx-bm-ai-note">
+              Semantic ranking · {aiMarkResults.length} {aiMarkResults.length === 1 ? "match" : "matches"} for "{bmQuery.trim()}"
+            </div>
+          ) : null}
           <ul className="cx-bm-list">
-            {filteredMarks.length === 0 ? (
+            {aiLoading && filteredMarks.length === 0 ? (
+              <li className="cx-bm-empty">— Asking the Oracle for related marks… —</li>
+            ) : filteredMarks.length === 0 ? (
               <li className="cx-bm-empty">— {marks.length === 0 ? tx("marks.empty") : "no match"} —</li>
             ) : filteredMarks.map((m, i) => (
               <MarkRow
@@ -549,6 +605,7 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
                 onClear={onClearMark}
                 onTogglePin={onTogglePinMark}
                 swatch={highlightColors?.[m.color]?.swatch}
+                aiReason={aiReasonByKey[m.key]}
               />
             ))}
           </ul>
