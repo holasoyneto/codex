@@ -452,6 +452,74 @@ window.BIBLE = (function () {
 
   const RED_LETTER_BOOKS = new Set(["mat", "mrk", "luk", "jhn", "rev"]);
 
+  // ── Red-letter NEGATIVE MASK ──────────────────────────────────────────
+  // The cross-translation heuristic has high recall but poor precision —
+  // it can't reliably tell Jesus from John the Baptist, Mary, Zacharias,
+  // the angel of the Apocalypse, etc. This is a hand-curated list of
+  // ranges where Jesus does NOT speak in canonical reading. Any verse the
+  // heuristic flags inside one of these ranges is suppressed before the
+  // result is persisted/displayed.
+  //
+  // Sources cross-checked: Cambridge Annotated KJV, NA28 quotation marks,
+  // ESV red-letter edition. When a range partially contains Jesus speech
+  // (e.g. Rev 1:7-8 — only v8 is Jesus), the mask carves around it.
+  const NON_JESUS_RANGES = {
+    // Matthew — infancy, baptism narrative, post-resurrection narration
+    "mat.1": [[1, 25]],                 // genealogy + Joseph + angel; Jesus not yet speaking
+    "mat.2": [[1, 23]],                 // Magi, Herod, angel, prophets — no Jesus speech
+    "mat.3": [[1, 12], [16, 17]],       // John the Baptist + Father's voice ("This is my beloved Son")
+    // Mark — opening John-the-Baptist + transfiguration voice
+    "mrk.1": [[1, 8]],                  // John the Baptist's preaching
+    "mrk.9": [[7, 7]],                  // Father's voice at Transfiguration
+    // Luke — entire infancy (Mary, Elisabeth, Zacharias, Simeon, angel)
+    "luk.1": [[1, 80]],                 // Magnificat + Benedictus + Gabriel + Elisabeth
+    "luk.2": [[1, 48], [50, 52]],       // Only Lk 2:49 is Jesus ("about my Father's business")
+    "luk.3": [[1, 22]],                 // John the Baptist + Father's voice at baptism
+    // John — prologue + every John-the-Baptist witness section + theological commentary
+    "jhn.1": [[1, 14], [15, 34]],       // Prologue + JB; Jesus speaks from v38 onward
+    "jhn.3": [[27, 36]],                // John the Baptist's final witness + commentary
+    "jhn.12": [[28, 30], [37, 50]],     // Father's voice; v44-50 is Johannine commentary
+    // Acts — Stephen's vision in 7:55-60 is Stephen, not Jesus. We don't
+    // process Acts for red-letter (not in RED_LETTER_BOOKS), so nothing
+    // needed here, but listed for clarity.
+    // Revelation — John's vision narrative, the elder, angels, four
+    // living creatures, the great multitude all speak. Jesus's actual
+    // direct speech in Rev is limited to: 1:8, 1:11, 1:17b-3:22 (letters
+    // to the seven churches), 16:15, 22:7, 22:12-16, 22:20a.
+    "rev.1":  [[1, 7], [9, 10], [12, 16], [20, 20]],
+    "rev.4":  [[1, 11]],
+    "rev.5":  [[1, 14]],
+    "rev.6":  [[1, 17]],
+    "rev.7":  [[1, 17]],
+    "rev.8":  [[1, 13]],
+    "rev.9":  [[1, 21]],
+    "rev.10": [[1, 11]],
+    "rev.11": [[1, 19]],
+    "rev.12": [[1, 17]],
+    "rev.13": [[1, 18]],
+    "rev.14": [[1, 20]],
+    "rev.15": [[1, 8]],
+    "rev.17": [[1, 18]],
+    "rev.18": [[1, 24]],
+    "rev.19": [[1, 21]],
+    "rev.20": [[1, 15]],
+    "rev.21": [[1, 4], [9, 27]],        // 21:5-8 is "He that sat upon the throne" — God speaking
+    "rev.22": [[1, 6], [8, 11], [17, 19], [21, 21]],  // Jesus: 7, 12-16, 20a
+  };
+  function isVerseInNonJesusMask(bookId, chapter, verseNum) {
+    const ranges = NON_JESUS_RANGES[`${bookId}.${chapter}`];
+    if (!ranges) return false;
+    for (const [a, b] of ranges) if (verseNum >= a && verseNum <= b) return true;
+    return false;
+  }
+  function applyNonJesusMask(set, bookId, chapter) {
+    if (!set || !set.size) return set;
+    for (const n of Array.from(set)) {
+      if (isVerseInNonJesusMask(bookId, chapter, n)) set.delete(n);
+    }
+    return set;
+  }
+
   // Speaker phrases that indicate Jesus is about to speak. The trailing
   // verb captures things like "said", "saith", "answered", "spake", etc.
   const JESUS_SAID_RE = /\b(?:Jesus|the\s+Lord|the\s+Master|Christ|the\s+Son\s+of\s+Man|Yeshua)\b[^.!?\n]{0,40}\b(?:said|saith|sayeth|answered|answereth|spoke|spake|replied|cried|told|asked|teacheth|crieth|exclaimed|declared|saying|teaching|preaching)\b/i;
@@ -690,7 +758,7 @@ window.BIBLE = (function () {
   // letter highlighting.
   // v2 — bumped after fixing the Thomas/Philip/disciples false-positive in
   // commaSplitReds. Old v1 entries marked entire chapters red; let them die.
-  const RL_DB_KEY = "codex.redletter.verses.v2";
+  const RL_DB_KEY = "codex.redletter.verses.v3";
   let RL_DB = (() => {
     try {
       const raw = JSON.parse(localStorage.getItem(RL_DB_KEY) || "{}");
@@ -707,12 +775,18 @@ window.BIBLE = (function () {
     } catch {}
   }
   function rlKey(bookId, chapter) { return `${bookId}.${chapter}`; }
-  function rlGet(bookId, chapter) { return RL_DB[rlKey(bookId, chapter)]; }
+  function rlGet(bookId, chapter) {
+    // Always re-apply the negative mask on read so stale DB entries from
+    // a pre-mask app version self-heal the moment they're touched.
+    const set = RL_DB[rlKey(bookId, chapter)];
+    return set ? applyNonJesusMask(set, bookId, chapter) : set;
+  }
   function rlMerge(bookId, chapter, verseNumbers) {
     const k = rlKey(bookId, chapter);
     const prev = RL_DB[k] || new Set();
     let changed = false;
     for (const n of verseNumbers) {
+      if (isVerseInNonJesusMask(bookId, chapter, n)) continue; // hard-suppress
       if (!prev.has(n)) { prev.add(n); changed = true; }
     }
     if (changed) { RL_DB[k] = prev; persistRLDB(); }
@@ -751,6 +825,9 @@ window.BIBLE = (function () {
       for (const v of verses) {
         const arr = reds.get(v.n);
         if (!arr || !arr.length) continue;
+        // Hard-suppress verses inside the curated non-Jesus mask
+        // (Magnificat, Benedictus, John the Baptist witness, etc.)
+        if (isVerseInNonJesusMask(bookId, chapter, v.n)) continue;
         v.red = v.red || {};
         v.red[tId] = arr;
         detectedVerses.add(v.n);
@@ -771,6 +848,7 @@ window.BIBLE = (function () {
     const set = rlGet(bookId, chapter);
     if (!set || !set.size) return;
     for (const v of verses) {
+      if (isVerseInNonJesusMask(bookId, chapter, v.n)) { v._jesusVerse = false; continue; }
       if (set.has(v.n)) v._jesusVerse = true;
     }
   }
