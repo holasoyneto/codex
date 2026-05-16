@@ -591,14 +591,14 @@ function LinkifyRefs({ text }) {
 
 // ── TALMUD ──────────────────────────────────────────────────────────────
 function TalmudPanel({ panelData, status, meta, passage, onRegenerate }) {
-  if (!panelData) return <div className="cx-pane"><PaneHead title=((window.t && window.t("panel.talmud.head")) || "TALMUDIC PARALLELS") sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="talmud" /></div>;
+  if (!panelData) return <div className="cx-pane"><PaneHead title={(window.t && window.t("panel.talmud.head")) || "TALMUDIC PARALLELS"} sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="talmud" /></div>;
   // One-shot expand/collapse for all parallels — defaults to OPEN (per-card
   // toggle still works); the ⊟/⊞ button lets the user collapse/expand the
   // whole list at once when it gets noisy.
   const [allOpen, setAllOpen] = useState(true);
   return (
     <div className="cx-pane">
-      <PaneHead title=((window.t && window.t("panel.talmud.head")) || "TALMUDIC PARALLELS")
+      <PaneHead title={(window.t && window.t("panel.talmud.head")) || "TALMUDIC PARALLELS"}
         sub={`${passage.book} ${passage.chapter} · ${((window.t && window.t("panel.parallels")) || "{n} parallels").replace("{n}", panelData.talmud.length)}`}
         meta={meta}
         action={
@@ -643,7 +643,7 @@ function TalmudPanel({ panelData, status, meta, passage, onRegenerate }) {
 
 // ── COMMENTARY ──────────────────────────────────────────────────────────
 function CommentaryPanel({ panelData, status, meta, passage, onRegenerate, onJumpRef }) {
-  if (!panelData) return <div className="cx-pane"><PaneHead title=((window.t && window.t("panel.commentary.head")) || "CHRISTIAN COMMENTARY") sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="commentary" /></div>;
+  if (!panelData) return <div className="cx-pane"><PaneHead title={(window.t && window.t("panel.commentary.head")) || "CHRISTIAN COMMENTARY"} sub={`${passage.book} ${passage.chapter}`} /><PanelStatus status={status} passage={passage} onRegenerate={onRegenerate} kind="commentary" /></div>;
   // group by tradition
   const groups = ["Patristic", "Reformation", "Modern", "Devotional"];
   const byGroup = groups.map(g => ({
@@ -653,7 +653,7 @@ function CommentaryPanel({ panelData, status, meta, passage, onRegenerate, onJum
 
   return (
     <div className="cx-pane">
-      <PaneHead title=((window.t && window.t("panel.commentary.head")) || "CHRISTIAN COMMENTARY")
+      <PaneHead title={(window.t && window.t("panel.commentary.head")) || "CHRISTIAN COMMENTARY"}
         sub="Patristic · Reformation · Modern · Devotional"
         meta={meta}
         action={<RegenBtn onClick={onRegenerate} />} />
