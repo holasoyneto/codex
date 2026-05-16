@@ -346,15 +346,31 @@ window.BIBLE = (function () {
       // Per-chapter fallback. _loadBundleOnce already bulk-loads the whole
       // file on first access for translations with `bundle:`, so this path
       // only runs for ad-hoc bundle-only translations without that field.
-      const url = src.bundleUrl || `data/bibles/${src.apiId}.json`;
-      const r = await fetch(url, { cache: "force-cache" });
-      if (!r.ok) throw new Error(`bundle ${translation} ${bookId} ${chapter}: ${r.status}`);
-      const data = await r.json();
-      const flatKey = `${bookId}.${chapter}`;
-      const ch = (data && data.chapters && data.chapters[flatKey])
-              || (data && data[bookId] && data[bookId][chapter]);
-      if (!Array.isArray(ch)) throw new Error(`bundle ${translation}: ${flatKey} not in bundle`);
-      return ch.map(v => ({ n: v.n || v.verse, text: String(v.text || "").replace(/\s+/g, " ").trim() }));
+      const t = (window.CODEX_DATA?.translations || []).find(x => x.id === translation);
+      const url = src.bundleUrl || t?.bundle || `data/bibles/${src.apiId}.json`;
+      const placeholderVerse = () => ([{
+        n: 1,
+        text: `[${t?.name || translation}] · Text not yet bundled. The registry knows this translation, but the public-domain payload has not been integrated into the app yet. Switch translations from the right rail to read this chapter.`,
+      }]);
+      try {
+        const r = await fetch(url, { cache: "force-cache" });
+        if (!r.ok) {
+          if (t?.placeholder) return placeholderVerse();
+          throw new Error(`bundle ${translation} ${bookId} ${chapter}: ${r.status}`);
+        }
+        const data = await r.json();
+        const flatKey = `${bookId}.${chapter}`;
+        const ch = (data && data.chapters && data.chapters[flatKey])
+                || (data && data[bookId] && data[bookId][chapter]);
+        if (!Array.isArray(ch)) {
+          if (t?.placeholder) return placeholderVerse();
+          throw new Error(`bundle ${translation}: ${flatKey} not in bundle`);
+        }
+        return ch.map(v => ({ n: v.n || v.verse, text: String(v.text || "").replace(/\s+/g, " ").trim() }));
+      } catch (e) {
+        if (t?.placeholder) return placeholderVerse();
+        throw e;
+      }
     }
     throw new Error("Unknown source kind: " + src.kind);
   }

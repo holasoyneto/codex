@@ -163,18 +163,19 @@ window.CODEX_DATA = {
       bundle:"data/bibles/eth-en.json",
       canons:["ethiopian"] },
     // Charles 1913 — the canonical English critical edition of the
-    // Pseudepigrapha. Public domain. Bundle-served.
+    // Pseudepigrapha. Public domain. Registered but text payload not yet
+    // bundled (placeholder:true gates the UI + install suggestions).
     { id:"charles", name:"Charles · Apocrypha & Pseudepigrapha", year:"1913", license:"Public Domain", glyph:"CHR", lang:"EN", source:"bundle", apiId:"charles",
-      canons:["deuterocanon","orthodox","ethiopian","pseudepigrapha"] },
+      canons:["deuterocanon","orthodox","ethiopian","pseudepigrapha"], placeholder:true },
     // Lamsa — English from the Aramaic Peshitta. Carries the Syriac canon
     // shape (lacks 2 Pet, 2 Jn, 3 Jn, Jude, Rev in original; modern
     // editions restore them) plus the Syriac additions when bundled.
     { id:"lamsa", name:"Lamsa (Aramaic Peshitta · English)", year:"1933", license:"Public Domain", glyph:"LAM", lang:"EN", source:"bundle", apiId:"lamsa",
-      canons:["protestant","syriac"] },
+      canons:["protestant","syriac"], placeholder:true },
     // Armenian Bible — Zohrab edition. Includes 3 Corinthians and the
     // Epistle to the Laodiceans uniquely.
     { id:"zohrab", name:"Zohrab (Armenian)", year:"1805", license:"Public Domain", glyph:"ZOH", lang:"HY", source:"bundle", apiId:"zohrab",
-      canons:["protestant","deuterocanon","armenian"] },
+      canons:["protestant","deuterocanon","armenian"], placeholder:true },
 
     // ── Spanish ───────────────────────────────────────────────────────
     { id:"rv1960", name:"Reina-Valera",      year:"1960", license:"Public Domain", glyph:"RV60", lang:"ES", source:"bolls", apiId:"RV1960" },

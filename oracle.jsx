@@ -1263,6 +1263,10 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
     const allTr = (window.CODEX_DATA && window.CODEX_DATA.translations) || [];
     const installed = [], available = [];
     for (const t of allTr) {
+      // Placeholder translations have no real text yet — keep them out of
+      // install suggestions so the Oracle never proposes a download that
+      // would just yield a "text not bundled" stub.
+      if (t.placeholder) continue;
       let cached = false;
       try {
         const books = (window.CODEX_DATA?.books || []).filter(b => b.testament === "OT" || b.testament === "NT");
