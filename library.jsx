@@ -65,9 +65,13 @@ function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslati
   // (Apocrypha, Orthodox additions, Ge'ez/Ethiopian) gets its own header.
   const dcGroups = useMemo(() => {
     const groups = [
-      { canon: "deuterocanon", labelKey: "lib.apocrypha", fallback: "Apocrypha · Deuterocanon" },
-      { canon: "orthodox",     labelKey: "lib.orthodox",  fallback: "Orthodox additions" },
-      { canon: "ethiopian",    labelKey: "lib.ethiopian", fallback: "Ge'ez · Ethiopian" },
+      { canon: "deuterocanon",   labelKey: "lib.apocrypha",     fallback: "Apocrypha · Deuterocanon" },
+      { canon: "orthodox",       labelKey: "lib.orthodox",      fallback: "Orthodox additions" },
+      { canon: "ethiopian",      labelKey: "lib.ethiopian",     fallback: "Ge'ez · Ethiopian" },
+      { canon: "armenian",       labelKey: "lib.armenian",      fallback: "Armenian additions" },
+      { canon: "syriac",         labelKey: "lib.syriac",        fallback: "Syriac · Peshitta" },
+      { canon: "coptic",         labelKey: "lib.coptic",        fallback: "Coptic additions" },
+      { canon: "pseudepigrapha", labelKey: "lib.pseudepigrapha",fallback: "Pseudepigrapha" },
     ];
     return groups
       .filter(g => canons.has(g.canon))

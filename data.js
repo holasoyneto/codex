@@ -102,6 +102,26 @@ window.CODEX_DATA = {
     { id:"2mq",name:"II Meqabyan",              testament:"DC", canon:"ethiopian",    chapters:21 },
     { id:"3mq",name:"III Meqabyan",             testament:"DC", canon:"ethiopian",    chapters:10 },
     { id:"4ezr",name:"IV Ezra",                 testament:"DC", canon:"ethiopian",    chapters:16 },
+
+    // ── Armenian (uniquely includes 3 Corinthians, Laodiceans) ──
+    { id:"3co",name:"III Corinthians",          testament:"DC", canon:"armenian",     chapters:1 },
+    { id:"lao",name:"Epistle to the Laodiceans",testament:"DC", canon:"armenian",     chapters:1 },
+
+    // ── Syriac Peshitta tradition (additional Psalms 152-155, II Baruch) ──
+    { id:"ps2", name:"Apocryphal Psalms 152-155", testament:"DC", canon:"syriac",     chapters:4 },
+    { id:"2ba", name:"II Baruch (Syriac Apocalypse)", testament:"DC", canon:"syriac", chapters:87 },
+    { id:"epb", name:"Epistle of Baruch (Syriac)", testament:"DC", canon:"syriac",    chapters:1 },
+
+    // ── Coptic / Bohairic distinct additions ──
+    { id:"1cl", name:"I Clement",               testament:"DC", canon:"coptic",       chapters:65 },
+    { id:"2cl", name:"II Clement",              testament:"DC", canon:"coptic",       chapters:20 },
+
+    // ── Pseudepigrapha shelf (cross-tradition esoterica) ──
+    { id:"2en", name:"II Enoch (Slavonic)",     testament:"DC", canon:"pseudepigrapha", chapters:68 },
+    { id:"3en", name:"III Enoch (Hebrew Sefer Hekhalot)", testament:"DC", canon:"pseudepigrapha", chapters:48 },
+    { id:"jas-pat", name:"Testaments of the Twelve Patriarchs", testament:"DC", canon:"pseudepigrapha", chapters:12 },
+    { id:"od-sol", name:"Odes of Solomon",      testament:"DC", canon:"pseudepigrapha", chapters:42 },
+    { id:"ap-mos", name:"Apocalypse of Moses",  testament:"DC", canon:"pseudepigrapha", chapters:43 },
   ],
 
   // Translations exposed in the picker. KJV + WEB come from bible-api.com,
@@ -139,8 +159,22 @@ window.CODEX_DATA = {
     // Ethiopian (Ge'ez tradition) — broadest canon: Enoch, Jubilees,
     // Meqabyan. Hosted as a static bundle in the repo since no public
     // CORS-friendly API serves the full Ethiopian canon.
-    { id:"eth-en", name:"Ethiopian Canon (English)", year:"2024", license:"Public Domain", glyph:"ETH", lang:"EN", source:"bundle", apiId:"eth-en",
-      canons:["protestant","deuterocanon","orthodox","ethiopian"] },
+    { id:"eth-en", name:"Ethiopian Canon (English · 1 Enoch)", year:"1913", license:"Public Domain", glyph:"ETH", lang:"EN", source:"bundle", apiId:"eth-en",
+      bundle:"data/bibles/eth-en.json",
+      canons:["ethiopian"] },
+    // Charles 1913 — the canonical English critical edition of the
+    // Pseudepigrapha. Public domain. Bundle-served.
+    { id:"charles", name:"Charles · Apocrypha & Pseudepigrapha", year:"1913", license:"Public Domain", glyph:"CHR", lang:"EN", source:"bundle", apiId:"charles",
+      canons:["deuterocanon","orthodox","ethiopian","pseudepigrapha"] },
+    // Lamsa — English from the Aramaic Peshitta. Carries the Syriac canon
+    // shape (lacks 2 Pet, 2 Jn, 3 Jn, Jude, Rev in original; modern
+    // editions restore them) plus the Syriac additions when bundled.
+    { id:"lamsa", name:"Lamsa (Aramaic Peshitta · English)", year:"1933", license:"Public Domain", glyph:"LAM", lang:"EN", source:"bundle", apiId:"lamsa",
+      canons:["protestant","syriac"] },
+    // Armenian Bible — Zohrab edition. Includes 3 Corinthians and the
+    // Epistle to the Laodiceans uniquely.
+    { id:"zohrab", name:"Zohrab (Armenian)", year:"1805", license:"Public Domain", glyph:"ZOH", lang:"HY", source:"bundle", apiId:"zohrab",
+      canons:["protestant","deuterocanon","armenian"] },
 
     // ── Spanish ───────────────────────────────────────────────────────
     { id:"rv1960", name:"Reina-Valera",      year:"1960", license:"Public Domain", glyph:"RV60", lang:"ES", source:"bolls", apiId:"RV1960" },

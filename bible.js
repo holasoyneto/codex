@@ -343,12 +343,17 @@ window.BIBLE = (function () {
       // (or hosted at any same-origin URL). Used for translations whose
       // canon includes books no public CORS API serves (Enoch, Jubilees,
       // Meqabyan, etc.). Layout: { [bookId]: { [chapter]: [{n,text}] } }
+      // Per-chapter fallback. _loadBundleOnce already bulk-loads the whole
+      // file on first access for translations with `bundle:`, so this path
+      // only runs for ad-hoc bundle-only translations without that field.
       const url = src.bundleUrl || `data/bibles/${src.apiId}.json`;
-      const r = await fetch(url);
+      const r = await fetch(url, { cache: "force-cache" });
       if (!r.ok) throw new Error(`bundle ${translation} ${bookId} ${chapter}: ${r.status}`);
       const data = await r.json();
-      const ch = data && data[bookId] && data[bookId][chapter];
-      if (!Array.isArray(ch)) throw new Error(`bundle ${translation}: ${bookId} ${chapter} not in bundle`);
+      const flatKey = `${bookId}.${chapter}`;
+      const ch = (data && data.chapters && data.chapters[flatKey])
+              || (data && data[bookId] && data[bookId][chapter]);
+      if (!Array.isArray(ch)) throw new Error(`bundle ${translation}: ${flatKey} not in bundle`);
       return ch.map(v => ({ n: v.n || v.verse, text: String(v.text || "").replace(/\s+/g, " ").trim() }));
     }
     throw new Error("Unknown source kind: " + src.kind);

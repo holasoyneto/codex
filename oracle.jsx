@@ -713,7 +713,8 @@ translation — emit a single inline install token in your reply:
 The client renders that token as a one-click install button. Use the
 exact registry id (lowercase). Available ids include:
 
-  · English:  kjv, asv, bsb, web, ylt, esv, nasb, geneva, drb, kjva, eth-en
+  · English:  kjv, asv, bsb, web, ylt, esv, nasb, geneva, drb, kjva, eth-en, charles, lamsa
+  · Armenian: zohrab
   · Spanish:  rv1960, rv2004, nvi-es, lbla
   · German:   lut, elb, sch, sch2000
   · French:   lsg, darby-fr, nbs, bds
@@ -728,6 +729,9 @@ Special apocrypha-bearing canons:
   · kjva (King James 1611 with Apocrypha)
   · lxx (Septuagint — Greek OT + deuterocanon + orthodox additions)
   · eth-en (Ethiopian canon — INCLUDES 1 Enoch, Jubilees, Meqabyan)
+  · charles (R.H. Charles 1913 — Apocrypha + Pseudepigrapha incl. 2-3 Enoch, Jubilees, Odes of Solomon)
+  · lamsa (Aramaic Peshitta in English — Syriac canon shape)
+  · zohrab (Armenian — uniquely includes 3 Corinthians + Laodiceans)
 
 If the user asks for a translation NOT in the registry, say so plainly
 and suggest the closest available id. Don't fabricate ids.
@@ -1247,7 +1251,29 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
     const langDirective = langName === "English"
       ? ""
       : `\n\nIMPORTANT: Reply ENTIRELY in ${langName}. All prose, headings, citations explanations, etc. The user has set the UI language to ${langName}. Bible verse text quoted from scripture stays in its original translation language.`;
-    const context = `Reader cursor: ${currentRef}.\nCurrent verse (${primary.toUpperCase()}): "${verse[primary] || verse.kjv}"\nRed-letter overlay: ${redLetter ? "on" : "off"}.${langDirective}`;
+    // Build a "translations available" snapshot so the Oracle can suggest
+    // installs contextually (e.g. "you're in Genesis 6 — for the Watchers
+    // narrative the Ethiopian canon includes 1 Enoch [[INSTALL:eth-en]]").
+    const allTr = (window.CODEX_DATA && window.CODEX_DATA.translations) || [];
+    const installed = [], available = [];
+    for (const t of allTr) {
+      let cached = false;
+      try { cached = !!(window.BIBLE && window.BIBLE.cacheStats && window.BIBLE.cacheStats(t.id, null)?.fully); } catch {}
+      const canons = (t.canons || ["protestant"]).join("+");
+      const tag = `${t.id} (${t.lang}, ${canons})`;
+      (cached ? installed : available).push(tag);
+    }
+    const primaryTr = allTr.find(x => x.id === primary);
+    const primaryCanons = (primaryTr?.canons || ["protestant"]).join("+");
+    const context = `Reader cursor: ${currentRef}.
+Active translation: ${primary.toUpperCase()} (${primaryTr?.name || primary}, ${primaryTr?.lang || "?"}, canons=${primaryCanons}).
+Current verse (${primary.toUpperCase()}): "${verse[primary] || verse.kjv}"
+Red-letter overlay: ${redLetter ? "on" : "off"}.
+
+Translations the user already has cached locally: ${installed.join(", ") || "(none beyond the active one)"}
+Translations available to install on demand: ${available.slice(0, 30).join(", ")}
+
+Suggestion policy: when the current passage materially benefits from a translation the user does NOT have cached, weave a single [[INSTALL:id]] token naturally into your reply (never more than two per message; never if the user's question is unrelated to translation choice). Example contexts that warrant a suggestion: Hebrew/Greek nuance → wlc/lxx/tisch; Catholic deuterocanon cross-ref → drb or kjva; Watchers/Nephilim/Son-of-Man imagery → eth-en (1 Enoch); patristic Latin readings → clementine; Reformation-era English flavour → geneva.${langDirective}`;
 
     const apiMessages = [
       { role: "user", content: `${driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM}${langDirective}\n\n${context}\n\nConversation so far:\n${next.slice(-8).map(m => `${m.role === "user" ? "User" : "Oracle"}: ${m.text}`).join("\n")}\n\nReply as Oracle.` },
