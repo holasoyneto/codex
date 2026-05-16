@@ -452,6 +452,51 @@ window.BIBLE = (function () {
 
   const RED_LETTER_BOOKS = new Set(["mat", "mrk", "luk", "jhn", "rev"]);
 
+  // ── Authoritative red-letter ground truth ─────────────────────────────
+  // Static JSON dataset (data/red-letter.json) of verses where Jesus
+  // speaks in Mt/Mk/Lk/Jn/Rev — hand-curated, cross-checked against
+  // Cambridge KJV, ESV red-letter, NA28. Loaded once on startup. When a
+  // chapter is present here, the result OVERRIDES the heuristic entirely.
+  // The heuristic still runs as a fallback for chapters not in the JSON
+  // (e.g. if we add new books later or a chapter is missing).
+  const RED_LETTER_TRUTH = {};         // `${bookId}.${chapter}` → Set<verseNum>
+  let _truthLoaded = false;
+  function parseRange(spec) {
+    const out = new Set();
+    if (!spec || typeof spec !== "string") return out;
+    for (const part of spec.split(",")) {
+      const seg = part.trim();
+      if (!seg) continue;
+      const m = seg.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (m) {
+        const a = +m[1], b = +m[2];
+        for (let i = a; i <= b; i++) out.add(i);
+      } else if (/^\d+$/.test(seg)) {
+        out.add(+seg);
+      }
+    }
+    return out;
+  }
+  async function _loadRedLetterTruth() {
+    if (_truthLoaded) return;
+    try {
+      const r = await fetch("data/red-letter.json", { cache: "force-cache" });
+      if (!r.ok) { _truthLoaded = true; return; }
+      const raw = await r.json();
+      for (const k of Object.keys(raw)) {
+        if (k.startsWith("_")) continue;          // doc fields
+        if (typeof raw[k] !== "string") continue;
+        RED_LETTER_TRUTH[k] = parseRange(raw[k]);
+      }
+    } catch (e) { /* swallow — heuristic still works */ }
+    _truthLoaded = true;
+  }
+  // Kick off load immediately at module init.
+  _loadRedLetterTruth();
+  function truthFor(bookId, chapter) {
+    return RED_LETTER_TRUTH[`${bookId}.${chapter}`];
+  }
+
   // ── Red-letter NEGATIVE MASK ──────────────────────────────────────────
   // The cross-translation heuristic has high recall but poor precision —
   // it can't reliably tell Jesus from John the Baptist, Mary, Zacharias,
@@ -778,8 +823,13 @@ window.BIBLE = (function () {
   }
   function rlKey(bookId, chapter) { return `${bookId}.${chapter}`; }
   function rlGet(bookId, chapter) {
-    // Always re-apply the negative mask on read so stale DB entries from
-    // a pre-mask app version self-heal the moment they're touched.
+    // Truth dataset wins. It's hand-curated and authoritative — no mask,
+    // no heuristic, just the right verses.
+    const truth = truthFor(bookId, chapter);
+    if (truth) return new Set(truth);
+    // Otherwise: heuristic DB filtered through the negative mask so stale
+    // entries from a pre-mask app version self-heal the moment they're
+    // touched.
     const set = RL_DB[rlKey(bookId, chapter)];
     return set ? applyNonJesusMask(set, bookId, chapter) : set;
   }
@@ -815,6 +865,23 @@ window.BIBLE = (function () {
 
   function annotateRedLetter(verses, bookId, translations, chapter) {
     if (!RED_LETTER_BOOKS.has(bookId)) return;
+    // If we have authoritative truth, paint EXACTLY those verses and skip
+    // the heuristic entirely. Per-translation .red gets the whole verse
+    // text (paint the full verse rather than try to slice substrings —
+    // far less fragile when the truth dataset only says "this verse").
+    const truth = truthFor(bookId, chapter);
+    if (truth) {
+      const detected = new Set();
+      for (const v of verses) {
+        if (!truth.has(v.n)) continue;
+        v.red = v.red || {};
+        for (const tId of translations) {
+          if (v[tId]) v.red[tId] = [v[tId]];
+        }
+        detected.add(v.n);
+      }
+      return detected;
+    }
     const detectedVerses = new Set();
     const continuesFromPrev = priorChapterEndedInJesus(bookId, chapter);
     let endsInJesus = false;
@@ -879,6 +946,11 @@ window.BIBLE = (function () {
     const out = [];
     for (let n = 1; n <= maxN; n++) if (byVerse.has(n)) out.push(byVerse.get(n));
 
+    // Truth dataset is async — make sure it's loaded before annotation so
+    // the static positive-list overrides the heuristic deterministically.
+    if (RED_LETTER_BOOKS.has(bookId) && !_truthLoaded) {
+      await _loadRedLetterTruth();
+    }
     const detected = annotateRedLetter(out, bookId, translations, chapter) || new Set();
 
     // Update the cross-translation database from this chapter's detection.

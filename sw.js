@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v138";
+const VERSION = "v139";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -55,6 +55,7 @@ const SHELL_FILES = [
   // Bundled Bibles (static JSON shipped in the repo). Pre-cached so
   // first cold offline launch can render apocryphal/Enoch content too.
   r("data/bibles/eth-en.json"),
+  r("data/red-letter.json"),
 ];
 
 // Cross-origin assets the app NEEDS to boot — React, Babel, Leaflet,
