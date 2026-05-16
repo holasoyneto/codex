@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v130";
+const VERSION = "v131";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -51,6 +51,23 @@ const SHELL_FILES = [
   r("notes.jsx"),
   r("quest-messiah.jsx"),
   r("app.jsx"),
+  // Bundled Bibles (static JSON shipped in the repo). Pre-cached so
+  // first cold offline launch can render apocryphal/Enoch content too.
+  r("data/bibles/eth-en.json"),
+];
+
+// Cross-origin assets the app NEEDS to boot — React, Babel, Leaflet,
+// Google Fonts CSS. Pre-cached on install so a cold offline launch
+// (iOS PWA on an airplane) finds them in the cache instead of hitting
+// the network. Listed as absolute URLs because they aren't scope-relative.
+// Pinned to the exact versions referenced from index.html.
+const VENDOR_FILES = [
+  "https://unpkg.com/react@18.3.1/umd/react.development.js",
+  "https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js",
+  "https://unpkg.com/@babel/standalone@7.29.0/babel.min.js",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Cardo:ital@0;1&display=swap",
 ];
 
 self.addEventListener("install", (event) => {
@@ -61,6 +78,21 @@ self.addEventListener("install", (event) => {
     await Promise.all(SHELL_FILES.map(async (url) => {
       try { await cache.add(new Request(url, { cache: "reload" })); }
       catch (e) { /* ignore — best-effort */ }
+    }));
+    // Vendor (cross-origin) goes into the DATA cache so it survives shell
+    // bumps. Without explicit pre-caching, iOS PWA cold launches with no
+    // network never get React/Babel/Leaflet — the page stays blank.
+    const dataCache = await caches.open(DATA);
+    await Promise.all(VENDOR_FILES.map(async (url) => {
+      try {
+        // mode: 'cors' so the cached response is full (not opaque) — lets
+        // subresource integrity checks pass when replayed offline.
+        const req = new Request(url, { mode: "cors", credentials: "omit", cache: "reload" });
+        const resp = await fetch(req);
+        if (resp && (resp.ok || resp.type === "opaque")) {
+          await dataCache.put(url, resp.clone());
+        }
+      } catch (e) { /* best-effort */ }
     }));
     self.skipWaiting();
   })());

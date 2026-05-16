@@ -436,7 +436,13 @@ function InstallChip({ id }) {
   const [pct, setPct] = useState(0);
   if (!tr) return <code className="cx-msg-code">[unknown translation: {id}]</code>;
 
-  const stats = window.BIBLE && window.BIBLE.cacheStats ? window.BIBLE.cacheStats(id, null) : null;
+  // cacheStats requires a books array — pass the OT+NT set so we ask the
+  // right question ("is the standard 66-book canon fully cached?").
+  let stats = null;
+  try {
+    const books = (data.books || []).filter(b => b.testament === "OT" || b.testament === "NT");
+    if (window.BIBLE && window.BIBLE.cacheStats) stats = window.BIBLE.cacheStats(id, books);
+  } catch {}
   if (phase === "idle" && stats && stats.fully) {
     return <span className="cx-install-chip is-done" title="Already installed">✓ {tr.glyph || tr.name} · INSTALLED</span>;
   }
@@ -1258,7 +1264,10 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
     const installed = [], available = [];
     for (const t of allTr) {
       let cached = false;
-      try { cached = !!(window.BIBLE && window.BIBLE.cacheStats && window.BIBLE.cacheStats(t.id, null)?.fully); } catch {}
+      try {
+        const books = (window.CODEX_DATA?.books || []).filter(b => b.testament === "OT" || b.testament === "NT");
+        cached = !!(window.BIBLE && window.BIBLE.cacheStats && window.BIBLE.cacheStats(t.id, books)?.fully);
+      } catch {}
       const canons = (t.canons || ["protestant"]).join("+");
       const tag = `${t.id} (${t.lang}, ${canons})`;
       (cached ? installed : available).push(tag);
