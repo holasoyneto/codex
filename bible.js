@@ -320,7 +320,12 @@ window.BIBLE = (function () {
         n: v.verse,
         text: String(v.text || "")
           .replace(/<[^>]+>/g, "")
+          // bolls.life leaks Strong's numbers — sometimes glued to the
+          // preceding word ("man444"), sometimes standalone ("man 444 that").
+          // Strip both forms. Two-or-more digit standalones are always
+          // markup leakage; scripture text never carries inline integers.
           .replace(/(?<=[a-zA-ZéÀ-ſ'])\d+/g, "")
+          .replace(/(?:^|\s)\d{2,5}(?=\s|[.,;:!?)—–-]|$)/g, " ")
           .replace(/\s+/g, " ").trim(),
       }));
     }
@@ -375,10 +380,37 @@ window.BIBLE = (function () {
     throw new Error("Unknown source kind: " + src.kind);
   }
 
+  // Re-sanitise verses on every read. Older cache entries (from before
+  // the Strong's-number leak was patched) may still contain stray "444"
+  // / "G2316" tokens from bolls.life — this scrub applies idempotently
+  // so users see clean text the moment they upgrade, without us having
+  // to nuke their offline verse cache.
+  function _scrubVerses(verses) {
+    if (!Array.isArray(verses)) return verses;
+    let mutated = false;
+    const out = verses.map(v => {
+      const orig = String(v.text || "");
+      const clean = orig
+        .replace(/(?<=[a-zA-ZéÀ-ſ'])\d+/g, "")
+        .replace(/(?:^|\s)\d{2,5}(?=\s|[.,;:!?)—–-]|$)/g, " ")
+        .replace(/\s+/g, " ").trim();
+      if (clean !== orig) mutated = true;
+      return mutated ? { ...v, text: clean } : v;
+    });
+    return mutated ? out : verses;
+  }
+
   async function loadChapter(bookId, chapter, translation) {
     if (_ready) await _ready;
     const key = `${bookId}.${chapter}.${translation}`;
-    if (_memCache[key]) return _memCache[key];
+    if (_memCache[key]) {
+      const scrubbed = _scrubVerses(_memCache[key]);
+      if (scrubbed !== _memCache[key]) {
+        _memCache[key] = scrubbed;
+        _dirty.add(key); _scheduleFlush();
+      }
+      return _memCache[key];
+    }
 
     // Phase B/C: try the pre-baked bundle first ONLY when explicitly
     // declared on the translation (`t.bundle` is a string path, or
