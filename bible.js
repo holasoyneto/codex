@@ -392,7 +392,7 @@ window.BIBLE = (function () {
       const orig = String(v.text || "");
       const clean = orig
         .replace(/(?<=[a-zA-ZéÀ-ſ'])\d+/g, "")
-        .replace(/(?:^|\s)\d{2,5}(?=\s|[.,;:!?)—–-]|$)/g, " ")
+        .replace(/(?:^|[\s.,;:!?()'"—–-])\d{2,5}(?=[\s.,;:!?()'"—–-]|$)/g, " ")
         .replace(/\s+/g, " ").trim();
       if (clean !== orig) mutated = true;
       return mutated ? { ...v, text: clean } : v;
