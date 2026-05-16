@@ -224,7 +224,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "caffeinate": false,
   "notesEnabled": false,
   "oracleFontScale": 14,
-  "hermeneuticDriftCompensation": false
+  "hermeneuticDriftCompensation": false,
+  "bootIntro": true
 }/*EDITMODE-END*/;
 
 const HIGHLIGHT_COLORS = {
@@ -1180,6 +1181,19 @@ function App() {
         />
         <p className="cx-export-hint" style={{ marginTop: -2, opacity: 0.55 }}>
           Cross-corpus inferential broadening. Experimental.
+        </p>
+
+        <TweakSection label="First impression" />
+        <TweakToggle
+          label="Boot intro sequence"
+          value={!!t.bootIntro}
+          onChange={(v) => {
+            setTweak("bootIntro", v);
+            try { localStorage.setItem("codex.bootIntro", v ? "1" : "0"); } catch {}
+          }}
+        />
+        <p className="cx-export-hint" style={{ marginTop: -2, opacity: 0.55 }}>
+          Terminal-style cold boot on launch. Off = jump straight to scripture.
         </p>
 
         {/* Reset to factory defaults · scoped to user preferences + API

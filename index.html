@@ -28,9 +28,189 @@
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+/* ── Cold-boot terminal overlay ──────────────────────────────────────
+   Renders instantly (inline) so the user has something beautiful to
+   read while React, Babel, fonts, and JSX bundles stream in. Removes
+   itself once the app mounts. Skipped if codex.bootIntro is "0". */
+#cx-boot {
+  position: fixed; inset: 0; z-index: 99999;
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: stretch;
+  padding: clamp(20px, 6vw, 64px);
+  background: #06080e;
+  color: #c9d4dc;
+  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: clamp(11px, 2.6vw, 13px);
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  transition: opacity 600ms ease;
+  opacity: 1;
+}
+#cx-boot.cx-boot-fade { opacity: 0; pointer-events: none; }
+#cx-boot::before {
+  /* faint scanlines for terminal feel */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to bottom,
+    rgba(255,255,255,0.018) 0 1px, transparent 1px 3px);
+  mix-blend-mode: screen;
+}
+#cx-boot::after {
+  /* corner vignette */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% 50%, transparent 55%, rgba(0,0,0,0.65) 100%);
+}
+.cx-boot-frame {
+  position: relative;
+  margin: auto;
+  width: min(720px, 100%);
+}
+.cx-boot-hdr {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid #1f2a36;
+  padding-bottom: 8px; margin-bottom: 18px;
+  font-size: 0.85em; opacity: 0.6;
+}
+.cx-boot-hdr b { color: #7ee0ff; letter-spacing: 0.3em; font-weight: 600; }
+.cx-boot-line { white-space: pre; min-height: 1.7em; }
+.cx-boot-ok   { color: #7ee0ff; }
+.cx-boot-warn { color: #ffc46b; }
+.cx-boot-dim  { color: #6b7785; }
+.cx-boot-divine { color: #ffc46b; font-style: italic; }
+.cx-boot-cursor {
+  display: inline-block; width: 0.55em; height: 1em;
+  background: #7ee0ff; vertical-align: -0.15em;
+  margin-left: 2px;
+  animation: cx-boot-blink 1.05s steps(2, start) infinite;
+}
+@keyframes cx-boot-blink { to { visibility: hidden; } }
+.cx-boot-prompt {
+  margin-top: 22px; font-size: 0.9em; opacity: 0;
+  transition: opacity 500ms ease;
+  color: #ffc46b;
+  letter-spacing: 0.18em;
+}
+.cx-boot-prompt.is-on { opacity: 0.95; }
+.cx-boot-bar {
+  height: 1px; background: linear-gradient(to right, transparent, #7ee0ff, transparent);
+  margin: 4px 0 0; opacity: 0.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-boot-cursor { animation: none; }
+}
+</style>
 </head>
 <body>
 <div id="root"></div>
+
+<div id="cx-boot" role="status" aria-live="polite" aria-label="CODEX booting">
+  <div class="cx-boot-frame">
+    <div class="cx-boot-hdr">
+      <b>CODEX · BOOT</b>
+      <span id="cx-boot-ver">v—</span>
+    </div>
+    <div id="cx-boot-log"></div>
+    <div class="cx-boot-bar"></div>
+    <div class="cx-boot-prompt" id="cx-boot-prompt">→ ENTER STUDY</div>
+  </div>
+</div>
+
+<script>
+// Boot sequence — vanilla JS, runs immediately. Reads codex.bootIntro
+// (set by the settings panel) to decide whether to play the typewriter
+// intro or hide instantly. Removes the overlay once window.BIBLE +
+// window.CODEX_DATA + a mounted root all exist, OR after a safety
+// timeout so a half-broken load doesn't strand the user on the splash.
+(function(){
+  var boot = document.getElementById("cx-boot");
+  if (!boot) return;
+  var skip = false;
+  try { skip = localStorage.getItem("codex.bootIntro") === "0"; } catch (e) {}
+  if (skip) { boot.style.display = "none"; return; }
+
+  var log = document.getElementById("cx-boot-log");
+  var prompt = document.getElementById("cx-boot-prompt");
+  var verEl = document.getElementById("cx-boot-ver");
+
+  // Lines play in order. Each is typed char-by-char then a pause.
+  // Mix of [OK] system lines and a single italic invocation so it
+  // feels like a study terminal, not just a loader.
+  var SCRIPT = [
+    { c: "dim",    t: "// CODEX · scripture study terminal" },
+    { c: "dim",    t: "// hello, reader." },
+    { c: "",       t: "" },
+    { c: "ok",     t: "[OK] kernel · loading runtime" },
+    { c: "ok",     t: "[OK] mounting react · babel · leaflet" },
+    { c: "ok",     t: "[OK] loading canon · OT 39 · NT 27 · DC 35" },
+    { c: "ok",     t: "[OK] registering 40 translations · 13 languages" },
+    { c: "ok",     t: "[OK] indexing oracle channel" },
+    { c: "ok",     t: "[OK] sealing offline shell" },
+    { c: "",       t: "" },
+    { c: "divine", t: "“In the beginning was the Word…”" },
+    { c: "",       t: "" },
+    { c: "dim",    t: "ready." },
+  ];
+
+  var i = 0, cursor = document.createElement("span");
+  cursor.className = "cx-boot-cursor";
+
+  function typeLine(line, done) {
+    var div = document.createElement("div");
+    div.className = "cx-boot-line " + (line.c ? "cx-boot-" + line.c : "");
+    log.appendChild(div);
+    if (!line.t) { setTimeout(done, 90); return; }
+    var n = 0, full = line.t;
+    div.textContent = "";
+    div.appendChild(cursor);
+    // Faster typing for shorter pauses between lines, especially for
+    // long system lines so the whole sequence stays under ~3 seconds.
+    var step = full.length > 40 ? 8 : 22;
+    var iv = setInterval(function(){
+      n++;
+      div.textContent = full.slice(0, n);
+      div.appendChild(cursor);
+      if (n >= full.length) {
+        clearInterval(iv);
+        // Remove cursor on this line; next line gets a fresh one
+        if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+        setTimeout(done, line.c === "divine" ? 520 : 130);
+      }
+    }, step);
+  }
+
+  function next() {
+    if (i >= SCRIPT.length) { showPrompt(); return; }
+    typeLine(SCRIPT[i++], next);
+  }
+  next();
+
+  function showPrompt() {
+    prompt.classList.add("is-on");
+  }
+
+  // Dismissal — fade out as soon as the app is actually ready AND the
+  // typewriter has finished (whichever is later). Safety net: 8s max.
+  var typedDone = false, appDone = false;
+  var origFinish = showPrompt;
+  showPrompt = function(){ origFinish(); typedDone = true; maybeDismiss(); };
+  var pollId = setInterval(function(){
+    var ready = !!(window.BIBLE && window.CODEX_DATA && document.getElementById("root") && document.getElementById("root").children.length > 0);
+    if (ready) { appDone = true; clearInterval(pollId); maybeDismiss(); }
+  }, 120);
+  setTimeout(function(){ appDone = true; maybeDismiss(); }, 8000);
+
+  function maybeDismiss() {
+    if (!typedDone || !appDone) return;
+    if (verEl && window.CODEX_DATA) verEl.textContent = "v" + ((document.querySelector('script[src*="sw.js"]') ? "" : "") || "133");
+    boot.classList.add("cx-boot-fade");
+    setTimeout(function(){ if (boot.parentNode) boot.parentNode.removeChild(boot); }, 650);
+  }
+
+  // Allow the user to dismiss immediately by clicking/tapping anywhere
+  boot.addEventListener("click", function(){ typedDone = true; appDone = true; maybeDismiss(); });
+})();
+</script>
 
 <script src="direct-api.js"></script>
 <script src="i18n.js"></script>
