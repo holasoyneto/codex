@@ -220,11 +220,19 @@ Return ONLY the JSON object as specified in the system instructions.${langDirect
           system: PROMPT_SYSTEM + langDirective,
           messages: [{ role: "user", content: userMsg }],
           max_tokens: 3000,
+          // Multi-provider routing — server validates against its whitelist
+          // and falls back to a sane default if these are missing/invalid.
+          provider: opts.provider,
+          model: opts.model,
         }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `panels HTTP ${r.status}`);
       const parsed = validate(extractJSON(data.text || ""));
+      // Tag with engine used so a regenerate respects the current selector
+      // and future cache-busting can compare engines.
+      parsed._provider = data.provider || opts.provider || "anthropic";
+      parsed._model = data.model || opts.model || null;
       putCached(bookId, chapter, parsed);
       return parsed;
     })()

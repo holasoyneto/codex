@@ -435,10 +435,20 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
     { id: "ai",      label: "AI",      icon: "✦" },
     { id: "sync",    label: "Sync",    icon: "↔" },
     { id: "system",  label: "System",  icon: "⚙" },
+    { id: "help",    label: "Help",    icon: "?" },
   ];
   // Children come in as a flat array of nodes — partition into tabs.
   const childArr = React.Children.toArray(children);
-  const buckets = { reading: [], ai: [], sync: [], system: [] };
+  const buckets = { reading: [], ai: [], sync: [], system: [], help: [] };
+  // Help tab: pre-fill with the wiki component if it's been loaded. Help is
+  // driven by data/help/articles.json so the content updates with each
+  // release without touching this file. Marker entry keeps the tab visible
+  // even if HelpWiki hasn't registered yet (rare race during cold boot).
+  if (window.CODEX_HelpWiki) {
+    buckets.help.push(<window.CODEX_HelpWiki key="__help" />);
+  } else {
+    buckets.help.push(<div key="__help-pending" style={{padding:"24px 12px",textAlign:"center",color:"var(--cx-fg-dim)",fontFamily:"var(--cx-mono)",fontSize:12}}>Help wiki loading…</div>);
+  }
   let currentTab = "system";  // anything before the first TweakSection goes to system
   for (const node of childArr) {
     if (node && node.type === TweakSection) {
@@ -746,8 +756,187 @@ function TweakButton({ label, onClick, secondary = false }) {
   );
 }
 
+// ── AIModelSection ─────────────────────────────────────────────────────────
+// Provider + model selector used in the CODEX Settings panel. Reads the live
+// /providers map (passed in from /api/health) so the segmented control can
+// grey out engines we can't reach (no key for anthropic/xai, no daemon for
+// ollama). Persists the user's pick via the parent's setTweak("provider"/
+// "model") so it lives in codex.tweaks.v1.
+function AIModelSection({ provider, model, availableProviders, onChange }) {
+  const [keyInput, setKeyInput] = React.useState("");
+  const [keyBusy, setKeyBusy]   = React.useState(false);
+  const [keyMsg, setKeyMsg]     = React.useState("");
+  const [testMsg, setTestMsg]   = React.useState("");
+  const [testBusy, setTestBusy] = React.useState(false);
+
+  const PROVIDERS = [
+    { id: "anthropic", label: "Anthropic", sub: "Claude" },
+    { id: "xai",       label: "xAI",       sub: "Grok"   },
+    { id: "ollama",    label: "Local",     sub: "Ollama" },
+  ];
+
+  const reg = availableProviders || {};
+  const curReg = reg[provider] || { available: false, models: [] };
+  const models = curReg.models || [];
+  const needsKey = (provider === "anthropic" || provider === "xai") && !curReg.available;
+
+  // When the user flips provider, snap model to the first available one so
+  // we never POST a stale model id from a different provider.
+  const pickProvider = (p) => {
+    const r = reg[p];
+    if (!r || !r.available) {
+      // Still let them pick (so they can paste a key). Model becomes empty
+      // until /api/health says the provider has models available.
+      const first = (r && r.models && r.models[0] && r.models[0].id) || "";
+      onChange({ provider: p, model: first });
+      return;
+    }
+    const first = (r.models && r.models[0] && r.models[0].id) || "";
+    onChange({ provider: p, model: first });
+  };
+
+  const tooltipFor = (p) => {
+    const r = reg[p];
+    if (r && r.available) return `Use ${p}`;
+    if (p === "ollama")   return "Local: no Ollama detected on :11434";
+    if (p === "xai")      return "xAI: no key configured";
+    if (p === "anthropic") return "Anthropic: no key configured";
+    return "";
+  };
+
+  const submitKey = async () => {
+    const key = keyInput.trim();
+    if (!key) return;
+    setKeyBusy(true); setKeyMsg("");
+    try {
+      const r = await fetch("/api/key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, provider }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setKeyMsg("✓ saved");
+      setKeyInput("");
+      // Tell the rest of the app to re-probe /api/health.
+      try { window.dispatchEvent(new CustomEvent("codex:engine-change")); } catch {}
+    } catch (e) {
+      setKeyMsg(String(e.message || e));
+    } finally {
+      setKeyBusy(false);
+    }
+  };
+
+  const runTest = async () => {
+    setTestBusy(true); setTestMsg("");
+    const t0 = performance.now();
+    try {
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider, model,
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 5,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const ms = Math.round(performance.now() - t0);
+      const u  = d.usage || {};
+      const toks = (u.input_tokens || 0) + (u.output_tokens || 0);
+      setTestMsg(`✓ ${ms}ms · ${toks} tok`);
+    } catch (e) {
+      setTestMsg("✗ " + String(e.message || e).slice(0, 60));
+    } finally {
+      setTestBusy(false);
+    }
+  };
+
+  return (
+    <div className="cx-tp-provider">
+      <div className="cx-tp-provider-seg" role="radiogroup" aria-label="AI provider">
+        {PROVIDERS.map(p => {
+          const r = reg[p.id] || { available: false };
+          const on  = provider === p.id;
+          const off = !r.available;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              className={`cx-tp-provider-btn ${on ? "is-on" : ""} ${off ? "is-off" : ""}`}
+              title={tooltipFor(p.id)}
+              onClick={() => pickProvider(p.id)}
+            >
+              <b>{p.label}</b>
+              <i>{p.sub}{off ? " · off" : ""}</i>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="cx-tp-model-row">
+        <label className="cx-tp-model-lbl">Model</label>
+        <select
+          className="cx-tp-model-sel"
+          value={model || ""}
+          onChange={(e) => onChange({ provider, model: e.target.value })}
+          disabled={!models.length}
+        >
+          {!models.length && <option value="">— none available —</option>}
+          {models.map(m => (
+            <option key={m.id} value={m.id}>
+              {m.label}{m.tier ? `  · ${m.tier}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {needsKey && (
+        <div className="cx-tp-key">
+          <label className="cx-tp-key-lbl">
+            {provider === "xai" ? "xAI API key (xai-…)" : "Anthropic API key (sk-ant-…)"}
+            {keyMsg ? <em className={`cx-tp-key-msg ${keyMsg.startsWith("✓") ? "is-ok" : "is-err"}`}>{keyMsg}</em> : null}
+          </label>
+          <div className="cx-tp-key-row">
+            <input
+              className="cx-tp-key-input"
+              type="password"
+              value={keyInput}
+              placeholder={provider === "xai" ? "xai-…" : "sk-ant-…"}
+              onChange={(e) => setKeyInput(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              className="cx-tp-key-btn"
+              onClick={submitKey}
+              disabled={keyBusy || !keyInput.trim()}
+            >{keyBusy ? "…" : "Save"}</button>
+          </div>
+        </div>
+      )}
+
+      <div className="cx-tp-test-row">
+        <button
+          className="cx-tp-test-btn"
+          onClick={runTest}
+          disabled={testBusy || !model || (needsKey)}
+          title="Send a 1-token ping to verify connectivity"
+        >{testBusy ? "Testing…" : "Test"}</button>
+        {testMsg ? (
+          <span className={`cx-tp-test-msg ${testMsg.startsWith("✓") ? "is-ok" : "is-err"}`}>{testMsg}</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 Object.assign(window, {
   useTweaks, TweaksPanel, TweakSection, TweakRow,
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
   TweakText, TweakNumber, TweakColor, TweakButton,
+  AIModelSection,
 });

@@ -136,21 +136,24 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 .cx-frame:has(> .cx-frame-label) { padding-top: 18px; }
 
 /* ── pills + ticks ─────────────────────────────────────────────────────── */
+/* Reader-meta chips — subtle, borderless, elegant. The bordered look
+   was too "chunky"; now they read as quiet typographic marks. */
 .cx-pill {
   display: inline-flex; align-items: center;
   font-family: var(--cx-mono); font-size: 10px;
-  padding: 3px 8px;
-  border: 1px solid var(--cx-line-strong);
+  padding: 2px 4px;
+  border: none;
   color: var(--cx-fg);
   letter-spacing: 0.08em;
-  background: rgba(126,224,255,.06);
+  background: transparent;
+  opacity: 0.78;
 }
-.cx-pill.is-dim { color: var(--cx-fg-dim); border-color: var(--cx-line); background: transparent; }
+.cx-pill.is-dim { color: var(--cx-fg-dim); opacity: 0.55; }
 .cx-pill.is-accent {
-  color: var(--cx-bg);
-  background: var(--cx-accent);
-  border-color: var(--cx-accent);
-  font-weight: 600;
+  color: var(--cx-accent);
+  background: transparent;
+  font-weight: 500;
+  opacity: 0.85;
 }
 
 .cx-tick {
@@ -3362,7 +3365,11 @@ body.cx-resizing * { cursor: ew-resize !important; }
    ════════════════════════════════════════════════════════════════════════ */
 .cx-gnosis-inline {
   position: relative;
-  margin: 14px 0 14px 50px;       /* aligns with the verse text indent */
+  /* Match the verse column: same max-width + centered like verse rows.
+     The old `margin-left: 50px` left it stuck to the left edge of the
+     reader body on wide displays, looking lonely and broken. */
+  max-width: 70ch;
+  margin: 14px auto;
   padding: 10px 14px 12px 16px;
   border-left: 2px solid #c7a9ff;
   background: linear-gradient(
@@ -7576,36 +7583,42 @@ html, body { overflow-x: hidden; }
    READER VIEW POPOVER — collapses 5 reader-head buttons into one ⊕
    ═══════════════════════════════════════════════════════════════════════ */
 .cx-vp { position: relative; display: inline-flex; }
+/* Aa view-options trigger — borderless, subtle. Keeps a 44px tap target
+   via padding, but the visible footprint is just the glyph; chrome only
+   appears on hover/open. */
 .cx-vp-trigger {
   display: inline-flex; align-items: center; gap: 4px;
   background: transparent;
-  border: 1px solid color-mix(in oklab, var(--cx-line) 90%, transparent);
+  border: 1px solid transparent;
   color: var(--cx-fg-dim);
-  padding: 10px 12px;
+  padding: 10px;
   min-height: 44px;
   min-width: 44px;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-family: var(--cx-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition: color 120ms ease, border-color 200ms ease, background 200ms ease, opacity 120ms ease;
   position: relative;
+  opacity: 0.6;
 }
-.cx-vp-trigger:hover,
+.cx-vp-trigger:hover { opacity: 1; color: var(--cx-accent); }
 .cx-vp-trigger.is-open {
+  opacity: 1;
   color: var(--cx-accent);
-  border-color: var(--cx-accent);
-  background: color-mix(in oklab, var(--cx-accent) 6%, transparent);
+  border-color: color-mix(in oklab, var(--cx-accent) 30%, transparent);
+  background: color-mix(in oklab, var(--cx-accent) 5%, transparent);
 }
-.cx-vp-trigger-glyph { font-family: var(--cx-serif, Georgia, serif); font-size: 12px; line-height: 1; }
+.cx-vp-trigger-glyph { font-family: var(--cx-serif, Georgia, serif); font-size: 14px; line-height: 1; font-style: italic; }
 .cx-vp-trigger-dot {
-  position: absolute; top: 2px; right: 2px;
-  width: 5px; height: 5px;
+  position: absolute; top: 8px; right: 8px;
+  width: 4px; height: 4px;
   background: var(--cx-accent);
-  box-shadow: 0 0 4px var(--cx-accent-glow);
+  box-shadow: 0 0 5px var(--cx-accent-glow);
   border-radius: 50%;
+  opacity: 0.85;
 }
 .cx-vp-pop {
   position: absolute;
@@ -9381,3 +9394,839 @@ input, textarea, [contenteditable] { caret-color: var(--cx-accent); }
   .cx-syncmod { border-radius: 12px 12px 0 0; max-height: 92dvh; align-self: flex-end; width: 100%; }
   .cx-syncmod-body { font-size: 14px; padding: 16px 18px 24px; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Phase 0.6 — Keyboard navigation
+   · Flash highlight when J/K scrolls to a verse
+   · Suppress focus ring on mouse click (focus-visible only)
+   · Shortcut overlay modal styles
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Quick accent flash on the verse that just received a J/K scroll. */
+.cx-kbd-flash {
+  animation: cx-kbd-flash 220ms ease-out;
+  border-radius: 4px;
+}
+@keyframes cx-kbd-flash {
+  0%   { background: color-mix(in oklab, var(--cx-accent) 28%, transparent); }
+  100% { background: transparent; }
+}
+
+/* Suppress outline when focus came from a mouse click — keyboard users
+   still get the accent ring from the :focus-visible block earlier. */
+:where(button, a, [role="button"]):focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Shortcut overlay (triggered by ?) */
+.cx-kbd-overlay {
+  position: fixed; inset: 0; z-index: 2147483647;
+  background: rgba(6, 8, 14, 0.65);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: cx-kbd-fade 160ms ease;
+}
+@keyframes cx-kbd-fade { from { opacity: 0 } to { opacity: 1 } }
+.cx-kbd-modal {
+  background: var(--cx-bg, #0a0a0a);
+  color: var(--cx-fg, #e7e2d6);
+  border: 1px solid var(--cx-line, rgba(255,255,255,0.08));
+  border-radius: 14px;
+  width: min(560px, 100%);
+  max-height: 86dvh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: cx-kbd-rise 200ms cubic-bezier(.3,.7,.4,1);
+}
+@keyframes cx-kbd-rise { from { opacity: 0; transform: translateY(8px) scale(.985) } to { opacity: 1; transform: none } }
+.cx-kbd-hd {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 14px 10px 18px;
+  border-bottom: 1px solid var(--cx-line);
+}
+.cx-kbd-hd b { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--cx-accent); }
+.cx-kbd-x {
+  appearance: none; border: 0; background: transparent;
+  color: var(--cx-fg-dim, #6b7785); width: 28px; height: 28px;
+  border-radius: 6px; cursor: pointer; font-size: 16px;
+}
+.cx-kbd-x:hover { background: color-mix(in oklab, var(--cx-fg) 8%, transparent); color: var(--cx-fg); }
+.cx-kbd-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 18px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  font-family: var(--cx-sans, -apple-system, system-ui, sans-serif);
+  font-size: 13px;
+}
+.cx-kbd-key {
+  display: inline-block;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 11.5px; font-weight: 600;
+  padding: 3px 8px;
+  background: color-mix(in oklab, var(--cx-accent) 12%, transparent);
+  color: var(--cx-accent);
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 40%, transparent);
+  border-radius: 4px;
+  min-width: 28px;
+  text-align: center;
+  white-space: nowrap;
+}
+.cx-kbd-lbl { color: var(--cx-fg-soft, var(--cx-fg)); align-self: center; }
+.cx-kbd-ft {
+  padding: 10px 18px 14px;
+  border-top: 1px solid var(--cx-line);
+  font-size: 11.5px;
+  color: var(--cx-fg-dim);
+  text-align: center;
+}
+.cx-kbd-ft .cx-kbd-key { font-size: 10.5px; padding: 1px 6px; }
+@media (max-width: 520px) {
+  .cx-kbd-modal { border-radius: 12px 12px 0 0; max-height: 92dvh; align-self: flex-end; width: 100%; }
+  .cx-kbd-grid { font-size: 14px; padding: 14px 16px; }
+}
+
+/* =====================================================================
+   Micro-screen support (Phase 0.5) — tiny phones, foldables, embeds
+   320px = iPhone SE width. 280px = Galaxy Fold inner.
+   ===================================================================== */
+@media (max-width: 320px) {
+  /* Collapse rails entirely; mobile FABs remain the entry point */
+  .cx-rail-l, .cx-rail-r { display: none; }
+
+  /* Reader body: tight horizontal padding */
+  .cx-reader-body { padding-left: 8px; padding-right: 8px; }
+
+  /* Nav bar: stack vertically, center nav links */
+  .cx-reader-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    text-align: center;
+  }
+  .cx-reader-head a,
+  .cx-reader-head .cx-nav,
+  .cx-reader-head .cx-nav-links { justify-content: center; text-align: center; }
+
+  /* Font floor for verse text */
+  .cx-verse, .cx-verse-row { font-size: clamp(13px, 4.2vw, 16px); }
+
+  /* Verse numbers: smaller */
+  .cx-vnum { font-size: 9px; }
+
+  /* Aa popover: full-width minus 16px gutter, aligned to viewport edge */
+  .cx-vp-pop {
+    left: 8px;
+    right: 8px;
+    min-width: 0;
+    width: auto;
+    max-width: calc(100vw - 16px);
+  }
+
+  /* Panel tabs: smaller padding, allow horizontal scroll */
+  .cx-tab { padding: 4px 6px; }
+  .cx-tabs, .cx-tab-row {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure 44px tap targets */
+  button { min-height: 44px; }
+
+  /* Hide decorative trigger dot */
+  .cx-vp-trigger-dot { display: none; }
+}
+
+@media (max-width: 280px) {
+  /* Even tighter padding */
+  .cx-reader-body { padding-left: 4px; padding-right: 4px; }
+
+  /* Hide chapter number badge in nav — just book name + arrows */
+  .cx-reader-head .cx-chap-badge,
+  .cx-reader-head .cx-chapter-badge,
+  .cx-chap-num { display: none; }
+
+  /* Font floor */
+  .cx-verse, .cx-verse-row { font-size: clamp(12px, 4.5vw, 15px); }
+
+  /* Mobile FABs: shrink to 40x40 (sub-HIG, acceptable at extreme width) */
+  .cx-mobile-fab { width: 40px; height: 40px; min-height: 40px; }
+
+  /* Reduce verse spacing */
+  .cx-verse + .cx-verse { margin-top: 6px; }
+  .cx-verse-row + .cx-verse-row { margin-top: 6px; }
+}
+
+/* =====================================================================
+   Print stylesheet — readable scripture on paper
+   ===================================================================== */
+@media print {
+  /* Hide all chrome */
+  .cx-rail-l,
+  .cx-rail-r,
+  .cx-pane,
+  .cx-vp-pop,
+  .cx-mobile-fab,
+  .cx-footer,
+  .cx-footer-cluster,
+  .cx-reader-head,
+  .cx-side-toggle,
+  .cx-quick,
+  .cx-repo-toggle,
+  .cx-kbd-modal,
+  .cx-kbd-ft,
+  .cx-oracle-log,
+  .cx-tabs,
+  .cx-tab-row,
+  .cx-tab-body,
+  nav,
+  header,
+  footer,
+  .cx-rail-resize { display: none !important; }
+
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    font-family: Georgia, "Times New Roman", Times, serif;
+  }
+
+  .cx-reader-body,
+  .cx-reader-body * {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .cx-reader-body {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .cx-verse-row,
+  .cx-verse {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    border: none !important;
+  }
+}
+
+/* ── Help Wiki ─────────────────────────────────────────────────────────────
+   Lives inside the Tweaks panel. Dark CODEX aesthetic, monospace badges,
+   accent borders, generous whitespace. Color tokens (--cx-accent, etc.)
+   come from :root in the dark theme block. Light theme falls through fine
+   via the same custom properties. */
+.cx-help {
+  display: flex; flex-direction: column; gap: 14px;
+  font-family: var(--cx-sans);
+  color: var(--cx-fg);
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+.cx-help-loading,
+.cx-help-error {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--cx-fg-dim);
+  font-family: var(--cx-mono);
+  font-size: 12px;
+}
+.cx-help-error { color: var(--cx-accent-warn, #ff7a7a); }
+
+.cx-help-head {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 2px 0 6px;
+  border-bottom: .5px solid var(--cx-line);
+}
+.cx-help-title {
+  font-family: var(--cx-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  color: var(--cx-accent);
+}
+.cx-help-sub {
+  font-family: var(--cx-mono);
+  font-size: 10.5px;
+  color: var(--cx-fg-dim);
+  letter-spacing: .04em;
+}
+
+.cx-help-search-wrap {
+  display: flex; gap: 8px; align-items: stretch;
+}
+.cx-help-search {
+  flex: 1; min-width: 0;
+  appearance: none;
+  background: var(--cx-bg-2);
+  color: var(--cx-fg);
+  border: .5px solid var(--cx-line);
+  border-radius: 8px;
+  padding: 0 14px;
+  height: 40px;
+  font-family: var(--cx-sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color .12s, box-shadow .12s;
+}
+.cx-help-search::placeholder { color: var(--cx-fg-dim); }
+.cx-help-search:focus {
+  border-color: var(--cx-accent);
+  box-shadow: 0 0 0 3px var(--cx-accent-glow, rgba(126,224,255,.15));
+}
+.cx-help-ask {
+  appearance: none;
+  background: var(--cx-accent);
+  color: var(--cx-bg);
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  height: 40px; min-height: 40px;
+  font-family: var(--cx-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  cursor: pointer;
+  transition: opacity .12s, transform .08s;
+  white-space: nowrap;
+}
+.cx-help-ask:hover:not(:disabled) { opacity: .9; }
+.cx-help-ask:active:not(:disabled) { transform: translateY(1px); }
+.cx-help-ask:disabled { opacity: .35; cursor: not-allowed; }
+
+.cx-help-predict {
+  list-style: none; margin: 0; padding: 4px;
+  background: var(--cx-bg-2);
+  border: .5px solid var(--cx-line);
+  border-radius: 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.cx-help-predict-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  border: 0; border-radius: 6px;
+  padding: 9px 10px;
+  color: var(--cx-fg);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--cx-sans);
+  font-size: 13.5px;
+  transition: background .1s;
+}
+.cx-help-predict-row:hover { background: color-mix(in oklab, var(--cx-accent) 12%, transparent); }
+.cx-help-predict-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cx-help-badge {
+  display: inline-block;
+  font-family: var(--cx-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--cx-accent);
+  border: .5px solid var(--cx-line-strong);
+  background: color-mix(in oklab, var(--cx-accent) 8%, transparent);
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.cx-help-badge-sm { font-size: 8.5px; padding: 2px 6px; }
+.cx-help-badge-accent {
+  color: var(--cx-bg);
+  background: var(--cx-accent);
+  border-color: var(--cx-accent);
+}
+
+.cx-help-oracle {
+  border: .5px solid var(--cx-accent);
+  border-left-width: 3px;
+  background: color-mix(in oklab, var(--cx-accent) 6%, var(--cx-bg-2));
+  border-radius: 8px;
+  padding: 10px 14px 14px;
+  animation: cx-help-fade-in .18s ease-out;
+}
+.cx-help-oracle.is-error { border-color: var(--cx-accent-warn, #ff7a7a); }
+.cx-help-oracle-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.cx-help-oracle-x {
+  appearance: none; background: transparent; border: 0; cursor: pointer;
+  color: var(--cx-fg-dim); font-size: 14px; padding: 4px 8px;
+  border-radius: 4px;
+}
+.cx-help-oracle-x:hover { color: var(--cx-fg); background: var(--cx-line); }
+.cx-help-oracle-body {
+  font-family: var(--cx-sans);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--cx-fg);
+}
+@keyframes cx-help-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.cx-help-browse {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.cx-help-cat {
+  border: .5px solid var(--cx-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--cx-bg-2) 60%, transparent);
+}
+.cx-help-cat-head {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  appearance: none; background: transparent; border: 0;
+  padding: 11px 14px;
+  color: var(--cx-fg);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--cx-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  transition: background .1s;
+}
+.cx-help-cat-head:hover { background: color-mix(in oklab, var(--cx-accent) 6%, transparent); }
+.cx-help-cat-caret { color: var(--cx-fg-dim); width: 12px; font-size: 10px; }
+.cx-help-cat-name { flex: 1; }
+.cx-help-cat-count {
+  font-family: var(--cx-mono);
+  font-size: 10px;
+  color: var(--cx-fg-dim);
+  font-weight: 500;
+  letter-spacing: .05em;
+}
+.cx-help-cat-list {
+  list-style: none; margin: 0; padding: 2px 6px 8px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.cx-help-row {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%;
+  appearance: none; background: transparent; border: 0; border-radius: 6px;
+  padding: 9px 12px;
+  color: var(--cx-fg);
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s;
+}
+.cx-help-row:hover { background: color-mix(in oklab, var(--cx-accent) 10%, transparent); }
+.cx-help-row-title {
+  font-family: var(--cx-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.cx-help-row-tags {
+  font-family: var(--cx-mono);
+  font-size: 10px;
+  color: var(--cx-fg-dim);
+  letter-spacing: .03em;
+}
+
+.cx-help-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: .5px solid var(--cx-line);
+}
+.cx-help-back {
+  appearance: none;
+  background: transparent;
+  color: var(--cx-accent);
+  border: .5px solid var(--cx-line-strong);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: var(--cx-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  cursor: pointer;
+  transition: background .1s;
+}
+.cx-help-back:hover { background: color-mix(in oklab, var(--cx-accent) 12%, transparent); }
+.cx-help-crumb { flex: 1; display: flex; justify-content: flex-end; }
+
+.cx-help-article {
+  font-family: var(--cx-sans);
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--cx-fg);
+  max-width: 64ch;
+  margin: 0 auto;
+  width: 100%;
+  padding: 6px 4px 8px;
+}
+.cx-help-article h1 {
+  font-family: var(--cx-serif);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -.005em;
+  color: var(--cx-fg);
+  margin: 12px 0 8px;
+  line-height: 1.2;
+}
+.cx-help-article h2 {
+  font-family: var(--cx-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--cx-accent);
+  margin: 28px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: .5px solid var(--cx-line);
+}
+.cx-help-article h3 {
+  font-family: var(--cx-sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cx-fg);
+  margin: 20px 0 6px;
+}
+.cx-help-article p { margin: 10px 0; }
+.cx-help-article ul,
+.cx-help-article ol { margin: 8px 0 12px; padding-left: 22px; }
+.cx-help-article li { margin: 4px 0; }
+.cx-help-article strong { color: var(--cx-fg); font-weight: 600; }
+.cx-help-article em { color: var(--cx-accent-2, var(--cx-fg)); font-style: italic; }
+.cx-help-article code {
+  font-family: var(--cx-mono);
+  font-size: 12.5px;
+  background: var(--cx-bg-2);
+  border: .5px solid var(--cx-line);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--cx-accent);
+}
+.cx-help-article a {
+  color: var(--cx-accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--cx-accent) 40%, transparent);
+  text-underline-offset: 2px;
+}
+.cx-help-article a:hover { text-decoration-color: var(--cx-accent); }
+
+.cx-help-oracle-body h1,
+.cx-help-oracle-body h2,
+.cx-help-oracle-body h3 {
+  font-family: var(--cx-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--cx-accent);
+  margin: 14px 0 4px;
+}
+.cx-help-oracle-body p { margin: 6px 0; }
+.cx-help-oracle-body ul,
+.cx-help-oracle-body ol { margin: 6px 0; padding-left: 20px; }
+.cx-help-oracle-body code {
+  font-family: var(--cx-mono);
+  font-size: 12px;
+  background: var(--cx-bg);
+  border: .5px solid var(--cx-line);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--cx-accent);
+}
+.cx-help-oracle-body strong { color: var(--cx-accent); font-weight: 700; }
+
+.cx-help-tags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 4px 4px;
+  border-top: .5px solid var(--cx-line);
+  margin-top: 16px;
+}
+.cx-help-tag {
+  font-family: var(--cx-mono);
+  font-size: 10px;
+  color: var(--cx-fg-dim);
+  letter-spacing: .04em;
+}
+
+.cx-help-foot {
+  text-align: center;
+  font-family: var(--cx-mono);
+  font-size: 10px;
+  color: var(--cx-fg-dim);
+  padding: 8px 0 4px;
+  letter-spacing: .04em;
+}
+.cx-help-foot kbd {
+  font-family: var(--cx-mono);
+  font-size: 9.5px;
+  background: var(--cx-bg-2);
+  border: .5px solid var(--cx-line);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--cx-fg);
+  margin: 0 2px;
+}
+
+@media (max-width: 700px) {
+  .cx-help-article { font-size: 15px; }
+  .cx-help-article h1 { font-size: 24px; }
+  .cx-help-search { font-size: 16px; /* prevents iOS zoom on focus */ }
+}
+
+
+/* ===== AI Model Selector (multi-provider) ===== */
+.cx-tp-provider { display: flex; flex-direction: column; gap: 8px; }
+.cx-tp-provider-seg {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  background: var(--cx-bg-dim, rgba(0,0,0,.18));
+  border: 1px solid var(--cx-line, rgba(255,255,255,.08));
+  border-radius: 8px; padding: 3px;
+}
+.cx-tp-provider-btn {
+  appearance: none; border: 0; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 4px; border-radius: 6px;
+  background: transparent; color: var(--cx-fg-dim, #9ab);
+  font: inherit; line-height: 1.1;
+  transition: background .12s, color .12s;
+}
+.cx-tp-provider-btn b { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.cx-tp-provider-btn i { font-size: 10px; font-style: normal; opacity: .7; }
+.cx-tp-provider-btn:hover:not(.is-off) { background: rgba(255,255,255,.05); color: var(--cx-fg, #cde); }
+.cx-tp-provider-btn.is-on {
+  background: var(--cx-accent-bg, rgba(126,224,255,.16));
+  color: var(--cx-accent, #7ee0ff);
+  box-shadow: 0 0 0 1px var(--cx-accent, #7ee0ff) inset;
+}
+.cx-tp-provider-btn.is-off { opacity: .42; cursor: not-allowed; }
+
+.cx-tp-model-row { display: flex; align-items: center; gap: 8px; }
+.cx-tp-model-lbl { font-size: 11px; color: var(--cx-fg-dim, #9ab); min-width: 40px; }
+.cx-tp-model-sel {
+  flex: 1; appearance: none; min-height: 28px; padding: 4px 8px;
+  background: var(--cx-bg-dim, rgba(0,0,0,.22));
+  border: 1px solid var(--cx-line, rgba(255,255,255,.08));
+  border-radius: 6px; color: var(--cx-fg, #cde); font: inherit;
+}
+.cx-tp-model-sel:disabled { opacity: .5; }
+
+.cx-tp-key { display: flex; flex-direction: column; gap: 4px; }
+.cx-tp-key-lbl {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; color: var(--cx-fg-dim, #9ab);
+}
+.cx-tp-key-msg { font-style: normal; font-size: 10px; }
+.cx-tp-key-msg.is-ok  { color: #8de8a8; }
+.cx-tp-key-msg.is-err { color: #ff8291; }
+.cx-tp-key-row { display: flex; gap: 4px; }
+.cx-tp-key-input {
+  flex: 1; min-width: 0; min-height: 28px; padding: 4px 8px;
+  background: var(--cx-bg-dim, rgba(0,0,0,.22));
+  border: 1px solid var(--cx-line, rgba(255,255,255,.08));
+  border-radius: 6px; color: var(--cx-fg, #cde); font: inherit;
+}
+.cx-tp-key-input:focus { outline: none; border-color: var(--cx-accent, #7ee0ff); }
+.cx-tp-key-btn {
+  appearance: none; border: 0; cursor: pointer;
+  padding: 0 12px; min-height: 28px; border-radius: 6px;
+  background: var(--cx-accent, #7ee0ff); color: #001018;
+  font: inherit; font-weight: 600;
+}
+.cx-tp-key-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.cx-tp-test-row { display: flex; align-items: center; gap: 8px; }
+.cx-tp-test-btn {
+  appearance: none; cursor: pointer;
+  padding: 4px 10px; border-radius: 6px;
+  background: transparent; color: var(--cx-fg-dim, #9ab);
+  border: 1px solid var(--cx-line, rgba(255,255,255,.12));
+  font: inherit; font-size: 11px;
+}
+.cx-tp-test-btn:hover:not(:disabled) { color: var(--cx-fg, #cde); border-color: var(--cx-accent, #7ee0ff); }
+.cx-tp-test-btn:disabled { opacity: .4; cursor: not-allowed; }
+.cx-tp-test-msg { font-size: 10px; }
+.cx-tp-test-msg.is-ok  { color: #8de8a8; }
+.cx-tp-test-msg.is-err { color: #ff8291; }
+
+/* Engine badge that appears in the Oracle header */
+.cx-tp-engine-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,.06);
+  color: var(--cx-fg-dim, #9ab);
+  border: 1px solid var(--cx-line, rgba(255,255,255,.08));
+}
+.cx-tp-engine-anthropic { color: #c7a9ff; border-color: rgba(199,169,255,.3); }
+.cx-tp-engine-xai       { color: #7ee0ff; border-color: rgba(126,224,255,.3); }
+.cx-tp-engine-ollama    { color: #8de8a8; border-color: rgba(141,232,168,.3); }
+
+/* =====================================================================
+   Global subtle scrollbars — kill the chunky native OS bars everywhere.
+   Covers any scrollable container we may have missed in targeted rules.
+   ===================================================================== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--cx-fg-dim) 22%, transparent) transparent;
+}
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--cx-fg-dim) 22%, transparent);
+  border-radius: 2px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--cx-fg-dim) 50%, transparent);
+}
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Auto-hide scrollbars. scrollbar-gutter: stable was reserving a 4px
+   track and showing a phantom vertical line at the right edge on wide
+   displays — drop the reservation and instead make the thumb fully
+   transparent at rest, fading in only on hover. */
+.cx-rail-r, .cx-rail-l, .cx-pane, .cx-reader-body,
+.cx-bm-list, .cx-tp-list, .cx-oracle-log, .cx-cf-body,
+.cx-help-body, .cx-help-results,
+.cx-gnosis-card, .cx-talmud-card, .cx-commentary-card, .cx-gematria-card {
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 200ms ease;
+}
+.cx-rail-r:hover, .cx-rail-l:hover, .cx-pane:hover, .cx-reader-body:hover,
+.cx-bm-list:hover, .cx-tp-list:hover, .cx-oracle-log:hover, .cx-cf-body:hover,
+.cx-help-body:hover, .cx-help-results:hover,
+.cx-gnosis-card:hover, .cx-talmud-card:hover, .cx-commentary-card:hover, .cx-gematria-card:hover {
+  scrollbar-color: color-mix(in oklab, var(--cx-fg-dim) 22%, transparent) transparent;
+}
+/* Body never scrolls — app is full-viewport */
+html, body { overflow: hidden; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * BEGIN cx-help-trans-* — Help Wiki AI translation UI (appended 2026-05-17)
+ * Owned by help.jsx. Safe to delete the entire block below if the translate
+ * feature is removed. Do NOT interleave with the .cx-help-* block above.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+.cx-help-trans-wrap {
+  position: relative;
+  margin-left: auto;
+}
+.cx-help-trans-toggle {
+  background: transparent;
+  border: 1px solid var(--cx-line, rgba(255,255,255,0.15));
+  color: var(--cx-fg, #e9eef6);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cx-help-trans-toggle:hover {
+  border-color: var(--cx-accent, #7fd1ff);
+  color: var(--cx-accent, #7fd1ff);
+}
+.cx-help-trans-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  min-width: 180px;
+  background: var(--cx-bg-elev, #0d1320);
+  border: 1px solid var(--cx-line, rgba(255,255,255,0.15));
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.cx-help-trans-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--cx-fg, #e9eef6);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.cx-help-trans-item:hover { background: rgba(127,209,255,0.08); }
+.cx-help-trans-item.is-active { color: var(--cx-accent, #7fd1ff); }
+.cx-help-trans-cached {
+  color: var(--cx-accent, #7fd1ff);
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.cx-help-trans-badge {
+  font-size: 11px;
+  opacity: 0.7;
+  margin: 6px 0 12px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--cx-accent, #7fd1ff);
+  background: rgba(127,209,255,0.04);
+}
+.cx-help-trans-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--cx-accent, #7fd1ff);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.cx-help-trans-err { color: #ff9b9b; }
+
+.cx-help-trans-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 16px;
+  color: var(--cx-fg-dim, rgba(233,238,246,0.6));
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cx-help-trans-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(127,209,255,0.18);
+  border-top-color: var(--cx-accent, #7fd1ff);
+  border-radius: 50%;
+  animation: cx-help-trans-spin 0.9s linear infinite;
+}
+@keyframes cx-help-trans-spin {
+  to { transform: rotate(360deg); }
+}
+
+.cx-help-row-langs {
+  display: inline-block;
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 8px;
+  color: var(--cx-accent, #7fd1ff);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * END cx-help-trans-*
+ * ────────────────────────────────────────────────────────────────────────── */

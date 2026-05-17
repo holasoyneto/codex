@@ -1,0 +1,360 @@
+{
+  "version": 2,
+  "updated": "2026-05-17",
+  "categories": [
+    "Basics",
+    "Reading",
+    "Study Tools",
+    "AI Features",
+    "Power User",
+    "Audience-Specific",
+    "Developer",
+    "About"
+  ],
+  "articles": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "category": "Basics",
+      "tags": ["intro", "tour", "welcome", "first-time", "onboarding"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Welcome to CODEX\n\nCODEX is a **distraction-respectful Bible study environment** that fuses classical scripture with modern AI lenses. It runs entirely in your browser as a PWA — install it to your home screen for an app-like experience.\n\n## First-time tour\n\n1. The **center column** shows the active passage. Tap any verse to open the verse menu.\n2. The **left rail** holds Oracle (chat), bookmarks, and notes.\n3. The **right rail** holds AI study panels — Talmud, Commentary, Gematria, Gnosis, Apologetics.\n4. The **top bar** has the book/chapter picker and search (`Cmd/Ctrl+K`).\n5. The **gear icon** opens Settings — where you found this Help Wiki.\n\n## Try this first\n\n- Open *John 1* and toggle **red letter** in Settings → Reading.\n- Open the right rail and tap **Commentary**.\n- Ask the Oracle: *“What does logos mean in John 1:1?”*\n\nPress `?` anywhere to see every keyboard shortcut."
+    },
+    {
+      "id": "boot-intro",
+      "title": "Boot Intro Animation",
+      "category": "Basics",
+      "tags": ["boot", "intro", "splash", "terminal", "animation", "skip"],
+      "lastUpdated": "2026-05-17",
+      "body": "# The Boot Intro\n\nOn first launch CODEX runs a brief **terminal-style boot sequence** — scanlines, ASCII glyphs, an opening verse, and the CODEX wordmark resolving in. It's intentionally short (~2 seconds) and only plays once per session.\n\n## Skipping\n\n- Tap anywhere or press any key to skip immediately.\n- Press `Esc` during the sequence to dismiss the splash overlay.\n\n## Disabling permanently\n\nOpen **Settings → Look → Boot intro** and switch it off. The next launch will jump straight to the reader. You can re-enable it any time — useful for the dramatic effect when demoing CODEX to someone new.\n\n## Why it exists\n\nThe boot is part of CODEX's sci-fi terminal aesthetic. It also gives the service worker a moment to hydrate the offline shell before the reader paints."
+    },
+    {
+      "id": "reading-controls",
+      "title": "Reading Controls",
+      "category": "Reading",
+      "tags": ["typography", "font", "size", "red letter", "yhwh", "side-by-side", "Aa"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Reading Controls\n\nAll reading controls live in **Settings → Reading**.\n\n## Typography\n\n- **Font size** — slider, 12–28 px. Persists per device.\n- **Font face** — choose between a serif (Cormorant Garamond), a sans (Inter Tight), or mono (JetBrains Mono).\n- **Line height & measure** — auto-tuned per font; tweak in Look.\n\n## Overlays\n\n- **Red letter** — words attributed to Jesus rendered in the accent warn color. Sourced from `data/red-letter.json`.\n- **YHWH restoration** — replaces *LORD* in OT passages with the Tetragrammaton (יהוה) where the underlying Hebrew has it.\n- **Verse numbers** — show, hide, or render them as faint marginalia.\n\n## Side-by-side\n\nToggle **Side-by-side** (or press `S`) to render two translations in parallel columns — handy for Greek/English or KJV/modern comparison."
+    },
+    {
+      "id": "font-controls",
+      "title": "Font Size & Face",
+      "category": "Reading",
+      "tags": ["font", "size", "Aa", "serif", "sans", "mono", "typography"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Font Controls\n\nCODEX gives you fine-grained control over how scripture looks on the page.\n\n## Size cycle (Aa)\n\nThe **Aa** button in the reading toolbar cycles through five size presets: XS, S, M, L, XL. Tap repeatedly to step through; long-press to jump straight to M. The size persists per device and survives reloads.\n\n## Face\n\n- **Serif** (Cormorant Garamond) — the default, optimized for long-form reading.\n- **Sans** (Inter Tight) — clean and modern, good for shorter sessions or screens with low DPI.\n- **Mono** (JetBrains Mono) — for the terminal-aesthetic experience or for studying poetry where alignment matters.\n\nSwitch in **Settings → Look → Scripture face**. The change is instant — no remount.\n\n## Hebrew & Greek\n\nWhen viewing Hebrew or Greek translations CODEX automatically swaps to a script-appropriate fallback that handles vowel pointing and diacritics correctly."
+    },
+    {
+      "id": "theme-modes",
+      "title": "Theme Modes (Light / Dark / Auto)",
+      "category": "Reading",
+      "tags": ["theme", "dark", "light", "auto", "solar", "look"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Theme Modes\n\nCODEX supports three theme modes selectable in **Settings → Look → Theme**:\n\n- **Light** — high-contrast paper-like background, good in daylight.\n- **Dark** — the default, with a deep navy/black canvas and cyan HUD accents. Easy on the eyes for evening study.\n- **Auto** — solar-aware. CODEX computes the approximate sun position from your local time and slides between light and dark automatically across dawn and dusk.\n\n## Accent color\n\nIn Look you can also pick a **HUD accent** — cyan, amber, magenta, or green — which tints buttons, focus rings, and the sci-fi chrome.\n\n## Scanlines\n\nA subtle scanline overlay is on by default for the terminal aesthetic. Toggle it off if it bothers your eyes.\n\nAll three settings persist via `localStorage` and sync across devices when you enable cross-device sync."
+    },
+    {
+      "id": "red-letter-mode",
+      "title": "Red Letter Mode",
+      "category": "Reading",
+      "tags": ["red letter", "jesus", "gospels", "highlight", "words of christ"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Red Letter Mode\n\nWhen enabled, every word attributed to Jesus Christ is rendered in the accent warn color (a soft red in light mode, a warm coral in dark). The data comes from `data/red-letter.json`, a per-verse map of speaker ranges.\n\n## Coverage\n\n- All four Gospels.\n- Acts 9 (Damascus road) and Acts 22 / 26 (Paul's retellings).\n- Revelation 1–3 (the letters to the seven churches) and Rev 22:7–20.\n\n## Enabling\n\n**Settings → Reading → Red letter**. The change is instant and per-translation — works against any installed English or original-language translation that follows the canonical verse numbering.\n\n## Edge cases\n\n- Embedded quotations within Jesus's speech (e.g. Jesus quoting Isaiah) stay red.\n- Indirect speech (\"he said that…\") stays in normal color.\n- For Hebrew/Greek translations the marks fall back to the matched English range."
+    },
+    {
+      "id": "yhwh-mode",
+      "title": "YHWH Restoration",
+      "category": "Reading",
+      "tags": ["yhwh", "tetragrammaton", "lord", "hebrew", "name"],
+      "lastUpdated": "2026-05-17",
+      "body": "# YHWH Restoration\n\nIn most English Bibles, the divine name **יהוה** (the Tetragrammaton) is rendered as *LORD* in small caps. YHWH Restoration substitutes the actual four-letter name back into the text wherever the underlying Hebrew has it.\n\n## Enabling\n\n**Settings → Reading → YHWH restoration**. Off by default.\n\n## How it works\n\nCODEX cross-references the verse against the Westminster Leningrad Codex to find positions where the consonantal text reads יהוה. At those positions it replaces the English *LORD* with יהוה (or with the romanization *Yahweh* if you prefer — see the sub-toggle).\n\n## What it does not touch\n\n- *Lord* in lowercase (which represents *Adonai* or the Greek κύριος).\n- *GOD* in small caps (typically *Adonai YHWH* — handled by a separate sub-toggle).\n- New Testament references — Greek manuscripts use κύριος; CODEX does not retroject."
+    },
+    {
+      "id": "side-by-side-mode",
+      "title": "Side-by-Side Translations",
+      "category": "Reading",
+      "tags": ["side-by-side", "compare", "parallel", "columns", "S"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Side-by-Side Mode\n\nRead two translations in parallel columns — invaluable for original-language study or for cross-checking renderings.\n\n## Enabling\n\nPress `S` or open **Settings → Reading → Side-by-side**. A chip strip appears beneath the passage; tap a chip to set the second column's translation.\n\n## How it lays out\n\n- Verses align by reference, not by line — long verses in one translation expand both rows so nothing drifts.\n- On phones, the second column drops below each verse instead of beside it (responsive stacking).\n- Both translations honor your red-letter and YHWH settings.\n\n## Use cases\n\n- KJV on the left, NIV on the right for sense-check.\n- WLC (Hebrew) on the left, KJV on the right for OT study.\n- Tisch (Greek) + your working English for NT exegesis."
+    },
+    {
+      "id": "theater-mode",
+      "title": "Theater (Distraction-Free) Mode",
+      "category": "Reading",
+      "tags": ["theater", "fullscreen", "F", "focus", "distraction-free"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Theater Mode\n\nPress `F` (or tap the expand icon in the verse menu) to enter **Theater Mode** — every chrome element fades away, leaving only the passage centered on a softly vignetted canvas.\n\n## What disappears\n\n- The top bar, both rails, the status bar.\n- The verse menu (unless you tap a verse to summon it).\n- Notes, bookmarks, and panel overlays.\n\n## What stays\n\n- Your reading typography, theme, red-letter and YHWH settings.\n- Chapter swipe / `H` / `L` navigation.\n- A small floating exit hint in the bottom-right corner.\n\n## Exiting\n\nPress `F` again, press `Esc`, or tap the exit hint. Theater mode never persists across reloads — you re-enter it intentionally each session.\n\nFor presentation use, combine Theater Mode with **XL font size** for a lecture-friendly view."
+    },
+    {
+      "id": "navigation",
+      "title": "Navigation",
+      "category": "Reading",
+      "tags": ["book picker", "chapter", "swipe", "keyboard", "J K H L"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Navigation\n\n## Book picker\n\nTap the reference (e.g. *John 1:1*) in the top bar to open the **book picker** — three-pane: testament, book, chapter. Type to filter.\n\n## Chapter swipe\n\nOn touch devices, swipe left/right on the passage to advance/rewind a chapter.\n\n## Keyboard\n\n- `J` / `K` — next / previous verse (vim-style)\n- `H` / `L` — previous / next chapter (rolls into the next book at the edges)\n- `Cmd/Ctrl+K` — focus search\n- `Enter` on a focused verse — opens the verse menu\n- `Esc` — close popovers / overlays\n\nSee the **Keyboard Shortcuts** article for the full set."
+    },
+    {
+      "id": "mobile-fabs",
+      "title": "Mobile Floating Action Buttons",
+      "category": "Reading",
+      "tags": ["mobile", "phone", "fab", "touch", "ui"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Mobile FABs\n\nOn phone-class viewports CODEX hides the rails and instead exposes a small cluster of **floating action buttons** (FABs) along the bottom-right edge of the screen.\n\n## The buttons\n\n- **Oracle** — opens the AI chat in a bottom-sheet.\n- **Panels** — opens the right-rail study panels in a bottom-sheet.\n- **Notes** — opens the notes drawer.\n- **Menu** — opens the global settings and book picker.\n\nA long-press on any FAB shows its label.\n\n## Dismissing the cluster\n\nSwipe down on the bottom-sheet to dismiss; tap outside it; or press the FAB again. The cluster auto-hides briefly while you're scrolling the passage so it never obscures the verse you're reading.\n\n## Hiding entirely\n\n**Settings → Look → Mobile FABs** lets you turn them off, in which case the menu lives behind a single hamburger icon in the top bar."
+    },
+    {
+      "id": "translations",
+      "title": "Translations",
+      "category": "Reading",
+      "tags": ["KJV", "WLC", "LXX", "compare", "install", "download"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Translations\n\nCODEX ships with KJV pre-bundled. Other translations install on demand and cache offline.\n\n## Switching\n\nOpen the **right rail → Translations tab** (or press `T`). Tap any translation to make it active.\n\n## Installing\n\nUncached translations show an *Install* button. CODEX fetches all 66 (or canon-appropriate) books and stores them in IndexedDB. A progress bar shows download status. You can cancel and resume.\n\n## Side-by-side\n\nWith two translations cached, toggle **Side-by-side** (`S`) and pick a second translation from the chip strip below the passage.\n\n## Available\n\nProtestant, Catholic (with deuterocanon), Orthodox, Hebrew (WLC), Greek (Tisch, LXX), Latin (Clementine), Ethiopian (incl. 1 Enoch), and historic English (Geneva, Wycliffe) editions are available."
+    },
+    {
+      "id": "apocrypha",
+      "title": "Apocrypha & Extra-Canonical Books",
+      "category": "Reading",
+      "tags": ["apocrypha", "enoch", "nag hammadi", "deuterocanon", "ethiopian", "thomas"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Apocrypha & Extra-Canonical\n\nCODEX treats canon as a setting, not a fact. Several extra-canonical corpora are available:\n\n## Deuterocanon (Catholic / Orthodox)\n\nTobit, Judith, Wisdom, Sirach, Baruch, 1–2 Maccabees, plus the Greek additions to Esther and Daniel. Install the Catholic or Orthodox translations to surface them in the book picker.\n\n## Ethiopian canon\n\nIncludes **1 Enoch**, **Jubilees**, and **2 Esdras** alongside the broader Old and New Testaments. Install the Ethiopian translation.\n\n## Nag Hammadi Library\n\nGospel of Thomas, Gospel of Philip, Gospel of Truth, Apocryphon of John, and others. Install as a separate corpus; appears under **Library → Gnostic** in the book picker.\n\n## Filtering\n\n**Settings → Reading → Canon filter** lets you hide or show extra-canonical books per your tradition. The Gnosis panel makes heavy use of these corpora when enabled."
+    },
+    {
+      "id": "library",
+      "title": "Library Browser",
+      "category": "Reading",
+      "tags": ["library", "books", "browse", "filter", "chapters"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Library Browser\n\nThe **Library** panel is the simplest possible book index — one typographic list of every book in the active canon, with an instant filter at the top.\n\n## Layout\n\nOne column. Subtle dividers separate the Hebrew Bible, the New Testament, and any extra-canonical corpora you have installed. No carets, no badges, no nested sections.\n\n## Filtering\n\nStart typing in the search field — the list narrows in real time. Matches are by book name and common abbreviation (\"jn\", \"1cor\", \"sir\").\n\n## Selecting\n\nTap a book → its chapter strip lifts in beneath it. Tap a chapter to jump. Tap a different book and the previous strip retracts.\n\n## Current location\n\nThe currently open book is highlighted, and its line shows `chapter / total` (e.g. `31 / 50`) so you always know where you are without leaving the reader."
+    },
+    {
+      "id": "verse-menu",
+      "title": "Verse Menu",
+      "category": "Study Tools",
+      "tags": ["verse menu", "actions", "mark", "compare", "copy"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Verse Menu\n\nTap any verse to anchor the **Verse Menu** beside it. Every per-verse action lives here so the reader stays uncluttered.\n\n## Actions\n\n- **✦ MARK** — add to bookmarks with optional color and note.\n- **Α/Ω COMPARE** — open verse-compare across all installed translations.\n- **↔ TRANSLATE** — quick switch the primary translation just for this passage.\n- **◉ ASK ORACLE** — prefill Oracle with the verse and a starter prompt.\n- **⎘ COPY** — copy text to clipboard with reference attached.\n- **🌐 MAP** — open the verse map.\n- **🎨 ART** — open verse art.\n- **⟁ GNOSIS** — engage the gnosis overlay.\n- **⚔ QUEST** — add to an active reading quest.\n\nPlugins can add their own rows via the `verseActions` hook (see the **Plugins** article).\n\nKeyboard: focus a verse with `J`/`K` and press `Enter` to open the menu."
+    },
+    {
+      "id": "verse-map",
+      "title": "Verse Map",
+      "category": "Study Tools",
+      "tags": ["map", "geography", "leaflet", "places", "atlas"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Verse Map\n\nThe **Verse Map** plots geographic references in the current chapter on an interactive Leaflet map.\n\n## Opening\n\nPress `M` or tap the map icon in the verse menu.\n\n## What it shows\n\n- **Places** mentioned in the passage (cities, regions, bodies of water) as pins.\n- **Routes** for narrative journeys (Exodus, Paul's missionary travels) as polylines.\n- **Era toggles** — switch between 1st-century, monarchic-era, and modern basemaps where available.\n\nTap a pin for a popup with the verse(s) referencing that location.\n\n## Offline\n\nMap tiles are cached for chapters you've visited recently. With no network, only previously-viewed maps render."
+    },
+    {
+      "id": "verse-art",
+      "title": "Verse Art",
+      "category": "Study Tools",
+      "tags": ["art", "paintings", "wikimedia", "illustrations", "manuscripts"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Verse Art\n\n**Verse Art** surfaces 6–8 notable artworks depicting the scene of any verse — paintings, illuminated manuscripts, frescoes, mosaics.\n\n## Opening\n\nFrom the verse menu, tap **🎨 ART**. The first open for a verse calls Claude (cheap Haiku tier) for the curated list; results are cached forever in `localStorage` under `codex.art.${book}.${ch}.${verse}` so re-opens are instant and offline-safe.\n\n## What you get\n\nA grid of cards, each with:\n\n- A thumbnail from **Wikimedia Commons** (resolved through `Special:FilePath`) when available, otherwise a stylised placeholder.\n- Title, artist, year, medium, and the holding museum.\n- A short note explaining the connection to the verse.\n\n## More\n\nThe **+ MORE** button issues a follow-up call passing the titles already shown, so Claude returns a different set rather than repeating itself. Stack as many rounds as you like — each is cached.\n\n## Limitations\n\nThumbnails depend on Wikimedia hosting the file under the exact name the model guessed. When that fails, the card still shows the metadata."
+    },
+    {
+      "id": "verse-mirror",
+      "title": "Verse Mirror",
+      "category": "Study Tools",
+      "tags": ["mirror", "prophecy", "geopolitics", "history", "eschatology"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Verse Mirror\n\n**Verse Mirror** surfaces historical, geopolitical, and prophetic resonances for any verse. Open it from the verse menu.\n\n## Four sections\n\n- **Historical parallels** — 3–6 events through history that mirror the passage's theme, with date, place, and a brief connection note.\n- **Modern resonances** — recent (~30 years) geopolitical events where scholars or commentators have drawn parallels to the verse.\n- **Prophetic readings** — eschatological interpretations from **multiple traditions** (premillennial, amillennial, preterist, historicist, idealist). The Mirror never endorses one school — each block is labelled by tradition so you see the spread.\n- **Cross-references** — clickable canonical refs that jump in-app.\n\n## Tone & caveats\n\nEvery AI-generated block is flagged as a **scholarly survey, not prediction**. The prompt explicitly forbids single-tradition prophecy claims. Use Mirror as a starting point for your own reading, not as the final word.\n\nResults cache under `codex.mirrors.${book}.${ch}.${verse}` and persist offline."
+    },
+    {
+      "id": "verse-compare-deep",
+      "title": "Verse Compare (Deep)",
+      "category": "Study Tools",
+      "tags": ["compare", "translations", "parallel", "study", "exegesis"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Verse Compare\n\n**Verse Compare** displays a single verse side-by-side across every translation you have installed. Reach it from the verse menu's **COMPARE** action or from the bottom toolbar of the compare modal.\n\n## Modal layout\n\n- One row per translation, sorted alphabetically (pin favorites to the top in settings).\n- A dropdown at the top filters by language, era, or tradition (Hebrew, Greek, Latin, English Modern, English Historic, etc.).\n- A bottom toolbar lets you add adjacent verses (-1 / +1) for context — the modal grows a row for each new verse, keeping all translations aligned by reference.\n\n## Loading & caching\n\nMissing chapters are fetched on demand via `BIBLE.loadChapter` and cached, so reopening the same comparison is instant and works offline.\n\n## Workflow tips\n\n- Open a contested verse (e.g. Romans 5:12, Isaiah 7:14) and add `±2` for the full sentence shape.\n- Drag any row to copy a SBL-formatted citation with translation, edition, and access date."
+    },
+    {
+      "id": "reading-quests",
+      "title": "Reading Quests",
+      "category": "Study Tools",
+      "tags": ["quest", "messiah", "study plan", "thread", "tracker"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Reading Quests\n\nQuests are **threaded reading plans** — sequences of verses unified by a theme. As you read, the quest tracks your progress and unlocks the next stop.\n\n## Available quests\n\n- **Messiah quest** — every messianic prophecy in the Hebrew Bible and its NT fulfillment, in canonical order.\n- **Wisdom quest** — Proverbs, Job, Ecclesiastes, and Sirach woven into a single arc.\n- **Apocalypse quest** — Daniel, Ezekiel 1, Zechariah, Revelation, parts of 1 Enoch.\n\n## How it works\n\nOpen the verse menu → **Add to Quest**. Or start a quest from Settings → Quests. Progress shows as a thin progress bar above the passage. Completed quests stay in your library for review.\n\nQuests are local; they sync via the cross-device sync key."
+    },
+    {
+      "id": "quest-messiah",
+      "title": "Messiah in Prophecy Quest",
+      "category": "Study Tools",
+      "tags": ["quest", "messiah", "prophecy", "fulfillment", "debate ready"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Messiah in Prophecy\n\nA full-screen guided study tour covering **50 core messianic prophecies** from the Hebrew Bible and their New Testament fulfillments.\n\n## Launching\n\nTap the **⚔ QUESTS** button in the status bar, then choose *Messiah in Prophecy*. The reader fades and the quest overlay mounts in its place.\n\n## Layout\n\n- **Sidebar** — all 50 cards. Completed ones show a check; current is highlighted.\n- **Main panel** — the prophecy text, the fulfillment text, and a short scholarly note.\n- **Debate Ready panel** — common objections (Jewish, skeptical, alternative-fulfillment) and how Christian apologists respond, presented as a survey not a polemic.\n- **Sticky bottom bar** — previous / next, pin to passage, exit.\n\n## Progress\n\nYour position persists to `localStorage` under `codex.quest.messiah.*` so you can resume across sessions. The quest can be reset from Settings → Quests.\n\n## Future quests\n\nPlugins can register additional quests via `window.CODEX_QUESTS` — see the **Plugins** article."
+    },
+    {
+      "id": "ai-panels",
+      "title": "AI Study Panels",
+      "category": "AI Features",
+      "tags": ["talmud", "commentary", "gematria", "gnosis", "apologetics", "panels"],
+      "lastUpdated": "2026-05-17",
+      "body": "# AI Study Panels\n\nThe right rail hosts five AI-generated study panels. Each is computed per-verse and cached locally so the same passage never costs twice.\n\n## Talmud\n\nRabbinic commentary lens: tractate refs, halakhic vs aggadic notes, midrash parallels.\n\n## Commentary\n\nA balanced verse-by-verse commentary drawing on patristic, reformation, and modern sources. Default lens for most readers.\n\n## Gematria\n\nNumerical analysis of Hebrew/Greek words in the verse — isopsephy values, notable equivalences, cautious framing of speculative gematria.\n\n## Gnosis\n\nGnostic / esoteric / mystical readings. Off by default; enable in Settings → AI. Includes Nag Hammadi, Hermetica, and Kabbalistic cross-references.\n\n## Apologetics\n\nClassical defenses, common objections, manuscript notes. Useful for evangelism and skeptical inquiry.\n\nSwitch panels with number keys `1`–`9`."
+    },
+    {
+      "id": "oracle-chat",
+      "title": "Using Oracle",
+      "category": "AI Features",
+      "tags": ["chat", "ask", "claude", "AI", "theology"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Oracle\n\nOracle is your conversational Bible study companion. It knows your current passage, active translation, and cached study panels.\n\n## Opening\n\nPress `O` or tap the speech-bubble in the left rail.\n\n## What it does well\n\n- **Cross-references** — *“Where else does Paul use this phrase?”*\n- **Original language** — *“What is the Greek behind ‘word’ here?”*\n- **Historical context** — *“Who were the Sadducees?”*\n- **Translation suggestions** — Oracle may suggest installing a translation (e.g. 1 Enoch when reading Gen 6) via an inline install token.\n\n## Memory\n\nLong conversations can be **Compacted** — Oracle summarizes the chat to date into a short memory note, freeing context space while keeping continuity.\n\n## Bookmarks via chat\n\nType `/bookmark John 1:14 | the Word made flesh` to save a bookmark without leaving the chat."
+    },
+    {
+      "id": "multi-provider-ai",
+      "title": "Choosing an AI Provider",
+      "category": "AI Features",
+      "tags": ["provider", "claude", "grok", "ollama", "anthropic", "api key", "local"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Multi-Provider AI\n\nCODEX can route Oracle and AI-panel calls through several providers. Switch in **Settings → AI → Provider**.\n\n## Anthropic Claude (default)\n\nThe canonical experience. Best quality for theological nuance, multi-tradition framing, and original-language analysis. Calls go through `/api/chat`, which proxies to Anthropic. You can supply your own key in Settings → AI → Keys (synced to the server via `/api/key`).\n\n## xAI Grok\n\nFast and inexpensive. Solid for cross-references and historical context; weaker on multi-tradition prophecy framing. Key stored locally only.\n\n## Ollama (local)\n\nFor full offline AI: point CODEX at a local Ollama instance (`http://localhost:11434` by default). Quality depends entirely on the model you've pulled — Llama 3 70B is the sweet spot. Latency is local but generation can be slow on consumer hardware.\n\n## Per-feature override\n\nYou can pin individual features (Oracle, Commentary, Gematria, Gnosis) to specific providers — useful if you want Claude for theology and Grok for quick lookups."
+    },
+    {
+      "id": "highlights-bookmarks",
+      "title": "Highlights, Bookmarks & Notes",
+      "category": "Study Tools",
+      "tags": ["marks", "highlight", "color", "bookmark", "notes"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Highlights, Bookmarks & Notes\n\n## Highlighting\n\nTap a verse → choose a color from the **mark strip**. The default color is set in Settings → Marks. Highlights sync across translations (the mark belongs to the reference, not the text).\n\n## Bookmarks\n\nIn the verse menu, tap the **bookmark** icon. Bookmarks appear in the left rail with their reference, snippet, and any note. Drag to reorder, swipe to delete.\n\n## Notes\n\nPress `N` to open the notes drawer. Notes are markdown — `**bold**`, `*italic*`, lists, and `[[John 1:1]]` cross-reference links all work. Notes attach to a verse or float free.\n\n## Where it lives\n\nAll marks, bookmarks, and notes are stored in `localStorage` under `codex.marks.*` keys, and ride your **cross-device sync** if enabled."
+    },
+    {
+      "id": "highlights-deep",
+      "title": "Highlights & Colors (Deep)",
+      "category": "Study Tools",
+      "tags": ["highlight", "color", "marks", "swatches", "theme"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Highlights — Deep Dive\n\nHighlights are reference-keyed, color-coded marks that ride with the verse no matter which translation you're reading.\n\n## The mark strip\n\nTap a verse and the **mark strip** appears with eight color swatches (amber, rose, cyan, violet, green, slate, red, gold). Tap to apply; tap the same color again to remove. The default swatch is set in **Settings → Marks → Default color**.\n\n## Custom palette\n\nYou can override any swatch in **Settings → Marks → Palette** — useful for color-coding your own taxonomy (e.g. cyan = covenant, violet = wisdom, gold = christological).\n\n## Bulk operations\n\nIn **Settings → Marks → Manage** you can: filter by color, bulk re-color, bulk delete, and export selection to a markdown bundle. The whole mark set is part of cross-device sync.\n\n## Across translations\n\nBecause a mark is stored as `{ ref, color }` rather than as text offsets, swapping translations preserves all your highlights — even into a Hebrew or Greek translation."
+    },
+    {
+      "id": "bookmarks-deep",
+      "title": "Bookmarks (Deep)",
+      "category": "Study Tools",
+      "tags": ["bookmark", "pin", "favorites", "rail", "save"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Bookmarks — Deep Dive\n\nBookmarks are the long-term version of highlights — saved references you want to find again, with optional notes and pin status.\n\n## Creating\n\nFrom the verse menu, tap the **✦ MARK** icon. A small bottom-sheet lets you pick a color, add a one-line note, and pin (pins float to the top of the bookmarks list).\n\n## The bookmark rail\n\nOpen with `B`. Each entry shows the reference, a short snippet of the verse, your note, and the color stripe. Drag to reorder; swipe left to delete; tap to jump to the passage.\n\n## Search\n\nThe search box above the list does both substring and semantic search. If the substring pass returns nothing or thin results, **mark-search** (Oracle-powered, cached) re-ranks the full set by meaning — so typing *\"love\"* surfaces *1 Corinthians 13* even if you never wrote the word in your note.\n\n## Storage\n\nBookmarks live in `localStorage` under `codex.marks.*` and ride cross-device sync."
+    },
+    {
+      "id": "notes-deep",
+      "title": "Notes System (Deep)",
+      "category": "Study Tools",
+      "tags": ["notes", "markdown", "draggable", "drawer", "study"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Notes — Deep Dive\n\nThe Notes widget is a draggable, resizable, hidable pad designed for scholars who keep margin notes while reading.\n\n## Opening & shaping\n\n- Press `N` to toggle. Anchored bottom-right by default.\n- A resize grip in the **top-left corner** lets you drag the panel to any width and height — the size persists in `codex.notes.size`.\n- Drag the title bar to reposition; position also persists.\n\n## Pin to verse\n\nA note can be **pinned to the current verse**. Pinned notes auto-surface when you navigate back to that reference. Notes can also float free of any verse.\n\n## Markdown\n\n- Inline: `**bold**`, `*italic*`, `` `code` ``, `[text](url)`.\n- Block: headings, ordered/unordered lists, blockquotes.\n- Cross-references: `[[John 1:1]]` becomes a clickable jump.\n\n## Where it lives\n\nEvery note is in `localStorage` so reloads are safe. The notes set rides the standard `codex.*` cross-device sync. Nothing leaves your device unless you opt into sync."
+    },
+    {
+      "id": "mark-search",
+      "title": "Searching Marks Semantically",
+      "category": "Study Tools",
+      "tags": ["search", "marks", "bookmarks", "semantic", "oracle"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Mark Search\n\nThe bookmarks rail has a small search box that does two passes:\n\n1. **Literal substring** — searches reference strings, note text, and any cached snippet text. Instant, local.\n2. **Semantic re-rank** — if the literal pass returns too few hits, CODEX asks Oracle to score every saved mark against your query and returns the top results, with a one-line *reason* explaining each match.\n\n## Why it matters\n\nTyping *\"love\"* surfaces *1 Corinthians 13* and *Romans 8:38* even when none of your marks have *love* in the reference or note.\n\n## Caching\n\nResults are cached in `localStorage[\"codex.marksearch.v1\"]` keyed by a signature of the query plus the set of mark keys. Capped at ~50 entries (LRU). Identical queries against the same mark set are instant and free.\n\n## Privacy\n\nOnly reference strings and your own notes are sent to the AI — never your full reading history or any other data."
+    },
+    {
+      "id": "offline-mode",
+      "title": "Offline Mode",
+      "category": "Power User",
+      "tags": ["pwa", "service worker", "cache", "airplane"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Offline Mode\n\nCODEX is a true **Progressive Web App**. After your first visit, the entire reader works without network.\n\n## What's cached automatically\n\n- The app shell — every HTML, CSS, JS, JSX file.\n- React, Babel, Leaflet (the JS framework deps).\n- Any **scripture chapter** you read.\n- Any **AI panel** you've opened (verse-keyed cache).\n- Map tiles for chapters you've visited.\n\n## What's NOT offline\n\n- New Oracle questions (needs `/api/chat`).\n- New AI panels for chapters you haven't visited.\n- Installing a new translation.\n\n## Install to home screen\n\nOn iOS: Share → Add to Home Screen. On Android/desktop Chrome: address-bar install icon. Once installed, CODEX launches as its own window."
+    },
+    {
+      "id": "auto-cache",
+      "title": "Auto-Cache (First-Install Warm-Up)",
+      "category": "Power User",
+      "tags": ["cache", "offline", "warmup", "download", "first install"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Auto-Cache\n\nFor CODEX to truly be \"install once, works forever\" the user's primary translation needs every chapter on disk **before** they ever lose connectivity. The auto-cache module handles this.\n\n## What it does\n\nThe first time you launch CODEX, it kicks off a background download of every chapter of your primary translation, then sets a flag in `localStorage[\"codex.autocache.v1\"]` so it never runs again. Subsequent translations are still on-demand.\n\n## Progress events\n\nThe footer shows a thin progress strip driven by these events:\n\n- `codex:autocache-start { translation, total }`\n- `codex:autocache-tick  { translation, done, total }`\n- `codex:autocache-done  { translation, done, total }`\n- `codex:autocache-error { translation, error }`\n\n## Manual re-run\n\nIf you change primary translation later, trigger a fresh warm-up from **Settings → Bible → Download all**. You can also clear the autocache flag from Settings → Cache to redo the warm-up.\n\n## Size budget\n\nThe KJV warm-up is ~5 MB. Pre-pulling every translation would be tens of MB — not the default."
+    },
+    {
+      "id": "sync",
+      "title": "Cross-Device Sync",
+      "category": "Power User",
+      "tags": ["sync", "gist", "firebase", "github", "device", "token"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Cross-Device Sync\n\nCODEX supports two sync backends so your marks, notes, quests, and settings ride across phones, tablets, and desktops.\n\n## Mode 1 — GitHub Gist (recommended)\n\nOne-step setup. Paste a GitHub Personal Access Token with `gist` scope. CODEX creates a private gist and uses it as the sync target. The \"personal link\" is the gist URL — open it on any device, paste the same token, and the app joins the sync.\n\n## Mode 2 — Firebase + Google sign-in\n\nHeavier setup but real-time multi-device push. Use this if you want changes to propagate instantly without manual pulls.\n\n## What syncs\n\nEverything personal: marks, bookmarks, notes, quests, settings, custom repos, custom palette. **Never** your API keys.\n\n## Conflict resolution\n\nPer-key last-write-wins. Two devices editing the same note simultaneously will keep the later write — open both, copy, merge by hand if needed.\n\n## Privacy\n\nFor Gist mode, your token is stored locally (and synced to your own gist). For Firebase mode, data lives in your own Firebase project — CODEX is just a client."
+    },
+    {
+      "id": "keyboard-shortcuts",
+      "title": "Keyboard Shortcuts",
+      "category": "Power User",
+      "tags": ["keyboard", "hotkey", "shortcut", "vim", "binding"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Keyboard Shortcuts\n\nPress `?` anywhere to bring up the live shortcut overlay.\n\n## Always-on\n\n- `Esc` — close popover / overlay / theater mode\n- `Cmd/Ctrl + K` — focus search\n- `?` — toggle shortcut overlay\n\n## Verse & chapter navigation\n\n- `J` — next verse\n- `K` — previous verse\n- `H` — previous chapter (rolls into previous book)\n- `L` — next chapter (rolls into next book)\n- `Enter` — open verse menu on the focused verse\n\n## Panels (right rail)\n\n- `1` — Translations\n- `2` — Talmud\n- `3` — Commentary\n- `4` — Gematria\n- `5` — Gnosis (auto-enables)\n- `6`–`9` — additional panels in the active set\n\n## Features\n\n- `O` — Oracle (left rail)\n- `B` — Bookmarks (left rail)\n- `N` — Notes drawer\n- `M` — Verse map\n- `T` — Translations panel\n- `S` — Side-by-side toggle\n- `F` — Theater (distraction-free) mode\n\nShortcuts are suppressed while typing in an input. Modifier-key combos (Cmd/Ctrl/Alt) are never intercepted except `Cmd/Ctrl+K`."
+    },
+    {
+      "id": "custom-repos",
+      "title": "Custom Bible Repositories",
+      "category": "Power User",
+      "tags": ["repo", "translation", "custom", "provider", "api"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Custom Bible Repositories\n\nYou can teach CODEX about a Bible translation it doesn't ship with — handy for less common editions or your own private translation hosted on a compatible API.\n\n## Adding\n\nOpen **Settings → Bible → Custom repos → Add**. Provide:\n\n- **Display name** — e.g. *My Translation*.\n- **Provider** — one of the supported API shapes (bible-api.com, ESV, Sefaria, generic-JSON).\n- **API id** — the identifier the provider expects (e.g. `web`, `kjv`, `wlc`).\n\nThe repo persists in `localStorage` and is merged into `CODEX_DATA.translations` on every boot. Chapter texts then ride the normal bible.js cache.\n\n## Removing\n\nThe **Remove** action drops the repo from the translations list, deletes the persisted record, and **purges any cached chapters** so the slot is fully recoverable.\n\n## Sharing\n\nCustom repos are part of cross-device sync — set up once, get it everywhere."
+    },
+    {
+      "id": "cli",
+      "title": "CODEX Terminal CLI",
+      "category": "Power User",
+      "tags": ["cli", "terminal", "node", "shell", "command line"],
+      "lastUpdated": "2026-05-17",
+      "body": "# CODEX CLI\n\nA pure Node 18+ command-line client for reading scripture and running Oracle/panels from the shell. No dependencies.\n\n## Setup\n\nThe CLI talks to `bible-api.com` for verse text and to a locally-running CODEX server (default `http://localhost:3001`) for AI calls. Start the server with `node server.js` first if you want AI features.\n\n## Reading verses\n\n```\nnode cli.js \"John 1:1-5\"\nnode cli.js \"Genesis 1\" --translation kjv\nnode cli.js \"Romans 8:28\" --plain\n```\n\n## Oracle from the shell\n\n```\nnode cli.js ask \"What does logos mean in John 1:1?\"\nnode cli.js ask \"Compare KJV and NIV on Romans 5:12\"\n```\n\n## Panels\n\n```\nnode cli.js panel commentary \"John 1:1\"\nnode cli.js panel gematria  \"Genesis 1:1\"\n```\n\n## Flags\n\n- `--server <url>` — override the CODEX server URL.\n- `--no-color` — disable ANSI.\n- `--json` — emit raw JSON for piping.\n\nUseful for scripting daily-reading emails or piping verses into your editor."
+    },
+    {
+      "id": "plugins",
+      "title": "Plugins",
+      "category": "Developer",
+      "tags": ["plugin", "extension", "developer", "panel", "action"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Plugins\n\nThird parties (and our own future modules) can extend CODEX without touching core files. A plugin is a plain JS object pushed into `window.CODEX_PLUGINS` or registered via `window.CODEX_PLUGINS_API.register(plugin)`.\n\n## Shape\n\n```\n{\n  id: \"strongs-concordance\",\n  name: \"Strong's Concordance\",\n  version: \"1.0.0\",\n  panels: [\n    { id: \"strongs\", label: \"Strong's\", glyph: \"ℋ\", render(ctx) { ... } }\n  ],\n  verseActions: [\n    { label: \"Strong's Lookup\", icon: \"ℋ\", handler(verseRef) { ... } }\n  ],\n  onNavigate(book, chapter) {},\n  onVerseSelect(ref) {},\n}\n```\n\n## Capabilities\n\n- **Panels** — register new tabs in the right rail.\n- **Verse actions** — add rows to the verse menu.\n- **Lifecycle hooks** — react to navigation and verse selection.\n- **Quests** — register reading quests via `window.CODEX_QUESTS`.\n\n## Installing\n\nA plugin is just a script tag. Add it via **Settings → Plugins → Add script URL** and CODEX caches it offline. Future versions will support signed manifests and a permission prompt before first run."
+    },
+    {
+      "id": "modules",
+      "title": "Data Modules",
+      "category": "Developer",
+      "tags": ["module", "lexicon", "cross-refs", "json", "data"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Data Modules\n\nWhere **plugins** add code, **modules** add data — lexicons, cross-reference sets, commentaries, concordances. A module is a JSON file fetched once and stored in IndexedDB for offline use.\n\n## Format\n\n```\n{\n  \"id\": \"strongs-greek\",\n  \"kind\": \"lexicon\",\n  \"name\": \"Strong's Greek Lexicon\",\n  \"version\": \"1.0.0\",\n  \"language\": \"el\",\n  \"entries\": { ... }\n}\n```\n\nSupported `kind` values: `lexicon`, `cross-refs`, `commentary`, `concordance`, `red-letter`.\n\n## Installing\n\n**Settings → Modules → Add** and paste a URL to a JSON file. CODEX fetches, validates the shape, and stores it under `idb://codex.modules/<id>`. From then on it's available offline and surfaces in any panel that consumes that kind.\n\n## Authoring\n\nSee `modules.js` in the source for the loader API and the validator. The same file exports for Node/CLI, so you can lint a module locally with `node modules.js validate my-lexicon.json`.\n\n## Registry\n\nA public registry is planned; for now, install from any URL you trust."
+    },
+    {
+      "id": "privacy-and-data",
+      "title": "Privacy & Data",
+      "category": "About",
+      "tags": ["privacy", "anthropic", "local", "storage", "data"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Privacy & Data\n\n## What lives locally\n\nEverything you do in CODEX is stored in **your browser** by default:\n\n- Marks, bookmarks, notes, quests → `localStorage`\n- Cached scripture, AI panels → IndexedDB / Cache Storage\n- Settings, API keys → `localStorage` (`codex.tweaks.v1`, `codex.api.keys.v1`)\n\nCODEX has no user accounts and no analytics.\n\n## What gets sent to Anthropic\n\nOnly when you actively use AI:\n\n- **Oracle messages** — your prompt + recent chat + the current passage context\n- **AI panel generation** — the verse text + a system prompt for that panel type\n- **Compaction** — the chat transcript being condensed\n\nNo marks, no notes, no API keys, no identifying information are ever sent. Requests go through `/api/chat`, which proxies to Anthropic.\n\n## Cross-device sync\n\nOptional. If enabled, your settings + marks ride an end-to-end encrypted blob via your chosen sync backend (GitHub gist by default). You hold the key."
+    },
+    {
+      "id": "troubleshooting",
+      "title": "Troubleshooting",
+      "category": "About",
+      "tags": ["fix", "broken", "cache", "reset", "service worker", "refresh"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Troubleshooting\n\n## A panel won't load / shows stale content\n\nFirst try: tap the refresh icon on the panel itself — it bypasses the cache for that one verse.\n\n## The app feels broken after an update\n\nHard refresh: `Cmd+Shift+R` (macOS) or `Ctrl+Shift+R` (Windows/Linux). This bypasses the service worker for a single load.\n\n## Reset the service worker\n\nDevTools → Application → Service Workers → **Unregister**. Then reload. CODEX will reinstall fresh on next visit.\n\n## Clear all caches\n\nSettings → Cache → **Clear cached scripture / panels**. Surgical: leaves your marks intact.\n\n## Factory reset\n\nSettings → Danger Zone → **Reset factory settings**. Wipes preferences and API keys; keeps marks, notes, cached scripture.\n\n## Still broken?\n\nOpen the browser console. CODEX logs prefixed `[codex]` are usually informative."
+    },
+    {
+      "id": "for-jewish-users",
+      "title": "For Jewish Readers",
+      "category": "Audience-Specific",
+      "tags": ["jewish", "torah", "parsha", "talmud", "hebrew", "calendar"],
+      "lastUpdated": "2026-05-17",
+      "body": "# For Jewish Readers\n\nCODEX is built ecumenically. For a Jewish reading experience:\n\n## Recommended setup\n\n- Install **WLC** (Westminster Leningrad Codex, pointed Hebrew) as the primary translation.\n- Enable **YHWH restoration** in Settings → Reading.\n- Make the **Talmud** panel your default right-rail tab.\n- Hide the New Testament books in Settings → Reading → Canon filter.\n\n## Coming soon\n\n- **Parsha cycle** — auto-jump to this week's Torah portion.\n- **Hebrew calendar** — Shabbat-aware reading reminders.\n- **Talmud daf** — direct Sefaria-style links from any verse cited in Mishnah/Gemara.\n- **Targum overlay** — Aramaic Targum Onkelos / Jonathan as a secondary translation.\n\nFeedback welcome — open an issue on the project repo."
+    },
+    {
+      "id": "for-academics",
+      "title": "For Academic Study",
+      "category": "Audience-Specific",
+      "tags": ["academic", "manuscript", "greek", "hebrew", "variants", "critical"],
+      "lastUpdated": "2026-05-17",
+      "body": "# For Academic Study\n\n## Original-language workflow\n\n- Install **WLC** (Hebrew) and **Tisch** or **NA28** (Greek) translations.\n- Enable **Side-by-side** (`S`) with the original alongside your working English.\n- Use the **Gematria** panel for Hebrew numerical analysis; tap a word for lexicon entries.\n\n## Manuscript variants\n\nThe **Apologetics** panel surfaces major textual variants for the active verse — which manuscripts read what, and how modern critical editions adjudicate. For deeper apparatus work, the LXX install includes Rahlfs sigla.\n\n## Translation analysis\n\nAsk Oracle: *“Compare how KJV, NIV, NRSV, and the WLC handle the syntax of this verse.”* Oracle has access to every translation you've installed.\n\n## Citations\n\nThe verse menu's **Cite** action produces SBL-format citations including translation, edition, and access date."
+    },
+    {
+      "id": "community-modules",
+      "title": "Community Modules",
+      "category": "Power User",
+      "tags": ["module", "plugin", "extension", "community", "third-party"],
+      "lastUpdated": "2026-05-17",
+      "body": "# Community Modules (Preview)\n\nCODEX has a **module system** that lets third parties ship study tools — panels, overlays, quests, lexicons — without forking the app.\n\n## How it will work\n\nA module is a single signed `.module.json` file describing:\n\n- The kind (panel | overlay | quest | translation source)\n- The endpoint or static data it provides\n- Permissions it requests (read passage? send to remote?)\n\nInstall via Settings → Modules → **Add module** and paste a URL. CODEX verifies the signature, shows the permission prompt, and caches the module offline.\n\n## Current status\n\nThe module loader (`modules.js`) is present but the public registry is not yet open. Watch the project README for updates.\n\n## Building one\n\nSee `modules.js` and the existing built-in panels in `panels-gen.js` for the API surface."
+    },
+    {
+      "id": "about-codex",
+      "title": "About CODEX",
+      "category": "About",
+      "tags": ["about", "vision", "open source", "contribute"],
+      "lastUpdated": "2026-05-17",
+      "body": "# About CODEX\n\n## Vision\n\nCODEX is a **distraction-respectful** Bible study environment that treats scripture as the center of gravity and AI as a humble assistant — not the other way around. No notifications. No engagement metrics. No upsells.\n\n## What makes it different\n\n- **Offline-first**: a fully working Bible app even on an airplane.\n- **Translation-rich**: dozens of editions including Hebrew, Greek, Latin, Ethiopian.\n- **AI panels**: per-verse Talmud, Commentary, Gematria, Gnosis, Apologetics — cached, not re-billed.\n- **Cross-tradition**: useful to Protestants, Catholics, Orthodox, Jewish readers, academics, and the curious skeptic alike.\n\n## Open source\n\nCODEX is open source. The repository hosts the React PWA, the proxy server, and the panel/quest definitions. Contributions — translations, panels, quests, fixes — are welcome.\n\n## Credits\n\nBuilt with React, Babel, Leaflet, and the Anthropic Claude API. Bible texts are public domain or used per their respective licenses (acknowledged in `data/bibles/`)."
+    }
+  ]
+}

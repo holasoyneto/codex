@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v154";
+const VERSION = "v159";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -37,9 +37,13 @@ const SHELL_FILES = [
   r("bible.js"),
   r("auto-cache.js"),
   r("sync.js"),
+  r("modules.js"),
+  r("plugins.js"),
   r("panels-gen.js"),
   r("mark-search.js"),
   r("tweaks-panel.jsx"),
+  r("help.jsx"),
+  r("data/help/articles.json"),
   r("components.jsx"),
   r("panels.jsx"),
   r("oracle.jsx"),

@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "id": "hebrew-calendar",
+    "type": "timeline",
+    "version": "1.0.0",
+    "name": "Hebrew Calendar — Months & Holidays",
+    "lang": "en",
+    "description": "Hebrew month names with Gregorian approximations and the major Jewish holidays with their scripture readings."
+  },
+  "months": [
+    { "n": 1,  "name": "נִיסָן",      "translit": "Nisan",     "approxGregorian": "Mar–Apr", "notes": "First month per Exodus 12:2; Pesach falls 15 Nisan" },
+    { "n": 2,  "name": "אִיָּר",       "translit": "Iyyar",     "approxGregorian": "Apr–May", "notes": "Lag BaOmer 18 Iyyar" },
+    { "n": 3,  "name": "סִיוָן",      "translit": "Sivan",     "approxGregorian": "May–Jun", "notes": "Shavuot 6 Sivan" },
+    { "n": 4,  "name": "תַּמּוּז",     "translit": "Tammuz",    "approxGregorian": "Jun–Jul", "notes": "Tzom Tammuz fast 17 Tammuz" },
+    { "n": 5,  "name": "אָב",         "translit": "Av",        "approxGregorian": "Jul–Aug", "notes": "Tisha B'Av 9 Av (destruction of both temples)" },
+    { "n": 6,  "name": "אֱלוּל",       "translit": "Elul",      "approxGregorian": "Aug–Sep", "notes": "Month of teshuvah preceding the High Holy Days" },
+    { "n": 7,  "name": "תִּשְׁרֵי",    "translit": "Tishrei",   "approxGregorian": "Sep–Oct", "notes": "Rosh Hashanah 1–2, Yom Kippur 10, Sukkot 15–22, Simchat Torah" },
+    { "n": 8,  "name": "חֶשְׁוָן",     "translit": "Cheshvan",  "approxGregorian": "Oct–Nov", "notes": "No major festivals — sometimes called Mar-Cheshvan ('bitter')" },
+    { "n": 9,  "name": "כִּסְלֵו",     "translit": "Kislev",    "approxGregorian": "Nov–Dec", "notes": "Chanukah begins 25 Kislev" },
+    { "n": 10, "name": "טֵבֵת",       "translit": "Tevet",     "approxGregorian": "Dec–Jan", "notes": "Asarah b'Tevet fast 10 Tevet" },
+    { "n": 11, "name": "שְׁבָט",      "translit": "Shevat",    "approxGregorian": "Jan–Feb", "notes": "Tu BiShvat 15 Shevat (New Year for trees)" },
+    { "n": 12, "name": "אֲדָר",       "translit": "Adar",      "approxGregorian": "Feb–Mar", "notes": "Purim 14 Adar; leap years insert Adar I before Adar II" }
+  ],
+  "holidays": [
+    { "id": "rosh-hashanah",  "name": "Rosh HaShanah",      "hebrew": "רֹאשׁ הַשָּׁנָה",  "date": "1–2 Tishrei",      "readings": ["gen.21", "gen.22", "1sam.1.1-2.10", "jer.31.2-20"] },
+    { "id": "yom-kippur",     "name": "Yom Kippur",          "hebrew": "יוֹם כִּפּוּר",     "date": "10 Tishrei",       "readings": ["lev.16", "lev.18", "isa.57.14-58.14", "jonah", "mic.7.18-20"] },
+    { "id": "sukkot",         "name": "Sukkot",              "hebrew": "סֻכּוֹת",          "date": "15–21 Tishrei",    "readings": ["lev.22.26-23.44", "num.29.12-16", "zech.14.1-21"] },
+    { "id": "shemini-atzeret","name": "Shemini Atzeret",     "hebrew": "שְׁמִינִי עֲצֶרֶת", "date": "22 Tishrei",       "readings": ["deut.14.22-16.17", "1kgs.8.54-66"] },
+    { "id": "simchat-torah",  "name": "Simchat Torah",       "hebrew": "שִׂמְחַת תּוֹרָה",  "date": "23 Tishrei",       "readings": ["deut.33-34", "gen.1.1-2.3", "josh.1"] },
+    { "id": "chanukah",       "name": "Chanukah",            "hebrew": "חֲנֻכָּה",         "date": "25 Kislev–2 Tevet","readings": ["num.7", "zech.2.14-4.7", "1kgs.7.40-50"] },
+    { "id": "tu-bishvat",     "name": "Tu BiShvat",          "hebrew": "ט״וּ בִּשְׁבָט",    "date": "15 Shevat",        "readings": [] },
+    { "id": "purim",          "name": "Purim",               "hebrew": "פּוּרִים",         "date": "14 Adar",          "readings": ["esth", "exo.17.8-16"] },
+    { "id": "pesach",         "name": "Pesach (Passover)",   "hebrew": "פֶּסַח",           "date": "15–22 Nisan",      "readings": ["exo.12.21-51", "lev.22.26-23.44", "num.28.16-25", "josh.5.2-6.1", "song"] },
+    { "id": "shavuot",        "name": "Shavuot",             "hebrew": "שָׁבוּעוֹת",       "date": "6–7 Sivan",        "readings": ["exo.19.1-20.23", "deut.15.19-16.17", "ezek.1", "ruth", "hab.3"] },
+    { "id": "tisha-bav",      "name": "Tisha B'Av",          "hebrew": "תִּשְׁעָה בְּאָב",   "date": "9 Av",             "readings": ["deut.4.25-40", "jer.8.13-9.23", "lam"] }
+  ]
+}

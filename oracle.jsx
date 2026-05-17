@@ -942,7 +942,19 @@ function deriveTitle(msgs) {
   return (u.text || "").trim().replace(/\s+/g, " ").slice(0, 36) || "New chat";
 }
 
-function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLetter, driftMode }) {
+function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLetter, driftMode, provider, model, availableProviders }) {
+  // Effective engine: fall back to anthropic/sonnet if the parent didn't plumb
+  // it (keeps the component renderable in isolation / older callers).
+  const _provider = provider || "anthropic";
+  const _model = model || (_provider === "anthropic" ? "claude-sonnet-4-6" : null);
+  const _engineLabel = (() => {
+    const reg = availableProviders && availableProviders[_provider];
+    const m = reg && (reg.models || []).find(x => x.id === _model);
+    const modelLabel = (m && m.label) || _model || "";
+    if (_provider === "ollama") return `Local · ${modelLabel}`;
+    if (_provider === "xai")    return `via Grok · ${modelLabel}`;
+    return `via ${modelLabel}`;
+  })();
   const data = window.CODEX_DATA;
   const [convs, setConvs] = useState(loadConvs);
   const [activeId, setActiveId] = useState(() => {
@@ -1215,7 +1227,10 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",   // cheap + fast for summarisation
+          // Use the user-selected engine for compact too so a Grok/Ollama user
+          // isn't surprised by an Anthropic call (which would also need a key).
+          provider: _provider,
+          model: _model,
           system: "You are condensing a Bible-study chat between a user and the Oracle. Produce a SHORT memory note (3–6 lines, plain prose) that preserves: the passages discussed, the user's questions / interests, key citations or interpretations the Oracle gave, and any open threads. No greetings, no bullet points, no preamble. Begin directly with the content.",
           messages: [{ role: "user", content: `Conversation to condense:\n\n${transcript}` }],
           max_tokens: 400,
@@ -1297,11 +1312,11 @@ Suggestion policy: when the current passage materially benefits from a translati
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Sonnet for Oracle: prompt caching kicks in for any system block
-          // ≥1024 tokens (Haiku 4.5's threshold is much higher in practice),
-          // and a cached Sonnet read is cheaper than a raw Haiku input. So
-          // we get better quality AND lower cost on multi-turn chats.
-          model: "claude-sonnet-4-6",
+          // Sonnet for Oracle (anthropic default): prompt caching kicks in
+          // for any system block ≥1024 tokens. Multi-provider override comes
+          // from the AI Model selector in Settings.
+          provider: _provider,
+          model: _model || "claude-sonnet-4-6",
           system: [
             { type: "text", text: (driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM) + langDirective, cache_control: { type: "ephemeral" } },
           ],
@@ -1454,6 +1469,10 @@ Suggestion policy: when the current passage materially benefits from a translati
         <div className="cx-oracle-id">
           <b>{(window.t && window.t("oracle.head")) || "ORACLE"}</b>
           <span>{(window.t && window.t("oracle.head.sub")) || "neutral · multi-tradition"}</span>
+          <span
+            className={`cx-tp-engine-badge cx-tp-engine-${_provider}`}
+            title={`AI engine — change in Settings → AI Model`}
+          >{_engineLabel}</span>
         </div>
         <button
           className="cx-oracle-act"

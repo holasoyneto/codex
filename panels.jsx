@@ -7,14 +7,28 @@
 // switches reach the right rail without a remount.
 function railTabs() {
   const t = window.t || ((k) => k);
-  return [
+  const builtIns = [
     { id: "trans",  label: t("panel.translations"), glyph: "Α/Ω" },
     { id: "talmud", label: t("panel.talmud"),       glyph: "ת"   },
     { id: "comm",   label: t("panel.commentary"),   glyph: "§"   },
     { id: "gem",    label: t("panel.gematria"),     glyph: "Σn"  },
     { id: "gnosis", label: t("panel.gnosis"),       glyph: "⟁"   },
   ];
+  // Merge plugin-registered panel tabs. Each plugin panel gets a unique tab
+  // id namespaced as `plugin:<pluginId>:<panelId>` to avoid collisions.
+  const pluginPanels = (window.CODEX_PLUGINS_API && window.CODEX_PLUGINS_API.getPanels()) || [];
+  const pluginTabs = pluginPanels.map(p => ({
+    id: `plugin:${p.pluginId}:${p.id}`,
+    label: p.label,
+    glyph: p.glyph || "◆",
+    isPlugin: true,
+    plugin: p,
+  }));
+  return [...builtIns, ...pluginTabs];
 }
+// Expose so the global keyboard shortcut handler can map "1".."9" to tab ids
+// without re-declaring the canonical list.
+if (typeof window !== "undefined") window.railTabs = railTabs;
 
 function RightRail({
   tab, onTab, gnosisOn, onToggleGnosis,
@@ -22,7 +36,11 @@ function RightRail({
   passage, currentVerse,
   panelData, panelStatus, panelMeta, onRegeneratePanels, onClose, onJumpRef,
   isCollapsed, onCollapse,
+  pluginVersion, translation,
 }) {
+  // Recompute on plugin registration so new tabs appear without a remount.
+  const tabs = useMemo(() => railTabs(), [pluginVersion]);
+  const activePluginTab = tabs.find(x => x.id === tab && x.isPlugin);
   return (
     <aside className="cx-rail cx-rail-r">
       <RightRailResizer />
@@ -36,7 +54,7 @@ function RightRail({
         >▶</button>
       ) : null}
       <div className="cx-tabs">
-        {railTabs().map(t => {
+        {tabs.map(t => {
           const disabled = t.id === "gnosis" && !gnosisOn;
           return (
             <button
@@ -83,8 +101,55 @@ function RightRail({
                        gnosisOn={gnosisOn} onToggleGnosis={onToggleGnosis}
                        onRegenerate={onRegeneratePanels} />
         )}
+        {activePluginTab ? (
+          <PluginPanelHost
+            panel={activePluginTab.plugin}
+            book={passage.book}
+            bookId={passage.bookId}
+            chapter={passage.chapter}
+            verse={currentVerse}
+            translation={translation || primary}
+          />
+        ) : null}
       </div>
     </aside>
+  );
+}
+
+// Host that lets a plugin render either a React element (returned from
+// render()) OR mutate the container DOM directly (for non-React plugins).
+// The container is cleared and re-invoked whenever the relevant ctx changes.
+function PluginPanelHost({ panel, book, bookId, chapter, verse, translation }) {
+  const containerRef = useRef(null);
+  const [reactNode, setReactNode] = useState(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    // Reset between renders — plugins that mutate DOM expect a fresh node.
+    el.innerHTML = "";
+    setReactNode(null);
+    try {
+      const result = panel.render({
+        book, bookId, chapter, verse, translation, container: el,
+      });
+      // React element returned? Render it into our state slot.
+      if (result && (React.isValidElement(result) || typeof result === "string" || typeof result === "number")) {
+        setReactNode(result);
+      }
+    } catch (e) {
+      console.warn(`CODEX plugin panel "${panel.pluginId}:${panel.id}" threw:`, e);
+      el.textContent = `Plugin error: ${e.message || e}`;
+    }
+  }, [panel, book, bookId, chapter, verse, translation]);
+
+  return (
+    <div className="cx-pane cx-pane-plugin">
+      <PaneHead title={panel.label.toUpperCase()} sub={`${book} ${chapter}${verse ? ":" + verse : ""}`} />
+      <div ref={containerRef} className="cx-plugin-mount">
+        {reactNode}
+      </div>
+    </div>
   );
 }
 

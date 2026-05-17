@@ -1135,7 +1135,7 @@ function ReaderViewPopover({
             <button
               type="button"
               className={`cx-vp-toggle ${redLetter ? "is-on" : ""}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onToggleRedLetter && onToggleRedLetter(); }}
               role="switch"
               aria-checked={redLetter}
               aria-label="Red letter mode"
@@ -1146,7 +1146,7 @@ function ReaderViewPopover({
             <button
               type="button"
               className={`cx-vp-toggle ${yhwhMode ? "is-on" : ""}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onToggleYHWH && onToggleYHWH(); }}
               role="switch"
               aria-checked={yhwhMode}
               aria-label="YHWH mode"
@@ -1157,7 +1157,7 @@ function ReaderViewPopover({
             <button
               type="button"
               className={`cx-vp-toggle ${sideBySide ? "is-on" : ""}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onToggleSideBySide && onToggleSideBySide(); }}
               role="switch"
               aria-checked={sideBySide}
               aria-label="Side by side mode"

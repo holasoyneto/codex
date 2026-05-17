@@ -36,6 +36,7 @@ function VerseMenu({
   onOpenCompare,
   onOpenNote,
   onOpenMirror,
+  pluginVersion,
 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0, side: "right" });
@@ -185,6 +186,30 @@ function VerseMenu({
             <span className="cx-vm-lbl">{vmt("vm.note")}</span>
             <span className="cx-vm-sub">{vmt("vm.note.sub")}</span>
           </button>
+
+          {/* Plugin-registered verse actions — appended after built-ins. */}
+          {(window.CODEX_PLUGINS_API ? window.CODEX_PLUGINS_API.getVerseActions() : []).map((a, i) => {
+            const verseRef = {
+              book: passage.book, bookId: passage.bookId,
+              chapter: passage.chapter, verse: verse?.n,
+              text: verseText, translation: primary,
+            };
+            return (
+              <button
+                key={`plugin-${a.pluginId}-${i}`}
+                className="cx-vm-row is-plugin"
+                onClick={() => {
+                  try { a.handler(verseRef); }
+                  catch (e) { console.warn(`CODEX plugin "${a.pluginId}" verseAction threw:`, e); }
+                  onClose();
+                }}
+              >
+                <span className="cx-vm-icon">{a.icon}</span>
+                <span className="cx-vm-lbl">{a.label}</span>
+                <span className="cx-vm-sub">{a.pluginId}</span>
+              </button>
+            );
+          })}
         </div>
       ) : view === "highlight" ? (
         <div className="cx-vm-body cx-vm-hl">

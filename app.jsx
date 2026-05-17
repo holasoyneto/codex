@@ -722,7 +722,9 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "notesEnabled": false,
   "oracleFontScale": 14,
   "hermeneuticDriftCompensation": false,
-  "bootIntro": true
+  "bootIntro": true,
+  "provider": "anthropic",
+  "model": "claude-haiku-4-5-20251001"
 }/*EDITMODE-END*/;
 
 const HIGHLIGHT_COLORS = {
@@ -780,6 +782,25 @@ function App() {
 
   const [tab, setTab] = useState("trans");
   const [primary, setPrimary] = useState(t.primaryTranslation);
+
+  // Multi-provider AI registry. Re-fetched from /api/health on mount and
+  // whenever a key/engine change is broadcast so the model selector grays
+  // out providers that aren't reachable / configured.
+  const [availableProviders, setAvailableProviders] = useState({
+    anthropic: { available: false, models: [] },
+    xai:       { available: false, models: [] },
+    ollama:    { available: false, models: [] },
+  });
+  useEffect(() => {
+    const probe = () => fetch("/api/health")
+      .then(r => r.json())
+      .then(d => { if (d && d.providers) setAvailableProviders(d.providers); })
+      .catch(() => {});
+    probe();
+    const onChange = () => probe();
+    window.addEventListener("codex:engine-change", onChange);
+    return () => window.removeEventListener("codex:engine-change", onChange);
+  }, []);
   const [compareSet, setCompareSet] = useState(() => {
     try {
       const raw = localStorage.getItem("codex.compareSet");
@@ -801,6 +822,21 @@ function App() {
   const setCurrentVerse = useCallback((n) => {
     _setCurrentVerse(n);
     setPassageLoc(p => ({ ...p, verse: n }));
+  }, []);
+
+  // ── Plugin system bridge ────────────────────────────────────────────────
+  // pluginVersion bumps every time a plugin registers so panels.jsx (which
+  // reads window.CODEX_PLUGINS_API.getPanels() at render time) re-renders
+  // and picks up the new tab. Plugins themselves run outside React's tree.
+  const [pluginVersion, setPluginVersion] = useState(0);
+  useEffect(() => {
+    const onReg = () => setPluginVersion(v => v + 1);
+    window.addEventListener("codex:plugin-registered", onReg);
+    // Also bump once on mount in case plugins registered before App mounted.
+    if (window.CODEX_PLUGINS_API && window.CODEX_PLUGINS_API.list().length) {
+      setPluginVersion(v => v + 1);
+    }
+    return () => window.removeEventListener("codex:plugin-registered", onReg);
   }, []);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
@@ -854,7 +890,7 @@ function App() {
     setPanelStatus({ loading: true, error: null });
     setPanelMeta({ fromCache: false, fetchedAt: 0 });
     try {
-      const generated = await window.CODEX_PANELS.load(bookId, chapter, bookName);
+      const generated = await window.CODEX_PANELS.load(bookId, chapter, bookName, { provider: t.provider, model: t.model });
       setPanelData(generated);
       setPanelStatus({ loading: false, error: null });
       setPanelMeta({ fromCache: false, fetchedAt: Date.now(), fresh: true });
@@ -869,7 +905,7 @@ function App() {
     setPanelStatus({ loading: true, error: null });
     setPanelMeta({ fromCache: false, fetchedAt: 0 });
     try {
-      const generated = await window.CODEX_PANELS.load(passage.bookId, passage.chapter, passage.book, { force: true });
+      const generated = await window.CODEX_PANELS.load(passage.bookId, passage.chapter, passage.book, { force: true, provider: t.provider, model: t.model });
       setPanelData(generated);
       setPanelStatus({ loading: false, error: null });
       setPanelMeta({ fromCache: false, fetchedAt: Date.now(), fresh: true });
@@ -920,6 +956,29 @@ function App() {
     window.addEventListener("codex:lang", onLang);
     return () => window.removeEventListener("codex:lang", onLang);
   }, [passage.bookId, passage.chapter, passage.book, loadPanelData]);
+
+  // ── Plugin lifecycle hooks ──────────────────────────────────────────────
+  // Every chapter change: fire codex:navigate + call each plugin's onNavigate.
+  useEffect(() => {
+    if (!passage.book || !passage.chapter) return;
+    const detail = { book: passage.book, bookId: passage.bookId, chapter: passage.chapter };
+    try { window.dispatchEvent(new CustomEvent("codex:navigate", { detail })); } catch {}
+    if (window.CODEX_PLUGINS_API) {
+      window.CODEX_PLUGINS_API.onNavigate(passage.book, passage.chapter);
+    }
+  }, [passage.bookId, passage.chapter, passage.book]);
+
+  // Every verse cursor change: fire codex:verse-select + call onVerseSelect.
+  useEffect(() => {
+    if (!passage.book || !passage.chapter || !currentVerse) return;
+    const ref = {
+      book: passage.book, bookId: passage.bookId,
+      chapter: passage.chapter, verse: currentVerse,
+      translation: primary,
+    };
+    try { window.dispatchEvent(new CustomEvent("codex:verse-select", { detail: { ref } })); } catch {}
+    if (window.CODEX_PLUGINS_API) window.CODEX_PLUGINS_API.onVerseSelect(ref);
+  }, [passage.bookId, passage.chapter, passage.book, currentVerse, primary]);
 
   // Update passage title once panels finish generating, so the header reflects the AI title.
   useEffect(() => {
@@ -1212,18 +1271,200 @@ function App() {
   // Not persisted — it's a per-session reading state, not a setting.
   const [theater, setTheater] = useState(false);
   const toggleTheater = useCallback(() => setTheater(t => !t), []);
+  // Keyboard shortcut overlay — `?` opens it, Esc closes.
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // ── Global keyboard navigation (Phase 0.6) ─────────────────────────────
+  // Single source of truth for all top-level keybindings. Skips typing
+  // contexts so we don't steal keys inside inputs / contenteditable.
   useEffect(() => {
+    const isTyping = (el) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (el.isContentEditable) return true;
+      return false;
+    };
+
+    const flashVerse = (el) => {
+      if (!el) return;
+      el.classList.add("cx-kbd-flash");
+      setTimeout(() => el.classList.remove("cx-kbd-flash"), 220);
+    };
+
+    const verseNodes = () =>
+      Array.from(document.querySelectorAll(".cx-verse, .cx-verse-row"));
+
+    const scrollToVerse = (dir) => {
+      const nodes = verseNodes();
+      if (!nodes.length) return;
+      const mid = window.innerHeight / 2;
+      // Find the verse closest to vertical center; advance from there.
+      let idx = 0, best = Infinity;
+      nodes.forEach((n, i) => {
+        const r = n.getBoundingClientRect();
+        const d = Math.abs((r.top + r.bottom) / 2 - mid);
+        if (d < best) { best = d; idx = i; }
+      });
+      const next = Math.max(0, Math.min(nodes.length - 1, idx + dir));
+      const target = nodes[next];
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      flashVerse(target);
+    };
+
+    const focusSearch = () => {
+      const sel = '.cx-search-input, [data-cx-search], input[type="search"]';
+      const el = document.querySelector(sel);
+      if (el) { el.focus(); el.select?.(); }
+      else console.log("[codex] Cmd+K: search bar not yet implemented (Phase 1.2)");
+    };
+
+    const dispatchShortcut = (action) => {
+      window.dispatchEvent(new CustomEvent("codex:shortcut", { detail: { action } }));
+    };
+
     const onKey = (e) => {
-      if (e.key === "Escape" && theater) setTheater(false);
-      else if (e.key === "f" && !e.metaKey && !e.ctrlKey && !e.altKey
-               && !["INPUT","TEXTAREA"].includes(document.activeElement?.tagName)) {
+      const target = e.target;
+      const typing = isTyping(target);
+
+      // ── Always-on keys (work even inside inputs) ──────────────────────
+      if (e.key === "Escape") {
+        if (showShortcuts) { setShowShortcuts(false); e.preventDefault(); return; }
+        if (theater) { setTheater(false); e.preventDefault(); return; }
+        // Generic escape — let listeners (verse menu, popovers, etc.) close.
+        window.dispatchEvent(new CustomEvent("codex:escape"));
+        setVerseMenu(null);
+        setLeftOpen(false);
+        setRightOpen(false);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
-        setTheater(v => !v);
+        focusSearch();
+        return;
+      }
+
+      // Below here: ignore when user is typing.
+      if (typing) return;
+      // Ignore when modifier keys are held (don't fight browser/native shortcuts).
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const k = e.key;
+
+      // `?` (Shift+/) — shortcut overlay
+      if (k === "?") { e.preventDefault(); setShowShortcuts(v => !v); return; }
+
+      // Enter on a verse row → open verse menu
+      if (k === "Enter") {
+        const row = target.closest?.(".cx-verse, .cx-verse-row");
+        if (row) {
+          e.preventDefault();
+          const n = Number(row.getAttribute("data-vn") || row.dataset?.vn);
+          const v = passage.verses.find(x => x.n === n) || passage.verses.find(x => x.n === currentVerse);
+          if (v) openVerseMenu(v, row.getBoundingClientRect());
+          return;
+        }
+      }
+
+      // Panel tabs 1..9
+      if (/^[1-9]$/.test(k)) {
+        const tabs = (window.railTabs ? window.railTabs() : null) || [
+          { id: "trans" }, { id: "talmud" }, { id: "comm" }, { id: "gem" }, { id: "gnosis" }
+        ];
+        const idx = Number(k) - 1;
+        if (idx < tabs.length) {
+          e.preventDefault();
+          const id = tabs[idx].id;
+          if (id === "gnosis" && !gnosisOn) setGnosisOn(true);
+          setTab(id);
+        }
+        return;
+      }
+
+      switch (k) {
+        case "j": case "J":
+          e.preventDefault(); scrollToVerse(+1); return;
+        case "k": case "K":
+          e.preventDefault(); scrollToVerse(-1); return;
+        case "h": case "H": {
+          e.preventDefault();
+          const book = data.books.find(b => b.id === passage.bookId);
+          if (passage.chapter > 1) loadPassage(passage.bookId, passage.chapter - 1, 1);
+          else {
+            const idx = data.books.findIndex(b => b.id === passage.bookId);
+            if (idx > 0) loadPassage(data.books[idx-1].id, data.books[idx-1].chapters, 1);
+          }
+          return;
+        }
+        case "l": case "L": {
+          e.preventDefault();
+          const book = data.books.find(b => b.id === passage.bookId);
+          if (book && passage.chapter < book.chapters) loadPassage(passage.bookId, passage.chapter + 1, 1);
+          else {
+            const idx = data.books.findIndex(b => b.id === passage.bookId);
+            if (idx >= 0 && idx < data.books.length - 1) loadPassage(data.books[idx+1].id, 1, 1);
+          }
+          return;
+        }
+        case "o": case "O":
+          // Oracle lives in the left rail — open it.
+          e.preventDefault();
+          setLeftOpen(o => !o);
+          if (leftCollapsed) setLeftCollapsed(false);
+          dispatchShortcut("toggle-oracle");
+          return;
+        case "b": case "B":
+          // Bookmarks rail (left). Just open the left rail where marks live.
+          e.preventDefault();
+          setLeftOpen(o => !o);
+          if (leftCollapsed) setLeftCollapsed(false);
+          dispatchShortcut("toggle-bookmarks");
+          return;
+        case "n": case "N": {
+          e.preventDefault();
+          let visible = false;
+          try {
+            visible = localStorage.getItem("codex.notes.visible") === "1";
+            localStorage.setItem("codex.notes.visible", visible ? "0" : "1");
+          } catch {}
+          if (!t.notesEnabled) setTweak("notesEnabled", true);
+          window.dispatchEvent(new CustomEvent("codex:notes:toggle"));
+          dispatchShortcut("toggle-notes");
+          return;
+        }
+        case "m": case "M":
+          e.preventDefault();
+          dispatchShortcut("toggle-map");
+          console.log("[codex] M: verse-map toggle dispatched (handler TODO)");
+          return;
+        case "t": case "T":
+          e.preventDefault();
+          // Open the right rail on the translations tab.
+          setTab("trans");
+          setRightOpen(true);
+          if (rightCollapsed) setRightCollapsed(false);
+          dispatchShortcut("open-translations");
+          return;
+        case "s": case "S": {
+          e.preventDefault();
+          const v = !sideBySide;
+          setSideBySide(v);
+          setTweak("sideBySide", v);
+          return;
+        }
+        case "f": case "F":
+          e.preventDefault();
+          setTheater(v => !v);
+          return;
+        default:
+          return;
       }
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [theater]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // Re-bind whenever the closures' captured state changes.
+  }, [theater, showShortcuts, passage, currentVerse, sideBySide, gnosisOn,
+      leftCollapsed, rightCollapsed, data, loadPassage, openVerseMenu, t.notesEnabled]);
 
   useEffect(() => { setPrimary(t.primaryTranslation); }, [t.primaryTranslation]);
   useEffect(() => { setSideBySide(!!t.sideBySide); }, [t.sideBySide]);
@@ -1331,6 +1572,9 @@ function App() {
           oracleProps={{
             passage, currentVerse, primary, gnosisOn,
             driftMode: !!t.hermeneuticDriftCompensation,
+            provider: t.provider || "anthropic",
+            model: t.model || "claude-haiku-4-5-20251001",
+            availableProviders,
             onAddBookmark: ({ ref }) => jumpToRef(ref),  // legacy hook → just jump
             onJumpTo: ({ ref }) => jumpToRef(ref),
           }}
@@ -1403,6 +1647,8 @@ function App() {
           onRegeneratePanels={regeneratePanels}
           onClose={() => setRightOpen(false)}
           onJumpRef={jumpToRef}
+          pluginVersion={pluginVersion}
+          translation={primary}
         />
 
         {rightCollapsed ? (
@@ -1448,6 +1694,43 @@ function App() {
         </button>
       ) : null}
 
+      {showShortcuts ? (
+        <div className="cx-kbd-overlay" onClick={() => setShowShortcuts(false)} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+          <div className="cx-kbd-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cx-kbd-hd">
+              <b>Keyboard shortcuts</b>
+              <button className="cx-kbd-x" onClick={() => setShowShortcuts(false)} aria-label="Close">×</button>
+            </div>
+            <div className="cx-kbd-grid">
+              {[
+                ["J", "Next verse"],
+                ["K", "Previous verse"],
+                ["H", "Previous chapter"],
+                ["L", "Next chapter"],
+                ["⌘/Ctrl + K", "Focus search"],
+                ["1 – 9", "Switch panel tab"],
+                ["O", "Toggle Oracle / left rail"],
+                ["B", "Toggle bookmarks"],
+                ["N", "Toggle notes"],
+                ["M", "Toggle verse map"],
+                ["T", "Open translations"],
+                ["S", "Toggle side-by-side"],
+                ["F", "Toggle theater mode"],
+                ["Enter", "Open verse menu (on a verse)"],
+                ["?", "Show this overlay"],
+                ["Esc", "Close popovers / overlays"],
+              ].map(([key, label]) => (
+                <React.Fragment key={key}>
+                  <kbd className="cx-kbd-key">{key}</kbd>
+                  <span className="cx-kbd-lbl">{label}</span>
+                </React.Fragment>
+              ))}
+            </div>
+            <div className="cx-kbd-ft">Press <kbd className="cx-kbd-key">?</kbd> any time to reopen.</div>
+          </div>
+        </div>
+      ) : null}
+
       {verseMenu && window.VerseMenu ? (
         <VerseMenu
           anchor={verseMenu.anchor}
@@ -1481,6 +1764,7 @@ function App() {
           onOpenArt={openVerseArt}
           onOpenCompare={openVerseCompare}
           onOpenMirror={openVerseMirror}
+          pluginVersion={pluginVersion}
           onOpenNote={(v, refStr) => {
             // Pre-seed the draft in localStorage BEFORE the widget mounts so
             // its initial state already has the verse pinned. Bulletproof
@@ -1576,6 +1860,17 @@ function App() {
 
         <TweakSection label="AI Engines" />
         <ApiKeysSection />
+
+        <TweakSection label="AI Model" />
+        <AIModelSection
+          provider={t.provider || "anthropic"}
+          model={t.model || "claude-haiku-4-5-20251001"}
+          availableProviders={availableProviders}
+          onChange={({ provider, model }) => {
+            setTweak("provider", provider);
+            if (model) setTweak("model", model);
+          }}
+        />
 
         <TweakSection label="Cross-device sync" />
         <SyncSection />
@@ -1700,6 +1995,18 @@ function App() {
             keys. Leaves cached scripture, panels, marks, and saved
             conversations alone (those have their own clear actions
             above). Asks twice because it's irreversible. */}
+        <TweakSection label="Keyboard" />
+        <button
+          className="cx-mini-btn"
+          onClick={() => setShowShortcuts(true)}
+          title="Show keyboard shortcut reference (or press ?)"
+        >⌨ SHOW KEYBOARD SHORTCUTS (?)</button>
+        <p className="cx-export-hint" style={{ marginTop: -2 }}>
+          Full keyboard navigation: J/K to scroll verses, H/L for chapters,
+          1–9 for panels, O/B/N/M/T/S/F for features, ? for the full list,
+          Esc to close popovers.
+        </p>
+
         <TweakSection label="Danger zone" />
         <button
           className="cx-mini-btn cx-reset-btn"
