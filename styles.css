@@ -436,7 +436,7 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 .cx-verse {
   position: relative;
   padding: 8px 10px 8px 50px;
-  margin: 0 -10px;
+  margin-top: 0; margin-bottom: 0;
   font-size: var(--cx-fs);
   line-height: 1.55;
   color: var(--cx-fg);
@@ -491,6 +491,9 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   margin-top: 16px;
   border-top: 1px solid var(--cx-line);
   gap: 14px;
+  max-width: 70ch;
+  margin-left: auto;
+  margin-right: auto;
 }
 .cx-nav-btn {
   appearance: none; cursor: pointer;
@@ -4817,16 +4820,16 @@ html[dir="rtl"] .cx-status {
   .cx-verse-row { padding-right: 30px !important; }
   .cx-vnum { left: 8px; top: 9px; }
 
-  /* Reader foot — slim chapter nav */
-  .cx-reader-foot { padding: 6px 0 0 !important; gap: 6px !important; }
-  .cx-nav-btn { padding: 5px 10px !important; font-size: 10px !important; }
+  /* Reader foot — chapter nav with mobile touch targets (44px min) */
+  .cx-reader-foot { padding: 8px 0 0 !important; gap: 6px !important; }
+  .cx-nav-btn { padding: 8px 12px !important; font-size: 10px !important; min-height: 44px !important; min-width: 80px !important; }
   .cx-reader-progress { font-size: 9px; }
 
-  /* Footer — minimum height, less padding */
-  .cx-footer { padding: 0 6px !important; min-height: 32px !important; gap: 6px !important; }
+  /* Footer — HIG 44pt touch targets */
+  .cx-footer { padding: 0 4px !important; min-height: 44px !important; gap: 4px !important; }
   .cx-tick { font-size: 9px !important; padding: 2px 4px; }
   .cx-mobile-fab,
-  .cx-df-toggle { width: 26px !important; height: 26px !important; font-size: 13px !important; }
+  .cx-df-toggle { width: 44px !important; height: 44px !important; font-size: 16px !important; }
   .cx-footer-cluster { padding: 1px !important; gap: 2px !important; }
   .cx-footer-sep { height: 14px; }
   .cx-gnosis-master-lbl { font-size: 9px !important; letter-spacing: 0.10em !important; }
@@ -4837,7 +4840,7 @@ html[dir="rtl"] .cx-status {
 
 /* Small phones — even tighter */
 @media (max-width: 540px) {
-  .cx-status { min-height: 36px !important; padding: 2px 6px !important; }
+  .cx-status { min-height: 44px !important; padding: 2px 6px !important; }
   .cx-clock-time { font-size: 12px; }
   .cx-clock-date { display: none !important; }
   .cx-logo-txt b { font-size: 10px !important; }
@@ -4858,8 +4861,8 @@ html[dir="rtl"] .cx-status {
   .cx-verse { padding: 4px 24px 4px 28px !important; line-height: 1.5 !important; }
   .cx-vnum { font-size: 9px; left: 6px; top: 8px; }
 
-  .cx-footer { min-height: 28px !important; padding: 0 4px !important; }
-  .cx-footer-c .cx-gnosis-master { padding: 3px 8px !important; }
+  .cx-footer { min-height: 44px !important; padding: 0 4px !important; }
+  .cx-footer-c .cx-gnosis-master { padding: 3px 8px !important; min-height: 44px !important; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -5071,8 +5074,9 @@ select.twk-field {
     background: color-mix(in oklab, var(--cx-fg-dim) 35%, transparent);
   }
   .twk-x {
-    width: 36px !important; height: 36px !important;
+    width: 44px !important; height: 44px !important;
     font-size: 18px !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important;
   }
   .twk-body {
     padding: 12px 16px 24px !important;
@@ -5080,14 +5084,27 @@ select.twk-field {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
-  /* Larger tap targets on mobile */
-  .twk-toggle { width: 38px !important; height: 22px !important; }
-  .twk-toggle i { width: 18px !important; height: 18px !important; }
-  .twk-toggle[data-on="1"] i { transform: translateX(16px) !important; }
-  .twk-field, .twk-num { height: 36px !important; font-size: 13px !important; }
-  .twk-btn { height: 36px !important; font-size: 11px !important; }
-  .twk-seg button { min-height: 28px !important; font-size: 12px !important; }
+  /* ── Apple HIG: 44pt minimum touch targets ── */
+  .twk-toggle { width: 44px !important; height: 26px !important; border-radius: 999px !important; }
+  .twk-toggle i { width: 22px !important; height: 22px !important; }
+  .twk-toggle[data-on="1"] i { transform: translateX(18px) !important; }
+  /* Ensure the toggle ROW is tall enough for comfortable tapping */
+  /* HIG: rows need 44pt minimum; column-layout rows must stretch children */
+  .twk-row { min-height: 44px !important; display: flex !important; align-items: stretch !important; }
+  .twk-row.twk-row-h { align-items: center !important; }
+  .twk-field, .twk-num { height: 44px !important; font-size: 14px !important; }
+  .twk-btn { min-height: 44px !important; font-size: 12px !important; }
+  .twk-seg button { min-height: 44px !important; font-size: 12px !important; }
   .twk-sect { padding-top: 16px !important; }
+  /* Section labels — HIG minimum legible size */
+  .twk-sect-title { font-size: 13px !important; }
+  /* Slider thumb — 44pt along the track axis */
+  .twk-slider { height: 6px !important; }
+  .twk-slider::-webkit-slider-thumb { width: 28px !important; height: 28px !important; }
+  .twk-slider::-moz-range-thumb { width: 28px !important; height: 28px !important; }
+  /* Clear-marks and other mini-buttons */
+  .twk-panel .cx-mini-btn,
+  .twk-fullscreen .cx-mini-btn { min-height: 44px !important; font-size: 11px !important; }
 }
 
 /* Light-mode overrides */
@@ -5178,17 +5195,18 @@ select.twk-field {
   font-family: var(--cx-mono) !important;
 }
 
-/* Mobile — horizontal scrolling tabs, themed borders */
+/* Mobile — horizontal scrolling tabs, HIG 44pt touch targets */
 @media (max-width: 700px) {
   .twk-tabs {
     border-bottom-color: color-mix(in oklab, var(--cx-fg-dim) 18%, transparent) !important;
     border-right: none !important;
   }
   .twk-tab {
-    padding: 8px 14px !important;
+    padding: 10px 14px !important;
+    min-height: 44px !important;
   }
   .twk-tab-label {
-    font-size: 10.5px !important;
+    font-size: 11px !important;
   }
 }
 
@@ -5499,13 +5517,13 @@ select.twk-field {
   .cx-reader .cx-frame:has(> .cx-frame-label) { padding-top: 12px !important; }
   .cx-reader .cx-corner { display: none !important; }
 
-  /* ── Footer: 36 → 30 ─────────────────────────────────────── */
-  .cx-footer { min-height: 28px !important; padding: 0 4px !important; }
-  .cx-footer-cluster { padding: 0 !important; gap: 1px !important; border: 0 !important; background: transparent !important; }
-  .cx-mobile-fab, .cx-df-toggle { width: 24px !important; height: 24px !important; font-size: 12px !important; border-radius: 2px !important; }
+  /* ── Footer: HIG 44pt touch targets ─────────────────────── */
+  .cx-footer { min-height: 44px !important; padding: 0 2px !important; }
+  .cx-footer-cluster { padding: 0 !important; gap: 0 !important; border: 0 !important; background: transparent !important; }
+  .cx-mobile-fab, .cx-df-toggle { width: 44px !important; height: 44px !important; font-size: 16px !important; border-radius: 2px !important; }
   .cx-footer-sep { display: none; }
   .cx-tick { padding: 2px 3px; font-size: 9px !important; }
-  .cx-gnosis-master { padding: 3px 6px !important; }
+  .cx-gnosis-master { padding: 3px 6px !important; min-height: 44px !important; }
   .cx-gnosis-master-lbl { font-size: 8.5px !important; letter-spacing: 0.08em !important; }
 
   /* Hide BMK count in status — it's already in the MARKS tab badge */
@@ -5514,7 +5532,7 @@ select.twk-field {
 
 /* Even tighter for narrow phones */
 @media (max-width: 540px) {
-  .cx-status { min-height: 30px !important; padding: 0 6px !important; }
+  .cx-status { min-height: 44px !important; padding: 0 6px !important; }
   .cx-logo-txt b { font-size: 9.5px !important; letter-spacing: 0.12em; }
   .cx-clock-time { font-size: 11px; }
   .cx-autobtn { font-size: 8.5px !important; }
@@ -7250,15 +7268,16 @@ html, body { overflow-x: hidden; }
 
 /* ── Mobile (≤880px): bigger tap targets + collapse verbose labels ───── */
 @media (max-width: 880px) {
-  /* Apple HIG 40px+ tap targets for chrome controls */
+  /* Apple HIG 44pt minimum tap targets for chrome controls */
   .cx-mobile-fab,
   .cx-status-fab,
   .cx-themebtn,
   .cx-df-toggle,
   .cx-pdd-btn,
-  .cx-gnosis-master {
-    min-width: 40px !important;
-    min-height: 40px !important;
+  .cx-gnosis-master,
+  .cx-sq-trigger {
+    min-width: 44px !important;
+    min-height: 44px !important;
     padding: 6px 10px !important;
   }
   /* Logo text ≤320 takes too much room — drop the wordmark, keep sigil */
@@ -7348,7 +7367,10 @@ html, body { overflow-x: hidden; }
   background: transparent;
   border: 1px solid color-mix(in oklab, var(--cx-line) 90%, transparent);
   color: var(--cx-fg-dim);
-  padding: 4px 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
   border-radius: 4px;
   cursor: pointer;
   font-family: var(--cx-mono);
@@ -7395,17 +7417,18 @@ html, body { overflow-x: hidden; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px;
   padding: 6px 4px;
+  min-height: 44px;
   border-bottom: 1px dotted color-mix(in oklab, var(--cx-line) 60%, transparent);
 }
 .cx-vp-row:last-child { border-bottom: none; }
 .cx-vp-lbl {
   font-family: var(--cx-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--cx-fg);
   letter-spacing: 0.04em;
 }
 .cx-vp-toggle {
-  position: relative; width: 32px; height: 18px;
+  position: relative; width: 38px; height: 22px;
   background: color-mix(in oklab, var(--cx-fg) 12%, transparent);
   border: 1px solid color-mix(in oklab, var(--cx-line) 90%, transparent);
   border-radius: 999px;
@@ -7419,14 +7442,14 @@ html, body { overflow-x: hidden; }
   box-shadow: 0 0 8px var(--cx-accent-glow);
 }
 .cx-vp-toggle i {
-  position: absolute; top: 1px; left: 1px;
-  width: 14px; height: 14px;
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px;
   background: var(--cx-fg);
   border-radius: 50%;
   transition: transform 140ms ease, background 140ms ease;
 }
 .cx-vp-toggle.is-on i {
-  transform: translateX(13px);
+  transform: translateX(15px);
   background: var(--cx-accent);
 }
 .cx-vp-stepper {
@@ -7434,7 +7457,8 @@ html, body { overflow-x: hidden; }
   background: transparent;
   border: 1px solid color-mix(in oklab, var(--cx-line) 80%, transparent);
   color: var(--cx-fg);
-  padding: 3px 10px;
+  padding: 8px 12px;
+  min-height: 44px;
   border-radius: 4px;
   cursor: pointer;
   font-family: var(--cx-mono);

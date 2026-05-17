@@ -59,7 +59,8 @@ const __TWEAKS_STYLE = `
     padding:10px 8px 10px 14px;cursor:move;user-select:none}
   .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
   .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
-    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+    min-width:44px;min-height:44px;border-radius:6px;cursor:default;font-size:13px;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center}
   .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
   .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
     overflow-y:auto;overflow-x:hidden;min-height:0;
@@ -71,13 +72,14 @@ const __TWEAKS_STYLE = `
   .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
     border:2px solid transparent;background-clip:content-box}
   .twk-row{display:flex;flex-direction:column;gap:5px}
-  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px;
+    min-height:44px;cursor:pointer}
   .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
     color:rgba(41,38,27,.72)}
   .twk-lbl>span:first-child{font-weight:500}
   .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
 
-  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  .twk-sect{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
     color:rgba(41,38,27,.45);padding:10px 0 0}
   .twk-sect:first-child{padding-top:0}
 
@@ -89,12 +91,12 @@ const __TWEAKS_STYLE = `
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
     background-repeat:no-repeat;background-position:right 8px center}
 
-  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:10px 0;
     border-radius:999px;background:rgba(0,0,0,.12);outline:none}
   .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
-    width:14px;height:14px;border-radius:50%;background:#fff;
+    width:28px;height:28px;border-radius:50%;background:#fff;
     border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
-  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+  .twk-slider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;
     background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
 
   .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
@@ -109,9 +111,10 @@ const __TWEAKS_STYLE = `
     overflow-wrap:anywhere}
 
   .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
-    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;
+    padding:13px 5px;box-sizing:content-box}
   .twk-toggle[data-on="1"]{background:#34c759}
-  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  .twk-toggle i{position:absolute;top:15px;left:7px;width:14px;height:14px;border-radius:50%;
     background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
   .twk-toggle[data-on="1"] i{transform:translateX(14px)}
 
@@ -126,8 +129,9 @@ const __TWEAKS_STYLE = `
     -webkit-appearance:none;margin:0}
   .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
 
-  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+  .twk-btn{appearance:none;min-height:44px;padding:0 12px;border:0;border-radius:7px;
     background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .cx-mini-btn{min-height:44px}
   .twk-btn:hover{background:rgba(0,0,0,.88)}
   .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
   .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
@@ -180,7 +184,7 @@ const __TWEAKS_STYLE = `
   .twk-fullscreen .twk-hd{cursor:default;padding:14px 14px 10px 20px;
     border-bottom:.5px solid rgba(0,0,0,.08)}
   .twk-fullscreen .twk-hd b{font-size:14px;letter-spacing:.005em}
-  .twk-fullscreen .twk-x{width:30px;height:30px;font-size:15px}
+  .twk-fullscreen .twk-x{min-width:44px;min-height:44px;font-size:15px}
   .twk-shell{display:grid;grid-template-columns:180px 1fr;flex:1;min-height:0}
   .twk-tabs{display:flex;flex-direction:column;gap:2px;padding:14px 8px;
     border-right:.5px solid rgba(0,0,0,.08);
@@ -213,7 +217,7 @@ const __TWEAKS_STYLE = `
       padding:8px;gap:4px;overflow-x:auto;overflow-y:hidden;
       scrollbar-width:none}
     .twk-tabs::-webkit-scrollbar{display:none}
-    .twk-tab{flex-shrink:0;padding:7px 12px}
+    .twk-tab{flex-shrink:0;padding:7px 12px;min-height:44px}
     .twk-fullscreen .twk-body{padding:14px 16px env(safe-area-inset-bottom,16px)}
   }
 `;
@@ -528,11 +532,11 @@ function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', on
 
 function TweakToggle({ label, value, onChange }) {
   return (
-    <div className="twk-row twk-row-h">
+    <div className="twk-row twk-row-h" onClick={() => onChange(!value)}>
       <div className="twk-lbl"><span>{label}</span></div>
       <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
-              role="switch" aria-checked={!!value}
-              onClick={() => onChange(!value)}><i /></button>
+              role="switch" aria-checked={!!value} aria-label={label}
+              onClick={(e) => { e.stopPropagation(); onChange(!value); }}><i /></button>
     </div>
   );
 }

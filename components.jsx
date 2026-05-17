@@ -297,6 +297,8 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
           className={`cx-autobtn ${autoTheme ? "is-on" : ""}`}
           onClick={onToggleAuto}
           title="Auto-sync theme with local sun"
+          aria-label={autoTheme ? "Disable auto theme" : "Enable auto theme"}
+          aria-pressed={autoTheme}
         >
           AUTO
         </button>
@@ -1107,46 +1109,49 @@ function ReaderViewPopover({
         {anyOn ? <i className="cx-vp-trigger-dot" /> : null}
       </button>
       {open ? (
-        <div className="cx-vp-pop" role="dialog">
-          <div className="cx-vp-row">
+        <div className="cx-vp-pop" role="dialog" aria-label="Reading view options" style={{ right: 'auto', left: 0 }}>
+          <div className="cx-vp-row" style={{ minHeight: 44 }}>
             <span className="cx-vp-lbl">{tx("size")}</span>
-            <button className="cx-vp-stepper" onClick={onCycleFontSize} title="Cycle text size">
+            <button className="cx-vp-stepper" onClick={onCycleFontSize} title="Cycle text size" style={{ minHeight: 44 }}>
               <span className="cx-vp-stepper-letter">Aa</span>
               <span className="cx-vp-stepper-num">{fontScale}</span>
             </button>
           </div>
-          <div className="cx-vp-row">
+          <div className="cx-vp-row" style={{ minHeight: 44 }}>
             <span className="cx-vp-lbl">{tx("face")}</span>
             <FaceToggle />
           </div>
-          <div className="cx-vp-row">
+          <div className="cx-vp-row" style={{ minHeight: 44, cursor: 'pointer' }} onClick={onToggleRedLetter} role="none">
             <span className="cx-vp-lbl">{tx("red_letter")}</span>
             <button
               type="button"
               className={`cx-vp-toggle ${redLetter ? "is-on" : ""}`}
-              onClick={onToggleRedLetter}
+              onClick={(e) => e.stopPropagation()}
               role="switch"
               aria-checked={redLetter}
+              aria-label="Red letter mode"
             ><i /></button>
           </div>
-          <div className="cx-vp-row">
+          <div className="cx-vp-row" style={{ minHeight: 44, cursor: 'pointer' }} onClick={onToggleYHWH} role="none">
             <span className="cx-vp-lbl" title="Show the Tetragrammaton in place of LORD">יהוה</span>
             <button
               type="button"
               className={`cx-vp-toggle ${yhwhMode ? "is-on" : ""}`}
-              onClick={onToggleYHWH}
+              onClick={(e) => e.stopPropagation()}
               role="switch"
               aria-checked={yhwhMode}
+              aria-label="YHWH mode"
             ><i /></button>
           </div>
-          <div className="cx-vp-row">
+          <div className="cx-vp-row" style={{ minHeight: 44, cursor: 'pointer' }} onClick={onToggleSideBySide} role="none">
             <span className="cx-vp-lbl">{tx("side_by_side")}</span>
             <button
               type="button"
               className={`cx-vp-toggle ${sideBySide ? "is-on" : ""}`}
-              onClick={onToggleSideBySide}
+              onClick={(e) => e.stopPropagation()}
               role="switch"
               aria-checked={sideBySide}
+              aria-label="Side by side mode"
             ><i /></button>
           </div>
         </div>
