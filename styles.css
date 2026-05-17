@@ -4876,6 +4876,13 @@ html[dir="rtl"] .cx-status {
 .twk-body {
   padding: 14px 16px 18px !important;
   gap: 12px !important;
+  scrollbar-color: color-mix(in oklab, var(--cx-fg-dim) 30%, transparent) transparent !important;
+}
+.twk-body::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--cx-fg-dim) 22%, transparent) !important;
+}
+.twk-body::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--cx-fg-dim) 35%, transparent) !important;
 }
 
 /* Section heading — accent caps, hairline divider above (except first) */
@@ -5057,6 +5064,105 @@ select.twk-field {
 .twk-panel .cx-mini-btn:hover {
   background: color-mix(in oklab, var(--cx-accent) 22%, transparent) !important;
   border-color: var(--cx-accent) !important;
+}
+
+/* ── Fullscreen tabbed mode — dark theme overrides ──────────────────── */
+/* v148 added a fullscreen tabbed layout (twk-scrim, twk-fullscreen,
+   twk-shell, twk-tabs, twk-tab) but the inline __TWEAKS_STYLE defaults
+   are light-mode (cream bg, #29261b text, rgba(0,0,0,..) borders).
+   Override them here to match the CODEX dark-panel aesthetic.           */
+
+.twk-fullscreen .twk-hd {
+  border-bottom-color: color-mix(in oklab, var(--cx-fg-dim) 22%, transparent) !important;
+}
+
+.twk-tabs {
+  border-right-color: color-mix(in oklab, var(--cx-fg-dim) 18%, transparent) !important;
+  background: color-mix(in oklab, var(--cx-accent) 3%, var(--cx-bg)) !important;
+}
+.twk-tab {
+  color: var(--cx-fg-dim) !important;
+  font-family: var(--cx-mono) !important;
+}
+.twk-tab:hover {
+  background: color-mix(in oklab, var(--cx-fg-dim) 10%, transparent) !important;
+  color: var(--cx-fg) !important;
+}
+.twk-tab.is-active {
+  background: color-mix(in oklab, var(--cx-accent) 12%, transparent) !important;
+  color: var(--cx-accent) !important;
+}
+.twk-tab-icon {
+  color: inherit !important;
+}
+.twk-tab.is-active .twk-tab-icon {
+  color: var(--cx-accent) !important;
+  opacity: 1 !important;
+  text-shadow: 0 0 6px var(--cx-accent-glow);
+}
+.twk-tab-label {
+  font-family: var(--cx-mono) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.06em !important;
+}
+
+/* Slider — track barely visible on dark, thumb too plain */
+.twk-slider {
+  background: color-mix(in oklab, var(--cx-fg-dim) 18%, transparent) !important;
+}
+.twk-slider::-webkit-slider-thumb {
+  background: var(--cx-accent) !important;
+  border-color: var(--cx-accent) !important;
+  box-shadow: 0 0 6px var(--cx-accent-glow) !important;
+}
+.twk-slider::-moz-range-thumb {
+  background: var(--cx-accent) !important;
+  border-color: var(--cx-accent) !important;
+  box-shadow: 0 0 6px var(--cx-accent-glow) !important;
+}
+
+/* Number input label + unit — hardcoded browns from light theme */
+.twk-num-lbl {
+  color: var(--cx-fg-dim) !important;
+  font-family: var(--cx-mono) !important;
+}
+.twk-num-unit {
+  color: var(--cx-fg-dim) !important;
+  font-family: var(--cx-mono) !important;
+}
+
+/* Mobile — horizontal scrolling tabs, themed borders */
+@media (max-width: 700px) {
+  .twk-tabs {
+    border-bottom-color: color-mix(in oklab, var(--cx-fg-dim) 18%, transparent) !important;
+    border-right: none !important;
+  }
+  .twk-tab {
+    padding: 8px 14px !important;
+  }
+  .twk-tab-label {
+    font-size: 10.5px !important;
+  }
+}
+
+/* Light-mode tab overrides */
+.cx-app.is-light .twk-tabs {
+  background: color-mix(in oklab, var(--cx-accent) 4%, var(--cx-bg)) !important;
+  border-right-color: color-mix(in oklab, var(--cx-fg-dim) 12%, transparent) !important;
+}
+.cx-app.is-light .twk-tab {
+  color: var(--cx-fg-dim) !important;
+}
+.cx-app.is-light .twk-tab:hover {
+  background: color-mix(in oklab, var(--cx-fg-dim) 6%, transparent) !important;
+  color: var(--cx-fg) !important;
+}
+.cx-app.is-light .twk-tab.is-active {
+  background: color-mix(in oklab, var(--cx-accent) 10%, transparent) !important;
+  color: var(--cx-accent) !important;
+}
+.cx-app.is-light .twk-slider {
+  background: color-mix(in oklab, var(--cx-fg-dim) 15%, transparent) !important;
 }
 
 /* ════════════════════════════════════════════════════════════════════════

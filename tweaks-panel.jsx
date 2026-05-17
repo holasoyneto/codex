@@ -418,11 +418,11 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   // Catch-all unmapped labels fall into "system" so nothing disappears.
   function tabFor(label) {
     if (TAB_OF[label]) return TAB_OF[label];
-    // Heuristic fallback for translated labels
+    // Heuristic fallback for translated labels — covers ES/DE/PT/FR/LA/HE/HI
     const lc = String(label || "").toLowerCase();
-    if (/look|reading|marks|first|fuente|tipograf|marcas|lectura/.test(lc)) return "reading";
+    if (/look|reading|marks|first|fuente|tipograf|marcas|lectura|apari|aparê|erschein|apparen|aspect|markier|marque|notae|lesen|leitur|lectur|impres|מראה|रूप|glamour/.test(lc)) return "reading";
     if (/ai|engine|drift|infer|motor/.test(lc)) return "ai";
-    if (/sync|sincron|cache|caché|offline|export|import|bibles|biblias|portab/.test(lc)) return "sync";
+    if (/sync|sincron|cache|caché|offline|export|import|bibles|biblias|portab|dados|daten|données/.test(lc)) return "sync";
     return "system";
   }
 
