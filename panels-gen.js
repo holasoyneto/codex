@@ -311,5 +311,256 @@ Return ONLY the JSON object as specified in the system instructions.${langDirect
     return p;
   }
 
-  window.CODEX_PANELS = { cacheKey, getCached, getCachedMeta, putCached, purge, load, subscribe, cacheStats };
+  // ─────────────────────────────────────────────────────────────────────
+  // PHASE 4.2 — AI EXEGESIS PANEL
+  // PHASE 4.3 — AI TRANSLATION ANALYSIS PANEL
+  // Both on-demand (separate fetches) with their own localStorage caches.
+  // ─────────────────────────────────────────────────────────────────────
+
+  const EXEGESIS_PREFIX = "codex.panel.exegesis.";
+  const TXANALYSIS_PREFIX = "codex.panel.txanalysis.";
+
+  const PROMPT_EXEGESIS = `You are CODEX EXEGESIS — a deep scriptural analyst. For the passage given,
+produce a structured exegetical analysis. Return ONLY JSON, no prose:
+
+{
+  "_schema": 2,
+  "key_terms": [
+    {
+      "term": "...",
+      "original": "...",
+      "translit": "...",
+      "lexical_range": "...",
+      "translation_choices": "..."
+    }
+  ],
+  "literary_structure": "...",
+  "historical_context": "...",
+  "intertextual_echoes": [
+    { "ref": "...", "note": "what it echoes / fulfills / inverts" }
+  ],
+  "exegetical_options": [
+    { "view": "view name", "scholars": "associated names", "argument": "1-2 sentences" }
+  ],
+  "preferred_reading": "...",
+  "theological_implication": "...",
+  "applicational_pivot": "..."
+}
+
+Be scholarly, precise, balanced. No sermonizing. Cite scholars (Wright,
+Bauckham, Hays, Westermann, Cassuto, Brueggemann, Levenson, etc.) where
+helpful. ~700-900 tokens total.`;
+
+  const PROMPT_TXANALYSIS = `You are CODEX TRANSLATION ANALYST. Compare how the supplied translations
+render the same verse, explain the differences, and identify where
+translation philosophy drives divergence. Return ONLY JSON:
+
+{
+  "_schema": 2,
+  "verse_ref": "...",
+  "renderings": [
+    {
+      "translation": "...", "year": 0, "philosophy": "formal|dynamic|paraphrase|interlinear",
+      "text": "...the rendered verse text...",
+      "key_choice": "the noteworthy lexical/syntactic choice"
+    }
+  ],
+  "divergence_points": [
+    {
+      "issue": "the underlying Greek/Hebrew ambiguity or interpretive crux",
+      "options": ["how option A renders", "how option B renders"],
+      "philosophy_split": "formal vs dynamic vs paraphrase explanation"
+    }
+  ],
+  "best_for_study": "...",
+  "best_for_devotion": "...",
+  "best_for_originalist": "..."
+}
+
+Scholarly, neutral. Do not invent renderings — use the texts supplied.`;
+
+  function exegesisKey(passageKey) {
+    const lang = (window.CODEX_LANG || "en");
+    const suffix = lang === "en" ? "" : `.${lang}`;
+    return `${EXEGESIS_PREFIX}${passageKey}${suffix}`;
+  }
+  function txAnalysisKey(passageKey, translationIds) {
+    const lang = (window.CODEX_LANG || "en");
+    const suffix = lang === "en" ? "" : `.${lang}`;
+    const tids = [...translationIds].sort().join("+");
+    return `${TXANALYSIS_PREFIX}${passageKey}.${tids}${suffix}`;
+  }
+
+  function readWrapped(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed._v === 2 && parsed.data) return { data: parsed.data, fetchedAt: parsed.fetchedAt || 0 };
+      return { data: parsed, fetchedAt: 0 };
+    } catch {}
+    return null;
+  }
+  function writeWrapped(key, data) {
+    try {
+      localStorage.setItem(key, JSON.stringify({ _v: 2, data, fetchedAt: Date.now() }));
+    } catch {}
+  }
+
+  function validateExegesis(obj) {
+    if (!obj || typeof obj !== "object") throw new Error("not an object");
+    obj._schema = 2;
+    obj.key_terms = Array.isArray(obj.key_terms) ? obj.key_terms.slice(0, 8) : [];
+    obj.key_terms = obj.key_terms.filter(k => k && (k.term || k.original));
+    obj.literary_structure = obj.literary_structure || "";
+    obj.historical_context = obj.historical_context || "";
+    obj.intertextual_echoes = Array.isArray(obj.intertextual_echoes) ? obj.intertextual_echoes.slice(0, 8) : [];
+    obj.intertextual_echoes = obj.intertextual_echoes.filter(e => e && e.ref);
+    obj.exegetical_options = Array.isArray(obj.exegetical_options) ? obj.exegetical_options.slice(0, 6) : [];
+    obj.exegetical_options = obj.exegetical_options.filter(o => o && (o.view || o.argument));
+    obj.preferred_reading = obj.preferred_reading || "";
+    obj.theological_implication = obj.theological_implication || "";
+    obj.applicational_pivot = obj.applicational_pivot || "";
+    return obj;
+  }
+
+  function validateTxAnalysis(obj) {
+    if (!obj || typeof obj !== "object") throw new Error("not an object");
+    obj._schema = 2;
+    obj.verse_ref = obj.verse_ref || "";
+    obj.renderings = Array.isArray(obj.renderings) ? obj.renderings.slice(0, 12) : [];
+    obj.renderings = obj.renderings.filter(r => r && (r.translation || r.text));
+    obj.divergence_points = Array.isArray(obj.divergence_points) ? obj.divergence_points.slice(0, 8) : [];
+    obj.divergence_points = obj.divergence_points.filter(d => d && d.issue);
+    obj.best_for_study = obj.best_for_study || "";
+    obj.best_for_devotion = obj.best_for_devotion || "";
+    obj.best_for_originalist = obj.best_for_originalist || "";
+    return obj;
+  }
+
+  const exegesisInflight = new Map();
+  const txInflight = new Map();
+
+  function getExegesisCached(passageKey) {
+    const w = readWrapped(exegesisKey(passageKey));
+    return w ? w.data : null;
+  }
+  function getExegesisMeta(passageKey) {
+    const w = readWrapped(exegesisKey(passageKey));
+    return w ? { fetchedAt: w.fetchedAt } : null;
+  }
+  function purgeExegesis(passageKey) {
+    try { localStorage.removeItem(exegesisKey(passageKey)); } catch {}
+  }
+  function getTxAnalysisCached(passageKey, translationIds) {
+    const w = readWrapped(txAnalysisKey(passageKey, translationIds));
+    return w ? w.data : null;
+  }
+  function getTxAnalysisMeta(passageKey, translationIds) {
+    const w = readWrapped(txAnalysisKey(passageKey, translationIds));
+    return w ? { fetchedAt: w.fetchedAt } : null;
+  }
+  function purgeTxAnalysis(passageKey, translationIds) {
+    try { localStorage.removeItem(txAnalysisKey(passageKey, translationIds)); } catch {}
+  }
+
+  async function loadExegesis(passageKey, opts = {}) {
+    const k = exegesisKey(passageKey);
+    if (!opts.force) {
+      const cached = getExegesisCached(passageKey);
+      if (cached) return cached;
+    }
+    if (exegesisInflight.has(k)) return exegesisInflight.get(k);
+
+    const langName = (window.codexLangName && window.codexLangName()) || "English";
+    const langDirective = langName === "English"
+      ? ""
+      : `\n\nLANGUAGE: All human-readable string values in the JSON MUST be written in ${langName}, except original-script terms (Hebrew/Greek) and their transliterations.`;
+
+    const userMsg = `Produce the exegetical analysis for: ${opts.passageLabel || passageKey}.
+Return ONLY the JSON object.`;
+
+    const p = (async () => {
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: PROMPT_EXEGESIS + langDirective,
+          messages: [{ role: "user", content: userMsg }],
+          max_tokens: 2400,
+          provider: opts.provider,
+          model: opts.model,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `exegesis HTTP ${r.status}`);
+      const parsed = validateExegesis(extractJSON(data.text || ""));
+      parsed._provider = data.provider || opts.provider || "anthropic";
+      parsed._model = data.model || opts.model || null;
+      writeWrapped(k, parsed);
+      return parsed;
+    })().finally(() => { exegesisInflight.delete(k); });
+
+    exegesisInflight.set(k, p);
+    return p;
+  }
+
+  async function loadTranslationAnalysis(passageKey, translations, opts = {}) {
+    // translations: [{ id, name, year?, philosophy?, text }]
+    const ids = translations.map(t => t.id);
+    const k = txAnalysisKey(passageKey, ids);
+    if (!opts.force) {
+      const cached = getTxAnalysisCached(passageKey, ids);
+      if (cached) return cached;
+    }
+    if (txInflight.has(k)) return txInflight.get(k);
+
+    const langName = (window.codexLangName && window.codexLangName()) || "English";
+    const langDirective = langName === "English"
+      ? ""
+      : `\n\nLANGUAGE: All analytical string values MUST be written in ${langName}. Verse text fields must remain exactly as supplied.`;
+
+    const lines = translations.map(t =>
+      `- ${t.id} · ${t.name || t.id}${t.year ? ` (${t.year})` : ""}${t.philosophy ? ` · ${t.philosophy}` : ""}: "${(t.text || "").replace(/"/g, "\\\"")}"`
+    ).join("\n");
+    const primary = translations[0];
+    const others = translations.slice(1).map(t => t.name || t.id).join(", ");
+    const userMsg = `The user is reading ${opts.passageLabel || passageKey} in ${primary?.name || primary?.id || "?"}.
+The following translations are loaded: ${others || "(none)"}.
+Compare these supplied renderings — do not invent text:
+
+${lines}
+
+Return ONLY the JSON object as specified.`;
+
+    const p = (async () => {
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: PROMPT_TXANALYSIS + langDirective,
+          messages: [{ role: "user", content: userMsg }],
+          max_tokens: 2200,
+          provider: opts.provider,
+          model: opts.model,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `txanalysis HTTP ${r.status}`);
+      const parsed = validateTxAnalysis(extractJSON(data.text || ""));
+      parsed._provider = data.provider || opts.provider || "anthropic";
+      parsed._model = data.model || opts.model || null;
+      writeWrapped(k, parsed);
+      return parsed;
+    })().finally(() => { txInflight.delete(k); });
+
+    txInflight.set(k, p);
+    return p;
+  }
+
+  window.CODEX_PANELS = {
+    cacheKey, getCached, getCachedMeta, putCached, purge, load, subscribe, cacheStats,
+    loadExegesis, getExegesisCached, getExegesisMeta, purgeExegesis,
+    loadTranslationAnalysis, getTxAnalysisCached, getTxAnalysisMeta, purgeTxAnalysis,
+  };
 })();

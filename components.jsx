@@ -985,7 +985,42 @@ function FaceToggle() {
 
 // Single-column verse — desktop right-click + mobile long-press both open
 // the menu. The hover + button stays for one-tap highlight.
-function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSelectVerse, onToggleHighlight, onOpenVerseMenu, yhwhMode, passage }) {
+// ── Schizo helpers ──────────────────────────────────────────────────────
+// Significant gematria values get a colored glow class. Single source of
+// truth so VerseRow + VerseSideRow agree. Kept inline (no new file).
+const SCHIZO_SIGNIFICANT = {
+  666: "rev", 888: "gold", 358: "cyan", 144: "violet", 153: "blue",
+  777: "white", 7: "accent", 12: "accent", 40: "accent", 70: "accent",
+  1000: "accent", 1776: "accent",
+};
+function schizoCompute(text) {
+  try {
+    const g = window.CODEX_GEMATRIA;
+    if (!g || !text) return null;
+    const lang = g.detectLang(text);
+    const all = g.all(text, lang);
+    let primaryVal = 0, primarySys = "";
+    if (lang === "hebrew")     { primaryVal = all.hechrachi; primarySys = "hechrachi"; }
+    else if (lang === "greek") { primaryVal = all.isopsephy; primarySys = "isopsephy"; }
+    else                       { primaryVal = all.ordinal;   primarySys = "ordinal"; }
+    return { lang, primaryVal, primarySys, all };
+  } catch { return null; }
+}
+function SchizoMargin({ text }) {
+  const info = schizoCompute(text);
+  if (!info || !info.primaryVal) return null;
+  const glow = SCHIZO_SIGNIFICANT[info.primaryVal] || "";
+  const tip = Object.entries(info.all)
+    .filter(([k, v]) => k !== "lang" && typeof v === "number")
+    .map(([k, v]) => `${k}: ${v}`).join(" · ");
+  return (
+    <span className={`cx-schizo-gem ${glow ? `is-glow is-${glow}` : ""}`} title={tip}>
+      {info.primaryVal}
+    </span>
+  );
+}
+
+function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSelectVerse, onToggleHighlight, onOpenVerseMenu, yhwhMode, passage, schizo }) {
   const longPress = useLongPress((rect) => onOpenVerseMenu?.(v, rect));
   const onCtx = (e) => { e.preventDefault(); onOpenVerseMenu?.(v, e.currentTarget.getBoundingClientRect()); };
   // Drag a verse out into Notes (or any drop target). Carries the ref +
@@ -1010,6 +1045,7 @@ function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSel
       onContextMenu={onCtx}
       {...longPress}
     >
+      {schizo ? <SchizoMargin text={text} /> : null}
       <sup className="cx-vnum">{v.n}</sup>
       <span className="cx-vtext">
         {renderScripture(text, redLetter ? v.red?.[primary] : null, redLetter && v._jesusVerse, yhwhMode)}
@@ -1024,7 +1060,7 @@ function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSel
 }
 
 // Side-by-side verse — same affordances applied to the row container.
-function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSelectVerse, onToggleHighlight, onOpenVerseMenu, yhwhMode }) {
+function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSelectVerse, onToggleHighlight, onOpenVerseMenu, yhwhMode, schizo, passage }) {
   const longPress = useLongPress((rect) => onOpenVerseMenu?.(v, rect));
   const onCtx = (e) => { e.preventDefault(); onOpenVerseMenu?.(v, e.currentTarget.getBoundingClientRect()); };
   return (
@@ -1036,6 +1072,7 @@ function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSe
       {...longPress}
       style={{ gridTemplateColumns: `repeat(${colsMeta.length}, minmax(160px,1fr))` }}
     >
+      {schizo && colsMeta[0] ? <SchizoMargin text={verseText(v, colsMeta[0].id)} /> : null}
       {colsMeta.map((t, i) => {
         const text = verseText(v, t.id);
         const isLatin = t.lang === "LA";
@@ -1270,7 +1307,7 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                   fontScale, highlightedVerse, onSelectVerse, onToggleSideBySide,
                   onToggleRedLetter, onCycleFontSize, onPrevChapter, onNextChapter,
                   highlights, highlightColor, onToggleHighlight, onOpenVerseMenu,
-                  panelData, yhwhMode, onToggleYHWH }) {
+                  panelData, yhwhMode, onToggleYHWH, schizo }) {
   const bodyRef = useRef(null);
   // When a chapter finishes loading, scroll the saved cursor into view so a
   // relaunch lands you on the exact verse you were reading. Skip when the
@@ -1385,6 +1422,7 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                     onOpenVerseMenu={onOpenVerseMenu}
                     yhwhMode={yhwhMode}
                     passage={passage}
+                    schizo={schizo}
                   />,
                 ];
                 if (points.has(vi + 1)) {
@@ -1414,6 +1452,7 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                     onOpenVerseMenu={onOpenVerseMenu}
                     yhwhMode={yhwhMode}
                     passage={passage}
+                    schizo={schizo}
                   />,
                 ];
                 if (points.has(vi + 1)) {

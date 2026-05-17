@@ -724,7 +724,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "hermeneuticDriftCompensation": false,
   "bootIntro": true,
   "provider": "anthropic",
-  "model": "claude-haiku-4-5-20251001"
+  "model": "claude-haiku-4-5-20251001",
+  "schizo": false
 }/*EDITMODE-END*/;
 
 const HIGHLIGHT_COLORS = {
@@ -838,6 +839,39 @@ function App() {
     }
     return () => window.removeEventListener("codex:plugin-registered", onReg);
   }, []);
+
+  // ── Schizo Mode eligibility ─────────────────────────────────────────────
+  // Easter egg: the settings toggle only appears once the user has visited
+  // Revelation 13:18 (the "count the number of the beast" verse). Once seen,
+  // sticky for the session AND persisted across launches in localStorage
+  // (codex.schizo.eligible) — the unlock is permanent. The toggle itself
+  // (tweaks.schizo) is a normal persisted tweak.
+  const [schizoEligible, setSchizoEligible] = useState(() => {
+    try { return localStorage.getItem("codex.schizo.eligible") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    if (schizoEligible) return;
+    if (passage.bookId === "rev" && passage.chapter === 13) {
+      // Trigger when verse 18 is the current cursor OR is present in viewport
+      // (we approximate "in viewport" by simply checking that v18 exists in
+      // the loaded passage — Revelation 13 has v18 and the reader renders
+      // every verse; the user scrolling to that chapter satisfies the spirit
+      // of the trigger). Lock in once observed.
+      const hasV18 = (passage.verses || []).some(v => v.n === 18);
+      if (hasV18 && (currentVerse === 18 || hasV18)) {
+        setSchizoEligible(true);
+        try { localStorage.setItem("codex.schizo.eligible", "1"); } catch {}
+      }
+    }
+  }, [passage.bookId, passage.chapter, passage.verses, currentVerse, schizoEligible]);
+
+  // Apply / remove the is-schizo body class for visual tone.
+  useEffect(() => {
+    const on = !!(schizoEligible && t.schizo);
+    document.body.classList.toggle("is-schizo", on);
+    return () => { document.body.classList.toggle("is-schizo", false); };
+  }, [schizoEligible, t.schizo]);
+
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [panelData, setPanelData] = useState(null);
@@ -1045,6 +1079,50 @@ function App() {
     const key = `${bookId}.${chapter}.${n}`;
     setHighlights(h => { const next = { ...h }; delete next[key]; return next; });
   }, []);
+
+  // ── Schizo cipher mode ─────────────────────────────────────────────────
+  // When Schizo Mode is enabled, pressing "=" anywhere outside an input
+  // prompts for a gematria value and jumps to the first matching verse.
+  // Also dispatches a `codex:cipher-search` event so other surfaces can
+  // listen. Falls back gracefully when the library index is empty.
+  useEffect(() => {
+    if (!(schizoEligible && t.schizo)) return undefined;
+    const isEditable = (el) => {
+      if (!el) return false;
+      const tag = (el.tagName || "").toLowerCase();
+      return tag === "input" || tag === "textarea" || el.isContentEditable;
+    };
+    const onKey = (e) => {
+      if (e.key !== "=" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditable(e.target)) return;
+      e.preventDefault();
+      const raw = window.prompt("⚯ Cipher search — gematria value:", "666");
+      if (!raw) return;
+      const n = parseInt(String(raw).replace(/^=/, "").trim(), 10);
+      if (!Number.isFinite(n)) return;
+      const idx = window.CODEX_GEMATRIA_INDEX;
+      const fire = (matches) => {
+        window.dispatchEvent(new CustomEvent("codex:cipher-search", { detail: { value: n, matches } }));
+        if (!matches || !matches.length) { window.alert(`⚯ No verses in your library sum to ${n}.`); return; }
+        const preview = matches.slice(0, 8).map(m => `• ${m.ref}  (${m.word} · ${m.system})`).join("\n");
+        const go = window.confirm(`⚯ ${matches.length} match${matches.length === 1 ? "" : "es"} for ${n}\n\n${preview}\n\nJump to first match?`);
+        if (!go) return;
+        const ref = matches[0].ref || "";
+        const [bookId, chStr, vStr] = ref.split(".");
+        const ch = parseInt(chStr, 10), vN = parseInt(vStr, 10);
+        if (bookId && Number.isFinite(ch)) loadPassage(bookId, ch, Number.isFinite(vN) ? vN : 1);
+      };
+      try {
+        if (idx && idx.ensure) {
+          idx.ensure().then(() => fire(idx.find(n) || [])).catch(() => fire([]));
+        } else if (idx && idx.find) {
+          fire(idx.find(n) || []);
+        } else { fire([]); }
+      } catch { fire([]); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [schizoEligible, t.schizo, loadPassage]);
 
   // Pinned-marks set, persisted separately from the highlight cache so we
   // don't have to migrate the existing schema.
@@ -1531,7 +1609,7 @@ function App() {
 
   return (
     <div
-      className={`cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${leftOpen ? "left-open" : ""} ${rightOpen ? "right-open" : ""} ${distractionFree ? "is-distraction-free" : ""} ${theater ? "is-theater" : ""} ${leftCollapsed ? "is-l-collapsed" : ""} ${rightCollapsed ? "is-r-collapsed" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""}`}
+      className={`cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${leftOpen ? "left-open" : ""} ${rightOpen ? "right-open" : ""} ${distractionFree ? "is-distraction-free" : ""} ${theater ? "is-theater" : ""} ${leftCollapsed ? "is-l-collapsed" : ""} ${rightCollapsed ? "is-r-collapsed" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""} ${(schizoEligible && t.schizo) ? "is-schizo" : ""}`}
       style={themeStyle}
     >
       <div
@@ -1594,6 +1672,7 @@ function App() {
         />
 
         <Reader
+          schizo={!!(schizoEligible && t.schizo)}
           passage={passage}
           primary={primary}
           compareTranslations={compareSet}
@@ -1705,6 +1784,10 @@ function App() {
         <button className="cx-theater-exit" onClick={() => setTheater(false)} title="Exit focus (ESC)">
           ◐ EXIT FOCUS · ESC
         </button>
+      ) : null}
+
+      {(schizoEligible && t.schizo) ? (
+        <div className="cx-schizo-sigil" aria-hidden="true" title="Schizo Mode active">⚯</div>
       ) : null}
 
       {searchOpen && window.CODEX_SearchBar ? (
@@ -1924,6 +2007,15 @@ function App() {
           }} />
         <TweakToggle label={tt("look.scanlines")} value={t.scanlines}
           onChange={(v) => setTweak("scanlines", v)} />
+        {/* Schizo Mode toggle — only renders once the user has visited
+            Revelation 13:18. The label gets a subtle glitch animation via
+            .cx-schizo-toggle so it's easy to miss unless you're looking. */}
+        {schizoEligible ? (
+          <div className="cx-schizo-toggle">
+            <TweakToggle label="Schizo Mode" value={!!t.schizo}
+              onChange={(v) => setTweak("schizo", v)} />
+          </div>
+        ) : null}
         {/* Day-mode palette swatches — apply only when in light/auto mode. */}
         <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7, letterSpacing: '.04em' }}>Day-mode palette</div>
         <LightThemePicker />

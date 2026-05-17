@@ -985,9 +985,25 @@ function LightThemePicker() {
   );
 }
 
+// ── Schizo Mode toggle (easter egg) ────────────────────────────────────
+// Renders nothing unless `eligible` is true — eligibility is set by App
+// once the user has actually visited Revelation 13:18. The label inherits
+// a faint glitch animation from .cx-schizo-toggle in styles.css so it's
+// easy to miss unless you're looking. Kept here so the gating logic
+// lives next to the other Tweak primitives.
+function TweakSchizoToggle({ eligible, value, onChange }) {
+  if (!eligible) return null;
+  return (
+    <div className="cx-schizo-toggle">
+      <TweakToggle label="Schizo Mode" value={!!value} onChange={onChange} />
+    </div>
+  );
+}
+
 Object.assign(window, {
   useTweaks, TweaksPanel, TweakSection, TweakRow,
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
   TweakText, TweakNumber, TweakColor, TweakButton,
+  TweakSchizoToggle,
   AIModelSection, LightThemePicker,
 });

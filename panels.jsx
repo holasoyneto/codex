@@ -13,6 +13,8 @@ function railTabs() {
     { id: "comm",   label: t("panel.commentary"),   glyph: "§"   },
     { id: "gem",    label: t("panel.gematria"),     glyph: "Σn"  },
     { id: "gnosis", label: t("panel.gnosis"),       glyph: "⟁"   },
+    { id: "exeg",   label: t("panel.exegesis") || "EXEGESIS", glyph: "✎" },
+    { id: "txan",   label: t("panel.txanalysis") || "TRANSLATIONS·", glyph: "⟷" },
   ];
   // Merge plugin-registered panel tabs. Each plugin panel gets a unique tab
   // id namespaced as `plugin:<pluginId>:<panelId>` to avoid collisions.
@@ -100,6 +102,18 @@ function RightRail({
           <GnosisPanel panelData={panelData} status={panelStatus} meta={panelMeta} passage={passage}
                        gnosisOn={gnosisOn} onToggleGnosis={onToggleGnosis}
                        onRegenerate={onRegeneratePanels} />
+        )}
+        {tab === "exeg" && (
+          <ExegesisPanel passage={passage} currentVerse={currentVerse} />
+        )}
+        {tab === "txan" && (
+          <TranslationAnalysisPanel
+            passage={passage}
+            currentVerse={currentVerse}
+            primary={primary}
+            compareSet={compareSet}
+            onJumpRef={onJumpRef}
+          />
         )}
         {activePluginTab ? (
           <PluginPanelHost
@@ -1606,6 +1620,290 @@ function GnosisPanel({ panelData, status, meta, passage, gnosisOn, onToggleGnosi
         ⚠ INTERPRETIVE LAYER — engages mystic + perennial readings alongside the canonical text.
         Disengage to return to orthodox Christian commentary only.
       </div>
+    </div>
+  );
+}
+
+// ── EXEGESIS (Phase 4.2) ────────────────────────────────────────────────
+// Deeper-than-Commentary AI exegetical analysis. On-demand fetch with its
+// own localStorage cache (separate from the big panel call). Uses the same
+// provider/model the user picked in tweaks.
+function ExegesisPanel({ passage, currentVerse }) {
+  const passageKey = `${passage.bookId}.${passage.chapter}`;
+  const passageLabel = `${passage.book} ${passage.chapter}${currentVerse ? ":" + currentVerse : ""}`;
+  const [data, setData] = useState(() => window.CODEX_PANELS.getExegesisCached(passageKey));
+  const [meta, setMeta] = useState(() => {
+    const m = window.CODEX_PANELS.getExegesisMeta(passageKey);
+    return m ? { fromCache: true, fetchedAt: m.fetchedAt } : null;
+  });
+  const [status, setStatus] = useState({ loading: false, error: null });
+
+  // Re-read cache when passage changes.
+  useEffect(() => {
+    const cached = window.CODEX_PANELS.getExegesisCached(passageKey);
+    setData(cached);
+    const m = window.CODEX_PANELS.getExegesisMeta(passageKey);
+    setMeta(m ? { fromCache: true, fetchedAt: m.fetchedAt } : null);
+    setStatus({ loading: false, error: null });
+  }, [passageKey]);
+
+  const fetchIt = (force) => {
+    const tw = (() => { try { return JSON.parse(localStorage.getItem("codex.tweaks.v1") || "{}"); } catch { return {}; } })();
+    setStatus({ loading: true, error: null });
+    window.CODEX_PANELS.loadExegesis(passageKey, {
+      passageLabel: `${passage.book} ${passage.chapter}`,
+      provider: tw.provider, model: tw.model, force,
+    }).then(d => {
+      setData(d);
+      setMeta({ fresh: true, fetchedAt: Date.now() });
+      setStatus({ loading: false, error: null });
+    }).catch(err => {
+      setStatus({ loading: false, error: err.message || String(err) });
+    });
+  };
+
+  const onRegenerate = () => {
+    window.CODEX_PANELS.purgeExegesis(passageKey);
+    fetchIt(true);
+  };
+
+  if (!data) {
+    return (
+      <div className="cx-pane cx-pane-exeg">
+        <PaneHead title="EXEGESIS · DEEP ANALYSIS" sub={passageLabel} />
+        <PanelStatus status={status} passage={passage} onRegenerate={() => fetchIt(false)} kind="exegesis" />
+      </div>
+    );
+  }
+  return (
+    <div className="cx-pane cx-pane-exeg">
+      <PaneHead title="EXEGESIS · DEEP ANALYSIS" sub={passageLabel} meta={meta}
+        action={<RegenBtn onClick={onRegenerate} />} />
+      <div className="cx-exeg-list">
+        {data.key_terms && data.key_terms.length ? (
+          <Collapsible defaultOpen title="KEY TERMS" count={data.key_terms.length}>
+            <div className="cx-exeg-terms">
+              {data.key_terms.map((k, i) => (
+                <article key={i} className="cx-exeg-term">
+                  <header>
+                    <span className="cx-exeg-term-en">{k.term}</span>
+                    {k.original ? <span className="cx-exeg-term-orig">{k.original}</span> : null}
+                    {k.translit ? <span className="cx-exeg-term-tr">{k.translit}</span> : null}
+                  </header>
+                  {k.lexical_range ? <p><b>Lexical range — </b>{k.lexical_range}</p> : null}
+                  {k.translation_choices ? <p><b>Translation choices — </b>{k.translation_choices}</p> : null}
+                </article>
+              ))}
+            </div>
+          </Collapsible>
+        ) : null}
+        {data.literary_structure ? (
+          <Collapsible defaultOpen title="LITERARY STRUCTURE">
+            <p className="cx-exeg-para">{data.literary_structure}</p>
+          </Collapsible>
+        ) : null}
+        {data.historical_context ? (
+          <Collapsible defaultOpen title="HISTORICAL CONTEXT">
+            <p className="cx-exeg-para">{data.historical_context}</p>
+          </Collapsible>
+        ) : null}
+        {data.intertextual_echoes && data.intertextual_echoes.length ? (
+          <Collapsible defaultOpen title="INTERTEXTUAL ECHOES" count={data.intertextual_echoes.length}>
+            <ul className="cx-xref">
+              {data.intertextual_echoes.map((e, i) => (
+                <li key={i}><b>{e.ref}</b><span>{e.note}</span></li>
+              ))}
+            </ul>
+          </Collapsible>
+        ) : null}
+        {data.exegetical_options && data.exegetical_options.length ? (
+          <Collapsible defaultOpen title="EXEGETICAL OPTIONS" count={data.exegetical_options.length}>
+            <div className="cx-exeg-opts">
+              {data.exegetical_options.map((o, i) => (
+                <article key={i} className="cx-exeg-opt">
+                  <h4>{o.view}</h4>
+                  {o.scholars ? <span className="cx-exeg-scholars">{o.scholars}</span> : null}
+                  <p>{o.argument}</p>
+                </article>
+              ))}
+            </div>
+          </Collapsible>
+        ) : null}
+        {data.preferred_reading ? (
+          <Collapsible defaultOpen title="PREFERRED READING">
+            <p className="cx-exeg-para is-emph">{data.preferred_reading}</p>
+          </Collapsible>
+        ) : null}
+        {data.theological_implication ? (
+          <Collapsible defaultOpen={false} title="THEOLOGICAL IMPLICATION">
+            <p className="cx-exeg-para">{data.theological_implication}</p>
+          </Collapsible>
+        ) : null}
+        {data.applicational_pivot ? (
+          <Collapsible defaultOpen={false} title="APPLICATIONAL PIVOT">
+            <p className="cx-exeg-para">{data.applicational_pivot}</p>
+          </Collapsible>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ── TRANSLATION ANALYSIS (Phase 4.3) ────────────────────────────────────
+// Compares the user's currently-loaded translations for one verse and
+// explains where philosophy drives divergence. Only activates when 2+
+// translations are loaded (primary + at least one in compareSet).
+function TranslationAnalysisPanel({ passage, currentVerse, primary, compareSet, onJumpRef }) {
+  const dataAll = window.CODEX_DATA;
+  const verse = passage.verses.find(v => v.n === currentVerse) || passage.verses[0];
+  const verseN = verse ? verse.n : 1;
+  const passageLabel = `${passage.book} ${passage.chapter}:${verseN}`;
+
+  // Build the list of (id, name, year, philosophy, text) from primary + compareSet.
+  const transList = useMemo(() => {
+    const ids = [primary, ...[...(compareSet || [])].filter(id => id !== primary)];
+    return ids.map(id => {
+      const meta = dataAll.translations.find(t => t.id === id);
+      const txt = verse ? (verse[id] || "") : "";
+      return meta && txt ? {
+        id, name: meta.name || id, year: meta.year || null,
+        philosophy: meta.philosophy || meta.kind || "", text: txt,
+      } : null;
+    }).filter(Boolean);
+  }, [primary, compareSet, verse, dataAll.translations]);
+
+  const enoughTrans = transList.length >= 2;
+  const passageKey = `${passage.bookId}.${passage.chapter}.${verseN}`;
+  const cacheIds = transList.map(t => t.id);
+
+  const [data, setData] = useState(() => enoughTrans ? window.CODEX_PANELS.getTxAnalysisCached(passageKey, cacheIds) : null);
+  const [meta, setMeta] = useState(() => {
+    if (!enoughTrans) return null;
+    const m = window.CODEX_PANELS.getTxAnalysisMeta(passageKey, cacheIds);
+    return m ? { fromCache: true, fetchedAt: m.fetchedAt } : null;
+  });
+  const [status, setStatus] = useState({ loading: false, error: null });
+
+  // Re-read cache on inputs change.
+  useEffect(() => {
+    if (!enoughTrans) { setData(null); setMeta(null); return; }
+    const cached = window.CODEX_PANELS.getTxAnalysisCached(passageKey, cacheIds);
+    setData(cached);
+    const m = window.CODEX_PANELS.getTxAnalysisMeta(passageKey, cacheIds);
+    setMeta(m ? { fromCache: true, fetchedAt: m.fetchedAt } : null);
+    setStatus({ loading: false, error: null });
+  }, [passageKey, cacheIds.join("+"), enoughTrans]);
+
+  const fetchIt = (force) => {
+    const tw = (() => { try { return JSON.parse(localStorage.getItem("codex.tweaks.v1") || "{}"); } catch { return {}; } })();
+    setStatus({ loading: true, error: null });
+    window.CODEX_PANELS.loadTranslationAnalysis(passageKey, transList, {
+      passageLabel, provider: tw.provider, model: tw.model, force,
+    }).then(d => {
+      setData(d);
+      setMeta({ fresh: true, fetchedAt: Date.now() });
+      setStatus({ loading: false, error: null });
+    }).catch(err => {
+      setStatus({ loading: false, error: err.message || String(err) });
+    });
+  };
+
+  const onRegenerate = () => {
+    window.CODEX_PANELS.purgeTxAnalysis(passageKey, cacheIds);
+    fetchIt(true);
+  };
+
+  if (!enoughTrans) {
+    return (
+      <div className="cx-pane cx-pane-txan">
+        <PaneHead title="TRANSLATION ANALYSIS" sub={passageLabel} />
+        <div className="cx-txan-empty">
+          <b>NEED 2+ TRANSLATIONS</b>
+          <span>Open more translations in the Translations tab first, then return here to compare how each renders this verse.</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="cx-pane cx-pane-txan">
+        <PaneHead title="TRANSLATION ANALYSIS" sub={`${passageLabel} · ${transList.length} loaded`} />
+        <div className="cx-txan-preview">
+          <div className="cx-txan-preview-h">Currently loaded</div>
+          <ul>
+            {transList.map(t => (
+              <li key={t.id}>
+                <b>{t.name}</b>
+                <span className="cx-txan-prev-text">{t.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <PanelStatus status={status} passage={passage} onRegenerate={() => fetchIt(false)} kind="translation analysis" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="cx-pane cx-pane-txan">
+      <PaneHead title="TRANSLATION ANALYSIS"
+        sub={`${data.verse_ref || passageLabel} · ${data.renderings.length} renderings`}
+        meta={meta}
+        action={<RegenBtn onClick={onRegenerate} />} />
+
+      <Collapsible defaultOpen title="COMPARISON TABLE" count={data.renderings.length}>
+        <div className="cx-txan-table-wrap">
+          <table className="cx-txan-table">
+            <thead>
+              <tr>
+                <th>Translation</th>
+                <th>Year</th>
+                <th>Philosophy</th>
+                <th>Text</th>
+                <th>Key choice</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.renderings.map((r, i) => (
+                <tr key={i}>
+                  <td><b>{r.translation}</b></td>
+                  <td>{r.year || "—"}</td>
+                  <td><span className={`cx-txan-phil is-${(r.philosophy || "").toLowerCase().replace(/[^a-z]/g, "")}`}>{r.philosophy || "—"}</span></td>
+                  <td className="cx-txan-text">{r.text}</td>
+                  <td className="cx-txan-key">{r.key_choice}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Collapsible>
+
+      {data.divergence_points && data.divergence_points.length ? (
+        <Collapsible defaultOpen title="DIVERGENCE POINTS" count={data.divergence_points.length}>
+          <div className="cx-txan-div-list">
+            {data.divergence_points.map((d, i) => (
+              <article key={i} className="cx-txan-div">
+                <h4>{d.issue}</h4>
+                {d.options && d.options.length ? (
+                  <ul className="cx-txan-opts">
+                    {d.options.map((o, j) => <li key={j}>{o}</li>)}
+                  </ul>
+                ) : null}
+                {d.philosophy_split ? <p className="cx-txan-split"><b>Philosophy — </b>{d.philosophy_split}</p> : null}
+              </article>
+            ))}
+          </div>
+        </Collapsible>
+      ) : null}
+
+      <Collapsible defaultOpen={false} title="RECOMMENDATIONS">
+        <ul className="cx-txan-recs">
+          {data.best_for_study ? <li><b>Best for study — </b>{data.best_for_study}</li> : null}
+          {data.best_for_devotion ? <li><b>Best for devotion — </b>{data.best_for_devotion}</li> : null}
+          {data.best_for_originalist ? <li><b>Closest to source — </b>{data.best_for_originalist}</li> : null}
+        </ul>
+      </Collapsible>
     </div>
   );
 }

@@ -12314,3 +12314,209 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
   font-size: 0.78em; color: var(--cx-kab-accent);
   letter-spacing: 0.06em;
 }
+
+/* ===== Schizo Mode ===== */
+/* Easter-egg numerology overlay. Unlocked by visiting Rev 13:18, toggled
+   in Settings → Look. Visuals stay subtle so the app is still readable. */
+
+/* Settings toggle label — faint glitch flicker every ~8s. Easy to miss
+   unless you're looking. */
+.cx-schizo-toggle .twk-row-lbl,
+.cx-schizo-toggle label {
+  position: relative;
+  animation: cx-schizo-flicker 8s infinite steps(1, end);
+}
+@keyframes cx-schizo-flicker {
+  0%, 96%, 100% { text-shadow: none; }
+  96.5% { text-shadow: 0.6px 0 #ff3b3b, -0.6px 0 #00e5ff; }
+  97% { text-shadow: -0.6px 0 #ff3b3b, 0.6px 0 #00e5ff; }
+  97.5% { text-shadow: 0.6px 0 #00e5ff, -0.6px 0 #ff3b3b; }
+  98% { text-shadow: none; }
+}
+
+/* Faint floating gematria value in the verse margin. */
+.cx-verse, .cx-verse-row { position: relative; }
+.cx-schizo-gem {
+  position: absolute;
+  left: -2.6em; top: 0.55em;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--cx-fg-dim, rgba(220,220,220,0.45));
+  opacity: 0.55;
+  pointer-events: auto;
+  cursor: help;
+  user-select: none;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .cx-schizo-gem { left: 0; top: -0.9em; font-size: 8px; }
+}
+
+/* Significant-number glow. Pulses softly. */
+.cx-schizo-gem.is-glow {
+  opacity: 0.9;
+  padding: 0 3px;
+  border-radius: 2px;
+  animation: cx-schizo-pulse 2.4s ease-in-out infinite;
+}
+.cx-schizo-gem.is-rev    { color: #ff5b5b; --cx-schizo-glow: rgba(255,91,91,0.55); }
+.cx-schizo-gem.is-gold   { color: #ffd66b; --cx-schizo-glow: rgba(255,214,107,0.55); }
+.cx-schizo-gem.is-cyan   { color: #7ee0ff; --cx-schizo-glow: rgba(126,224,255,0.55); }
+.cx-schizo-gem.is-violet { color: #c7a9ff; --cx-schizo-glow: rgba(199,169,255,0.55); }
+.cx-schizo-gem.is-blue   { color: #7fb2ff; --cx-schizo-glow: rgba(127,178,255,0.55); }
+.cx-schizo-gem.is-white  { color: #ffffff; --cx-schizo-glow: rgba(255,255,255,0.55); }
+.cx-schizo-gem.is-accent { color: #8de8a8; --cx-schizo-glow: rgba(141,232,168,0.45); }
+@keyframes cx-schizo-pulse {
+  0%, 100% { text-shadow: 0 0 4px var(--cx-schizo-glow), 0 0 1px var(--cx-schizo-glow); }
+  50%      { text-shadow: 0 0 10px var(--cx-schizo-glow), 0 0 3px var(--cx-schizo-glow); }
+}
+
+/* Visual tone — applied via .cx-app.is-schizo (set in app.jsx). */
+.cx-app.is-schizo.is-dark { /* tint marker only; overlay via ::after below */ }
+.cx-app.is-schizo .cx-vnum {
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  letter-spacing: 0.08em;
+}
+/* Faint matrix-green wash on dark mode. Sits below the existing vignette. */
+.cx-app.is-schizo.is-dark::before {
+  background:
+    radial-gradient(ellipse at top, transparent 60%, rgba(0,0,0,.55) 100%),
+    radial-gradient(ellipse at bottom, transparent 70%, rgba(0,0,0,.4) 100%),
+    linear-gradient(rgba(0, 255, 130, 0.04), rgba(0, 255, 130, 0.04));
+}
+/* Faint scanlines even when the regular scanlines tweak is off (~60%
+   intensity vs the regular .has-scan overlay). */
+.cx-app.is-schizo:not(.has-scan)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 21;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,.015) 0,
+    rgba(255,255,255,.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+/* Corner sigil — small ⚯ glyph indicating mode is active. */
+.cx-schizo-sigil {
+  position: fixed;
+  right: 14px; bottom: 44px;
+  z-index: 30;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 18px;
+  color: #8de8a8;
+  text-shadow: 0 0 8px rgba(141, 232, 168, 0.55);
+  opacity: 0.7;
+  pointer-events: none;
+  animation: cx-schizo-pulse 3.2s ease-in-out infinite;
+  --cx-schizo-glow: rgba(141, 232, 168, 0.5);
+}
+
+/* ===== Exegesis + Translation Analysis ===== */
+.cx-pane-exeg .cx-exeg-list { display: flex; flex-direction: column; gap: 8px; }
+.cx-exeg-terms { display: flex; flex-direction: column; gap: 10px; }
+.cx-exeg-term {
+  border-left: 2px solid var(--cx-accent, #c9a86a);
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 0 4px 4px 0;
+}
+.cx-exeg-term header {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;
+  margin-bottom: 6px;
+}
+.cx-exeg-term-en { font-weight: 600; letter-spacing: 0.04em; }
+.cx-exeg-term-orig {
+  font-family: "SBL Hebrew", "SBL Greek", serif;
+  font-size: 1.05em; color: var(--cx-accent, #c9a86a);
+}
+.cx-exeg-term-tr {
+  font-family: var(--cx-mono, monospace);
+  font-size: 0.78em; opacity: 0.7;
+}
+.cx-exeg-term p { margin: 4px 0; font-size: 0.9em; line-height: 1.5; }
+.cx-exeg-para { line-height: 1.6; padding: 4px 2px; font-size: 0.92em; }
+.cx-exeg-para.is-emph {
+  border-left: 2px solid var(--cx-accent, #c9a86a);
+  padding-left: 10px; font-style: italic;
+}
+.cx-exeg-opts { display: flex; flex-direction: column; gap: 8px; }
+.cx-exeg-opt {
+  padding: 8px 10px; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px; background: rgba(255,255,255,0.015);
+}
+.cx-exeg-opt h4 {
+  margin: 0 0 2px; font-size: 0.9em;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.cx-exeg-scholars {
+  font-size: 0.74em; opacity: 0.7; font-style: italic;
+  display: block; margin-bottom: 4px;
+}
+.cx-exeg-opt p { margin: 4px 0 0; font-size: 0.88em; line-height: 1.5; }
+
+/* Translation analysis */
+.cx-pane-txan { display: flex; flex-direction: column; gap: 6px; }
+.cx-txan-empty, .cx-txan-preview {
+  padding: 14px; text-align: left;
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 6px; margin: 10px 6px;
+}
+.cx-txan-empty b { display: block; margin-bottom: 6px; letter-spacing: 0.06em; }
+.cx-txan-empty span { font-size: 0.86em; opacity: 0.75; line-height: 1.5; }
+.cx-txan-preview-h {
+  font-size: 0.72em; letter-spacing: 0.1em;
+  text-transform: uppercase; opacity: 0.6; margin-bottom: 6px;
+}
+.cx-txan-preview ul { list-style: none; padding: 0; margin: 0; }
+.cx-txan-preview li {
+  padding: 6px 0; border-top: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.88em;
+}
+.cx-txan-preview li:first-child { border-top: none; }
+.cx-txan-preview li b { display: block; font-size: 0.78em; opacity: 0.85; }
+.cx-txan-prev-text { font-style: italic; opacity: 0.8; }
+.cx-txan-table-wrap { overflow-x: auto; }
+.cx-txan-table {
+  width: 100%; border-collapse: collapse; font-size: 0.82em;
+}
+.cx-txan-table th, .cx-txan-table td {
+  text-align: left; padding: 6px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  vertical-align: top;
+}
+.cx-txan-table th {
+  font-size: 0.7em; letter-spacing: 0.08em;
+  text-transform: uppercase; opacity: 0.65;
+}
+.cx-txan-text { font-style: italic; min-width: 160px; max-width: 280px; }
+.cx-txan-key { font-size: 0.85em; opacity: 0.85; }
+.cx-txan-phil {
+  display: inline-block; padding: 1px 6px; border-radius: 8px;
+  font-size: 0.72em; letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.06);
+}
+.cx-txan-phil.isformal      { background: rgba(110,160,200,0.15); color: #9dc4e6; }
+.cx-txan-phil.isdynamic     { background: rgba(180,140,80,0.18);  color: #d4a96b; }
+.cx-txan-phil.isparaphrase  { background: rgba(150,90,170,0.18);  color: #c8a0e0; }
+.cx-txan-phil.isinterlinear { background: rgba(100,160,120,0.18); color: #9fd4b3; }
+.cx-txan-div-list { display: flex; flex-direction: column; gap: 10px; }
+.cx-txan-div {
+  padding: 8px 10px; border-left: 2px solid var(--cx-accent, #c9a86a);
+  background: rgba(255,255,255,0.02); border-radius: 0 4px 4px 0;
+}
+.cx-txan-div h4 {
+  margin: 0 0 4px; font-size: 0.88em;
+  letter-spacing: 0.04em;
+}
+.cx-txan-opts { margin: 4px 0; padding-left: 16px; font-size: 0.85em; }
+.cx-txan-opts li { margin: 2px 0; line-height: 1.4; }
+.cx-txan-split { margin: 6px 0 0; font-size: 0.82em; opacity: 0.8; }
+.cx-txan-recs { list-style: none; padding: 0; margin: 0; }
+.cx-txan-recs li {
+  padding: 6px 0; font-size: 0.88em; line-height: 1.5;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.cx-txan-recs li:first-child { border-top: none; }
