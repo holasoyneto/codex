@@ -349,12 +349,52 @@
       "body": "# Community Modules (Preview)\n\nCODEX has a **module system** that lets third parties ship study tools — panels, overlays, quests, lexicons — without forking the app.\n\n## How it will work\n\nA module is a single signed `.module.json` file describing:\n\n- The kind (panel | overlay | quest | translation source)\n- The endpoint or static data it provides\n- Permissions it requests (read passage? send to remote?)\n\nInstall via Settings → Modules → **Add module** and paste a URL. CODEX verifies the signature, shows the permission prompt, and caches the module offline.\n\n## Current status\n\nThe module loader (`modules.js`) is present but the public registry is not yet open. Watch the project README for updates.\n\n## Building one\n\nSee `modules.js` and the existing built-in panels in `panels-gen.js` for the API surface."
     },
     {
+      "id": "cross-references",
+      "title": "Cross-References (TSK)",
+      "category": "Study Tools",
+      "tags": ["cross-references", "tsk", "treasury", "parallel", "chain", "study"],
+      "lastUpdated": "2026-05-18",
+      "body": "# Cross-References (TSK)\n\nThe **Treasury of Scripture Knowledge** is a 19th-century public-domain index that maps every verse in the Bible to its thematic and parallel passages — about 340,000 cross-references in all. It is the backbone of classical Bible study: trace a single idea (covenant, light, ransom, only-begotten) from Genesis through Revelation in one sitting.\n\n## How to use it\n\n1. Tap any verse, then choose **Cross-References** from the verse menu — or open the **CROSS-REFS** tab in the right rail.\n2. The panel lists every related passage, grouped by theme.\n3. **Click a reference** to jump the reader to that verse.\n4. **Click ⇢ chain** to load THAT verse's own cross-references inside the panel — a breadcrumb shows the trail (e.g. `John 3:16 → Romans 5:8 → Isaiah 53:5`). Tap **← back** to step back through the chain.\n\n## Coverage\n\nThis build ships a **sample subset** seeded with ~50 well-known verses (John 3:16, Genesis 1:1, Psalm 23:1, Romans 8:28, Isaiah 53:5, and friends). A panel pill labels the data as *SAMPLE · full module coming*. The full ~4 MB TSK module is the next step — the renderer and chain navigation already work."
+    },
+    {
       "id": "about-codex",
       "title": "About CODEX",
       "category": "About",
       "tags": ["about", "vision", "open source", "contribute"],
       "lastUpdated": "2026-05-17",
       "body": "# About CODEX\n\n## Vision\n\nCODEX is a **distraction-respectful** Bible study environment that treats scripture as the center of gravity and AI as a humble assistant — not the other way around. No notifications. No engagement metrics. No upsells.\n\n## What makes it different\n\n- **Offline-first**: a fully working Bible app even on an airplane.\n- **Translation-rich**: dozens of editions including Hebrew, Greek, Latin, Ethiopian.\n- **AI panels**: per-verse Talmud, Commentary, Gematria, Gnosis, Apologetics — cached, not re-billed.\n- **Cross-tradition**: useful to Protestants, Catholics, Orthodox, Jewish readers, academics, and the curious skeptic alike.\n\n## Open source\n\nCODEX is open source. The repository hosts the React PWA, the proxy server, and the panel/quest definitions. Contributions — translations, panels, quests, fixes — are welcome.\n\n## Credits\n\nBuilt with React, Babel, Leaflet, and the Anthropic Claude API. Bible texts are public domain or used per their respective licenses (acknowledged in `data/bibles/`)."
+    },
+    {
+      "id": "reels",
+      "title": "Reels — Scriptural Scroll",
+      "category": "AI Features",
+      "tags": ["reels", "feed", "scroll", "discover", "art", "tiktok"],
+      "lastUpdated": "2026-05-18",
+      "body": "# Reels — Endless Scriptural Scroll\n\nA **TikTok-shaped vertical feed** for scripture: hand-crafted cards (symbols, names of God, did-you-knows, prophecy pairs, three-sentence parables, calligraphic verses, numerology, questions, quest teases) interleaved with AI-generated cards built from your active reading. **Always something new** to discover in a 30-second window.\n\n## How to open\n\nThe **REELS** tab appears in the right rail (glyph ⬚). Tap the ⛶ icon to go fullscreen.\n\n## Navigate\n\n- **Mobile**: swipe up / down\n- **Desktop**: scroll wheel, `↑` / `↓`, `j` / `k`, `Space`, `PageUp` / `PageDown`\n- `Esc` exits fullscreen\n\n## Each card has\n\n- A type badge (top-left)\n- A bottom action bar:\n  - **♡** save the anchor verse to bookmarks\n  - **📖** open the anchor passage in the reader\n  - **🪶 plain version** — when applicable, translates dense text into normie-friendly everyday language (uses your active UI language)\n  - **⤴** copy the card text\n\n## Card types\n\nSymbol, Name of God, Did You Know, Parable in 3 Sentences, Prophecy → Fulfillment, Counting (numerology), Question (tap to reveal), Quest tease, Light Verse (pure typography), Art Verse (Wikimedia painting + verse overlay).\n\n## Pre-loading\n\nWhile you read a chapter, Reels silently builds a deck of ~30 cards in the background, drawing on your already-cached verse art and panel data. When you open Reels, the deck is ready instantly.\n\n## No repetition\n\nServed cards are remembered for ~2,000 entries so you don't see the same thing twice in a session. The deck resets when fully consumed."
+    },
+    {
+      "id": "full-text-search",
+      "title": "Full-Text Search",
+      "category": "Study Tools",
+      "tags": ["search", "find", "keyword", "cmd-k", "phrase", "wildcard"],
+      "lastUpdated": "2026-05-18",
+      "body": "# Full-Text Search\n\nPress `⌘K` (Mac) or `Ctrl+K` (Windows/Linux) anywhere in CODEX to open the **scripture search bar**. Type a word — results appear instantly across every translation you have cached.\n\n## What it searches\n\nEvery verse from every translation already downloaded to this device. The index is built locally from your offline Bible cache — no network required. New chapters you open are folded into the index automatically.\n\n## Query syntax\n\n- **Plain words** — `love your enemies` finds verses containing all three.\n- **Phrases** — wrap in double quotes for exact contiguity: `\"in the beginning\"`.\n- **Wildcard suffix** — trailing `*` matches any continuation: `lov*` matches *love*, *loved*, *lovingkindness*.\n- **Translation filter** — prefix with `@TRANS` to restrict: `@KJV love` or `@WLC bereshit`.\n\n## Keyboard\n\n- `↑` / `↓` move the selection between results.\n- `Enter` opens the highlighted verse (loads the chapter and lands on the verse).\n- `Esc` closes the overlay.\n\n## Privacy & offline\n\nThe index lives in your browser (IndexedDB). Nothing is sent to any server. The first search after a fresh install scans the cache once (~100ms) and persists the doc list, so subsequent reloads are instant."
+    },
+    {
+      "id": "strongs-concordance",
+      "title": "Strong's Concordance",
+      "category": "Study Tools",
+      "tags": ["strongs", "concordance", "hebrew", "greek", "lexicon", "word study", "lemma"],
+      "lastUpdated": "2026-05-18",
+      "body": "# Strong's Concordance\n\nStrong's numbers are a 19th-century numbering system that assigns every distinct word in the Hebrew Old Testament (H1–H8674) and Greek New Testament (G1–G5624) a unique ID. Two English words that look identical can map to *different* original-language lemmas — and Strong's lets you see that instantly.\n\n## Using the panel\n\nOpen the **Strong's** tab in the right rail. For the verse you're reading you'll see every aligned word listed with its translit, gloss, and Strong's number. Tap a word to expand the full entry: the original-language form, pronunciation, part of speech, definition, and a usage count across scripture.\n\n## Direct lookup\n\nThe search box at the top accepts any Strong's number — `H430` (Elohim), `G2316` (theos), or just `2316` (we guess H vs. G by range). Useful when a commentary or footnote cites a number.\n\n## Partial lexicon\n\nThis first release ships a **starter set of ~500 high-frequency entries** (God, love, faith, spirit, light, holy, righteousness, etc.). The full ~14,000-entry lexicon is a follow-up; entries not yet bundled show a friendly \"not in starter set\" notice."
+    },
+    {
+      "id": "interlinear-mode",
+      "title": "Interlinear Mode",
+      "category": "Study Tools",
+      "tags": ["interlinear", "strongs", "kjv", "underlay", "lemma", "original language"],
+      "lastUpdated": "2026-05-18",
+      "body": "# Interlinear Mode\n\nWhen interlinear mode is on, each aligned English word in the KJV is rendered with its **Strong's number tucked beneath** and the original-language lemma in the hover tooltip. Tap any word to jump straight to its Strong's entry in the right rail.\n\n## Translation support\n\nAlignment is **KJV-only** for now — that's the translation the public-domain alignments cover most reliably. Switching to another translation falls back to plain rendering.\n\n## Sample coverage\n\nThis release ships a proof-of-concept alignment for a handful of well-known chapters: **Genesis 1, Psalm 23, John 1, John 3, and Romans 8**. Verses outside that set render normally with no interlinear underlay until the full alignment lands in a future update.\n\n## Tips\n\n- Tap a word once to open its entry. Tap a second time to dismiss.\n- Long Strong's entries are scrollable — drag to read the full definition."
     }
   ]
 }

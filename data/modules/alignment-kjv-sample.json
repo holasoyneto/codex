@@ -1,0 +1,188 @@
+{
+  "meta": {
+    "id": "alignment-kjv-sample",
+    "type": "concordance",
+    "version": "1.0.0",
+    "lang": "en",
+    "name": "KJV ↔ Strong's alignment (sample)",
+    "_partial": true,
+    "note": "Proof-of-concept alignment for a handful of well-known chapters. Full alignment is a separate data-engineering effort.",
+    "coverage": [
+      "genesis.1",
+      "psalms.23",
+      "john.1",
+      "john.3",
+      "romans.8"
+    ]
+  },
+  "verses": {
+    "genesis.1.1": [
+      { "en": "In the",      "strongs": null },
+      { "en": "beginning",   "strongs": "H7225", "lemma": "רֵאשִׁית" },
+      { "en": "God",         "strongs": "H430",  "lemma": "אֱלֹהִים" },
+      { "en": "created",     "strongs": "H1254", "lemma": "בָּרָא" },
+      { "en": "the",         "strongs": null },
+      { "en": "heaven",      "strongs": "H8064", "lemma": "שָׁמַיִם" },
+      { "en": "and the",     "strongs": null },
+      { "en": "earth",       "strongs": "H776",  "lemma": "אֶרֶץ" },
+      { "en": ".",           "strongs": null }
+    ],
+    "genesis.1.3": [
+      { "en": "And",   "strongs": null },
+      { "en": "God",   "strongs": "H430",  "lemma": "אֱלֹהִים" },
+      { "en": "said",  "strongs": "H559",  "lemma": "אָמַר" },
+      { "en": ", Let there be", "strongs": null },
+      { "en": "light", "strongs": "H216",  "lemma": "אוֹר" },
+      { "en": ": and there was", "strongs": null },
+      { "en": "light", "strongs": "H216",  "lemma": "אוֹר" },
+      { "en": ".",     "strongs": null }
+    ],
+    "genesis.1.5": [
+      { "en": "And",      "strongs": null },
+      { "en": "God",      "strongs": "H430", "lemma": "אֱלֹהִים" },
+      { "en": "called the", "strongs": null },
+      { "en": "light",    "strongs": "H216", "lemma": "אוֹר" },
+      { "en": "Day",      "strongs": "H3117","lemma": "יוֹם" },
+      { "en": ", and the darkness he called Night. And the evening and the", "strongs": null },
+      { "en": "morning",  "strongs": "H1242","lemma": "בֹּקֶר" },
+      { "en": "were the first", "strongs": null },
+      { "en": "day",      "strongs": "H3117","lemma": "יוֹם" },
+      { "en": ".",        "strongs": null }
+    ],
+    "psalms.23.1": [
+      { "en": "The",     "strongs": null },
+      { "en": "LORD",    "strongs": "H3068", "lemma": "יְהוָה" },
+      { "en": "is my shepherd; I shall not want.", "strongs": null }
+    ],
+    "psalms.23.3": [
+      { "en": "He restoreth my", "strongs": null },
+      { "en": "soul",        "strongs": "H5315", "lemma": "נֶפֶשׁ" },
+      { "en": ": he leadeth me in the paths of", "strongs": null },
+      { "en": "righteousness", "strongs": "H6664", "lemma": "צֶדֶק" },
+      { "en": "for his", "strongs": null },
+      { "en": "name's",  "strongs": "H8034", "lemma": "שֵׁם" },
+      { "en": "sake.",   "strongs": null }
+    ],
+    "psalms.23.6": [
+      { "en": "Surely", "strongs": null },
+      { "en": "goodness", "strongs": "H2896", "lemma": "טוֹב" },
+      { "en": "and", "strongs": null },
+      { "en": "mercy", "strongs": "H2617", "lemma": "חֶסֶד" },
+      { "en": "shall follow me all the", "strongs": null },
+      { "en": "days", "strongs": "H3117", "lemma": "יוֹם" },
+      { "en": "of my life: and I will dwell in the house of the", "strongs": null },
+      { "en": "LORD", "strongs": "H3068", "lemma": "יְהוָה" },
+      { "en": "for", "strongs": null },
+      { "en": "ever", "strongs": "H5769", "lemma": "עוֹלָם" },
+      { "en": ".", "strongs": null }
+    ],
+    "john.1.1": [
+      { "en": "In the",      "strongs": "G1722", "lemma": "ἐν" },
+      { "en": "beginning",   "strongs": "G746",  "lemma": "ἀρχῇ" },
+      { "en": "was the",     "strongs": null },
+      { "en": "Word",        "strongs": "G3056", "lemma": "λόγος" },
+      { "en": ", and the",   "strongs": null },
+      { "en": "Word",        "strongs": "G3056", "lemma": "λόγος" },
+      { "en": "was with",    "strongs": null },
+      { "en": "God",         "strongs": "G2316", "lemma": "θεόν" },
+      { "en": ", and the",   "strongs": null },
+      { "en": "Word",        "strongs": "G3056", "lemma": "λόγος" },
+      { "en": "was",         "strongs": null },
+      { "en": "God",         "strongs": "G2316", "lemma": "θεός" },
+      { "en": ".",           "strongs": null }
+    ],
+    "john.1.4": [
+      { "en": "In him was", "strongs": null },
+      { "en": "life",       "strongs": "G2222", "lemma": "ζωή" },
+      { "en": "; and the",  "strongs": null },
+      { "en": "life",       "strongs": "G2222", "lemma": "ζωή" },
+      { "en": "was the",    "strongs": null },
+      { "en": "light",      "strongs": "G5457", "lemma": "φῶς" },
+      { "en": "of",         "strongs": null },
+      { "en": "men",        "strongs": "G444",  "lemma": "ἀνθρώπων" },
+      { "en": ".",          "strongs": null }
+    ],
+    "john.1.14": [
+      { "en": "And the",   "strongs": null },
+      { "en": "Word",      "strongs": "G3056", "lemma": "λόγος" },
+      { "en": "was made flesh, and dwelt among us, (and we beheld his", "strongs": null },
+      { "en": "glory",     "strongs": "G1391", "lemma": "δόξαν" },
+      { "en": ", the",     "strongs": null },
+      { "en": "glory",     "strongs": "G1391", "lemma": "δόξαν" },
+      { "en": "as of the", "strongs": null },
+      { "en": "only begotten", "strongs": "G3439", "lemma": "μονογενοῦς" },
+      { "en": "of the",    "strongs": null },
+      { "en": "Father",    "strongs": "G3962", "lemma": "πατρός" },
+      { "en": ",) full of", "strongs": null },
+      { "en": "grace",     "strongs": "G5485", "lemma": "χάριτος" },
+      { "en": "and",       "strongs": null },
+      { "en": "truth",     "strongs": "G225",  "lemma": "ἀληθείας" },
+      { "en": ".",         "strongs": null }
+    ],
+    "john.3.16": [
+      { "en": "For",   "strongs": null },
+      { "en": "God",   "strongs": "G2316", "lemma": "θεὸς" },
+      { "en": "so",    "strongs": null },
+      { "en": "loved", "strongs": "G25",   "lemma": "ἠγάπησεν" },
+      { "en": "the",   "strongs": null },
+      { "en": "world", "strongs": "G2889", "lemma": "κόσμον" },
+      { "en": ", that he gave his", "strongs": null },
+      { "en": "only begotten", "strongs": "G3439", "lemma": "μονογενῆ" },
+      { "en": "Son",   "strongs": "G5207", "lemma": "υἱὸν" },
+      { "en": ", that whosoever", "strongs": null },
+      { "en": "believeth", "strongs": "G4100", "lemma": "πιστεύων" },
+      { "en": "in him should not perish, but have everlasting", "strongs": null },
+      { "en": "life",  "strongs": "G2222", "lemma": "ζωὴν" },
+      { "en": ".",     "strongs": null }
+    ],
+    "john.3.3": [
+      { "en": "Jesus",   "strongs": "G2424", "lemma": "Ἰησοῦς" },
+      { "en": "answered and said unto him,", "strongs": null },
+      { "en": "Verily, verily",  "strongs": "G281", "lemma": "ἀμὴν ἀμὴν" },
+      { "en": ", I say unto thee, Except a", "strongs": null },
+      { "en": "man",     "strongs": "G444",  "lemma": "ἄνθρωπος" },
+      { "en": "be born again, he cannot see the", "strongs": null },
+      { "en": "kingdom", "strongs": "G932",  "lemma": "βασιλείαν" },
+      { "en": "of",      "strongs": null },
+      { "en": "God",     "strongs": "G2316", "lemma": "θεοῦ" },
+      { "en": ".",       "strongs": null }
+    ],
+    "romans.8.1": [
+      { "en": "There is therefore now no condemnation to them which are in", "strongs": null },
+      { "en": "Christ",  "strongs": "G5547", "lemma": "Χριστῷ" },
+      { "en": "Jesus",   "strongs": "G2424", "lemma": "Ἰησοῦ" },
+      { "en": ", who walk not after the flesh, but after the", "strongs": null },
+      { "en": "Spirit",  "strongs": "G4151", "lemma": "πνεῦμα" },
+      { "en": ".",       "strongs": null }
+    ],
+    "romans.8.28": [
+      { "en": "And we", "strongs": null },
+      { "en": "know",   "strongs": "G1097", "lemma": "οἴδαμεν" },
+      { "en": "that all things work together for", "strongs": null },
+      { "en": "good",   "strongs": null },
+      { "en": "to them that", "strongs": null },
+      { "en": "love",   "strongs": "G25",   "lemma": "ἀγαπῶσιν" },
+      { "en": "God",    "strongs": "G2316", "lemma": "θεὸν" },
+      { "en": ", to them who are the called according to his purpose.", "strongs": null }
+    ],
+    "romans.8.38": [
+      { "en": "For I am persuaded, that neither", "strongs": null },
+      { "en": "death",   "strongs": "G2288", "lemma": "θάνατος" },
+      { "en": ", nor",   "strongs": null },
+      { "en": "life",    "strongs": "G2222", "lemma": "ζωὴ" },
+      { "en": ", nor angels, nor principalities, nor powers, nor things present, nor things to come,", "strongs": null }
+    ],
+    "romans.8.39": [
+      { "en": "Nor height, nor depth, nor any other creature, shall be able to separate us from the", "strongs": null },
+      { "en": "love",   "strongs": "G26",   "lemma": "ἀγάπης" },
+      { "en": "of",     "strongs": null },
+      { "en": "God",    "strongs": "G2316", "lemma": "θεοῦ" },
+      { "en": ", which is in",    "strongs": null },
+      { "en": "Christ", "strongs": "G5547", "lemma": "Χριστῷ" },
+      { "en": "Jesus",  "strongs": "G2424", "lemma": "Ἰησοῦ" },
+      { "en": "our",    "strongs": null },
+      { "en": "Lord",   "strongs": "G2962", "lemma": "κυρίῳ" },
+      { "en": ".",      "strongs": null }
+    ]
+  }
+}

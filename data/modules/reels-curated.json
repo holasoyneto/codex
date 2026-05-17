@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "id": "reels-curated",
+    "type": "reading-plan",
+    "version": "1.0.0",
+    "name": "Reels Curated Deck",
+    "lang": "en",
+    "description": "Hand-authored Reels cards — symbols, names of God, did-you-knows, prophecy pairs, calligraphic verses, parables in 3 sentences, quest teases. Used as the always-available bedrock of the Reels feed alongside AI-generated cards."
+  },
+  "cards": [
+    { "type": "symbol", "id": "tree-of-life", "title": "Tree of Life", "anchor": "rev.22.2", "body": "Planted in Eden, lost at the Fall, returns in the New Jerusalem with leaves for the healing of the nations. The first symbol of the canon is also the last.", "hue": "#5fa97e", "glyph": "🌳" },
+    { "type": "symbol", "id": "lamb", "title": "Lamb", "anchor": "john.1.29", "body": "From Passover to Isaiah's silent sufferer to the slain-but-standing Lamb of Revelation — the most consistent christological figure in scripture.", "hue": "#e8d6a8", "glyph": "🐑" },
+    { "type": "symbol", "id": "lion-judah", "title": "Lion of Judah", "anchor": "rev.5.5", "body": "Jacob's blessing names Judah a lion's whelp; the Davidic line carries the title; Revelation crowns it on the Messiah. Strength held in royal restraint.", "hue": "#c47a2a", "glyph": "🦁" },
+    { "type": "symbol", "id": "living-water", "title": "Living Water", "anchor": "john.4.14", "body": "Rivers from Eden, the rock at Horeb, Ezekiel's temple stream, the woman at the well — the Spirit always shows up as moving water.", "hue": "#5ab3d8", "glyph": "💧" },
+    { "type": "symbol", "id": "bread", "title": "Bread", "anchor": "john.6.35", "body": "Manna in the wilderness, showbread in the tabernacle, the loaves multiplied, the body broken at the table. Bread is how God feeds covenant.", "hue": "#d4a063", "glyph": "🍞" },
+    { "type": "symbol", "id": "dove", "title": "Dove", "anchor": "matt.3.16", "body": "The first witness of dry land after the flood becomes the visible form of the Spirit at Jesus' baptism. Peace and presence.", "hue": "#cdd6e0", "glyph": "🕊" },
+    { "type": "symbol", "id": "fire", "title": "Fire", "anchor": "acts.2.3", "body": "The bush that burned but was not consumed, the pillar by night, Elijah's altar, Pentecost's tongues. God's presence purifies without destroying his own.", "hue": "#e07a3a", "glyph": "🔥" },
+    { "type": "symbol", "id": "vine", "title": "Vine", "anchor": "john.15.5", "body": "Israel was God's planted vine; Jesus claims the title and grafts in the branches. Communion of life, not contract.", "hue": "#7a4ea5", "glyph": "🍇" },
+
+    { "type": "name-of-god", "id": "yhwh", "title": "יהוה · YHWH", "anchor": "exo.3.14", "body": "The tetragrammaton — 'I AM THAT I AM.' Spoken once a year on Yom Kippur by the high priest in the Holy of Holies. Pronunciation is a kept secret.", "hue": "#7ee0ff" },
+    { "type": "name-of-god", "id": "elohim", "title": "אֱלֹהִים · Elohim", "anchor": "gen.1.1", "body": "The first divine name in scripture — plural in form, singular in verb. 'In the beginning, Gods created…' singular act of plural mystery.", "hue": "#c7a9ff" },
+    { "type": "name-of-god", "id": "el-shaddai", "title": "אֵל שַׁדַּי · El Shaddai", "anchor": "gen.17.1", "body": "God Almighty — name God reveals to Abraham at the covenant of circumcision. Possibly 'the God of the mountain' or 'the all-sufficient.'", "hue": "#a8d6a0" },
+    { "type": "name-of-god", "id": "el-elyon", "title": "אֵל עֶלְיוֹן · El Elyon", "anchor": "gen.14.18", "body": "God Most High — the name Melchizedek uses when blessing Abram with bread and wine. Pre-Israelite worship of the same God.", "hue": "#e0bb6b" },
+    { "type": "name-of-god", "id": "yhwh-yireh", "title": "יהוה יִרְאֶה · YHWH-Yireh", "anchor": "gen.22.14", "body": "'The LORD will provide' — Abraham names the mountain where God supplies the ram in Isaac's place. Provision born from surrender.", "hue": "#e08aa0" },
+    { "type": "name-of-god", "id": "yhwh-shalom", "title": "יהוה שָׁלוֹם · YHWH-Shalom", "anchor": "judg.6.24", "body": "'The LORD is peace' — Gideon's altar, named in the same breath as a call to war. Peace not as absence of conflict but as wholeness in the storm.", "hue": "#7eb9d4" },
+    { "type": "name-of-god", "id": "yhwh-roi", "title": "יהוה רֹעִי · YHWH-Roi", "anchor": "ps.23.1", "body": "'The LORD is my shepherd' — David's title for the God who led him from sheepfold to throne. Pastoral covenant in 6 words.", "hue": "#a8d6a0" },
+    { "type": "name-of-god", "id": "adonai", "title": "אֲדֹנָי · Adonai", "anchor": "gen.15.2", "body": "Lord, Master — substituted for YHWH in speech to avoid pronouncing the tetragrammaton. Reverence shaped by what is left unsaid.", "hue": "#c7a9ff" },
+
+    { "type": "did-you-know", "id": "psalms-most-quoted", "title": "Most Quoted Book", "body": "The New Testament quotes Psalms more than any other Hebrew Bible book — 79 direct citations and hundreds of allusions. Jesus' final words from the cross are Psalm 22 and Psalm 31.", "hue": "#5fa97e" },
+    { "type": "did-you-know", "id": "shortest-verse", "title": "Shortest Verse", "anchor": "john.11.35", "body": "'Jesus wept.' Two words in English, three in Greek (ἐδάκρυσεν ὁ Ἰησοῦς). At Lazarus' tomb, the God who knows He will raise the dead still weeps with the grieving.", "hue": "#cdd6e0" },
+    { "type": "did-you-know", "id": "no-mention-god", "title": "A Book Without God", "anchor": "esth.1.1", "body": "Esther is the only book in the canon that never explicitly names God. His providence is everywhere; His name is nowhere. Hiddenness is the point.", "hue": "#e08aa0" },
+    { "type": "did-you-know", "id": "longest-name", "title": "Longest Name", "anchor": "isa.8.1", "body": "Maher-shalal-hash-baz — 'swift to the spoil, hasty to the prey.' Isaiah named his son this. The longest proper name in scripture, given as a prophetic act.", "hue": "#c47a2a" },
+    { "type": "did-you-know", "id": "153-fish", "title": "153 Fish", "anchor": "john.21.11", "body": "The disciples caught exactly 153 fish — and the count is recorded. 153 is the 17th triangular number (1+2+...+17). Augustine, Jerome, and modern mathematicians have debated its meaning for 1600 years.", "hue": "#5ab3d8" },
+    { "type": "did-you-know", "id": "scribal-honesty", "title": "Scribal Honesty", "body": "The Masoretes counted every letter of the Tanakh and recorded the middle letter, middle word, and middle verse — so any future copy could be verified. Their notes survive in the margins of the Aleppo Codex.", "hue": "#e8d6a8" },
+    { "type": "did-you-know", "id": "talitha-cumi", "title": "Words He Actually Said", "anchor": "mark.5.41", "body": "Mark preserves three Aramaic phrases of Jesus untranslated: 'Talitha cumi' (little girl, arise), 'Ephphatha' (be opened), 'Eloi Eloi lama sabachthani' (my God, my God, why...). His actual voice.", "hue": "#7eb9d4" },
+    { "type": "did-you-know", "id": "two-bibles", "title": "Two Bibles, Same Library", "body": "The Hebrew Tanakh and the Christian Old Testament contain the same books in different order. Tanakh ends with Chronicles (return to the land). Christian OT ends with Malachi (waiting for Elijah). Same words, different stories.", "hue": "#c7a9ff" },
+
+    { "type": "prophecy-pair", "id": "pierced-hands", "anchor": "ps.22.16", "fulfillment": "john.19.18", "title": "Pierced", "prophecy": "'They pierced my hands and my feet…' — Psalm 22, written ~1000 BC, describes execution by crucifixion 700 years before the Persians invented the practice.", "fulfillment_text": "'There they crucified him, and two other with him.' — John 19:18, eyewitness account at Golgotha.", "hue": "#a06070" },
+    { "type": "prophecy-pair", "id": "born-bethlehem", "anchor": "mic.5.2", "fulfillment": "matt.2.1", "title": "Bethlehem", "prophecy": "'But thou, Bethlehem Ephratah, though thou be little among the thousands of Judah, yet out of thee shall he come forth.' — Micah, 8th century BC.", "fulfillment_text": "'Now when Jesus was born in Bethlehem of Judaea…' — Matthew 2:1.", "hue": "#d4a063" },
+    { "type": "prophecy-pair", "id": "suffering-servant", "anchor": "isa.53.5", "fulfillment": "1pet.2.24", "title": "Wounded for Us", "prophecy": "'He was wounded for our transgressions, bruised for our iniquities… by his stripes we are healed.' — Isaiah 53, ~700 BC.", "fulfillment_text": "'Who his own self bare our sins in his own body on the tree… by whose stripes ye were healed.' — 1 Peter 2:24, applying Isaiah directly to Jesus.", "hue": "#e8b08c" },
+
+    { "type": "parable-3", "id": "prodigal", "anchor": "luke.15.11", "title": "The Father Ran", "body": "A son took his inheritance and burned it. Hungry, he came home rehearsing apology. His father saw him from far off, ran to meet him, threw a feast — before a word of apology was spoken.", "hue": "#c47a2a" },
+    { "type": "parable-3", "id": "samaritan", "anchor": "luke.10.30", "title": "The Wrong Man Helped", "body": "A priest passed by. A Levite passed by. The hated foreigner stopped, bandaged the wounds, paid the inn. Jesus answers 'who is my neighbor?' by inverting the questioner's whole tribe.", "hue": "#7eb9d4" },
+    { "type": "parable-3", "id": "pearl", "anchor": "matt.13.45", "title": "Sold Everything", "body": "A merchant found one pearl. He sold all his pearls — his livelihood — to buy it. The kingdom isn't an upgrade. It's an exchange.", "hue": "#c7a9ff" },
+    { "type": "parable-3", "id": "talents", "anchor": "matt.25.14", "title": "Buried in the Ground", "body": "Three servants got money to invest. Two doubled it. One buried his out of fear, returned exactly what he was given. He was the one cast out — for safety, not theft.", "hue": "#e0bb6b" },
+
+    { "type": "question", "id": "lazarus-sisters", "anchor": "john.11.1", "question": "What were Lazarus' two sisters named?", "answer": "Mary and Martha. Mary anointed Jesus' feet; Martha was 'cumbered about much serving.' Their brother was the one Jesus called from the tomb.", "hue": "#a8d6a0" },
+    { "type": "question", "id": "first-disciple", "anchor": "john.1.40", "question": "Who was Jesus' first-called disciple?", "answer": "Andrew. He heard John the Baptist point to Jesus, followed Him, then went and got his brother Simon (Peter). Andrew is always the one bringing others.", "hue": "#7ee0ff" },
+    { "type": "question", "id": "oldest-man", "anchor": "gen.5.27", "question": "Who lived the longest in scripture?", "answer": "Methuselah — 969 years. His name may mean 'when he dies, it shall come' — and the flood started the year he died.", "hue": "#cdd6e0" },
+    { "type": "question", "id": "horses-fire", "anchor": "2kgs.6.17", "question": "What did Elisha's servant see when his eyes were opened?", "answer": "'The mountain was full of horses and chariots of fire round about Elisha.' Invisible armies. Elisha's prayer: 'LORD, open his eyes that he may see.'", "hue": "#e07a3a" },
+
+    { "type": "light-verse", "id": "in-beginning", "anchor": "gen.1.1", "body": "In the beginning God created the heaven and the earth.", "hue": "#06080e" },
+    { "type": "light-verse", "id": "love-one-another", "anchor": "john.13.34", "body": "A new commandment I give unto you, That ye love one another.", "hue": "#c7a9ff" },
+    { "type": "light-verse", "id": "the-word", "anchor": "john.1.1", "body": "In the beginning was the Word, and the Word was with God, and the Word was God.", "hue": "#1a2030" },
+    { "type": "light-verse", "id": "shema", "anchor": "deut.6.4", "body": "שְׁמַע יִשְׂרָאֵל יְהוָה אֱלֹהֵינוּ יְהוָה אֶחָד\nHear, O Israel: The LORD our God is one LORD.", "hue": "#0f1a28" },
+    { "type": "light-verse", "id": "be-still", "anchor": "ps.46.10", "body": "Be still, and know that I am God.", "hue": "#1a2820" },
+    { "type": "light-verse", "id": "i-am", "anchor": "exo.3.14", "body": "I AM THAT I AM.", "hue": "#0a0a0a" },
+    { "type": "light-verse", "id": "tetelestai", "anchor": "john.19.30", "body": "It is finished.\nτετέλεσται", "hue": "#1f1014" },
+    { "type": "light-verse", "id": "alpha-omega", "anchor": "rev.22.13", "body": "I am Alpha and Omega, the beginning and the end, the first and the last.", "hue": "#150f24" },
+
+    { "type": "counting", "id": "seven-days", "title": "7 · Creation", "body": "Six days of creation. The seventh — God rested. Seven becomes the number of completion across the canon: seven seals, seven trumpets, seven churches, seven spirits, seventy times seven forgiveness.", "hue": "#e8d6a8" },
+    { "type": "counting", "id": "forty-flood", "title": "40 · Threshold", "body": "40 days of rain. 40 years in the wilderness. 40 days fasting on Sinai. 40 days fasting in the desert before ministry. The number of passage from old life to new.", "hue": "#5ab3d8" },
+    { "type": "counting", "id": "twelve-tribes", "title": "12 · Covenant People", "body": "12 tribes of Israel. 12 apostles of the Lamb. 12 gates of the New Jerusalem, 12 foundations, 12,000 from each tribe sealed. The number of governed wholeness.", "hue": "#c47a2a" },
+    { "type": "counting", "id": "three-resurrection", "title": "3 · Resurrection", "body": "Jonah three days in the fish. Jesus three days in the tomb. The third day — always the day of reversal in the Hebrew imagination.", "hue": "#a06070" },
+
+    { "type": "quest-tease", "id": "mark-829", "anchor": "mark.8.29", "title": "Read Mark 8", "body": "Try to spot the exact moment everything turns. The disciples have been confused for 8 chapters. Then one question lands. Then everything changes.", "hue": "#7ee0ff" },
+    { "type": "quest-tease", "id": "ruth-3", "anchor": "ruth.3.1", "title": "Read Ruth 3", "body": "A foreign widow proposes marriage to a Hebrew man on a threshing floor at midnight. The grandmother of David. Notice how the text never moralizes — it just watches.", "hue": "#c7a9ff" },
+    { "type": "quest-tease", "id": "phil-2", "anchor": "phil.2.5", "title": "Read Philippians 2:5–11", "body": "An early Christian hymn embedded in a letter, possibly older than the letter itself. The earliest surviving Christian theology, written in poetry by people who knew Him.", "hue": "#5fa97e" }
+  ]
+}

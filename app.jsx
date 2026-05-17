@@ -938,6 +938,12 @@ function App() {
         subtitle: panel?.subtitle || "",
         verses, loading: false, error: null,
       });
+      // Phase 1.2 — feed the full-text search index as the user reads.
+      try {
+        window.CODEX_SEARCH?.ingestPassage?.({
+          bookId, chapter: chap, verses, primary,
+        });
+      } catch {}
     } catch (e) {
       setPassage(p => ({ ...p, loading: false, error: String(e.message || e) }));
     }
@@ -1274,6 +1280,9 @@ function App() {
   // Keyboard shortcut overlay — `?` opens it, Esc closes.
   const [showShortcuts, setShowShortcuts] = useState(false);
 
+  // Phase 1.2 — full-text search modal
+  const [searchOpen, setSearchOpen] = useState(false);
+
   // ── Global keyboard navigation (Phase 0.6) ─────────────────────────────
   // Single source of truth for all top-level keybindings. Skips typing
   // contexts so we don't steal keys inside inputs / contenteditable.
@@ -1313,10 +1322,13 @@ function App() {
     };
 
     const focusSearch = () => {
-      const sel = '.cx-search-input, [data-cx-search], input[type="search"]';
-      const el = document.querySelector(sel);
-      if (el) { el.focus(); el.select?.(); }
-      else console.log("[codex] Cmd+K: search bar not yet implemented (Phase 1.2)");
+      // Phase 1.2 — open the full-text search overlay
+      setSearchOpen(true);
+      // Defer focus to the next frame so the overlay has mounted.
+      requestAnimationFrame(() => {
+        const el = document.querySelector('.cx-search-input, [data-cx-search]');
+        if (el) { el.focus(); el.select?.(); }
+      });
     };
 
     const dispatchShortcut = (action) => {
@@ -1329,6 +1341,7 @@ function App() {
 
       // ── Always-on keys (work even inside inputs) ──────────────────────
       if (e.key === "Escape") {
+        if (searchOpen) { setSearchOpen(false); e.preventDefault(); return; }
         if (showShortcuts) { setShowShortcuts(false); e.preventDefault(); return; }
         if (theater) { setTheater(false); e.preventDefault(); return; }
         // Generic escape — let listeners (verse menu, popovers, etc.) close.
@@ -1463,7 +1476,7 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // Re-bind whenever the closures' captured state changes.
-  }, [theater, showShortcuts, passage, currentVerse, sideBySide, gnosisOn,
+  }, [theater, showShortcuts, searchOpen, passage, currentVerse, sideBySide, gnosisOn,
       leftCollapsed, rightCollapsed, data, loadPassage, openVerseMenu, t.notesEnabled]);
 
   useEffect(() => { setPrimary(t.primaryTranslation); }, [t.primaryTranslation]);
@@ -1692,6 +1705,16 @@ function App() {
         <button className="cx-theater-exit" onClick={() => setTheater(false)} title="Exit focus (ESC)">
           ◐ EXIT FOCUS · ESC
         </button>
+      ) : null}
+
+      {searchOpen && window.CODEX_SearchBar ? (
+        React.createElement(window.CODEX_SearchBar, {
+          open: true,
+          onClose: () => setSearchOpen(false),
+          onNavigate: (bookId, chapter, verse) => {
+            try { loadPassage(bookId, chapter, verse || 1); } catch {}
+          },
+        })
       ) : null}
 
       {showShortcuts ? (

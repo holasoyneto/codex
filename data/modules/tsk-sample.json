@@ -1,0 +1,441 @@
+{
+  "meta": {
+    "id": "tsk-sample",
+    "type": "cross-reference",
+    "version": "1.0.0",
+    "lang": "en",
+    "name": "TSK Cross-References (sample)",
+    "_partial": true,
+    "note": "Sample subset of the Treasury of Scripture Knowledge. Full ~340K refs coming."
+  },
+  "verses": {
+    "gen.1.1": [
+      { "ref": "jhn.1.1",  "theme": "In the beginning · Word" },
+      { "ref": "jhn.1.3",  "theme": "All things made by him" },
+      { "ref": "col.1.16", "theme": "All things created by/for him" },
+      { "ref": "heb.1.10", "theme": "Foundation of the earth" },
+      { "ref": "heb.11.3", "theme": "Worlds framed by the word of God" },
+      { "ref": "psa.33.6", "theme": "By the word of the LORD" },
+      { "ref": "psa.102.25", "theme": "Of old laid the foundation" },
+      { "ref": "psa.104.24", "theme": "How manifold are thy works" },
+      { "ref": "isa.40.26", "theme": "Lift up your eyes — creation" },
+      { "ref": "isa.42.5", "theme": "He that created the heavens" },
+      { "ref": "isa.45.18", "theme": "God himself formed the earth" },
+      { "ref": "act.17.24", "theme": "God that made the world" },
+      { "ref": "rev.4.11", "theme": "Worthy — thou hast created all" }
+    ],
+    "gen.1.26": [
+      { "ref": "gen.1.27", "theme": "Image of God" },
+      { "ref": "gen.5.1", "theme": "Likeness of God" },
+      { "ref": "gen.9.6", "theme": "In the image of God made he man" },
+      { "ref": "psa.8.5", "theme": "Crowned with glory and honour" },
+      { "ref": "1co.11.7", "theme": "Image and glory of God" },
+      { "ref": "col.3.10", "theme": "Renewed after the image" },
+      { "ref": "eph.4.24", "theme": "New man · after God" },
+      { "ref": "jas.3.9",  "theme": "Made after the similitude" }
+    ],
+    "gen.3.15": [
+      { "ref": "rom.16.20", "theme": "Bruise Satan under your feet" },
+      { "ref": "heb.2.14",  "theme": "Destroy him that had the power of death" },
+      { "ref": "1jn.3.8",   "theme": "Destroy the works of the devil" },
+      { "ref": "gal.4.4",   "theme": "Made of a woman" },
+      { "ref": "rev.12.17", "theme": "War with her seed" },
+      { "ref": "col.2.15",  "theme": "Spoiled principalities" },
+      { "ref": "jhn.12.31", "theme": "Prince of this world cast out" }
+    ],
+    "gen.12.3": [
+      { "ref": "gen.18.18", "theme": "All nations blessed in him" },
+      { "ref": "gen.22.18", "theme": "Thy seed shall all nations be blessed" },
+      { "ref": "gen.28.14", "theme": "All families blessed" },
+      { "ref": "act.3.25",  "theme": "In thy seed all kindreds blessed" },
+      { "ref": "gal.3.8",   "theme": "Scripture preached gospel to Abraham" },
+      { "ref": "gal.3.16",  "theme": "Promises to Abraham and his seed" }
+    ],
+    "gen.22.2": [
+      { "ref": "jhn.3.16",  "theme": "Only begotten Son" },
+      { "ref": "rom.8.32",  "theme": "Spared not his own Son" },
+      { "ref": "heb.11.17", "theme": "By faith Abraham offered Isaac" },
+      { "ref": "jas.2.21",  "theme": "Justified when he offered Isaac" }
+    ],
+    "exo.3.14": [
+      { "ref": "jhn.8.58",  "theme": "Before Abraham was, I AM" },
+      { "ref": "rev.1.4",   "theme": "Him which is, which was, and which is to come" },
+      { "ref": "rev.1.8",   "theme": "Alpha and Omega" },
+      { "ref": "isa.44.6",  "theme": "I am the first and the last" },
+      { "ref": "heb.13.8",  "theme": "Same yesterday, today, forever" }
+    ],
+    "exo.20.3": [
+      { "ref": "deu.5.7",   "theme": "No other gods" },
+      { "ref": "deu.6.4",   "theme": "Hear O Israel · LORD is one" },
+      { "ref": "isa.45.5",  "theme": "I am the LORD, none else" },
+      { "ref": "mat.4.10",  "theme": "Him only shalt thou serve" },
+      { "ref": "1co.8.4",   "theme": "None other God but one" }
+    ],
+    "deu.6.4": [
+      { "ref": "deu.4.35",  "theme": "LORD is God, none else" },
+      { "ref": "mrk.12.29", "theme": "Hear O Israel — Jesus cites" },
+      { "ref": "1co.8.4",   "theme": "One God" },
+      { "ref": "eph.4.6",   "theme": "One God and Father of all" },
+      { "ref": "jas.2.19",  "theme": "Thou believest there is one God" }
+    ],
+    "deu.6.5": [
+      { "ref": "mat.22.37", "theme": "Great commandment" },
+      { "ref": "mrk.12.30", "theme": "Love the Lord with all" },
+      { "ref": "luk.10.27", "theme": "Lawyer's answer" },
+      { "ref": "1jn.4.19",  "theme": "We love him, because he first loved us" }
+    ],
+    "jos.1.9": [
+      { "ref": "deu.31.6",  "theme": "Be strong · he will not fail thee" },
+      { "ref": "deu.31.8",  "theme": "LORD goes before thee" },
+      { "ref": "isa.41.10", "theme": "Fear not, I am with thee" },
+      { "ref": "heb.13.5",  "theme": "Never leave thee nor forsake" },
+      { "ref": "mat.28.20", "theme": "I am with you alway" }
+    ],
+    "psa.1.1": [
+      { "ref": "psa.32.1",   "theme": "Blessed is the man" },
+      { "ref": "psa.119.1",  "theme": "Blessed undefiled in the way" },
+      { "ref": "pro.4.14",   "theme": "Enter not the path of the wicked" },
+      { "ref": "jer.15.17",  "theme": "Sat not with the assembly" },
+      { "ref": "1co.15.33",  "theme": "Evil communications" }
+    ],
+    "psa.22.1": [
+      { "ref": "mat.27.46",  "theme": "My God, my God, why hast thou forsaken me" },
+      { "ref": "mrk.15.34",  "theme": "Eloi, Eloi" },
+      { "ref": "heb.5.7",    "theme": "Strong crying and tears" },
+      { "ref": "psa.42.9",   "theme": "Why hast thou forgotten me" }
+    ],
+    "psa.23.1": [
+      { "ref": "isa.40.11",  "theme": "Feed his flock like a shepherd" },
+      { "ref": "ezk.34.11",  "theme": "I will search my sheep" },
+      { "ref": "jhn.10.11",  "theme": "I am the good shepherd" },
+      { "ref": "jhn.10.14",  "theme": "Good shepherd · knows his sheep" },
+      { "ref": "heb.13.20",  "theme": "Great shepherd of the sheep" },
+      { "ref": "1pe.2.25",   "theme": "Shepherd and Bishop of your souls" },
+      { "ref": "1pe.5.4",    "theme": "Chief Shepherd" },
+      { "ref": "rev.7.17",   "theme": "Lamb shall feed them" },
+      { "ref": "psa.80.1",   "theme": "Shepherd of Israel" },
+      { "ref": "php.4.19",   "theme": "Shall supply all your need" }
+    ],
+    "psa.51.10": [
+      { "ref": "ezk.36.26",  "theme": "New heart will I give you" },
+      { "ref": "jer.31.33",  "theme": "Write law in their hearts" },
+      { "ref": "2co.5.17",   "theme": "New creature" },
+      { "ref": "eph.4.23",   "theme": "Renewed in the spirit" },
+      { "ref": "tit.3.5",    "theme": "Washing of regeneration" }
+    ],
+    "psa.119.105": [
+      { "ref": "pro.6.23",   "theme": "Commandment is a lamp" },
+      { "ref": "2pe.1.19",   "theme": "Light shining in a dark place" },
+      { "ref": "psa.19.8",   "theme": "Enlightening the eyes" },
+      { "ref": "jhn.8.12",   "theme": "Light of the world" }
+    ],
+    "pro.3.5": [
+      { "ref": "pro.3.6",    "theme": "He shall direct thy paths" },
+      { "ref": "psa.37.5",   "theme": "Commit thy way unto the LORD" },
+      { "ref": "psa.62.8",   "theme": "Trust in him at all times" },
+      { "ref": "isa.26.4",   "theme": "Trust in the LORD for ever" },
+      { "ref": "jer.17.7",   "theme": "Blessed is the man that trusteth" }
+    ],
+    "ecc.3.1": [
+      { "ref": "ecc.7.14",   "theme": "Day of prosperity and adversity" },
+      { "ref": "ecc.8.6",    "theme": "Time and judgment" },
+      { "ref": "act.1.7",    "theme": "Times and seasons in the Father's power" },
+      { "ref": "rom.8.28",   "theme": "All things work together" }
+    ],
+    "isa.7.14": [
+      { "ref": "mat.1.23",   "theme": "They shall call his name Emmanuel" },
+      { "ref": "luk.1.31",   "theme": "Conceive and bring forth a son" },
+      { "ref": "luk.1.35",   "theme": "Holy thing born of thee" },
+      { "ref": "gal.4.4",    "theme": "Made of a woman" }
+    ],
+    "isa.9.6": [
+      { "ref": "luk.2.11",   "theme": "Unto you is born a Saviour" },
+      { "ref": "jhn.3.16",   "theme": "Gave his only begotten Son" },
+      { "ref": "mat.28.18",  "theme": "All power is given unto me" },
+      { "ref": "rev.19.16",  "theme": "King of kings, Lord of lords" },
+      { "ref": "isa.7.14",   "theme": "Immanuel" }
+    ],
+    "isa.40.31": [
+      { "ref": "psa.103.5",  "theme": "Youth renewed like the eagle's" },
+      { "ref": "2co.4.16",   "theme": "Inward man renewed day by day" },
+      { "ref": "rom.15.13",  "theme": "Filled with all joy and peace" },
+      { "ref": "hab.3.19",   "theme": "Feet like hinds' feet" }
+    ],
+    "isa.53.5": [
+      { "ref": "1pe.2.24",   "theme": "By whose stripes ye were healed" },
+      { "ref": "rom.4.25",   "theme": "Delivered for our offences" },
+      { "ref": "2co.5.21",   "theme": "Made him to be sin for us" },
+      { "ref": "gal.3.13",   "theme": "Redeemed from the curse" },
+      { "ref": "heb.9.28",   "theme": "Offered to bear the sins of many" },
+      { "ref": "1jn.2.2",    "theme": "Propitiation for our sins" }
+    ],
+    "isa.55.6": [
+      { "ref": "psa.32.6",   "theme": "Pray unto thee in a time" },
+      { "ref": "psa.105.4",  "theme": "Seek the LORD and his strength" },
+      { "ref": "mat.7.7",    "theme": "Seek and ye shall find" },
+      { "ref": "act.17.27",  "theme": "Seek the Lord if haply they might feel" },
+      { "ref": "2co.6.2",    "theme": "Now is the accepted time" }
+    ],
+    "jer.29.11": [
+      { "ref": "rom.8.28",   "theme": "All things work together for good" },
+      { "ref": "isa.55.8",   "theme": "My thoughts are not your thoughts" },
+      { "ref": "psa.40.5",   "theme": "Thy thoughts which are to us-ward" },
+      { "ref": "eph.3.20",   "theme": "Able to do exceeding abundantly" }
+    ],
+    "ezk.36.26": [
+      { "ref": "jer.31.33",  "theme": "New covenant · law in the heart" },
+      { "ref": "jer.32.39",  "theme": "One heart and one way" },
+      { "ref": "psa.51.10",  "theme": "Create in me a clean heart" },
+      { "ref": "2co.3.3",    "theme": "Epistle written in fleshy tables" },
+      { "ref": "heb.8.10",   "theme": "I will put my laws into their mind" }
+    ],
+    "mic.6.8": [
+      { "ref": "deu.10.12",  "theme": "What doth the LORD require" },
+      { "ref": "hos.6.6",    "theme": "I desired mercy" },
+      { "ref": "mat.23.23",  "theme": "Judgment, mercy, faith" },
+      { "ref": "jas.1.27",   "theme": "Pure religion · visit the fatherless" }
+    ],
+    "mat.5.3": [
+      { "ref": "luk.6.20",   "theme": "Blessed be ye poor" },
+      { "ref": "isa.57.15",  "theme": "Dwell with him of a contrite spirit" },
+      { "ref": "isa.66.2",   "theme": "Poor and of a contrite spirit" },
+      { "ref": "jas.2.5",    "theme": "Poor of this world rich in faith" }
+    ],
+    "mat.6.33": [
+      { "ref": "psa.37.4",   "theme": "Delight thyself in the LORD" },
+      { "ref": "luk.12.31",  "theme": "Rather seek the kingdom" },
+      { "ref": "1ki.3.13",   "theme": "I have also given thee · riches" },
+      { "ref": "rom.14.17",  "theme": "Kingdom · righteousness, peace, joy" }
+    ],
+    "mat.11.28": [
+      { "ref": "jhn.7.37",   "theme": "If any man thirst, let him come" },
+      { "ref": "isa.55.1",   "theme": "Come ye to the waters" },
+      { "ref": "rev.22.17",  "theme": "Whosoever will, let him take" },
+      { "ref": "heb.4.9",    "theme": "Rest to the people of God" },
+      { "ref": "jer.6.16",   "theme": "Ye shall find rest for your souls" }
+    ],
+    "mat.22.37": [
+      { "ref": "deu.6.5",    "theme": "Hear O Israel · love the LORD" },
+      { "ref": "mrk.12.30",  "theme": "First commandment" },
+      { "ref": "luk.10.27",  "theme": "Lawyer's answer" },
+      { "ref": "1jn.5.3",    "theme": "Love of God · keep his commandments" }
+    ],
+    "mat.28.19": [
+      { "ref": "mrk.16.15",  "theme": "Go ye into all the world" },
+      { "ref": "luk.24.47",  "theme": "Repentance · all nations" },
+      { "ref": "act.1.8",    "theme": "Witnesses unto me" },
+      { "ref": "rom.10.18",  "theme": "Sound went into all the earth" },
+      { "ref": "col.1.23",   "theme": "Gospel preached to every creature" }
+    ],
+    "mrk.10.45": [
+      { "ref": "mat.20.28",  "theme": "Ransom for many" },
+      { "ref": "1ti.2.6",    "theme": "Gave himself a ransom" },
+      { "ref": "tit.2.14",   "theme": "Gave himself for us" },
+      { "ref": "luk.22.27",  "theme": "I am among you as he that serveth" },
+      { "ref": "php.2.7",    "theme": "Took upon him the form of a servant" }
+    ],
+    "luk.2.10": [
+      { "ref": "isa.9.6",    "theme": "Unto us a child is born" },
+      { "ref": "isa.52.7",   "theme": "Bringeth good tidings" },
+      { "ref": "mat.28.8",   "theme": "Fear and great joy" },
+      { "ref": "act.13.32",  "theme": "Glad tidings · the promise" }
+    ],
+    "jhn.1.1": [
+      { "ref": "gen.1.1",    "theme": "In the beginning" },
+      { "ref": "pro.8.22",   "theme": "Wisdom set up from everlasting" },
+      { "ref": "col.1.17",   "theme": "He is before all things" },
+      { "ref": "1jn.1.1",    "theme": "That which was from the beginning" },
+      { "ref": "rev.19.13",  "theme": "His name · the Word of God" },
+      { "ref": "jhn.1.14",   "theme": "The Word was made flesh" },
+      { "ref": "heb.1.8",    "theme": "Unto the Son · Thy throne O God" },
+      { "ref": "php.2.6",    "theme": "Being in the form of God" }
+    ],
+    "jhn.1.14": [
+      { "ref": "rom.1.3",    "theme": "Made of the seed of David" },
+      { "ref": "gal.4.4",    "theme": "Made of a woman" },
+      { "ref": "php.2.7",    "theme": "Made in the likeness of men" },
+      { "ref": "heb.2.14",   "theme": "Partook of flesh and blood" },
+      { "ref": "1ti.3.16",   "theme": "God manifest in the flesh" },
+      { "ref": "1jn.4.2",    "theme": "Come in the flesh" },
+      { "ref": "jhn.14.9",   "theme": "Seen me hath seen the Father" }
+    ],
+    "jhn.3.16": [
+      { "ref": "rom.5.8",    "theme": "God's love · while sinners" },
+      { "ref": "1jn.4.9",    "theme": "Manifested love · sent his only Son" },
+      { "ref": "1jn.4.10",   "theme": "He loved us, sent his Son" },
+      { "ref": "jhn.1.18",   "theme": "Only begotten" },
+      { "ref": "gen.22.2",   "theme": "Only begotten — Isaac type" },
+      { "ref": "rom.6.23",   "theme": "Eternal life" },
+      { "ref": "jhn.10.28",  "theme": "I give unto them eternal life" },
+      { "ref": "jhn.17.3",   "theme": "This is life eternal" },
+      { "ref": "rom.8.32",   "theme": "Spared not his own Son" },
+      { "ref": "isa.53.5",   "theme": "Wounded for our transgressions" },
+      { "ref": "rev.22.17",  "theme": "Whosoever will · water of life" }
+    ],
+    "jhn.10.10": [
+      { "ref": "jhn.5.40",   "theme": "Will not come · that ye might have life" },
+      { "ref": "rom.5.17",   "theme": "Reign in life by one" },
+      { "ref": "1pe.5.8",    "theme": "Adversary · seeking whom" },
+      { "ref": "jhn.6.51",   "theme": "Living bread · giveth life" }
+    ],
+    "jhn.14.6": [
+      { "ref": "act.4.12",   "theme": "None other name" },
+      { "ref": "1ti.2.5",    "theme": "One mediator" },
+      { "ref": "heb.10.20",  "theme": "New and living way" },
+      { "ref": "eph.2.18",   "theme": "Access by one Spirit" },
+      { "ref": "jhn.1.17",   "theme": "Grace and truth came" },
+      { "ref": "jhn.11.25",  "theme": "I am the resurrection and the life" }
+    ],
+    "jhn.15.5": [
+      { "ref": "jhn.6.56",   "theme": "Dwelleth in me, and I in him" },
+      { "ref": "2co.3.5",    "theme": "Not sufficient of ourselves" },
+      { "ref": "php.4.13",   "theme": "I can do all things through Christ" },
+      { "ref": "col.1.27",   "theme": "Christ in you" },
+      { "ref": "psa.92.13",  "theme": "Planted in the house of the LORD" }
+    ],
+    "act.1.8": [
+      { "ref": "luk.24.49",  "theme": "Endued with power from on high" },
+      { "ref": "act.2.4",    "theme": "Filled with the Holy Ghost" },
+      { "ref": "mat.28.19",  "theme": "Go ye therefore" },
+      { "ref": "isa.43.10",  "theme": "Ye are my witnesses" }
+    ],
+    "act.2.38": [
+      { "ref": "mrk.16.16",  "theme": "He that believeth and is baptized" },
+      { "ref": "act.22.16",  "theme": "Arise, be baptized" },
+      { "ref": "luk.24.47",  "theme": "Repentance and remission" },
+      { "ref": "eph.1.13",   "theme": "Sealed with the Holy Spirit" }
+    ],
+    "rom.3.23": [
+      { "ref": "rom.5.12",   "theme": "By one man sin entered" },
+      { "ref": "1ki.8.46",   "theme": "There is no man that sinneth not" },
+      { "ref": "ecc.7.20",   "theme": "Not a just man that sinneth not" },
+      { "ref": "gal.3.22",   "theme": "Concluded all under sin" },
+      { "ref": "1jn.1.8",    "theme": "If we say we have no sin" }
+    ],
+    "rom.5.8": [
+      { "ref": "jhn.3.16",   "theme": "God so loved the world" },
+      { "ref": "jhn.15.13",  "theme": "Greater love hath no man" },
+      { "ref": "1jn.4.10",   "theme": "Herein is love" },
+      { "ref": "1pe.3.18",   "theme": "Christ suffered for sins" },
+      { "ref": "isa.53.5",   "theme": "Wounded for our transgressions" },
+      { "ref": "rom.5.6",    "theme": "Christ died for the ungodly" }
+    ],
+    "rom.6.23": [
+      { "ref": "gen.2.17",   "theme": "Day thou eatest · die" },
+      { "ref": "ezk.18.4",   "theme": "Soul that sinneth shall die" },
+      { "ref": "jas.1.15",   "theme": "Sin · bringeth forth death" },
+      { "ref": "jhn.3.16",   "theme": "Everlasting life" },
+      { "ref": "1jn.5.11",   "theme": "Eternal life · in his Son" }
+    ],
+    "rom.8.28": [
+      { "ref": "gen.50.20",  "theme": "Ye thought evil · God meant good" },
+      { "ref": "deu.8.16",   "theme": "Humble · do thee good" },
+      { "ref": "psa.46.1",   "theme": "Very present help" },
+      { "ref": "ecc.8.12",   "theme": "Well with them that fear God" },
+      { "ref": "2co.4.17",   "theme": "Worketh a far more exceeding glory" },
+      { "ref": "heb.12.6",   "theme": "Whom the Lord loveth he chasteneth" }
+    ],
+    "rom.10.9": [
+      { "ref": "mat.10.32",  "theme": "Confess me before men" },
+      { "ref": "luk.12.8",   "theme": "Confess before angels" },
+      { "ref": "act.16.31",  "theme": "Believe on the Lord Jesus" },
+      { "ref": "1jn.4.15",   "theme": "Confess Jesus is the Son of God" },
+      { "ref": "php.2.11",   "theme": "Every tongue confess" }
+    ],
+    "rom.12.2": [
+      { "ref": "eph.4.23",   "theme": "Renewed in the spirit of your mind" },
+      { "ref": "col.3.10",   "theme": "Renewed in knowledge" },
+      { "ref": "1pe.1.14",   "theme": "Not fashioning · former lusts" },
+      { "ref": "1jn.2.15",   "theme": "Love not the world" },
+      { "ref": "tit.3.5",    "theme": "Washing of regeneration" }
+    ],
+    "1co.13.4": [
+      { "ref": "1co.13.7",   "theme": "Beareth · believeth · hopeth" },
+      { "ref": "1pe.4.8",    "theme": "Charity shall cover sins" },
+      { "ref": "pro.10.12",  "theme": "Love covereth all sins" },
+      { "ref": "gal.5.22",   "theme": "Fruit · love, joy, peace" },
+      { "ref": "col.3.12",   "theme": "Kindness, humbleness, longsuffering" }
+    ],
+    "2co.5.17": [
+      { "ref": "isa.43.18",  "theme": "Remember ye not the former things" },
+      { "ref": "isa.65.17",  "theme": "I create new heavens" },
+      { "ref": "gal.6.15",   "theme": "New creature" },
+      { "ref": "eph.4.24",   "theme": "Put on the new man" },
+      { "ref": "rev.21.5",   "theme": "Behold, I make all things new" }
+    ],
+    "gal.2.20": [
+      { "ref": "rom.6.6",    "theme": "Old man crucified" },
+      { "ref": "rom.8.10",   "theme": "Christ in you" },
+      { "ref": "col.1.27",   "theme": "Christ in you the hope of glory" },
+      { "ref": "col.3.3",    "theme": "Life hid with Christ" },
+      { "ref": "eph.3.17",   "theme": "Christ dwell in your hearts" }
+    ],
+    "gal.5.22": [
+      { "ref": "eph.5.9",    "theme": "Fruit of the Spirit · goodness" },
+      { "ref": "rom.14.17",  "theme": "Righteousness · peace · joy" },
+      { "ref": "col.3.12",   "theme": "Put on bowels of mercies" },
+      { "ref": "1co.13.4",   "theme": "Charity suffereth long" },
+      { "ref": "2pe.1.5",    "theme": "Add to your faith virtue" }
+    ],
+    "eph.2.8": [
+      { "ref": "rom.3.24",   "theme": "Justified freely by his grace" },
+      { "ref": "rom.4.16",   "theme": "Of faith · by grace" },
+      { "ref": "tit.3.5",    "theme": "Not by works of righteousness" },
+      { "ref": "2ti.1.9",    "theme": "Saved us · according to his own purpose" },
+      { "ref": "act.15.11",  "theme": "Through the grace · we shall be saved" }
+    ],
+    "php.4.13": [
+      { "ref": "2co.12.9",   "theme": "My strength is made perfect in weakness" },
+      { "ref": "isa.40.29",  "theme": "Giveth power to the faint" },
+      { "ref": "eph.3.16",   "theme": "Strengthened with might" },
+      { "ref": "col.1.11",   "theme": "Strengthened with all might" },
+      { "ref": "jhn.15.5",   "theme": "Without me ye can do nothing" }
+    ],
+    "heb.11.1": [
+      { "ref": "rom.8.24",   "theme": "Hope that is seen is not hope" },
+      { "ref": "2co.4.18",   "theme": "Things not seen are eternal" },
+      { "ref": "2co.5.7",    "theme": "Walk by faith, not by sight" },
+      { "ref": "heb.11.6",   "theme": "Without faith impossible to please" },
+      { "ref": "1pe.1.8",    "theme": "Whom having not seen, ye love" }
+    ],
+    "jas.1.5": [
+      { "ref": "1ki.3.9",    "theme": "Solomon · understanding heart" },
+      { "ref": "pro.2.3",    "theme": "If thou criest after knowledge" },
+      { "ref": "pro.28.5",   "theme": "They that seek the LORD understand" },
+      { "ref": "jer.33.3",   "theme": "Call · I will shew thee" },
+      { "ref": "jas.3.17",   "theme": "Wisdom from above" }
+    ],
+    "1pe.5.7": [
+      { "ref": "psa.55.22",  "theme": "Cast thy burden upon the LORD" },
+      { "ref": "mat.6.25",   "theme": "Take no thought · life" },
+      { "ref": "php.4.6",    "theme": "Be careful for nothing" },
+      { "ref": "luk.12.22",  "theme": "Take no thought" }
+    ],
+    "1jn.1.9": [
+      { "ref": "pro.28.13",  "theme": "He that covereth · shall not prosper" },
+      { "ref": "psa.32.5",   "theme": "I acknowledged my sin" },
+      { "ref": "psa.51.2",   "theme": "Wash me throughly" },
+      { "ref": "isa.55.7",   "theme": "He will abundantly pardon" },
+      { "ref": "jer.31.34",  "theme": "Remember their sin no more" }
+    ],
+    "1jn.4.8": [
+      { "ref": "1jn.4.16",   "theme": "God is love" },
+      { "ref": "jhn.3.16",   "theme": "God so loved the world" },
+      { "ref": "rom.5.8",    "theme": "God commendeth his love" },
+      { "ref": "1jn.4.7",    "theme": "Love is of God" }
+    ],
+    "rev.3.20": [
+      { "ref": "sng.5.2",    "theme": "Voice of my beloved knocketh" },
+      { "ref": "luk.12.36",  "theme": "When he cometh and knocketh" },
+      { "ref": "jhn.14.23",  "theme": "We will come unto him" },
+      { "ref": "rev.19.9",   "theme": "Marriage supper of the Lamb" }
+    ],
+    "rev.21.4": [
+      { "ref": "isa.25.8",   "theme": "Wipe away tears" },
+      { "ref": "isa.35.10",  "theme": "Sorrow and sighing flee" },
+      { "ref": "rev.7.17",   "theme": "God shall wipe away all tears" },
+      { "ref": "1co.15.26",  "theme": "Last enemy · death" },
+      { "ref": "rev.20.14",  "theme": "Death cast into the lake of fire" }
+    ]
+  }
+}

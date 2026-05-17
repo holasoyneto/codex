@@ -10404,3 +10404,382 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
   display: flex; justify-content: space-between; align-items: center;
 }
 .cx-search-hint { opacity: 0.8; }
+
+/* =====================================================================
+   Reels (Phase 2.6) — endless scriptural scroll. TikTok-shape for scripture.
+   ===================================================================== */
+.cx-reels-pane {
+  display: flex; flex-direction: column;
+  height: 100%; min-height: 0;
+  position: relative;
+}
+.cx-reels-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: .5px solid var(--cx-line);
+  font-family: var(--cx-mono); font-size: 10.5px; letter-spacing: .18em;
+}
+.cx-reels-title { color: var(--cx-fg-dim); }
+.cx-reels-fs {
+  background: transparent; border: none; color: var(--cx-fg-dim);
+  font-size: 14px; cursor: pointer; padding: 6px 10px;
+  min-width: 32px; min-height: 32px;
+  border-radius: 6px; transition: color 120ms, background 120ms;
+}
+.cx-reels-fs:hover { color: var(--cx-accent); background: color-mix(in oklab, var(--cx-accent) 8%, transparent); }
+.cx-reels-empty {
+  padding: 40px 12px; text-align: center;
+  color: var(--cx-fg-dim); font-family: var(--cx-mono); font-size: 11px;
+  letter-spacing: .1em;
+}
+
+.cx-reels {
+  position: relative; flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.cx-reels.is-fullscreen {
+  position: fixed; inset: 0; z-index: 2147483647;
+  background: #06080e;
+}
+.cx-reels-overlay {
+  position: fixed; inset: 0; z-index: 2147483646;
+  background: rgba(0,0,0,.92); backdrop-filter: blur(8px);
+}
+.cx-reels-close {
+  position: absolute; top: 18px; right: 18px; z-index: 10;
+  background: rgba(0,0,0,.5); color: #fff;
+  border: 1px solid rgba(255,255,255,.18);
+  width: 44px; height: 44px; border-radius: 50%;
+  font-size: 18px; cursor: pointer; line-height: 1;
+}
+.cx-reels-scroll {
+  flex: 1 1 auto; overflow-y: auto; min-height: 0;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+.cx-reels-scroll::-webkit-scrollbar { display: none; }
+.cx-reels-slot {
+  position: relative;
+  scroll-snap-align: start; scroll-snap-stop: always;
+  height: 100%; min-height: 100%;
+  display: flex; flex-direction: column; justify-content: center; align-items: stretch;
+  padding: 24px 18px 80px;
+}
+.cx-reels.is-fullscreen .cx-reels-slot { padding: 60px 40px 100px; }
+.cx-reel-typebadge {
+  position: absolute; top: 16px; left: 16px;
+  font-family: var(--cx-mono); font-size: 9.5px;
+  letter-spacing: .22em; color: var(--cx-fg-dim);
+  text-transform: uppercase; opacity: .8;
+  z-index: 5;
+}
+.cx-reels.is-fullscreen .cx-reel-typebadge { top: 28px; left: 28px; }
+
+.cx-reels-dots {
+  position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 6px;
+  pointer-events: none; z-index: 5;
+}
+.cx-reels-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  transition: background 200ms, transform 200ms;
+}
+.cx-reels-dot.is-on {
+  background: var(--cx-accent);
+  transform: scale(1.5);
+}
+
+.cx-reel {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; justify-content: center;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 0;
+}
+.cx-reels.is-fullscreen .cx-reel { max-width: 720px; margin: 0 auto; width: 100%; }
+
+/* --- art-verse card --- */
+.cx-reel-art { position: relative; }
+.cx-reel-hero {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0.85;
+}
+.cx-reel-art-grad {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.2) 40%, rgba(0,0,0,.4) 100%);
+}
+.cx-reel-art-meta {
+  position: absolute; top: 16px; right: 16px;
+  text-align: right;
+  font-family: var(--cx-mono); font-size: 10px;
+  color: rgba(255,255,255,.85); z-index: 2;
+}
+.cx-reel-art-title { font-weight: 600; letter-spacing: .04em; }
+.cx-reel-art-artist { opacity: .65; margin-top: 2px; }
+.cx-reel-art-verse {
+  position: absolute; bottom: 24px; left: 24px; right: 24px;
+  z-index: 2; color: #fff;
+}
+.cx-reel-art-ref {
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .16em; opacity: .75; margin-bottom: 8px;
+}
+.cx-reel-art-verse p {
+  font-family: var(--cx-serif); font-size: 18px;
+  line-height: 1.45; margin: 0;
+  text-shadow: 0 2px 16px rgba(0,0,0,.6);
+}
+
+/* --- light-verse card --- */
+.cx-reel-light {
+  text-align: center; padding: 40px 24px;
+  color: #f0e8d8;
+}
+.cx-reel-light-text {
+  font-family: var(--cx-serif); font-size: clamp(22px, 5vw, 36px);
+  line-height: 1.4; white-space: pre-line;
+  letter-spacing: .005em;
+}
+.cx-reel-light-ref {
+  margin-top: 24px;
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .22em; opacity: .55;
+}
+
+/* --- symbol card --- */
+.cx-reel-symbol {
+  text-align: center; padding: 40px 24px;
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--card-hue, #5fa97e) 18%, var(--cx-bg)) 0%,
+    var(--cx-bg) 70%);
+}
+.cx-reel-symbol-glyph {
+  font-size: 64px; line-height: 1; margin-bottom: 18px;
+  filter: drop-shadow(0 0 24px color-mix(in oklab, var(--card-hue, #5fa97e) 40%, transparent));
+}
+.cx-reel-symbol-title {
+  font-family: var(--cx-serif); font-size: 28px;
+  color: var(--card-hue, var(--cx-accent));
+  margin-bottom: 12px; font-weight: 500;
+}
+.cx-reel-symbol-body {
+  font-family: var(--cx-serif); font-size: 15px;
+  line-height: 1.55; max-width: 50ch; margin: 0 auto;
+  color: var(--cx-fg);
+}
+.cx-reel-symbol-ref {
+  margin-top: 18px;
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .16em; opacity: .55;
+}
+
+/* --- name-of-god card --- */
+.cx-reel-name {
+  text-align: center; padding: 40px 24px;
+  background: radial-gradient(circle at 50% 30%,
+    color-mix(in oklab, var(--card-hue, #7ee0ff) 20%, transparent),
+    transparent 70%);
+}
+.cx-reel-name-hebrew {
+  font-family: 'Cardo', 'Times New Roman', serif;
+  font-size: clamp(28px, 5.5vw, 44px);
+  color: var(--card-hue, var(--cx-accent));
+  margin-bottom: 18px;
+  text-shadow: 0 0 30px color-mix(in oklab, var(--card-hue, var(--cx-accent)) 35%, transparent);
+}
+.cx-reel-name-body {
+  font-family: var(--cx-serif); font-size: 15px;
+  line-height: 1.55; max-width: 50ch; margin: 0 auto;
+}
+.cx-reel-name-ref {
+  margin-top: 18px;
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .16em; opacity: .55;
+}
+
+/* --- did-you-know card --- */
+.cx-reel-fact {
+  padding: 40px 24px;
+  background: linear-gradient(to bottom,
+    color-mix(in oklab, var(--card-hue, #e8d6a8) 10%, transparent),
+    transparent 60%);
+}
+.cx-reel-fact-label {
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .26em; color: var(--card-hue, var(--cx-accent));
+  margin-bottom: 14px; opacity: .85;
+}
+.cx-reel-fact-title {
+  font-family: var(--cx-serif); font-size: 26px;
+  margin-bottom: 14px; font-weight: 500;
+}
+.cx-reel-fact-body {
+  font-family: var(--cx-serif); font-size: 16px;
+  line-height: 1.6; margin: 0 0 14px; max-width: 60ch;
+}
+.cx-reel-fact-ref {
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .16em; opacity: .55;
+}
+
+/* --- parable card --- */
+.cx-reel-parable {
+  padding: 40px 24px;
+}
+.cx-reel-parable-label {
+  font-family: var(--cx-mono); font-size: 9.5px;
+  letter-spacing: .26em; color: var(--card-hue, var(--cx-accent));
+  margin-bottom: 12px; opacity: .85;
+}
+.cx-reel-parable-title {
+  font-family: var(--cx-serif); font-size: 24px;
+  margin-bottom: 16px; font-style: italic;
+}
+.cx-reel-parable-body {
+  font-family: var(--cx-serif); font-size: 17px;
+  line-height: 1.6; margin: 0 0 16px; max-width: 56ch;
+}
+.cx-reel-parable-ref {
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .16em; opacity: .55;
+}
+
+/* --- prophecy-pair card --- */
+.cx-reel-prophecy {
+  padding: 36px 24px;
+  display: flex; flex-direction: column; justify-content: center; gap: 14px;
+}
+.cx-reel-prophecy-title {
+  font-family: var(--cx-serif); font-size: 22px;
+  color: var(--card-hue, var(--cx-accent));
+  text-align: center; margin-bottom: 6px;
+}
+.cx-reel-prophecy-half {
+  padding: 14px 16px;
+  background: color-mix(in oklab, var(--card-hue, #a06070) 8%, transparent);
+  border-left: 2px solid color-mix(in oklab, var(--card-hue, #a06070) 60%, transparent);
+  border-radius: 0 6px 6px 0;
+}
+.cx-reel-prophecy-half.is-fulfilled {
+  background: color-mix(in oklab, var(--card-hue, #a06070) 14%, transparent);
+}
+.cx-reel-prophecy-tag {
+  font-family: var(--cx-mono); font-size: 9.5px;
+  letter-spacing: .2em; color: var(--card-hue, var(--cx-accent));
+  margin-bottom: 8px;
+}
+.cx-reel-prophecy-half p {
+  font-family: var(--cx-serif); font-size: 14.5px;
+  line-height: 1.55; margin: 0;
+}
+.cx-reel-prophecy-arrow {
+  text-align: center; font-size: 22px;
+  color: var(--card-hue, var(--cx-accent)); opacity: .55;
+}
+
+/* --- counting card --- */
+.cx-reel-count {
+  text-align: center; padding: 40px 24px;
+}
+.cx-reel-count-num {
+  font-family: var(--cx-mono); font-size: clamp(40px, 8vw, 72px);
+  color: var(--card-hue, var(--cx-accent));
+  font-weight: 600; letter-spacing: .04em;
+  margin-bottom: 20px;
+  text-shadow: 0 0 30px color-mix(in oklab, var(--card-hue, var(--cx-accent)) 30%, transparent);
+}
+.cx-reel-count-body {
+  font-family: var(--cx-serif); font-size: 16px;
+  line-height: 1.6; max-width: 54ch; margin: 0 auto;
+}
+
+/* --- question card --- */
+.cx-reel-q {
+  text-align: center; padding: 40px 24px;
+}
+.cx-reel-q-label {
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .26em; color: var(--card-hue, var(--cx-accent));
+  margin-bottom: 18px; opacity: .85;
+}
+.cx-reel-q-text {
+  font-family: var(--cx-serif); font-size: 22px;
+  line-height: 1.4; margin-bottom: 24px; max-width: 40ch; margin-inline: auto;
+}
+.cx-reel-q-reveal {
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--card-hue, var(--cx-accent)) 50%, transparent);
+  color: var(--card-hue, var(--cx-accent));
+  padding: 10px 22px; border-radius: 999px;
+  font-family: var(--cx-mono); font-size: 11px;
+  letter-spacing: .1em; cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.cx-reel-q-reveal:hover {
+  background: color-mix(in oklab, var(--card-hue, var(--cx-accent)) 10%, transparent);
+}
+.cx-reel-q-answer {
+  font-family: var(--cx-serif); font-size: 16px;
+  line-height: 1.6; max-width: 50ch; margin: 0 auto;
+  animation: cx-reel-fade .3s ease-out;
+}
+.cx-reel-q-ref {
+  margin-top: 18px;
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .16em; opacity: .55;
+}
+
+/* --- quest tease card --- */
+.cx-reel-quest {
+  padding: 40px 24px;
+  border-top: 2px solid color-mix(in oklab, var(--card-hue, var(--cx-accent)) 40%, transparent);
+  border-bottom: 2px solid color-mix(in oklab, var(--card-hue, var(--cx-accent)) 40%, transparent);
+  background: color-mix(in oklab, var(--card-hue, var(--cx-accent)) 5%, transparent);
+}
+.cx-reel-quest-label {
+  font-family: var(--cx-mono); font-size: 10px;
+  letter-spacing: .26em; color: var(--card-hue, var(--cx-accent));
+  margin-bottom: 14px; opacity: .9;
+}
+.cx-reel-quest-title {
+  font-family: var(--cx-serif); font-size: 26px;
+  margin-bottom: 14px; font-weight: 500;
+}
+.cx-reel-quest-body {
+  font-family: var(--cx-serif); font-size: 16px;
+  line-height: 1.6; margin: 0 0 14px; max-width: 58ch;
+}
+.cx-reel-quest-ref {
+  font-family: var(--cx-mono); font-size: 10.5px;
+  letter-spacing: .18em; color: var(--card-hue, var(--cx-accent));
+  font-weight: 600;
+}
+
+/* --- bottom action bar --- */
+.cx-reel-actions {
+  position: absolute; bottom: 16px; left: 24px; right: 24px;
+  display: flex; gap: 12px; align-items: center; justify-content: center;
+  z-index: 4;
+}
+.cx-reel-act {
+  background: rgba(0,0,0,.4);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #fff;
+  width: 44px; height: 44px; border-radius: 50%;
+  font-size: 18px; cursor: pointer; line-height: 1;
+  transition: background 120ms, transform 120ms;
+}
+.cx-reel-act:hover:not(:disabled) {
+  background: rgba(0,0,0,.7);
+  transform: scale(1.08);
+}
+.cx-reel-act:disabled { opacity: .35; cursor: not-allowed; }
+
+@keyframes cx-reel-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
