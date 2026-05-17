@@ -1109,18 +1109,18 @@ function ReaderViewPopover({
       {open ? (
         <div className="cx-vp-pop" role="dialog">
           <div className="cx-vp-row">
-            <span className="cx-vp-lbl">Size</span>
-            <button className="cx-vp-stepper" onClick={() => { for(let i=0;i<3;i++) onCycleFontSize(); }} title="Cycle text size">
+            <span className="cx-vp-lbl">{tx("size")}</span>
+            <button className="cx-vp-stepper" onClick={onCycleFontSize} title="Cycle text size">
               <span className="cx-vp-stepper-letter">Aa</span>
               <span className="cx-vp-stepper-num">{fontScale}</span>
             </button>
           </div>
           <div className="cx-vp-row">
-            <span className="cx-vp-lbl">Face</span>
+            <span className="cx-vp-lbl">{tx("face")}</span>
             <FaceToggle />
           </div>
           <div className="cx-vp-row">
-            <span className="cx-vp-lbl">Red letter</span>
+            <span className="cx-vp-lbl">{tx("red_letter")}</span>
             <button
               type="button"
               className={`cx-vp-toggle ${redLetter ? "is-on" : ""}`}
@@ -1140,7 +1140,7 @@ function ReaderViewPopover({
             ><i /></button>
           </div>
           <div className="cx-vp-row">
-            <span className="cx-vp-lbl">Side-by-side</span>
+            <span className="cx-vp-lbl">{tx("side_by_side")}</span>
             <button
               type="button"
               className={`cx-vp-toggle ${sideBySide ? "is-on" : ""}`}
