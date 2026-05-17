@@ -1102,7 +1102,11 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 .cx-col-h b { font-family: var(--cx-sans); font-size: 11px; color: var(--cx-fg); font-weight: 600; }
 .cx-col-h span { font-family: var(--cx-mono); font-size: 8.5px; color: var(--cx-fg-dim); letter-spacing: 0.08em; }
 
+/* Side-by-side mode — lift the single-column 70ch cap so N columns each
+   get a fair share of the full reader width instead of ~190px each. */
 .cx-reader-body.is-cols { display: flex; flex-direction: column; gap: 4px; }
+.cx-reader-body.is-cols > * { max-width: none; }
+.cx-reader-body.is-cols > .cx-reader-head { max-width: 70ch; }
 .cx-verse-row {
   display: grid;
   gap: 10px;
@@ -1110,6 +1114,7 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   border-left: 2px solid transparent;
   margin: 0 -4px;
   cursor: pointer;
+  position: relative;           /* anchor the ★ mark button */
   transition: background .15s, border-color .15s;
 }
 .cx-verse-row:hover { background: rgba(126,224,255,.04); }
@@ -1120,6 +1125,9 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   border-left: 1px solid var(--cx-line);
   font-size: calc(var(--cx-fs) * 0.78);
   line-height: 1.5;
+  min-width: 0;                /* allow text to wrap within its grid track */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .cx-verse-col:first-child { border-left: 0; }
 .cx-verse-col.is-primary-col { color: var(--cx-fg); }
@@ -1311,19 +1319,22 @@ body {
   box-sizing: border-box;
 }
 
-/* All buttons → 44×44 minimum hit area on touch devices, with no gray
-   default-tap callout, and pointer cursor where appropriate. */
+/* All buttons → 44×44 minimum hit area on touch devices (Apple HIG),
+   with no gray default-tap callout, and pointer cursor where appropriate. */
 @media (hover: none) and (pointer: coarse) {
   button, .cx-tab, .cx-ltab, .cx-tp-row, .cx-tp-pick, .cx-tp-eye, .cx-tp-rm,
   .cx-side-toggle, .cx-mobile-fab, .cx-quick, .cx-repo-toggle,
-  .cx-repo-prov, .cx-repo-add, .cx-vm-row {
-    min-height: 38px;
+  .cx-repo-prov, .cx-repo-add, .cx-vm-row,
+  .cx-vmark-btn, .cx-pane-toggle, .cx-vm-hl-swatch, .cx-vm-hl-rm {
+    min-height: 44px;
+    min-width: 44px;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;     /* kill 300ms double-tap delay */
   }
   /* Don't shrink-wrap thin rail items. */
-  .cx-tp-row { min-height: 40px; }
-  .cx-tp-eye, .cx-tp-rm { min-width: 32px; min-height: 32px; }
+  .cx-tp-row { min-height: 44px; }
+  .cx-tp-eye, .cx-tp-rm { min-width: 44px; min-height: 44px; }
+  .cx-mobile-fab { width: 44px; height: 44px; }
 }
 
 /* Backdrop scrim behind a slid-out rail — taps close the rail. */
@@ -1390,9 +1401,9 @@ body {
   /* Reader meta wraps onto two lines instead of overflowing. */
   .cx-reader-meta { flex-wrap: wrap; row-gap: 6px; }
 
-  /* The mobile FABs become real iOS-feeling tap targets. */
+  /* The mobile FABs become real iOS-feeling tap targets (44pt HIG). */
   .cx-mobile-fab {
-    width: 40px; height: 40px;
+    width: 44px; height: 44px;
     font-size: 20px;
     border-radius: 6px;
   }
@@ -1423,7 +1434,7 @@ body {
 /* Landscape phone — keep the reader breathable, hide chrome that hogs height. */
 @media (max-height: 480px) and (orientation: landscape) {
   .cx-status { min-height: 44px; }
-  .cx-footer { min-height: 36px; }
+  .cx-footer { min-height: 44px; }
   .cx-reader-titles h1 { font-size: 18px; }
   .cx-reader-titles p { display: none; }
 }
@@ -3280,6 +3291,11 @@ body.cx-resizing * { cursor: ew-resize !important; }
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+}
+/* When side-by-side is active in theater/focus mode (Studio Display etc.),
+   widen the reader so 2-3 columns aren't cramped into 880px. */
+.cx-app.is-theater .cx-reader:has(.is-cols) {
+  max-width: min(1600px, 95vw);
 }
 .cx-app.is-theater .cx-frame {
   border: none;

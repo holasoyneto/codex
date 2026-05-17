@@ -1025,7 +1025,7 @@ function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSe
       onClick={() => onSelectVerse(v.n)}
       onContextMenu={onCtx}
       {...longPress}
-      style={{ gridTemplateColumns: `repeat(${colsMeta.length}, minmax(0,1fr))` }}
+      style={{ gridTemplateColumns: `repeat(${colsMeta.length}, minmax(160px,1fr))` }}
     >
       {colsMeta.map((t, i) => {
         const text = verseText(v, t.id);
@@ -1233,7 +1233,7 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
         </div>
 
         {sideBySide && colsMeta.length > 1 ? (
-          <div className="cx-cols-head" style={{ gridTemplateColumns: `repeat(${colsMeta.length}, minmax(0,1fr))` }}>
+          <div className="cx-cols-head" style={{ gridTemplateColumns: `repeat(${colsMeta.length}, minmax(160px,1fr))` }}>
             {colsMeta.map((t, i) => (
               <div key={t.id} className={`cx-col-h ${i === 0 ? "is-primary" : ""}`}>
                 <span className="cx-col-h-glyph">{t.glyph}</span>
