@@ -965,6 +965,7 @@ function GnosisPanel({ panelData, status, meta, passage, gnosisOn, onToggleGnosi
                 <div className="cx-gnosis-body">
                   <p><LinkifyRefs text={g.body} /></p>
                 </div>
+                <NormieToggle text={g.body} scope="gnosis-card" />
                 <footer className="cx-gnosis-foot">
                   <PanelMarkBtn onClick={() => savePanelEntryToNotes({
                     kind: "Gnosis", heading: g.title, body: g.body, tag: g.sigil, passage,

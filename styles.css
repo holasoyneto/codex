@@ -10230,3 +10230,52 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 /* ──────────────────────────────────────────────────────────────────────────
  * END cx-help-trans-*
  * ────────────────────────────────────────────────────────────────────────── */
+
+/* =====================================================================
+   Normie Toggle — "translate for normies" button on esoteric Gnosis cards.
+   Works across every i18n language. Cached per text+lang.
+   ===================================================================== */
+.cx-normie { margin-top: 8px; }
+.cx-normie-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: transparent;
+  border: 1px solid color-mix(in oklab, #c7a9ff 30%, transparent);
+  color: color-mix(in oklab, #c7a9ff 80%, var(--cx-fg) 20%);
+  padding: 3px 9px;
+  font-family: var(--cx-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+  opacity: 0.72;
+}
+.cx-normie-btn:hover {
+  opacity: 1;
+  background: color-mix(in oklab, #c7a9ff 8%, transparent);
+  border-color: color-mix(in oklab, #c7a9ff 55%, transparent);
+}
+.cx-normie-btn.is-open {
+  opacity: 1;
+  background: color-mix(in oklab, #c7a9ff 12%, transparent);
+  border-color: color-mix(in oklab, #c7a9ff 70%, transparent);
+}
+.cx-normie-out {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-left: 2px solid color-mix(in oklab, #c7a9ff 50%, transparent);
+  background: color-mix(in oklab, #c7a9ff 5%, transparent);
+  border-radius: 0 4px 4px 0;
+  font-family: var(--cx-sans, system-ui);
+  font-size: calc(var(--cx-fs) * 0.85);
+  line-height: 1.55;
+  color: var(--cx-fg);
+  animation: cx-normie-in 220ms ease-out;
+}
+.cx-normie-out p { margin: 0; }
+.cx-normie-out em { font-style: italic; opacity: 0.7; }
+.cx-normie-err { color: #ff8291; }
+@keyframes cx-normie-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}

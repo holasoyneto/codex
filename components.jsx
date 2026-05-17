@@ -1079,9 +1079,106 @@ function GnosisInline({ entry }) {
         <span className="cx-gnosis-inline-title">{entry.title}</span>
       </header>
       <p>{entry.body}</p>
+      <NormieToggle text={entry.body} scope="gnosis-inline" />
     </aside>
   );
 }
+
+// "Translate for normies" — rewrites dense esoteric / mystical / scholarly
+// text in plain everyday language using the user's current UI language.
+// Cached per text+lang so it's a one-time call. Works across every i18n
+// language: Spanish, German, French, Portuguese, Latin, Hebrew, Greek,
+// Hindi, anything that ships in i18n.js.
+const NORMIE_LANG_LABELS = {
+  en: "English", es: "Spanish", de: "German", fr: "French", pt: "Portuguese",
+  la: "Latin",  he: "Hebrew",  el: "Greek",  hi: "Hindi", it: "Italian",
+  ru: "Russian", zh: "Chinese", ja: "Japanese", ko: "Korean", ar: "Arabic",
+};
+function normieHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h).toString(36);
+}
+function currentUiLang() {
+  try {
+    if (typeof window !== "undefined") {
+      if (window.CODEX_LANG) return window.CODEX_LANG;
+      const stored = localStorage.getItem("codex.lang");
+      if (stored) return stored;
+    }
+  } catch {}
+  return "en";
+}
+function NormieToggle({ text, scope }) {
+  const [open, setOpen] = React.useState(false);
+  const [plain, setPlain] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [err, setErr] = React.useState(null);
+  const lang = currentUiLang();
+  const langLabel = NORMIE_LANG_LABELS[lang] || lang || "English";
+  const cacheKey = `codex.normie.${scope || "gnosis"}.${normieHash(text || "")}.${lang}`;
+
+  React.useEffect(() => {
+    if (!open || plain || !text) return;
+    let cancelled = false;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) { setPlain(cached); return; }
+    } catch {}
+    setLoading(true);
+    setErr(null);
+    const tweaks = (window.CODEX_DATA && window.CODEX_DATA.tweaks) || {};
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: tweaks.provider,
+        model: tweaks.model,
+        system: `You are a friendly translator who rewrites dense esoteric, mystical, or scholarly Bible commentary into clear, plain everyday language anyone can understand. Use simple, conversational wording. No jargon. Keep it short: 1-3 sentences. Output ONLY the plain version, no preamble, no quotes. Respond in ${langLabel}.`,
+        messages: [{ role: "user", content: text }],
+        max_tokens: 300,
+      }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return;
+        if (d.text) {
+          const out = d.text.trim();
+          setPlain(out);
+          try { localStorage.setItem(cacheKey, out); } catch {}
+        } else {
+          throw new Error(d.error || "no response");
+        }
+      })
+      .catch(e => { if (!cancelled) setErr(String(e.message || e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, text, cacheKey, langLabel]);
+
+  if (!text) return null;
+  return (
+    <div className="cx-normie">
+      <button
+        type="button"
+        className={`cx-normie-btn ${open ? "is-open" : ""}`}
+        onClick={() => setOpen(!open)}
+        title={open ? "Show original" : `Translate for normies (in ${langLabel})`}
+      >
+        {open ? "↺ original" : `🪶 plain version · ${lang}`}
+      </button>
+      {open ? (
+        <div className="cx-normie-out">
+          {loading ? <em>plain-talking…</em>
+            : err ? <em className="cx-normie-err">⚠ {err}</em>
+            : plain ? <p>{plain}</p>
+            : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+// Expose so other modules (panels.jsx) can use it without re-import.
+if (typeof window !== "undefined") window.CODEX_NormieToggle = NormieToggle;
 
 // Single popover that holds every reader-view toggle: red-letter, YHWH,
 // font size, scripture face, side-by-side. Replaces the 5-button strip
