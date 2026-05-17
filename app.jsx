@@ -28,11 +28,84 @@ function LangPicker({ value, onChange }) {
 // existing /api/key server endpoint (preserving current behavior);
 // Grok is stored locally for now since the backend doesn't route it yet.
 const API_KEYS_STORE = "codex.api.keys.v1";
+// IDB-backed write-through so API keys survive iOS Safari ITP eviction
+// and localStorage QuotaExceededError silent failures (which strand users
+// who entered a key but lost it across reloads because the scripture cache
+// had filled local storage). IDB writes are async — kicked off in the
+// background; localStorage stays the synchronous source of truth for
+// reads (direct-api.js depends on it). On boot we hydrate from IDB if
+// localStorage is empty.
+const _KEYS_IDB_NAME = "codex-keys";
+const _KEYS_IDB_STORE = "kv";
+let _keysIdb = null;
+function _openKeysIdb() {
+  if (_keysIdb) return Promise.resolve(_keysIdb);
+  if (!("indexedDB" in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(_KEYS_IDB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(_KEYS_IDB_STORE); };
+      req.onsuccess = () => { _keysIdb = req.result; resolve(_keysIdb); };
+      req.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+}
+async function _idbGetKeys() {
+  const db = await _openKeysIdb(); if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(_KEYS_IDB_STORE, "readonly");
+      const r = tx.objectStore(_KEYS_IDB_STORE).get("api");
+      r.onsuccess = () => resolve(r.result || null);
+      r.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+}
+async function _idbSetKeys(v) {
+  const db = await _openKeysIdb(); if (!db) return false;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(_KEYS_IDB_STORE, "readwrite");
+      tx.objectStore(_KEYS_IDB_STORE).put(v, "api");
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    } catch { resolve(false); }
+  });
+}
+// Hydrate localStorage from IDB on cold start if LS is empty (e.g. iOS
+// ITP cleared it but IDB survived). Best-effort; fires once.
+(function hydrateKeysFromIdb() {
+  try {
+    const ls = localStorage.getItem(API_KEYS_STORE);
+    if (ls) return;                            // LS already has keys
+    _idbGetKeys().then((v) => {
+      if (!v || typeof v !== "object") return;
+      try {
+        if (!localStorage.getItem(API_KEYS_STORE)) {
+          localStorage.setItem(API_KEYS_STORE, JSON.stringify(v));
+          // Tell anything listening (settings panel, direct-api shim).
+          window.dispatchEvent(new CustomEvent("codex:keys:restored", { detail: v }));
+        }
+      } catch {}
+    });
+  } catch {}
+})();
 function loadApiKeys() {
   try { return { active: "anthropic", anthropic: "", grok: "", ...JSON.parse(localStorage.getItem(API_KEYS_STORE) || "null") }; }
   catch { return { active: "anthropic", anthropic: "", grok: "" }; }
 }
-function saveApiKeys(v) { try { localStorage.setItem(API_KEYS_STORE, JSON.stringify(v)); } catch {} }
+// Returns { ok, where } so callers can surface real persistence failures
+// to the user instead of silently swallowing QuotaExceededError.
+function saveApiKeys(v) {
+  let lsOk = false;
+  try { localStorage.setItem(API_KEYS_STORE, JSON.stringify(v)); lsOk = true; } catch {}
+  // Always mirror to IDB in the background. If LS failed (quota / ITP),
+  // IDB is the only thing keeping the key for the next session — and
+  // hydrateKeysFromIdb on the next boot will copy it back into LS once
+  // there's room.
+  _idbSetKeys(v).catch(() => {});
+  return { ok: lsOk, where: lsOk ? "localStorage+idb" : "idb-only" };
+}
 
 function ApiKeysSection() {
   const [keys, setKeys] = useState(loadApiKeys);
@@ -47,11 +120,30 @@ function ApiKeysSection() {
   const update = (patch) => {
     const next = { ...keys, ...patch };
     setKeys(next);
-    saveApiKeys(next);
-    // Notify direct-api shim + any listeners so engine swaps take effect
-    // without a reload.
+    const r = saveApiKeys(next);
+    // Surface persistence failures (LS quota / iOS ITP) — silent failure
+    // here is why users reported "app doesn't remember my key".
+    if (patch.anthropic !== undefined) {
+      setStatusA(r.ok ? "" : "⚠ saved to IDB only (localStorage full)");
+    }
+    if (patch.grok !== undefined) {
+      setStatusG(r.ok ? "" : "⚠ saved to IDB only (localStorage full)");
+    }
     try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
   };
+
+  // If IDB hydration completes after this component first mounted (rare
+  // but possible on slow IDB opens), pull the restored keys into state.
+  useEffect(() => {
+    const onRestore = (e) => {
+      const v = e?.detail;
+      if (!v || typeof v !== "object") return;
+      // Only adopt if our state has no anthropic key yet (don't clobber).
+      setKeys((cur) => (cur.anthropic || cur.grok) ? cur : { ...cur, ...v });
+    };
+    window.addEventListener("codex:keys:restored", onRestore);
+    return () => window.removeEventListener("codex:keys:restored", onRestore);
+  }, []);
 
   // Try to push the Anthropic key to /api/key (only succeeds when the
   // Node server is up). On static hosting the shim still has the key in
