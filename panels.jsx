@@ -927,6 +927,118 @@ function GematriaPanel({ panelData, status, meta, passage, onRegenerate }) {
   );
 }
 
+// ── Kabbalah mapping loader (one-shot fetch, cached on window) ──────
+function useKabbalahMap() {
+  const [map, setMap] = useState(() => (typeof window !== "undefined" ? window.__CODEX_KAB__ : null) || null);
+  useEffect(() => {
+    if (map || typeof window === "undefined") return;
+    let alive = true;
+    fetch("data/modules/kabbalah-mappings.json")
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (alive && j) { window.__CODEX_KAB__ = j; setMap(j); } })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  return map;
+}
+
+// Open the Strong's panel for a given original-language word. Uses the
+// lexicon's lookup-by-lemma when available; otherwise dispatches the open
+// event with whatever the user clicked so Strong's can do its own lookup.
+function openStrongsForWord(word) {
+  if (!word || typeof window === "undefined") return;
+  try {
+    const lex = window.CODEX_StrongsLookup;
+    if (typeof lex === "function") {
+      const hit = lex(word);
+      if (hit && hit.id) {
+        window.dispatchEvent(new CustomEvent("codex:strongs-open", { detail: { strongs: hit.id } }));
+        return;
+      }
+    }
+  } catch {}
+  // Fallback: open the Strong's panel with the raw query so the user lands
+  // on its search field with the word ready to refine.
+  window.dispatchEvent(new CustomEvent("codex:strongs-open", { detail: { query: word, strongs: word } }));
+}
+
+// Generic accessible click wrapper — Enter/Space activate, role=button.
+function clickableProps(onActivate, label) {
+  return {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": label,
+    onClick: (e) => { e.stopPropagation(); onActivate(); },
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onActivate();
+      }
+    },
+  };
+}
+
+// ── Value-detail modal · all verses summing to N + symbolic meaning ──
+function GemValueModal({ value, system, kabMap, onClose, onJump }) {
+  const [hits, setHits] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const IDX = (typeof window !== "undefined") ? window.CODEX_GEMATRIA_INDEX : null;
+    (async () => {
+      if (!IDX) return setHits([]);
+      try { await IDX.ensure(); }
+      catch {}
+      if (!alive) return;
+      const list = IDX.find(value);
+      setHits(list || []);
+    })();
+    return () => { alive = false; };
+  }, [value]);
+
+  const concept = kabMap?.value_to_concept?.[String(value)];
+  const sefirah = (kabMap?.sefirot || []).find(s => s.value === value);
+
+  // Render via portal-like fixed overlay
+  return (
+    <div className="cx-gem-modal-wrap" onClick={onClose}>
+      <div className="cx-gem-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label={`Value detail ${value}`}>
+        <header className="cx-gem-modal-h">
+          <span className="cx-gem-modal-val">VALUE <b>{value}</b></span>
+          <button className="cx-gem-modal-x" onClick={onClose} aria-label="Close">×</button>
+        </header>
+        {concept || sefirah ? (
+          <section className="cx-gem-modal-meaning">
+            {sefirah ? (
+              <p><b>{sefirah.translit}</b> <span dir="rtl">{sefirah.name}</span> — {sefirah.meaning}. The {ordinalWord(sefirah.n)} Sefirah.</p>
+            ) : null}
+            {concept ? <p className="cx-gem-modal-concept"><i>{concept.category}</i> · {concept.concept}</p> : null}
+          </section>
+        ) : null}
+        <section className="cx-gem-modal-hits">
+          <h4>IN YOUR LIBRARY {hits ? `(${hits.length})` : "(…)"}</h4>
+          {!hits ? <p className="cx-gem-empty">⌬ scanning your cached verses…</p>
+            : !hits.length ? <p className="cx-gem-empty">No verses in your library sum to {value}. Read more chapters to grow the index.</p>
+            : (
+              <ul className="cx-gem-modal-list">
+                {hits.slice(0, 20).map((m, i) => (
+                  <li key={i} {...clickableProps(() => { onJump(m.ref); onClose(); }, `Open ${m.ref}`)}>
+                    <span className="cx-gem-xref">{m.ref}</span>
+                    <span className="cx-gem-xword" dir="auto">{m.word}</span>
+                    <span className="cx-gem-xnote">— {m.system}</span>
+                  </li>
+                ))}
+                {hits.length > 20 ? <li className="cx-gem-empty">+{hits.length - 20} more</li> : null}
+              </ul>
+            )}
+        </section>
+      </div>
+    </div>
+  );
+}
+function ordinalWord(n) {
+  return ["zeroth","first","second","third","fourth","fifth","sixth","seventh","eighth","ninth","tenth"][n] || `${n}th`;
+}
+
 // ── GEMATRIA · DEEP / AI CROSS-REFERENCING ───────────────────────────
 // Renders the schema-2 panel block: primary word, full system grid (via
 // gematria.js), AI cross-matches + library cross-matches (computed
@@ -935,6 +1047,10 @@ function GematriaPanel({ panelData, status, meta, passage, onRegenerate }) {
 function GematriaDeep({ deep, passage }) {
   const GEM = (typeof window !== "undefined") ? window.CODEX_GEMATRIA : null;
   const IDX = (typeof window !== "undefined") ? window.CODEX_GEMATRIA_INDEX : null;
+  const kabMap = useKabbalahMap();
+  // Modal state for value-detail popup. null when closed.
+  const [modalValue, setModalValue] = useState(null);
+  const openValue = (v) => { if (v && Number.isFinite(v)) setModalValue(v); };
 
   // Compute every system for the primary word — single source of truth
   // for the values grid. Falls back gracefully if gematria.js failed load.
@@ -1031,13 +1147,22 @@ function GematriaDeep({ deep, passage }) {
       {deep.primary_word ? (
         <Collapsible defaultOpen title="PRIMARY WORD · FOCUS">
           <div className="cx-gem-focus">
-            <div className="cx-gem-focus-word" dir="auto">{deep.primary_word}</div>
+            <div
+              className="cx-gem-focus-word cx-gem-clickable"
+              dir="auto"
+              {...clickableProps(() => openStrongsForWord(deep.primary_word), `Open Strong's for ${deep.primary_word}`)}
+              title="Open Strong's entry"
+            >{deep.primary_word}</div>
             <div className="cx-gem-focus-meta">
               {deep.primary_translit ? <span className="cx-gem-focus-tr">{deep.primary_translit}</span> : null}
               {deep.primary_gloss ? <span className="cx-gem-focus-gl">— {deep.primary_gloss}</span> : null}
             </div>
             {canonicalValue ? (
-              <div className="cx-gem-focus-val">
+              <div
+                className="cx-gem-focus-val cx-gem-clickable"
+                {...clickableProps(() => openValue(canonicalValue), `Open value ${canonicalValue}`)}
+                title={`See every verse summing to ${canonicalValue}`}
+              >
                 <b>{canonicalValue}</b>
                 <i>{canonicalSystem.toUpperCase()}</i>
               </div>
@@ -1051,7 +1176,10 @@ function GematriaDeep({ deep, passage }) {
       {crossLang ? (
         <div className="cx-gem-crosslang">
           {Object.entries(crossLang).map(([k, v]) => (
-            <span key={k}><i>{k}</i><b>{v}</b></span>
+            <span key={k} className="cx-gem-clickable"
+                  {...clickableProps(() => openValue(v), `Open value ${v}`)}>
+              <i>{k}</i><b>{v}</b>
+            </span>
           ))}
         </div>
       ) : null}
@@ -1061,9 +1189,16 @@ function GematriaDeep({ deep, passage }) {
         <Collapsible title="ALL NUMEROLOGICAL SYSTEMS" sub={`Computed offline · ${values.lang}`}>
           <div className="cx-gem-sys-grid">
             {Object.entries(values).filter(([k]) => k !== "lang").map(([k, v]) => {
+              const numericVal = (v && typeof v === "object" && "value" in v) ? v.value : (Number.isFinite(v) ? v : null);
               const display = (v && typeof v === "object" && "value" in v) ? `${v.transformed} · ${v.value}` : String(v);
+              const canClick = Number.isFinite(numericVal) && numericVal > 1;
               return (
-                <div key={k} className="cx-gem-sys-row" title={SYSTEM_HELP[k] || ""}>
+                <div
+                  key={k}
+                  className={`cx-gem-sys-row ${canClick ? "cx-gem-clickable" : ""}`}
+                  title={SYSTEM_HELP[k] || ""}
+                  {...(canClick ? clickableProps(() => openValue(numericVal), `Open value ${numericVal}`) : {})}
+                >
                   <span className="cx-gem-sys-k">{k.replace(/_/g, " ")}</span>
                   <span className="cx-gem-sys-v">{display}</span>
                 </div>
@@ -1090,13 +1225,20 @@ function GematriaDeep({ deep, passage }) {
             <div className="cx-gem-xlist">
               {(deep.cross_matches || []).map((cm, i) => (
                 <div key={i} className="cx-gem-xgroup">
-                  <div className="cx-gem-xgh"><b>{cm.value}</b> <i>via {cm.via_system}</i></div>
+                  <div className="cx-gem-xgh">
+                    <b className="cx-gem-clickable"
+                       {...clickableProps(() => openValue(Number(cm.value)), `Open value ${cm.value}`)}
+                       title={`See every verse summing to ${cm.value}`}>{cm.value}</b>
+                    {" "}<i>via {cm.via_system}</i>
+                  </div>
                   {(cm.matches || []).map((m, j) => (
-                    <div key={j} className="cx-gem-xrow"
-                         onClick={() => m.ref && jump(m.ref)}
-                         role="button" tabIndex={0}>
-                      <span className="cx-gem-xref">{m.ref}</span>
-                      {m.word ? <span className="cx-gem-xword" dir="auto">{m.word}</span> : null}
+                    <div key={j} className="cx-gem-xrow">
+                      <span className="cx-gem-xref cx-gem-clickable"
+                            {...clickableProps(() => m.ref && jump(m.ref), `Jump to ${m.ref}`)}>{m.ref}</span>
+                      {m.word ? (
+                        <span className="cx-gem-xword cx-gem-clickable" dir="auto"
+                              {...clickableProps(() => openStrongsForWord(m.word), `Open Strong's for ${m.word}`)}>{m.word}</span>
+                      ) : null}
                       {m.note ? <span className="cx-gem-xnote">— {m.note}</span> : null}
                     </div>
                   ))}
@@ -1110,11 +1252,11 @@ function GematriaDeep({ deep, passage }) {
                 <p className="cx-gem-empty">⌬ Indexing your cached verses…</p>
               ) : (libMatches && libMatches.length) ? (
                 libMatches.slice(0, 30).map((m, i) => (
-                  <div key={i} className="cx-gem-xrow"
-                       onClick={() => jump(m.ref)}
-                       role="button" tabIndex={0}>
-                    <span className="cx-gem-xref">{m.ref}</span>
-                    <span className="cx-gem-xword" dir="auto">{m.word}</span>
+                  <div key={i} className="cx-gem-xrow">
+                    <span className="cx-gem-xref cx-gem-clickable"
+                          {...clickableProps(() => jump(m.ref), `Jump to ${m.ref}`)}>{m.ref}</span>
+                    <span className="cx-gem-xword cx-gem-clickable" dir="auto"
+                          {...clickableProps(() => openStrongsForWord(m.word), `Open Strong's for ${m.word}`)}>{m.word}</span>
                     <span className="cx-gem-xnote">— {m.system}</span>
                   </div>
                 ))
@@ -1169,7 +1311,214 @@ function GematriaDeep({ deep, passage }) {
           </div>
         </Collapsible>
       ) : null}
+
+      {/* KABBALAH — deeper mystery tier. Renders even with AI-empty kabbalah
+          block when we can auto-derive a Sefirah from the computed values. */}
+      <GematriaKabbalah deep={deep} values={values} canonicalValue={canonicalValue}
+                        passage={passage} kabMap={kabMap} onOpenValue={openValue} />
+
+      {modalValue ? (
+        <GemValueModal value={modalValue} system={canonicalSystem} kabMap={kabMap}
+                       onClose={() => setModalValue(null)} onJump={jump} />
+      ) : null}
     </>
+  );
+}
+
+// ── KABBALAH SECTION ──────────────────────────────────────────────────
+// A hidden compartment that appears below the standard Gematria intelligence.
+// Auto-derives Sefirot resonances + value→concept echoes from the same
+// gematria values the panel just computed; layers AI-supplied frames on top.
+function GematriaKabbalah({ deep, values, canonicalValue, passage, kabMap, onOpenValue }) {
+  const [activeSefirah, setActiveSefirah] = useState(null);
+  if (!kabMap) return null;
+
+  // Collect every numeric value the panel exposes (canonical + cross-match
+  // values), then look up Sefirah and concept matches automatically.
+  const numericValues = useMemo(() => {
+    const set = new Set();
+    if (canonicalValue) set.add(canonicalValue);
+    if (values) {
+      for (const [k, v] of Object.entries(values)) {
+        if (k === "lang") continue;
+        if (Number.isFinite(v)) set.add(v);
+        else if (v && typeof v === "object" && Number.isFinite(v.value)) set.add(v.value);
+      }
+    }
+    (deep.cross_matches || []).forEach(cm => {
+      if (Number.isFinite(Number(cm.value))) set.add(Number(cm.value));
+    });
+    return set;
+  }, [canonicalValue, values, deep.cross_matches]);
+
+  const autoSefirot = useMemo(() => {
+    return (kabMap.sefirot || []).filter(s => numericValues.has(s.value));
+  }, [kabMap, numericValues]);
+
+  const autoConcepts = useMemo(() => {
+    const out = [];
+    for (const v of numericValues) {
+      const c = kabMap.value_to_concept?.[String(v)];
+      if (c) out.push({ value: v, ...c });
+    }
+    return out;
+  }, [kabMap, numericValues]);
+
+  // AI-supplied Sefirot resonances — merge with auto, dedupe by name.
+  const aiSefirot = (deep.kabbalah?.sefirot_resonances || [])
+    .map(r => {
+      const s = (kabMap.sefirot || []).find(x => x.translit?.toLowerCase() === (r.sefirah || "").toLowerCase());
+      return s ? { ...s, note: r.note, aiValue: r.value } : null;
+    })
+    .filter(Boolean);
+
+  const sefirotShown = (() => {
+    const seen = new Set();
+    const out = [];
+    for (const s of [...aiSefirot, ...autoSefirot]) {
+      if (seen.has(s.translit)) continue;
+      seen.add(s.translit);
+      out.push(s);
+    }
+    return out;
+  })();
+
+  const luri = deep.kabbalah?.lurianic_frame && kabMap.concepts?.[deep.kabbalah.lurianic_frame];
+  const partzuf = deep.kabbalah?.partzuf && (kabMap.partzufim || []).find(p => p.name === deep.kabbalah.partzuf || p.translit === deep.kabbalah.partzuf);
+  const zoharCites = deep.kabbalah?.zohar_citations || [];
+
+  // Nothing to show? Stay quiet rather than render an empty panel.
+  if (!sefirotShown.length && !autoConcepts.length && !luri && !partzuf && !zoharCites.length) {
+    return null;
+  }
+
+  const subParts = [];
+  if (sefirotShown.length) subParts.push(`${sefirotShown.length} sefirah`);
+  if (autoConcepts.length) subParts.push(`${autoConcepts.length} echo`);
+  if (luri) subParts.push("lurianic");
+  if (partzuf) subParts.push("partzuf");
+
+  return (
+    <section className="cx-gem-kab">
+      <Collapsible defaultOpen={false} title={<span className="cx-gem-kab-title">⟁ KABBALAH · HIDDEN COMPARTMENT</span>}
+                   sub={subParts.join(" · ")}>
+        {sefirotShown.length ? (
+          <div className="cx-gem-kab-block">
+            <h4>SEFIROT RESONANCE</h4>
+            <KabTree sefirot={kabMap.sefirot || []} highlight={sefirotShown.map(s => s.translit)}
+                     onPick={(s) => setActiveSefirah(s)} />
+            <div className="cx-gem-kab-sefirot">
+              {sefirotShown.map(s => (
+                <button key={s.translit} className={`cx-gem-kab-card ${activeSefirah?.translit === s.translit ? "is-on" : ""}`}
+                        style={{ borderColor: s.color || "var(--cx-accent)" }}
+                        onClick={() => setActiveSefirah(s)}>
+                  <span className="cx-gem-kab-heb" dir="rtl">{s.name}</span>
+                  <span className="cx-gem-kab-tr">{s.translit}</span>
+                  <span className="cx-gem-kab-mean">{s.meaning}</span>
+                  <span className="cx-gem-kab-val cx-gem-clickable"
+                        {...clickableProps(() => onOpenValue(s.value), `Open value ${s.value}`)}>{s.value}</span>
+                  {s.note ? <span className="cx-gem-kab-note">— {s.note}</span> : null}
+                </button>
+              ))}
+            </div>
+            {activeSefirah ? (
+              <div className="cx-gem-kab-detail">
+                <p><b>{activeSefirah.translit}</b> · {activeSefirah.meaning}{activeSefirah.world ? ` · ${activeSefirah.world}` : ""}</p>
+                {activeSefirah.body ? <p className="cx-gem-kab-detail-body">{activeSefirah.body}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {autoConcepts.length ? (
+          <div className="cx-gem-kab-block">
+            <h4>CONCEPT ECHOES</h4>
+            <ul className="cx-gem-kab-echoes">
+              {autoConcepts.map((c, i) => (
+                <li key={i}>
+                  <button className="cx-gem-kab-echo-val cx-gem-clickable"
+                          {...clickableProps(() => onOpenValue(c.value), `Open value ${c.value}`)}>{c.value}</button>
+                  <span className="cx-gem-kab-echo-cat">{c.category}</span>
+                  <span className="cx-gem-kab-echo-txt">— {c.concept}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {luri ? (
+          <div className="cx-gem-kab-block">
+            <h4>LURIANIC FRAME</h4>
+            <div className="cx-gem-kab-luri">
+              <div className="cx-gem-kab-luri-name">
+                <b>{luri.name}</b> <span dir="rtl">{luri.hebrew}</span>
+              </div>
+              <p>{luri.meaning}</p>
+              {deep.kabbalah?.lurianic_note ? <p className="cx-gem-kab-luri-ai">▹ {deep.kabbalah.lurianic_note}</p> : null}
+              <span className="cx-gem-kab-src">{luri.source}</span>
+            </div>
+          </div>
+        ) : null}
+
+        {partzuf ? (
+          <div className="cx-gem-kab-block">
+            <h4>PARTZUF</h4>
+            <div className="cx-gem-kab-partzuf">
+              <b>{partzuf.name}</b> — <i>{partzuf.translit}</i>
+              <span className="cx-gem-kab-src">linked to {partzuf.sefirah} · {partzuf.polarity}</span>
+              {deep.kabbalah?.partzuf_note ? <p>▹ {deep.kabbalah.partzuf_note}</p> : null}
+            </div>
+          </div>
+        ) : null}
+
+        {zoharCites.length ? (
+          <div className="cx-gem-kab-block">
+            <h4>ZOHAR CITATIONS</h4>
+            {zoharCites.map((z, i) => (
+              <div key={i} className="cx-gem-kab-zohar">
+                <div className="cx-gem-kab-zohar-ref">{z.ref}</div>
+                <p className="cx-gem-quote">“{z.text}”</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Collapsible>
+    </section>
+  );
+}
+
+// Tiny SVG Tree of Life — 10 spheres in the classic arrangement. Highlighted
+// sefirot get filled color; rest are hairline rings. No paths between spheres
+// (kept minimal to feel like a sigil, not a chart).
+function KabTree({ sefirot, highlight = [], onPick }) {
+  // Canonical positions on a 100×140 viewBox.
+  const POS = {
+    Keter:    [50, 8],
+    Chokhmah: [80, 24], Binah:    [20, 24],
+    Chesed:   [80, 52], Gevurah:  [20, 52],
+    Tiferet:  [50, 68],
+    Netzach:  [80, 92], Hod:      [20, 92],
+    Yesod:    [50, 108],
+    Malkhut:  [50, 132],
+  };
+  const lit = new Set(highlight);
+  return (
+    <svg className="cx-gem-kab-tree" viewBox="0 0 100 144" aria-label="Tree of Life">
+      {sefirot.map(s => {
+        const [cx, cy] = POS[s.translit] || [50, 70];
+        const on = lit.has(s.translit);
+        return (
+          <g key={s.translit} onClick={() => onPick(s)} style={{ cursor: "pointer" }}>
+            <circle cx={cx} cy={cy} r={on ? 7 : 5}
+                    fill={on ? (s.color || "var(--cx-accent)") : "none"}
+                    stroke={on ? "var(--cx-fg)" : "var(--cx-fg-dim, #888)"}
+                    strokeWidth={on ? 1.2 : 0.8} opacity={on ? 1 : 0.55} />
+            <text x={cx} y={cy + 2} fontSize="3.2" textAnchor="middle"
+                  fill={on ? "var(--cx-bg)" : "var(--cx-fg-dim, #888)"}>{s.n}</text>
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 

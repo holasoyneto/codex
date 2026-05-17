@@ -4,26 +4,22 @@
 // Lives inside the Settings/Tweaks panel. Driven by data/help/articles.json
 // so non-engineers can ship doc updates with a release. Modes:
 //
-//   1. Browse — category accordion, all articles listed.
-//   2. Predictive search — substring/tag/title match as you type (top 5).
-//      Also searches any cached translations so non-English users can find
-//      articles in their own tongue.
+//   1. Browse — category cards + accordion, all articles listed.
+//   2. Predictive search — substring/tag/title match as you type (top 5)
+//      with snippet preview and matched-term highlighting.
 //   3. Ask Oracle — submit free-form question, POST to /api/chat with the
 //      whole help corpus stuffed into the user turn.
 //   4. Translate ▾ — in the article view, on-demand AI translation into any
-//      of the languages registered in i18n.js (es/de/pt/fr/la/he/el/hi).
-//      Results cache in localStorage so revisits are instant + offline.
+//      of the languages registered in i18n.js.
 //
-// Exports window.CODEX_HelpWiki for tweaks-panel.jsx to mount.
-// Styles live in styles.css under .cx-help-* (translation UI under
-// .cx-help-trans-*).
+// Visual layer: serif hero titles, drop-caps, numbered sections, pull-quote
+// blockquotes, copy-to-clipboard code blocks, scroll-progress bar, related
+// articles, prev/next navigation. See styles.css "Help Wiki — Beauty Pass".
 
 (function () {
   const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
   // ── Supported translation targets ─────────────────────────────────────
-  // Pulled from i18n.js's LANGS, minus English (the source language).
-  // Falls back to a hard-coded list if window.CODEX_LANGS isn't ready yet.
   function getSupportedLangs() {
     const fallback = [
       { code: "es", label: "Español" },
@@ -44,13 +40,25 @@
   }
   const SUPPORTED_LANGS = getSupportedLangs();
 
-  // Map of code -> full language name we pass to Claude.
   const LANG_NAME = {
     es: "Spanish", de: "German", pt: "Portuguese", fr: "French",
     la: "Latin",   he: "Hebrew", el: "Greek",      hi: "Hindi",
   };
 
-  // Read the user's currently selected UI language.
+  // Category metadata — icon + 1-line description. Falls back gracefully
+  // if articles.json adds a category we don't yet have art for.
+  const CATEGORY_META = {
+    "Basics":            { icon: "🜨", blurb: "Get oriented. The shortest path to reading scripture in CODEX." },
+    "Reading":           { icon: "📜", blurb: "Typography, themes, translations, side-by-side, theater mode." },
+    "Study Tools":       { icon: "⌖", blurb: "Verse menu, maps, art, mirrors, marks, notes, cross-refs, quests." },
+    "AI Features":       { icon: "✦", blurb: "Oracle, panels, reels — AI as a humble study companion." },
+    "Power User":        { icon: "⌘", blurb: "Offline, shortcuts, sync, custom repos, terminal CLI." },
+    "Audience-Specific": { icon: "◊", blurb: "Setups tuned for Jewish readers, academics, and more." },
+    "About":             { icon: "ℵ", blurb: "Vision, privacy, troubleshooting. The story behind CODEX." },
+    "Developer":         { icon: "⚙", blurb: "Plugins, data modules, the extension surface." },
+  };
+  const catMeta = (c) => CATEGORY_META[c] || { icon: "✧", blurb: "" };
+
   function currentUiLang() {
     try {
       if (typeof window !== "undefined" && window.CODEX_LANG) return window.CODEX_LANG;
@@ -60,7 +68,6 @@
     return "en";
   }
 
-  // localStorage cache keys for AI translations.
   const TR_KEY       = (id, lang) => `codex.help.tr.${id}.${lang}`;
   const TR_TITLE_KEY = (id, lang) => `codex.help.tr.${id}.${lang}.title`;
 
@@ -78,7 +85,6 @@
       if (title) localStorage.setItem(TR_TITLE_KEY(id, lang), title);
     } catch {}
   }
-  // Return list of language codes that have a cached translation for this id.
   function cachedLangsFor(id) {
     const out = [];
     for (const l of SUPPORTED_LANGS) {
@@ -89,10 +95,9 @@
     return out;
   }
 
-  // ── Tiny markdown renderer ─────────────────────────────────────────────
-  // Handles: # / ##, **bold**, *italic*, `code`, [text](url),
-  //          - bullet lists, 1. ordered lists, blank-line paragraphs.
-  // Escapes HTML first so article bodies can't smuggle <script>.
+  // ── Markdown renderer ──────────────────────────────────────────────────
+  // Adds: blockquotes (rendered as pull quotes), fenced code blocks with a
+  // copy button, auto-numbered <h2> sections via CSS counters.
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -122,6 +127,8 @@
     const out = [];
     let para = [];
     let list = null;
+    let quote = null;
+    let fence = null; // { lang, lines: [] }
 
     const flushPara = () => {
       if (para.length) {
@@ -135,11 +142,42 @@
         list = null;
       }
     };
+    const flushQuote = () => {
+      if (quote) {
+        out.push(`<blockquote class="cx-help-quote">${inlineMd(quote.join(" "))}</blockquote>`);
+        quote = null;
+      }
+    };
 
     for (const raw of lines) {
       const line = raw.trimEnd();
-      if (!line.trim()) { flushPara(); flushList(); continue; }
+
+      // Fenced code block
+      const fmatch = line.match(/^```(\w*)\s*$/);
+      if (fmatch) {
+        if (fence) {
+          const code = fence.lines.join("\n");
+          out.push(
+            `<div class="cx-help-code"><button class="cx-help-code-copy" data-copy="${escapeHtml(code)}" aria-label="Copy code">⎘ copy</button><pre><code>${escapeHtml(code)}</code></pre></div>`
+          );
+          fence = null;
+        } else {
+          flushPara(); flushList(); flushQuote();
+          fence = { lang: fmatch[1] || "", lines: [] };
+        }
+        continue;
+      }
+      if (fence) { fence.lines.push(raw); continue; }
+
+      if (!line.trim()) { flushPara(); flushList(); flushQuote(); continue; }
       let m;
+      if ((m = line.match(/^>\s?(.*)$/))) {
+        flushPara(); flushList();
+        if (!quote) quote = [];
+        quote.push(m[1]);
+        continue;
+      } else { flushQuote(); }
+
       if ((m = line.match(/^#{3}\s+(.*)$/))) { flushPara(); flushList(); out.push(`<h3>${inlineMd(m[1])}</h3>`); continue; }
       if ((m = line.match(/^##\s+(.*)$/)))   { flushPara(); flushList(); out.push(`<h2>${inlineMd(m[1])}</h2>`); continue; }
       if ((m = line.match(/^#\s+(.*)$/)))    { flushPara(); flushList(); out.push(`<h1>${inlineMd(m[1])}</h1>`); continue; }
@@ -155,22 +193,36 @@
       }
       para.push(line.trim());
     }
-    flushPara(); flushList();
+    flushPara(); flushList(); flushQuote();
+    if (fence) {
+      const code = fence.lines.join("\n");
+      out.push(`<div class="cx-help-code"><button class="cx-help-code-copy" data-copy="${escapeHtml(code)}" aria-label="Copy code">⎘ copy</button><pre><code>${escapeHtml(code)}</code></pre></div>`);
+    }
     return out.join("\n");
   }
 
+  // Snippet around the first occurrence of a query, with the match wrapped
+  // in a styled span so we can underline it (no garish <mark>).
+  function makeSnippet(body, q, max = 140) {
+    const text = String(body || "").replace(/[#*`>\-]+/g, " ").replace(/\s+/g, " ").trim();
+    if (!q) return text.slice(0, max) + (text.length > max ? "…" : "");
+    const i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return text.slice(0, max) + (text.length > max ? "…" : "");
+    const start = Math.max(0, i - 40);
+    const end   = Math.min(text.length, i + q.length + 80);
+    const pre   = (start > 0 ? "…" : "") + text.slice(start, i);
+    const hit   = text.slice(i, i + q.length);
+    const post  = text.slice(i + q.length, end) + (end < text.length ? "…" : "");
+    return `${escapeHtml(pre)}<span class="cx-help-hl">${escapeHtml(hit)}</span>${escapeHtml(post)}`;
+  }
+
   // ── Fuzzy ranking ──────────────────────────────────────────────────────
-  // Title hits outrank tag hits, which outrank body hits. Within a class,
-  // earlier-in-string wins. Also folds in any cached translations of the
-  // article so search works in the user's UI language.
   function scoreArticle(art, q) {
     if (!q) return 0;
     const Q = q.toLowerCase();
     const title = (art.title || "").toLowerCase();
     const tags  = (art.tags || []).join(" ").toLowerCase();
     let body  = (art.body || "").toLowerCase();
-    // Fold cached translations into the searchable body so non-English
-    // users can find articles by terms in their own language.
     for (const l of SUPPORTED_LANGS) {
       const c = readTrCache(art.id, l.code);
       if (c) {
@@ -191,7 +243,6 @@
   }
 
   // ── Translation request ────────────────────────────────────────────────
-  // Hits /api/chat for body + title. Returns { body, title } or throws.
   async function translateArticle(article, langCode) {
     const langName = LANG_NAME[langCode] || langCode;
     const system =
@@ -224,6 +275,16 @@
     return { body, title };
   }
 
+  // ── Skeleton shimmer used during fetch + AI translation ───────────────
+  function Skeleton({ rows = 5 }) {
+    const out = [];
+    for (let i = 0; i < rows; i++) {
+      const w = 60 + ((i * 17) % 35);
+      out.push(<div key={i} className="cx-help-skel-line" style={{ width: `${w}%` }} />);
+    }
+    return <div className="cx-help-skel" aria-hidden="true">{out}</div>;
+  }
+
   // ── Main component ─────────────────────────────────────────────────────
   function HelpWiki() {
     const [articles, setArticles] = useState(null);
@@ -232,15 +293,16 @@
     const [selectedId, setSelectedId] = useState(null);
     const [oracleAnswer, setOracleAnswer] = useState(null);
     const [openCategories, setOpenCategories] = useState({});
+    const [browseMode, setBrowseMode] = useState("cards"); // cards | list
+    const [scrollPct, setScrollPct] = useState(0);
     const searchRef = useRef(null);
+    const articleScrollRef = useRef(null);
+    const articleBodyRef = useRef(null);
 
-    // Translation state — keyed to the selected article.
-    // currentLang: null = original; otherwise the lang code being viewed.
-    // tr: { loading?:bool, body?:string, title?:string, error?:string }
     const [currentLang, setCurrentLang] = useState(null);
     const [tr, setTr] = useState(null);
     const [trMenuOpen, setTrMenuOpen] = useState(false);
-    const autoTriedRef = useRef({}); // articleId -> true once we've auto-tried
+    const autoTriedRef = useRef({});
 
     useEffect(() => {
       let cancelled = false;
@@ -318,9 +380,10 @@
     const onSearchKey = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        if (predictive[0] && predictive[0].title.toLowerCase() === query.trim().toLowerCase()) {
+        if (predictive[0]) {
+          // Enter always opens the top match if there is one — faster, less surprising.
           setSelectedId(predictive[0].id);
-        } else {
+        } else if (query.trim()) {
           askOracle();
         }
       } else if (e.key === "Escape" && selectedId) {
@@ -329,14 +392,15 @@
       }
     };
 
-    // Reset translation state when the selected article changes.
     useEffect(() => {
       setCurrentLang(null);
       setTr(null);
       setTrMenuOpen(false);
+      setScrollPct(0);
+      // Scroll the article container to top when navigating.
+      if (articleScrollRef.current) articleScrollRef.current.scrollTop = 0;
     }, [selectedId]);
 
-    // Trigger a translation (from cache if possible, else network).
     const doTranslate = useCallback(async (article, langCode) => {
       if (!article || !langCode) return;
       setCurrentLang(langCode);
@@ -355,7 +419,6 @@
       }
     }, []);
 
-    // Auto-translate on first article open if the UI lang isn't English.
     const selected = selectedId ? byId.get(selectedId) : null;
     useEffect(() => {
       if (!selected) return;
@@ -367,6 +430,68 @@
       doTranslate(selected, ui);
     }, [selected, doTranslate]);
 
+    // Article scroll progress.
+    useEffect(() => {
+      const el = articleScrollRef.current;
+      if (!el || !selected) return;
+      const onScroll = () => {
+        const max = el.scrollHeight - el.clientHeight;
+        const pct = max > 0 ? Math.min(100, Math.max(0, (el.scrollTop / max) * 100)) : 0;
+        setScrollPct(pct);
+      };
+      onScroll();
+      el.addEventListener("scroll", onScroll, { passive: true });
+      return () => el.removeEventListener("scroll", onScroll);
+    }, [selected, tr]);
+
+    // Wire up copy-to-clipboard on code blocks after each render.
+    useEffect(() => {
+      const root = articleBodyRef.current;
+      if (!root) return;
+      const onClick = (e) => {
+        const btn = e.target.closest(".cx-help-code-copy");
+        if (!btn) return;
+        const txt = btn.getAttribute("data-copy") || "";
+        try {
+          navigator.clipboard?.writeText(txt);
+          const old = btn.textContent;
+          btn.textContent = "✓ copied";
+          btn.classList.add("is-ok");
+          setTimeout(() => { btn.textContent = old; btn.classList.remove("is-ok"); }, 1400);
+        } catch {}
+      };
+      root.addEventListener("click", onClick);
+      return () => root.removeEventListener("click", onClick);
+    }, [selected, tr]);
+
+    // Prev/next within category.
+    const categoryPeers = useMemo(() => {
+      if (!selected) return { prev: null, next: null };
+      const peers = all.filter(a => a.category === selected.category);
+      const idx = peers.findIndex(a => a.id === selected.id);
+      return {
+        prev: idx > 0 ? peers[idx - 1] : null,
+        next: idx >= 0 && idx < peers.length - 1 ? peers[idx + 1] : null,
+      };
+    }, [selected, all]);
+
+    // Related: same category, ≥1 shared tag, score by overlap.
+    const related = useMemo(() => {
+      if (!selected) return [];
+      const myTags = new Set((selected.tags || []));
+      return all
+        .filter(a => a.id !== selected.id && a.category === selected.category)
+        .map(a => {
+          let overlap = 0;
+          for (const t of (a.tags || [])) if (myTags.has(t)) overlap++;
+          return { a, overlap };
+        })
+        .filter(x => x.overlap >= 1)
+        .sort((x, y) => y.overlap - x.overlap)
+        .slice(0, 4)
+        .map(x => x.a);
+    }, [selected, all]);
+
     // ── Renders ──────────────────────────────────────────────────────────
     if (error) {
       return (
@@ -376,10 +501,18 @@
       );
     }
     if (!articles) {
-      return <div className="cx-help"><div className="cx-help-loading">Loading help…</div></div>;
+      return (
+        <div className="cx-help">
+          <div className="cx-help-head">
+            <div className="cx-help-title">HELP &amp; DOCS</div>
+            <div className="cx-help-sub">Loading manual…</div>
+          </div>
+          <Skeleton rows={8} />
+        </div>
+      );
     }
 
-    // Selected article view
+    // ── Selected article view ─────────────────────────────────────────────
     if (selected) {
       const showingTranslated = currentLang && tr && !tr.loading && !tr.error && tr.body;
       const displayTitle = showingTranslated && tr.title ? tr.title : selected.title;
@@ -387,16 +520,35 @@
       const activeLangLabel = currentLang
         ? (SUPPORTED_LANGS.find(l => l.code === currentLang)?.label || currentLang)
         : null;
+      const lastUpdated = selected.lastUpdated || articles.updated;
+      const icon = catMeta(selected.category).icon;
 
       return (
-        <div className="cx-help">
+        <div className="cx-help cx-help-reading">
+          {/* Scroll progress strip */}
+          <div className="cx-help-progress" aria-hidden="true">
+            <div className="cx-help-progress-bar" style={{ width: `${scrollPct}%` }} />
+          </div>
+
           <div className="cx-help-bar">
             <button className="cx-help-back" onClick={() => setSelectedId(null)} aria-label="Back to help index">
               ← BACK
             </button>
-            <span className="cx-help-crumb">
-              <span className="cx-help-badge">{selected.category}</span>
-            </span>
+            <div className="cx-help-nav-pair" aria-label="Walk through category">
+              <button
+                className="cx-help-nav-btn"
+                disabled={!categoryPeers.prev}
+                onClick={() => categoryPeers.prev && setSelectedId(categoryPeers.prev.id)}
+                title={categoryPeers.prev ? `Previous: ${categoryPeers.prev.title}` : "No previous"}
+              >← prev</button>
+              <span className="cx-help-nav-sep">·</span>
+              <button
+                className="cx-help-nav-btn"
+                disabled={!categoryPeers.next}
+                onClick={() => categoryPeers.next && setSelectedId(categoryPeers.next.id)}
+                title={categoryPeers.next ? `Next: ${categoryPeers.next.title}` : "No next"}
+              >next →</button>
+            </div>
             <div className="cx-help-trans-wrap">
               <button
                 className="cx-help-trans-toggle"
@@ -466,33 +618,74 @@
             </div>
           )}
 
-          {tr && tr.loading ? (
-            <div className="cx-help-trans-loading">
-              <div className="cx-help-trans-spinner" aria-hidden="true" />
-              <div>Translating…</div>
-            </div>
-          ) : (
-            <article
-              className="cx-help-article"
-              dangerouslySetInnerHTML={{
-                __html:
-                  (showingTranslated
-                    ? `<h1>${escapeHtml(displayTitle)}</h1>\n`
-                    : "") + renderMarkdown(displayBody),
-              }}
-            />
-          )}
+          <div className="cx-help-scroll" ref={articleScrollRef}>
+            {/* Hero title block */}
+            <header className="cx-help-hero">
+              <div className="cx-help-hero-meta">
+                <span className="cx-help-hero-cat">
+                  <span className="cx-help-hero-icon" aria-hidden="true">{icon}</span>
+                  {selected.category}
+                </span>
+                <span className="cx-help-hero-dot">·</span>
+                <span className="cx-help-hero-date">Updated {lastUpdated}</span>
+              </div>
+              <h1 className="cx-help-hero-title">{displayTitle}</h1>
+              <div className="cx-help-hero-rule" aria-hidden="true" />
+            </header>
 
-          {selected.tags?.length > 0 && (
-            <div className="cx-help-tags">
-              {selected.tags.map(t => <span key={t} className="cx-help-tag">#{t}</span>)}
+            {tr && tr.loading ? (
+              <div className="cx-help-trans-loading">
+                <Skeleton rows={6} />
+                <div className="cx-help-trans-loading-label">Translating…</div>
+              </div>
+            ) : (
+              <article
+                className="cx-help-article cx-help-article-pretty"
+                ref={articleBodyRef}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(displayBody) }}
+              />
+            )}
+
+            {selected.tags?.length > 0 && (
+              <div className="cx-help-tags">
+                {selected.tags.map(t => <span key={t} className="cx-help-tag">#{t}</span>)}
+              </div>
+            )}
+
+            {related.length > 0 && (
+              <div className="cx-help-related">
+                <div className="cx-help-related-head">RELATED IN {selected.category.toUpperCase()}</div>
+                <div className="cx-help-related-grid">
+                  {related.map(r => (
+                    <button key={r.id} className="cx-help-related-card" onClick={() => setSelectedId(r.id)}>
+                      <div className="cx-help-related-title">{r.title}</div>
+                      <div className="cx-help-related-tags">{(r.tags || []).slice(0, 3).join(" · ")}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="cx-help-foot-nav">
+              {categoryPeers.prev && (
+                <button className="cx-help-foot-nav-btn is-prev" onClick={() => setSelectedId(categoryPeers.prev.id)}>
+                  <span className="cx-help-foot-nav-dir">← previous</span>
+                  <span className="cx-help-foot-nav-title">{categoryPeers.prev.title}</span>
+                </button>
+              )}
+              {categoryPeers.next && (
+                <button className="cx-help-foot-nav-btn is-next" onClick={() => setSelectedId(categoryPeers.next.id)}>
+                  <span className="cx-help-foot-nav-dir">next →</span>
+                  <span className="cx-help-foot-nav-title">{categoryPeers.next.title}</span>
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
       );
     }
 
-    // Index view
+    // ── Index view ─────────────────────────────────────────────────────────
     const byCategory = {};
     for (const c of (articles.categories || [])) byCategory[c] = [];
     for (const a of all) {
@@ -500,47 +693,66 @@
       byCategory[a.category].push(a);
     }
 
+    const showCards = !query.trim() && browseMode === "cards";
+
     return (
       <div className="cx-help">
-        <div className="cx-help-head">
-          <div className="cx-help-title">HELP &amp; DOCS</div>
-          <div className="cx-help-sub">CODEX manual · v{articles.version} · updated {articles.updated}</div>
+        <div className="cx-help-head cx-help-head-pretty">
+          <div className="cx-help-eyebrow">CODEX MANUAL · v{articles.version} · {articles.updated}</div>
+          <div className="cx-help-title-pretty">Help &amp; Reference</div>
+          <div className="cx-help-sub">A small library of articles — searchable, askable, translatable.</div>
         </div>
 
-        <div className="cx-help-search-wrap">
+        <div className="cx-help-search-wrap cx-help-search-wrap-pretty">
+          <span className="cx-help-search-icon" aria-hidden="true">⌕</span>
           <input
             ref={searchRef}
             className="cx-help-search"
             type="text"
-            placeholder="Search help, or ask a question…"
+            placeholder="Search articles, or ask a question…"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setOracleAnswer(null); }}
             onKeyDown={onSearchKey}
             spellCheck={false}
           />
           <button
-            className="cx-help-ask"
+            className="cx-help-ask cx-help-ask-pretty"
             onClick={askOracle}
             disabled={!query.trim() || (oracleAnswer && oracleAnswer.loading)}
             title="Ask Oracle to answer using the help corpus"
           >
-            {oracleAnswer && oracleAnswer.loading ? "ASKING…" : "ASK ORACLE"}
+            {oracleAnswer && oracleAnswer.loading ? "ASKING…" : "✦ ASK ORACLE"}
           </button>
         </div>
 
         {predictive.length > 0 && (
-          <ul className="cx-help-predict" role="listbox" aria-label="Matching articles">
-            {predictive.map(a => (
+          <ul className="cx-help-predict cx-help-predict-pretty" role="listbox" aria-label="Matching articles">
+            {predictive.map((a, i) => (
               <li key={a.id}>
-                <button className="cx-help-predict-row" onClick={() => setSelectedId(a.id)}>
-                  <span className="cx-help-badge cx-help-badge-sm">{a.category}</span>
-                  <span className="cx-help-predict-title">{a.title}</span>
+                <button className="cx-help-predict-row cx-help-predict-row-pretty" onClick={() => setSelectedId(a.id)}>
+                  <div className="cx-help-predict-main">
+                    <span className="cx-help-predict-title">{a.title}</span>
+                    <span className="cx-help-badge cx-help-badge-sm">{a.category}</span>
+                  </div>
+                  <div
+                    className="cx-help-predict-snippet"
+                    dangerouslySetInnerHTML={{ __html: makeSnippet(a.body, query.trim()) }}
+                  />
+                  <div className="cx-help-predict-hint">{i === 0 ? "press ↵" : ""}</div>
                 </button>
               </li>
             ))}
           </ul>
         )}
 
+        {oracleAnswer && oracleAnswer.loading && (
+          <div className="cx-help-oracle">
+            <div className="cx-help-oracle-head">
+              <span className="cx-help-badge cx-help-badge-accent">ORACLE</span>
+            </div>
+            <Skeleton rows={4} />
+          </div>
+        )}
         {oracleAnswer && !oracleAnswer.loading && (oracleAnswer.text || oracleAnswer.error) && (
           <div className={`cx-help-oracle ${oracleAnswer.error ? "is-error" : ""}`}>
             <div className="cx-help-oracle-head">
@@ -554,51 +766,92 @@
           </div>
         )}
 
-        <div className="cx-help-browse">
-          {(articles.categories || []).map(cat => {
-            const list = byCategory[cat] || [];
-            if (!list.length) return null;
-            const open = openCategories[cat];
-            return (
-              <section key={cat} className="cx-help-cat">
+        {!query.trim() && (
+          <div className="cx-help-mode-toggle" role="tablist" aria-label="Browse mode">
+            <button
+              role="tab"
+              aria-selected={browseMode === "cards"}
+              className={`cx-help-mode-btn ${browseMode === "cards" ? "is-active" : ""}`}
+              onClick={() => setBrowseMode("cards")}
+            >▦ Categories</button>
+            <button
+              role="tab"
+              aria-selected={browseMode === "list"}
+              className={`cx-help-mode-btn ${browseMode === "list" ? "is-active" : ""}`}
+              onClick={() => setBrowseMode("list")}
+            >☰ All articles</button>
+          </div>
+        )}
+
+        {showCards ? (
+          <div className="cx-help-catgrid">
+            {(articles.categories || []).map(cat => {
+              const list = byCategory[cat] || [];
+              if (!list.length) return null;
+              const meta = catMeta(cat);
+              return (
                 <button
-                  className="cx-help-cat-head"
-                  onClick={() => setOpenCategories(s => ({ ...s, [cat]: !s[cat] }))}
-                  aria-expanded={open}
+                  key={cat}
+                  className="cx-help-catcard"
+                  onClick={() => { setBrowseMode("list"); setOpenCategories(s => ({ ...Object.fromEntries(Object.keys(s).map(k => [k, false])), [cat]: true })); }}
                 >
-                  <span className="cx-help-cat-caret">{open ? "▾" : "▸"}</span>
-                  <span className="cx-help-cat-name">{cat}</span>
-                  <span className="cx-help-cat-count">{list.length}</span>
+                  <div className="cx-help-catcard-icon" aria-hidden="true">{meta.icon}</div>
+                  <div className="cx-help-catcard-name">{cat}</div>
+                  <div className="cx-help-catcard-blurb">{meta.blurb}</div>
+                  <div className="cx-help-catcard-count">{list.length} {list.length === 1 ? "article" : "articles"} →</div>
                 </button>
-                {open && (
-                  <ul className="cx-help-cat-list">
-                    {list.map(a => {
-                      const cached = cachedLangsFor(a.id);
-                      return (
-                        <li key={a.id}>
-                          <button className="cx-help-row" onClick={() => setSelectedId(a.id)}>
-                            <span className="cx-help-row-title">{a.title}</span>
-                            {cached.length > 0 && (
-                              <span className="cx-help-row-langs" title={`Translated to: ${cached.join(", ")}`}>
-                                🌐 {cached.length} {cached.length === 1 ? "language" : "languages"} available
-                              </span>
-                            )}
-                            {a.tags?.length > 0 && (
-                              <span className="cx-help-row-tags">{a.tags.slice(0, 3).join(" · ")}</span>
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="cx-help-browse">
+            {(articles.categories || []).map(cat => {
+              const list = byCategory[cat] || [];
+              if (!list.length) return null;
+              const open = openCategories[cat];
+              const meta = catMeta(cat);
+              return (
+                <section key={cat} className="cx-help-cat">
+                  <button
+                    className="cx-help-cat-head cx-help-cat-head-pretty"
+                    onClick={() => setOpenCategories(s => ({ ...s, [cat]: !s[cat] }))}
+                    aria-expanded={open}
+                  >
+                    <span className="cx-help-cat-caret">{open ? "▾" : "▸"}</span>
+                    <span className="cx-help-cat-icon" aria-hidden="true">{meta.icon}</span>
+                    <span className="cx-help-cat-name">{cat}</span>
+                    <span className="cx-help-cat-count">{list.length}</span>
+                  </button>
+                  {open && (
+                    <ul className="cx-help-cat-list">
+                      {list.map(a => {
+                        const cached = cachedLangsFor(a.id);
+                        return (
+                          <li key={a.id}>
+                            <button className="cx-help-row cx-help-row-pretty" onClick={() => setSelectedId(a.id)}>
+                              <span className="cx-help-row-title">{a.title}</span>
+                              {cached.length > 0 && (
+                                <span className="cx-help-row-langs" title={`Translated to: ${cached.join(", ")}`}>
+                                  🌐 {cached.length}
+                                </span>
+                              )}
+                              {a.tags?.length > 0 && (
+                                <span className="cx-help-row-tags">{a.tags.slice(0, 3).join(" · ")}</span>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )}
 
         <div className="cx-help-foot">
-          Press <kbd>Enter</kbd> to ask Oracle · <kbd>Esc</kbd> to back out of an article
+          Press <kbd>↵</kbd> to open the top match · <kbd>Esc</kbd> to back out · click <kbd>✦ ASK ORACLE</kbd> for free-form questions
         </div>
       </div>
     );

@@ -1924,6 +1924,9 @@ function App() {
           }} />
         <TweakToggle label={tt("look.scanlines")} value={t.scanlines}
           onChange={(v) => setTweak("scanlines", v)} />
+        {/* Day-mode palette swatches — apply only when in light/auto mode. */}
+        <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7, letterSpacing: '.04em' }}>Day-mode palette</div>
+        <LightThemePicker />
         {/* Scripture face moved to the reader-head View popover (Aa). */}
 
         <TweakSection label={tt("marks")} />

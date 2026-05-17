@@ -11161,3 +11161,181 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 .cx-gem-quote { font-style: italic; color: var(--cx-fg-dim); }
 .cx-gem-insight p { margin: 0; font-family: var(--cx-serif); font-size: 13px; line-height: 1.6; color: var(--cx-fg); font-style: italic; }
 .cx-gem-insight p::first-letter { color: var(--cx-accent); font-weight: 700; font-size: 1.4em; }
+
+/* =====================================================================
+   Light Mode Theme Variants (Day Mode Palettes)
+   Selected via data-light-theme on .cx-app. Default (no attribute) is
+   Parchment — the original light-mode palette already defined above.
+   ===================================================================== */
+
+/* ── Vellum — warmer, aged parchment ─────────────────────────────────── */
+.cx-app.is-light[data-light-theme="vellum"] {
+  --cx-bg: #f4e9cd;
+  --cx-bg-2: #e5d6b0;
+  --cx-fg: #2a2010;
+  --cx-fg-dim: #7a6845;
+  --cx-line: rgba(70, 50, 20, 0.22);
+  --cx-line-strong: rgba(70, 50, 20, 0.45);
+  --cx-panel: rgba(252, 244, 222, 0.88);
+  --cx-panel-2: rgba(238, 224, 188, 0.95);
+  --cx-accent: #8a4f1a;
+  --cx-accent-2: #54310a;
+  --cx-accent-glow: rgba(138, 79, 26, 0.22);
+  --cx-shadow: 0 8px 24px rgba(80, 55, 20, 0.18);
+}
+
+/* ── Linen — bright modern off-white ─────────────────────────────────── */
+.cx-app.is-light[data-light-theme="linen"] {
+  --cx-bg: #f7f5ee;
+  --cx-bg-2: #ebe7da;
+  --cx-fg: #161616;
+  --cx-fg-dim: #6e6e68;
+  --cx-line: rgba(0, 0, 0, 0.12);
+  --cx-line-strong: rgba(0, 0, 0, 0.35);
+  --cx-panel: rgba(255, 254, 250, 0.92);
+  --cx-panel-2: rgba(245, 242, 232, 0.98);
+  --cx-accent: #1f5fbf;
+  --cx-accent-2: #b4451a;
+  --cx-accent-glow: rgba(31, 95, 191, 0.18);
+  --cx-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Sandstone — warm desert ─────────────────────────────────────────── */
+.cx-app.is-light[data-light-theme="sandstone"] {
+  --cx-bg: #efd9b8;
+  --cx-bg-2: #dcc196;
+  --cx-fg: #3a2010;
+  --cx-fg-dim: #7e5a32;
+  --cx-line: rgba(60, 30, 10, 0.2);
+  --cx-line-strong: rgba(60, 30, 10, 0.42);
+  --cx-panel: rgba(248, 235, 212, 0.88);
+  --cx-panel-2: rgba(230, 208, 172, 0.96);
+  --cx-accent: #8c3a14;
+  --cx-accent-2: #4a2008;
+  --cx-accent-glow: rgba(140, 58, 20, 0.22);
+  --cx-shadow: 0 8px 24px rgba(100, 60, 20, 0.18);
+}
+
+/* ── Sage — soft green-cream ─────────────────────────────────────────── */
+.cx-app.is-light[data-light-theme="sage"] {
+  --cx-bg: #e6e8d4;
+  --cx-bg-2: #cdd2b3;
+  --cx-fg: #1c2418;
+  --cx-fg-dim: #5a6448;
+  --cx-line: rgba(40, 60, 30, 0.2);
+  --cx-line-strong: rgba(40, 60, 30, 0.42);
+  --cx-panel: rgba(242, 244, 226, 0.88);
+  --cx-panel-2: rgba(222, 228, 200, 0.96);
+  --cx-accent: #4a6b30;
+  --cx-accent-2: #8a5a14;
+  --cx-accent-glow: rgba(74, 107, 48, 0.2);
+  --cx-shadow: 0 8px 24px rgba(60, 70, 40, 0.16);
+}
+
+/* ── Solarized Light — classic ───────────────────────────────────────── */
+.cx-app.is-light[data-light-theme="solarized"] {
+  --cx-bg: #fdf6e3;
+  --cx-bg-2: #eee8d5;
+  --cx-fg: #073642;
+  --cx-fg-dim: #657b83;
+  --cx-line: rgba(7, 54, 66, 0.18);
+  --cx-line-strong: rgba(7, 54, 66, 0.4);
+  --cx-panel: rgba(253, 246, 227, 0.92);
+  --cx-panel-2: rgba(238, 232, 213, 0.98);
+  --cx-accent: #268bd2;
+  --cx-accent-2: #cb4b16;
+  --cx-accent-glow: rgba(38, 139, 210, 0.2);
+  --cx-shadow: 0 4px 14px rgba(7, 54, 66, 0.1);
+}
+
+/* ── Slate — cool blue-gray ──────────────────────────────────────────── */
+.cx-app.is-light[data-light-theme="slate"] {
+  --cx-bg: #e2e6ec;
+  --cx-bg-2: #cdd4dc;
+  --cx-fg: #1a2230;
+  --cx-fg-dim: #5a6478;
+  --cx-line: rgba(20, 35, 60, 0.18);
+  --cx-line-strong: rgba(20, 35, 60, 0.4);
+  --cx-panel: rgba(238, 242, 248, 0.9);
+  --cx-panel-2: rgba(218, 226, 236, 0.96);
+  --cx-accent: #2a5a8a;
+  --cx-accent-2: #6a3e1e;
+  --cx-accent-glow: rgba(42, 90, 138, 0.2);
+  --cx-shadow: 0 4px 16px rgba(20, 35, 60, 0.1);
+}
+
+/* ── Rose — warm pink-cream ──────────────────────────────────────────── */
+.cx-app.is-light[data-light-theme="rose"] {
+  --cx-bg: #f4e2dc;
+  --cx-bg-2: #e2c4ba;
+  --cx-fg: #2a1216;
+  --cx-fg-dim: #7a4a4a;
+  --cx-line: rgba(80, 30, 30, 0.18);
+  --cx-line-strong: rgba(80, 30, 30, 0.4);
+  --cx-panel: rgba(250, 240, 234, 0.88);
+  --cx-panel-2: rgba(234, 210, 200, 0.96);
+  --cx-accent: #9c2a4a;
+  --cx-accent-2: #5a2010;
+  --cx-accent-glow: rgba(156, 42, 74, 0.2);
+  --cx-shadow: 0 8px 24px rgba(100, 30, 40, 0.14);
+}
+
+/* ── Old Book — high-contrast ink on cream ───────────────────────────── */
+.cx-app.is-light[data-light-theme="old-book"] {
+  --cx-bg: #f1e8d2;
+  --cx-bg-2: #ddd0b0;
+  --cx-fg: #0a0608;
+  --cx-fg-dim: #4a3820;
+  --cx-line: rgba(20, 10, 0, 0.28);
+  --cx-line-strong: rgba(20, 10, 0, 0.6);
+  --cx-panel: rgba(248, 240, 220, 0.92);
+  --cx-panel-2: rgba(232, 220, 192, 0.98);
+  --cx-accent: #6a1a08;
+  --cx-accent-2: #2a1408;
+  --cx-accent-glow: rgba(106, 26, 8, 0.18);
+  --cx-shadow: 0 6px 20px rgba(40, 20, 0, 0.18);
+}
+
+/* Theme picker styles inside the tweaks panel */
+.cx-tp-theme-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px; margin-top: 6px;
+}
+.cx-tp-theme-swatch {
+  position: relative;
+  display: flex; flex-direction: column; align-items: stretch;
+  border: 1.5px solid var(--cx-line);
+  border-radius: 8px;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: transparent;
+  transition: border-color 120ms, transform 120ms;
+  min-height: 56px;
+  min-width: 44px;
+}
+.cx-tp-theme-swatch:hover { transform: translateY(-1px); border-color: var(--cx-line-strong); }
+.cx-tp-theme-swatch.is-active {
+  border-color: var(--cx-accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--cx-accent) 22%, transparent);
+}
+.cx-tp-theme-swatch-preview {
+  flex: 1; min-height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 18px;
+  font-style: italic;
+}
+.cx-tp-theme-swatch-accent {
+  position: absolute; bottom: 6px; right: 6px;
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.cx-tp-theme-swatch-name {
+  font-family: var(--cx-mono); font-size: 9px;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 6px;
+  color: var(--cx-fg-dim);
+  background: rgba(0,0,0,.04);
+  text-align: center;
+}
+.cx-app.is-light .cx-tp-theme-swatch-name { background: rgba(0,0,0,.05); }

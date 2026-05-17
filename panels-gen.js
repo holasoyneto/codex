@@ -131,7 +131,19 @@ OUTPUT FORMAT — RETURN ONLY a single JSON object, no prose, no fences. Be COMP
     "rabbinic_sources": [   // 0-3 entries — actual citations from rabbinic tradition
       { "name": "Baal HaTurim|Zohar|Bahir|Sefer Yetzirah|...", "quote": "brief relevant teaching" }
     ],
-    "ai_insight": "1-paragraph synthesis of what's interesting about this verse's numerology and how it cross-references other scripture"
+    "ai_insight": "1-paragraph synthesis of what's interesting about this verse's numerology and how it cross-references other scripture",
+    "kabbalah": {   // OPTIONAL — Kabbalistic / mystical cross-referencing
+      "sefirot_resonances": [   // 0-3 entries — gematria values that map to a Sefirah
+        { "sefirah": "Tiferet|Chesed|Gevurah|...", "value": <int>, "note": "why this verse echoes this sphere" }
+      ],
+      "lurianic_frame": "tzimtzum|shevirat-hakelim|tikkun|gilgul|merkavah|bereshit|ein-sof|shechinah|null — which Lurianic concept best frames this verse (null if none)",
+      "lurianic_note": "1-2 sentences explaining the framing",
+      "partzuf": "Atik Yomin|Arikh Anpin|Abba|Ima|Zeir Anpin|Nukva|null",
+      "partzuf_note": "1 sentence on why this partzuf, if any",
+      "zohar_citations": [   // 0-3 entries — actual Zohar passages
+        { "ref": "Zohar I 15a|Zohar Bereshit|Tikkunei Zohar 21|...", "text": "brief quote or paraphrase" }
+      ]
+    }
   },
   "gnosis": [   // 3 entries
     { "sigil":"single unicode glyph", "title":"esoteric reading title",
@@ -147,6 +159,7 @@ Rules:
 - Calm scholarly tone. No exclamations. No emoji (sigils OK).
 - Real gematria values (אהבה=13, λόγος=373, etc.).
 - For gematriaDeep: pick ONE primary Hebrew/Greek word from the passage. Compute its standard value (Mispar Hechrachi for Hebrew, isopsephy for Greek) and provide 2-4 cross_matches — other scripture words with the SAME value (e.g. נחש=358 and משיח=358 — serpent and messiah both equal 358). Cite real, well-documented gematria correspondences from your training. Include rabbinic_sources when you know them (Baal HaTurim is a classic source for parashah-level gematria).
+- For gematriaDeep.kabbalah: surface a Kabbalistic layer only when warranted. Map gematria values to Sefirot when they line up (72=Chesed, 67=Binah, 73=Chokhmah, 80=Yesod, 148=Netzach, 216=Gevurah, 496=Malkhut, 620=Keter, 1081=Tiferet). Choose a Lurianic frame (tzimtzum / shevirat-hakelim / tikkun / gilgul / merkavah / bereshit / ein-sof / shechinah) only if it genuinely fits the passage — fall/exile → shevirat; creation → bereshit or tzimtzum; chariot/throne visions → merkavah; presence/glory → shechinah; return/repentance → tikkun. Cite actual Zohar passages when you know them; otherwise leave zohar_citations empty.
 - Return ONLY the JSON. No commentary outside it. Stay compact so the response completes.`;
 
   // Tolerant JSON extraction: handles truncated arrays/objects by rewinding to
@@ -224,6 +237,16 @@ Rules:
       d.notarikon       = Array.isArray(d.notarikon) ? d.notarikon.slice(0, 4) : [];
       d.temurah         = Array.isArray(d.temurah) ? d.temurah.slice(0, 4) : [];
       d.rabbinic_sources = Array.isArray(d.rabbinic_sources) ? d.rabbinic_sources.slice(0, 4) : [];
+      // Kabbalistic layer — optional, additive.
+      if (d.kabbalah && typeof d.kabbalah === "object") {
+        const k = d.kabbalah;
+        k.sefirot_resonances = Array.isArray(k.sefirot_resonances) ? k.sefirot_resonances.slice(0, 4) : [];
+        k.lurianic_frame = (typeof k.lurianic_frame === "string" && k.lurianic_frame !== "null") ? k.lurianic_frame : "";
+        k.lurianic_note  = k.lurianic_note || "";
+        k.partzuf        = (typeof k.partzuf === "string" && k.partzuf !== "null") ? k.partzuf : "";
+        k.partzuf_note   = k.partzuf_note || "";
+        k.zohar_citations = Array.isArray(k.zohar_citations) ? k.zohar_citations.slice(0, 4) : [];
+      }
     }
     obj.gnosis = Array.isArray(obj.gnosis) ? obj.gnosis.slice(0, 6) : [];
     obj.crossRefs = Array.isArray(obj.crossRefs) ? obj.crossRefs.slice(0, 8) : [];

@@ -938,9 +938,56 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
   );
 }
 
+// Day-mode theme picker — 9 light palettes selectable as swatches.
+// Reads/writes via the window.CODEX_LIGHT_THEMES global from light-themes.js.
+// Renders as a grid of mini swatches inside the Theme section of the tweaks
+// panel. Visible regardless of dark/light state so user can preview, but the
+// chosen variant only visibly applies when the app is in light mode.
+function LightThemePicker() {
+  const [current, setCurrent] = React.useState(
+    (window.CODEX_LIGHT_THEMES && window.CODEX_LIGHT_THEMES.get()) || "parchment"
+  );
+  React.useEffect(() => {
+    const onChange = (e) => setCurrent(e.detail?.theme || current);
+    window.addEventListener("codex:light-theme-change", onChange);
+    return () => window.removeEventListener("codex:light-theme-change", onChange);
+  }, [current]);
+  if (!window.CODEX_LIGHT_THEMES) return null;
+  const themes = window.CODEX_LIGHT_THEMES.list();
+  return (
+    <div className="cx-tp-theme-grid">
+      {themes.map(t => {
+        const isActive = current === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            className={`cx-tp-theme-swatch ${isActive ? "is-active" : ""}`}
+            onClick={() => window.CODEX_LIGHT_THEMES.set(t.id)}
+            title={`Day mode: ${t.label}`}
+            aria-label={`Day mode theme: ${t.label}${isActive ? " (active)" : ""}`}
+            aria-pressed={isActive}
+          >
+            <div
+              className="cx-tp-theme-swatch-preview"
+              style={{ background: t.bg, color: t.fg }}
+            >Aa</div>
+            <span
+              className="cx-tp-theme-swatch-accent"
+              style={{ background: t.accent }}
+              aria-hidden="true"
+            />
+            <span className="cx-tp-theme-swatch-name">{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 Object.assign(window, {
   useTweaks, TweaksPanel, TweakSection, TweakRow,
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
   TweakText, TweakNumber, TweakColor, TweakButton,
-  AIModelSection,
+  AIModelSection, LightThemePicker,
 });

@@ -1,0 +1,69 @@
+{
+  "meta": { "id": "kabbalah-mappings", "type": "lexicon", "version": "1.0.0", "lang": "en" },
+  "sefirot": [
+    { "n": 1,  "name": "כֶּתֶר",     "translit": "Keter",    "meaning": "Crown",                "value": 620,  "color": "#f5f5f5", "world": "Atziluth", "body": "Divine will, the pre-conscious source. Beyond intellect." },
+    { "n": 2,  "name": "חָכְמָה",    "translit": "Chokhmah", "meaning": "Wisdom",               "value": 73,   "color": "#a8c4e8", "world": "Atziluth", "body": "Flash of insight; the primal point from which all unfolds." },
+    { "n": 3,  "name": "בִּינָה",    "translit": "Binah",    "meaning": "Understanding",        "value": 67,   "color": "#7a4ea5", "world": "Beriah",   "body": "Womb of differentiation; reasoned grasp of the seed-idea." },
+    { "n": 4,  "name": "חֶסֶד",      "translit": "Chesed",   "meaning": "Loving-kindness",      "value": 72,   "color": "#5fa97e", "world": "Beriah",   "body": "Outflowing mercy; the 72 Names; right arm of the Tree." },
+    { "n": 5,  "name": "גְּבוּרָה",  "translit": "Gevurah",  "meaning": "Severity / Judgment",  "value": 216,  "color": "#b03c3c", "world": "Beriah",   "body": "Restraint and boundary; the fire that defines form." },
+    { "n": 6,  "name": "תִּפְאֶרֶת", "translit": "Tiferet",  "meaning": "Beauty / Compassion",  "value": 1081, "color": "#d4af37", "world": "Yetzirah", "body": "Harmonized center; the heart of the Tree; the Son." },
+    { "n": 7,  "name": "נֶצַח",      "translit": "Netzach",  "meaning": "Eternity / Victory",   "value": 148,  "color": "#3f8a4f", "world": "Yetzirah", "body": "Enduring drive; the prophetic right leg." },
+    { "n": 8,  "name": "הוֹד",       "translit": "Hod",      "meaning": "Splendor",             "value": 15,   "color": "#c97b3a", "world": "Yetzirah", "body": "Acknowledgment and surrender; the left leg." },
+    { "n": 9,  "name": "יְסוֹד",     "translit": "Yesod",    "meaning": "Foundation",           "value": 80,   "color": "#5a5fb0", "world": "Yetzirah", "body": "Channel of union; the covenant; the righteous one (Tzadik)." },
+    { "n": 10, "name": "מַלְכוּת",   "translit": "Malkhut",  "meaning": "Kingdom",              "value": 496,  "color": "#7a5a3a", "world": "Assiah",   "body": "Indwelling presence (Shechinah); the receiving vessel of creation." }
+  ],
+  "value_to_concept": {
+    "13":  { "concept": "Echad (אחד) — One; also Ahavah (אהבה) — Love. Unity and love share the same value.", "category": "Unity" },
+    "15":  { "concept": "Yah (יה) — the short Name; also Hod.", "category": "Divine Name" },
+    "17":  { "concept": "Tov (טוב) — Good. 'And God saw that it was good.'", "category": "Creation" },
+    "26":  { "concept": "YHWH (יהוה) — the Tetragrammaton itself sums to 26.", "category": "Divine Name" },
+    "32":  { "concept": "Lev (לב) — Heart; also the 32 paths of wisdom (Sefer Yetzirah).", "category": "Wisdom" },
+    "67":  { "concept": "Binah — Understanding; the third Sefirah.", "category": "Sefirah" },
+    "72":  { "concept": "Chesed — Loving-kindness; the 72 Names of God (Shem HaMephorash, Ex 14:19–21).", "category": "Divine Attribute" },
+    "73":  { "concept": "Chokhmah — Wisdom; the second Sefirah.", "category": "Sefirah" },
+    "80":  { "concept": "Yesod — Foundation; the ninth Sefirah.", "category": "Sefirah" },
+    "86":  { "concept": "Elohim (אלהים) — God as judgment/creation; also HaTeva (הטבע) — Nature.", "category": "Divine Name" },
+    "112": { "concept": "YHWH + Elohim (26 + 86) — Mercy joined to judgment.", "category": "Divine Name" },
+    "144": { "concept": "12 × 12 — fullness of God's people (Rev 7:4).", "category": "Apocalyptic" },
+    "148": { "concept": "Netzach — Eternity / Victory; also Pesach (פסח) — Passover.", "category": "Sefirah" },
+    "153": { "concept": "The fish in John 21:11; the 17th triangular number; early fathers read it as a symbol of the Church.", "category": "Symbolic" },
+    "216": { "concept": "Gevurah — Severity; also Aryeh (אריה) — Lion; 6³ = the 72 Names × 3 letters.", "category": "Sefirah" },
+    "248": { "concept": "Abraham (אברהם); the 248 positive commandments; the limbs of the human body.", "category": "Mitzvot" },
+    "358": { "concept": "Mashiach (משיח) — Messiah; also Nachash (נחש) — Serpent. The redeemer answers the seducer at the same value.", "category": "Messianic / Edenic" },
+    "365": { "concept": "The 365 negative commandments; the days of the solar year.", "category": "Mitzvot" },
+    "496": { "concept": "Malkhut — Kingdom; the tenth Sefirah; also Leviathan (לויתן).", "category": "Sefirah" },
+    "611": { "concept": "Torah (תורה) — the totality of teaching, given through Moses.", "category": "Torah" },
+    "613": { "concept": "Total mitzvot (248 + 365); also Moshe Rabbeinu (משה רבנו).", "category": "Mitzvot" },
+    "620": { "concept": "Keter — Crown; also the 620 letters of the Ten Commandments (Rabbenu Bachya).", "category": "Sefirah" },
+    "666": { "concept": "The number of the beast (Rev 13:18); also Solomon's annual tribute (1 Kgs 10:14).", "category": "Apocalyptic" },
+    "888": { "concept": "Iēsous (Ἰησοῦς) — Jesus in Greek isopsephy. Answers 666.", "category": "Greek" },
+    "1081":{ "concept": "Tiferet — Beauty; the heart of the Tree.", "category": "Sefirah" }
+  },
+  "concepts": {
+    "tzimtzum":         { "name": "Tzimtzum",         "hebrew": "צִמְצוּם",            "meaning": "Divine contraction — God 'withdrew' to make space for finite creation.",                       "source": "Isaac Luria, Etz Chayim" },
+    "shevirat-hakelim": { "name": "Shevirat HaKelim", "hebrew": "שְׁבִירַת הַכֵּלִים",  "meaning": "The shattering of the vessels — sparks of holiness scattered into creation, awaiting reunion.", "source": "Lurianic Kabbalah" },
+    "tikkun":           { "name": "Tikkun",           "hebrew": "תִּקּוּן",            "meaning": "Mending / repair — the human task of gathering sparks back to their source.",                  "source": "Lurianic Kabbalah" },
+    "gilgul":           { "name": "Gilgul",           "hebrew": "גִּלְגּוּל",          "meaning": "Soul-rotation / reincarnation — souls cycle through bodies until tikkun completes.",          "source": "Zohar, Sefer HaGilgulim" },
+    "merkavah":         { "name": "Ma'aseh Merkavah", "hebrew": "מַעֲשֵׂה מֶרְכָּבָה",  "meaning": "Work of the Chariot — esoteric interpretation of Ezekiel's vision.",                            "source": "Hekhalot literature" },
+    "bereshit":         { "name": "Ma'aseh Bereshit", "hebrew": "מַעֲשֵׂה בְּרֵאשִׁית", "meaning": "Work of Creation — esoteric interpretation of Genesis 1.",                                       "source": "Talmud Chagigah 11b" },
+    "ein-sof":          { "name": "Ein Sof",          "hebrew": "אֵין סוֹף",           "meaning": "The Infinite — God beyond all attributes, before any Sefirot.",                                  "source": "Zohar" },
+    "shechinah":        { "name": "Shechinah",        "hebrew": "שְׁכִינָה",            "meaning": "Indwelling Presence — feminine aspect of divinity, associated with Malkhut.",                  "source": "Rabbinic + Kabbalah" }
+  },
+  "concept_triggers": {
+    "shevirat-hakelim": { "books": ["gen"], "chapters": [3], "keywords": ["fall", "serpent", "expelled", "garden"] },
+    "tikkun":           { "keywords": ["repent", "restore", "redeem", "return", "teshuvah"] },
+    "merkavah":         { "books": ["ezek"], "chapters": [1, 10], "keywords": ["chariot", "wheels", "living creatures", "throne"] },
+    "bereshit":         { "books": ["gen"], "chapters": [1], "keywords": ["beginning", "created", "let there be"] },
+    "tzimtzum":         { "keywords": ["void", "without form", "darkness", "deep"] },
+    "shechinah":        { "keywords": ["glory", "tabernacle", "dwell", "presence"] },
+    "gilgul":           { "keywords": ["soul", "spirit returning", "second birth", "born again"] }
+  },
+  "partzufim": [
+    { "name": "Atik Yomin",  "translit": "Ancient of Days",   "sefirah": "Keter",    "polarity": "primordial" },
+    { "name": "Arikh Anpin", "translit": "Long-faced",        "sefirah": "Keter",    "polarity": "primordial" },
+    { "name": "Abba",        "translit": "Father",            "sefirah": "Chokhmah", "polarity": "masculine" },
+    { "name": "Ima",         "translit": "Mother",            "sefirah": "Binah",    "polarity": "feminine"  },
+    { "name": "Zeir Anpin",  "translit": "Small-faced (Son)", "sefirah": "Tiferet",  "polarity": "masculine" },
+    { "name": "Nukva",       "translit": "Female (Daughter)", "sefirah": "Malkhut",  "polarity": "feminine"  }
+  ]
+}
