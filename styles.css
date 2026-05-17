@@ -8823,3 +8823,30 @@ input, textarea, [contenteditable] { caret-color: var(--cx-accent); }
   border-color: color-mix(in oklab, #c66 45%, transparent);
   cursor: default;
 }
+
+/* ── Cross-device sync section in Settings ─────────────────────────── */
+.cx-sync { display: flex; flex-direction: column; gap: 10px; font-family: var(--cx-mono, ui-monospace, monospace); font-size: 12px; }
+.cx-sync-hint { color: var(--cx-fg-dim); margin: 0; line-height: 1.5; font-size: 11.5px; }
+.cx-sync-err  { color: #e8775c; margin: 4px 0 0; font-size: 11px; }
+.cx-sync-help { font-size: 11px; color: var(--cx-fg-dim); }
+.cx-sync-help summary { cursor: pointer; user-select: none; padding: 4px 0; }
+.cx-sync-help ol { margin: 6px 0 6px 18px; padding: 0; line-height: 1.55; }
+.cx-sync-help code { background: color-mix(in oklab, var(--cx-fg) 8%, transparent); padding: 1px 4px; border-radius: 3px; word-break: break-all; }
+.cx-sync-help a { color: var(--cx-accent, #6db4d6); text-decoration: underline; }
+.cx-sync-cfg {
+  width: 100%; box-sizing: border-box; font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 11px; line-height: 1.45; padding: 8px 10px;
+  background: color-mix(in oklab, var(--cx-fg) 4%, transparent);
+  color: var(--cx-fg); border: 1px solid var(--cx-line); border-radius: 4px; resize: vertical;
+}
+.cx-sync-setup, .cx-sync-signin, .cx-sync-active { display: flex; flex-direction: column; gap: 8px; }
+.cx-sync-user { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.cx-sync-user b { display: block; font-size: 13px; color: var(--cx-fg); }
+.cx-sync-user em { display: block; font-size: 11px; color: var(--cx-fg-dim); font-style: normal; }
+.cx-sync-avatar { width: 32px; height: 32px; border-radius: 50%; }
+.cx-sync-status { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; color: var(--cx-fg-dim); }
+.cx-sync-status b { color: var(--cx-fg); font-weight: 500; }
+.cx-sync-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cx-sync-auto { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--cx-fg-dim); cursor: pointer; user-select: none; }
+.cx-sync-auto input { margin: 0; }
+.cx-sync-tiny { font-size: 10.5px !important; opacity: 0.75; }

@@ -258,6 +258,154 @@ function ApiKeysSection() {
   );
 }
 
+// ── SyncSection — Firebase Auth (Google) + Firestore cross-device sync ──
+// User pastes a Firebase config (one-time), signs in with Google, and
+// every personal-data localStorage key (marks, notes, settings, cache,
+// panels) syncs in real-time across all their devices. API keys never
+// leave the device for security.
+function SyncSection() {
+  const [cfgText, setCfgText] = useState(() => {
+    const c = window.CODEX_SYNC?.getConfig();
+    return c ? JSON.stringify(c, null, 2) : "";
+  });
+  const [cfgErr, setCfgErr] = useState("");
+  const [user, setUser] = useState(() => window.CODEX_SYNC?.user || null);
+  const [last, setLast] = useState(() => window.CODEX_SYNC?.getLast() || null);
+  const [auto, setAuto] = useState(() => window.CODEX_SYNC?.getAuto() || false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!window.CODEX_SYNC) return;
+    const offAuth   = window.CODEX_SYNC.on("auth",   ({ user }) => setUser(user));
+    const offSynced = window.CODEX_SYNC.on("synced", (info)    => setLast(info));
+    const offErr    = window.CODEX_SYNC.on("error",  (e)       => setErr(e.message || ""));
+    const tick = setInterval(() => setNow(Date.now()), 5000); // refresh "X ago"
+    return () => { offAuth(); offSynced(); offErr(); clearInterval(tick); };
+  }, []);
+
+  const saveCfg = () => {
+    setCfgErr(""); setErr("");
+    try {
+      const parsed = JSON.parse(cfgText.trim());
+      const need = ["apiKey", "authDomain", "projectId", "appId"];
+      const missing = need.filter(k => !parsed[k]);
+      if (missing.length) { setCfgErr("Missing: " + missing.join(", ")); return; }
+      window.CODEX_SYNC.setConfig(parsed);
+      window.location.reload();  // re-init Firebase with new config
+    } catch (e) { setCfgErr("Invalid JSON: " + e.message); }
+  };
+  const signIn = async () => {
+    setBusy(true); setErr("");
+    try { await window.CODEX_SYNC.signIn(); } catch (e) { setErr(e.message || String(e)); }
+    setBusy(false);
+  };
+  const signOut = async () => {
+    setBusy(true);
+    try { await window.CODEX_SYNC.signOut(); setUser(null); } catch (e) { setErr(e.message || String(e)); }
+    setBusy(false);
+  };
+  const pushNow = async () => {
+    setBusy(true); setErr("");
+    try { await window.CODEX_SYNC.pushNow(); } catch (e) { setErr(e.message || String(e)); }
+    setBusy(false);
+  };
+  const pullNow = async () => {
+    setBusy(true); setErr("");
+    try { await window.CODEX_SYNC.pullOnce(); } catch (e) { setErr(e.message || String(e)); }
+    setBusy(false);
+  };
+
+  const fmtAgo = (t) => {
+    if (!t) return "—";
+    const s = Math.floor((now - t) / 1000);
+    if (s < 5) return "just now";
+    if (s < 60) return s + "s ago";
+    if (s < 3600) return Math.floor(s/60) + "m ago";
+    if (s < 86400) return Math.floor(s/3600) + "h ago";
+    return Math.floor(s/86400) + "d ago";
+  };
+
+  const configured = !!window.CODEX_SYNC?.configured;
+
+  return (
+    <div className="cx-sync">
+      {!configured ? (
+        <div className="cx-sync-setup">
+          <p className="cx-sync-hint">
+            Cross-device sync is off. Paste a Firebase Web config to enable it.
+            Your data stays in your own Firebase project (free Spark plan covers
+            personal use).
+          </p>
+          <details className="cx-sync-help">
+            <summary>How to get a Firebase config (one-time, ~2 min)</summary>
+            <ol>
+              <li>Open <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer">console.firebase.google.com</a> → <b>Add project</b> (any name)</li>
+              <li>In the project: <b>Authentication → Sign-in method → Google → Enable</b></li>
+              <li><b>Firestore Database → Create database</b> (Production mode, any region)</li>
+              <li>Project settings (gear icon) → <b>General → Your apps → Add app → Web</b></li>
+              <li>Register the app (any nickname); copy the <code>firebaseConfig</code> object</li>
+              <li>Paste it below as JSON (keys in quotes)</li>
+              <li>Firestore → Rules → paste: <code>match /users/{"{uid}"}/&#123;document=**&#125; &#123; allow read, write: if request.auth.uid == uid; &#125;</code></li>
+            </ol>
+          </details>
+          <textarea
+            className="cx-sync-cfg"
+            placeholder={`{\n  "apiKey": "AIza...",\n  "authDomain": "your.firebaseapp.com",\n  "projectId": "your-project",\n  "storageBucket": "your.appspot.com",\n  "messagingSenderId": "...",\n  "appId": "..."\n}`}
+            value={cfgText}
+            onChange={e => setCfgText(e.target.value)}
+            rows={8}
+            spellCheck={false}
+          />
+          {cfgErr ? <p className="cx-sync-err">{cfgErr}</p> : null}
+          <button className="cx-mini-btn" onClick={saveCfg} disabled={!cfgText.trim()}>Save & reload</button>
+        </div>
+      ) : !user ? (
+        <div className="cx-sync-signin">
+          <p className="cx-sync-hint">Sign in with Google to sync this device with all your others.</p>
+          <button className="cx-mini-btn" onClick={signIn} disabled={busy}>
+            {busy ? "···" : "Sign in with Google"}
+          </button>
+          <button className="cx-mini-btn cx-sync-tiny" onClick={() => { window.CODEX_SYNC.clearConfig(); window.location.reload(); }}>
+            change Firebase config
+          </button>
+          {err ? <p className="cx-sync-err">{err}</p> : null}
+        </div>
+      ) : (
+        <div className="cx-sync-active">
+          <div className="cx-sync-user">
+            {user.photo ? <img src={user.photo} alt="" className="cx-sync-avatar" referrerPolicy="no-referrer" /> : null}
+            <div>
+              <b>{user.name || user.email}</b>
+              <em>{user.email}</em>
+            </div>
+          </div>
+          <div className="cx-sync-status">
+            <span>Last sync:</span>
+            <b>{last ? `${fmtAgo(last.at)} (${last.direction || "↕"}${last.changed ? " · " + last.changed + " keys" : last.count ? " · " + last.count + " keys" : ""})` : "never"}</b>
+          </div>
+          <div className="cx-sync-row">
+            <button className="cx-mini-btn" onClick={pushNow} disabled={busy}>↑ Push now</button>
+            <button className="cx-mini-btn" onClick={pullNow} disabled={busy}>↓ Pull now</button>
+            <label className="cx-sync-auto">
+              <input type="checkbox" checked={auto} onChange={e => {
+                setAuto(e.target.checked);
+                window.CODEX_SYNC.setAuto(e.target.checked);
+              }} />
+              <span>auto-sync on change</span>
+            </label>
+          </div>
+          <div className="cx-sync-row">
+            <button className="cx-mini-btn cx-sync-tiny" onClick={signOut} disabled={busy}>Sign out</button>
+          </div>
+          {err ? <p className="cx-sync-err">{err}</p> : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── AutoCacheTick — pill that surfaces auto-cache progress in the footer.
 // Hidden when idle / done. Listens to the events fired by auto-cache.js.
 function AutoCacheTick() {
@@ -1171,6 +1319,9 @@ function App() {
 
         <TweakSection label="AI Engines" />
         <ApiKeysSection />
+
+        <TweakSection label="Cross-device sync" />
+        <SyncSection />
 
         <TweakSection label={tt("install")} />
         <button

@@ -1201,7 +1201,14 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
 
   return (
     <main className="cx-reader">
-      <CornerFrame label={`${passage.book.toUpperCase()} · CH ${passage.chapter} · ${passage.verses.length || "—"} VV`}>
+      <CornerFrame label={`${passage.book.toUpperCase()} · CH ${passage.chapter} · ${
+        // Count only verses present in the ACTIVE translation so the badge
+        // reflects what the reader actually sees (e.g. Septuagint may have
+        // more verses than KJV in some chapters; Vulgate fewer). Fall back
+        // to the merged total if the primary somehow didn't load.
+        (passage.verses.filter(v => v[primary] != null && v[primary] !== "").length
+          || passage.verses.length || "—")
+      } VV`}>
         <div className="cx-reader-head">
           <div className="cx-reader-titles">
             <h1>{passage.title || `${passage.book} ${passage.chapter}`}</h1>
