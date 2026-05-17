@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v165";
+const VERSION = "v166";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -67,6 +67,7 @@ const SHELL_FILES = [
   r("data/modules/alignment-kjv-sample.json"),
   r("reels.jsx"),
   r("data/modules/reels-curated.json"),
+  r("data/modules/kabbalah-mappings.json"),
   r("app.jsx"),
   // Bundled Bibles (static JSON shipped in the repo). Pre-cached so
   // first cold offline launch can render apocryphal/Enoch content too.

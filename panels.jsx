@@ -895,19 +895,7 @@ function GematriaPanel({ panelData, status, meta, passage, onRegenerate }) {
       ) : (
         <>
           <Collapsible defaultOpen title="LEXICAL VALUES" count={panelData.gematria.length}>
-            <div className="cx-gem-grid">
-              {panelData.gematria.map((g, i) => (
-                <div key={i} className="cx-gem-cell">
-                  <div className="cx-gem-term">{g.term}</div>
-                  <div className="cx-gem-translit">{g.translit}</div>
-                  <div className="cx-gem-meaning">{g.meaning}</div>
-                  <div className="cx-gem-value">
-                    <b>{g.value}</b>
-                    <i>{g.system}</i>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <GematriaLexicalGrid items={panelData.gematria} />
           </Collapsible>
 
           <Collapsible defaultOpen title="RESONANCES" count={panelData.gematriaNotes.length}>
@@ -1037,6 +1025,44 @@ function GemValueModal({ value, system, kabMap, onClose, onJump }) {
 }
 function ordinalWord(n) {
   return ["zeroth","first","second","third","fourth","fifth","sixth","seventh","eighth","ninth","tenth"][n] || `${n}th`;
+}
+
+// ── LEXICAL VALUES grid · clickable values + words ───────────────────
+function GematriaLexicalGrid({ items }) {
+  const kabMap = useKabbalahMap();
+  const [modalValue, setModalValue] = useState(null);
+  function jump(ref) {
+    if (typeof window === "undefined" || !window.codexJumpToRef) return;
+    const parts = ref.split(".");
+    if (parts.length < 3) return window.codexJumpToRef(ref);
+    const books = (window.CODEX_DATA?.books) || [];
+    const book = books.find(b => b.id === parts[0]);
+    window.codexJumpToRef(`${book?.name || parts[0]} ${parts[1]}:${parts[2]}`);
+  }
+  return (
+    <>
+      <div className="cx-gem-grid">
+        {items.map((g, i) => (
+          <div key={i} className="cx-gem-cell">
+            <div className="cx-gem-term cx-gem-clickable"
+                 {...clickableProps(() => openStrongsForWord(g.term), `Open Strong's for ${g.term}`)}>{g.term}</div>
+            <div className="cx-gem-translit">{g.translit}</div>
+            <div className="cx-gem-meaning">{g.meaning}</div>
+            <div className="cx-gem-value cx-gem-clickable"
+                 {...clickableProps(() => setModalValue(g.value), `Open value ${g.value}`)}
+                 title={`See every verse summing to ${g.value}`}>
+              <b>{g.value}</b>
+              <i>{g.system}</i>
+            </div>
+          </div>
+        ))}
+      </div>
+      {modalValue ? (
+        <GemValueModal value={modalValue} system="" kabMap={kabMap}
+                       onClose={() => setModalValue(null)} onJump={jump} />
+      ) : null}
+    </>
+  );
 }
 
 // ── GEMATRIA · DEEP / AI CROSS-REFERENCING ───────────────────────────
