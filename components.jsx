@@ -265,19 +265,31 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
           <span className="cx-clock-date">{fmtDate(now)} · LOCAL · {solar.label}</span>
         </div>
 
+        {/* 3-state theme toggle: Light → Dark → Auto → Light…
+            Single capsule with animated sun/moon/auto icon.
+            Click cycles through states. */}
         <button
-          className={`cx-themebtn ${dark ? "is-dark" : "is-light"} ${autoTheme ? "is-auto" : ""}`}
-          onClick={onToggleTheme}
-          aria-label={dark ? "Switch to day theme" : "Switch to night theme"}
-          title={autoTheme ? `Auto · ${dark ? "night" : "day"}` : (dark ? "Night" : "Day")}
+          className={`cx-theme-toggle ${autoTheme ? "is-auto" : dark ? "is-dark" : "is-light"}`}
+          onClick={() => {
+            if (autoTheme) {
+              // Auto → Light
+              onToggleAuto();
+              if (dark) onToggleTheme();
+            } else if (dark) {
+              // Dark → Auto
+              onToggleAuto();
+            } else {
+              // Light → Dark
+              onToggleTheme();
+            }
+          }}
+          aria-label={autoTheme ? `Auto theme (${dark ? "night" : "day"}) — click for light` : dark ? "Night theme — click for auto" : "Day theme — click for dark"}
+          title={autoTheme ? `Auto · ${dark ? "night" : "day"}` : dark ? "Night" : "Day"}
         >
-          {/* Subtle crescent ↔ disc — pure SVG, no glow chip, no label */}
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            {dark ? (
-              <path d="M11 2.5a5.5 5.5 0 1 0 2.5 4.7 4 4 0 0 1-2.5-4.7z"
-                    fill="currentColor" />
-            ) : (
-              <g>
+          <span className="cx-theme-track">
+            <span className="cx-theme-thumb">
+              {/* Sun icon */}
+              <svg className="cx-theme-sun" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
                 <circle cx="8" cy="8" r="3" fill="currentColor" />
                 <g stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
                   <line x1="8" y1="1.5" x2="8" y2="3" />
@@ -289,18 +301,15 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
                   <line x1="3.4" y1="12.6" x2="4.5" y2="11.5" />
                   <line x1="11.5" y1="4.5" x2="12.6" y2="3.4" />
                 </g>
-              </g>
-            )}
-          </svg>
-        </button>
-        <button
-          className={`cx-autobtn ${autoTheme ? "is-on" : ""}`}
-          onClick={onToggleAuto}
-          title="Auto-sync theme with local sun"
-          aria-label={autoTheme ? "Disable auto theme" : "Enable auto theme"}
-          aria-pressed={autoTheme}
-        >
-          AUTO
+              </svg>
+              {/* Moon icon */}
+              <svg className="cx-theme-moon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                <path d="M11 2.5a5.5 5.5 0 1 0 2.5 4.7 4 4 0 0 1-2.5-4.7z" fill="currentColor" />
+              </svg>
+              {/* Auto badge */}
+              <span className="cx-theme-auto-badge">A</span>
+            </span>
+          </span>
         </button>
       </div>
     </header>
@@ -1321,14 +1330,18 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
         </div>
 
         <div className="cx-reader-foot">
-          <button className="cx-nav-btn" onClick={onPrevChapter} disabled={!prevLabel}>◂ {prevLabel || "—"}</button>
+          <button className="cx-nav-btn" onClick={onPrevChapter} disabled={!prevLabel}>
+            <span className="cx-nav-arrow">&lsaquo;</span>{prevLabel || ""}
+          </button>
           <div className="cx-reader-progress">
-            <span>CH {pad(passage.chapter)} / {pad(totalChapters)}</span>
+            <span>{passage.chapter} of {totalChapters}</span>
             <div className="cx-prog">
               <div className="cx-prog-fill" style={{ width: `${(passage.chapter/totalChapters)*100}%` }} />
             </div>
           </div>
-          <button className="cx-nav-btn" onClick={onNextChapter} disabled={!nextLabel}>{nextLabel || "—"} ▸</button>
+          <button className="cx-nav-btn" onClick={onNextChapter} disabled={!nextLabel}>
+            {nextLabel || ""}<span className="cx-nav-arrow">&rsaquo;</span>
+          </button>
         </div>
       </CornerFrame>
     </main>
