@@ -258,64 +258,37 @@ function ApiKeysSection() {
   );
 }
 
-// ── SyncSection — Firebase Auth (Google) + Firestore cross-device sync ──
-// User pastes a Firebase config (one-time), signs in with Google, and
-// every personal-data localStorage key (marks, notes, settings, cache,
-// panels) syncs in real-time across all their devices. API keys never
-// leave the device for security.
+// ── SyncSection — personal-link sync, default = GitHub Gist ──
+// One PAT-paste step: app creates a private gist owned by the user, uses
+// it as a sync target. The "personal link" is the gist URL — bookmarkable,
+// emailable to yourself, copy-pastable to other devices. Same PAT on the
+// other device → app finds the gist and joins the sync.
 function SyncSection() {
-  const [cfgText, setCfgText] = useState(() => {
-    const c = window.CODEX_SYNC?.getConfig();
-    return c ? JSON.stringify(c, null, 2) : "";
-  });
-  const [cfgErr, setCfgErr] = useState("");
+  const [backend, setBackendState] = useState(() => window.CODEX_SYNC?.getBackend() || "");
   const [user, setUser] = useState(() => window.CODEX_SYNC?.user || null);
   const [last, setLast] = useState(() => window.CODEX_SYNC?.getLast() || null);
   const [auto, setAuto] = useState(() => window.CODEX_SYNC?.getAuto() || false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [now, setNow] = useState(Date.now());
+  const [pat, setPat] = useState("");
+  const [link, setLink] = useState("");
 
   useEffect(() => {
     if (!window.CODEX_SYNC) return;
-    const offAuth   = window.CODEX_SYNC.on("auth",   ({ user }) => setUser(user));
-    const offSynced = window.CODEX_SYNC.on("synced", (info)    => setLast(info));
-    const offErr    = window.CODEX_SYNC.on("error",  (e)       => setErr(e.message || ""));
-    const tick = setInterval(() => setNow(Date.now()), 5000); // refresh "X ago"
+    const offAuth   = window.CODEX_SYNC.on("auth",   (info) => {
+      setUser(info.user);
+      setBackendState(info.backend || "");
+      if (info.user && info.backend === "github") {
+        const id = window.CODEX_SYNC.github.getGistId();
+        if (id) setLink(`https://gist.github.com/${info.user.name}/${id}`);
+      } else { setLink(""); }
+    });
+    const offSynced = window.CODEX_SYNC.on("synced", (info) => setLast(info));
+    const offErr    = window.CODEX_SYNC.on("error",  (e)    => setErr(e.message || ""));
+    const tick = setInterval(() => setNow(Date.now()), 5000);
     return () => { offAuth(); offSynced(); offErr(); clearInterval(tick); };
   }, []);
-
-  const saveCfg = () => {
-    setCfgErr(""); setErr("");
-    try {
-      const parsed = JSON.parse(cfgText.trim());
-      const need = ["apiKey", "authDomain", "projectId", "appId"];
-      const missing = need.filter(k => !parsed[k]);
-      if (missing.length) { setCfgErr("Missing: " + missing.join(", ")); return; }
-      window.CODEX_SYNC.setConfig(parsed);
-      window.location.reload();  // re-init Firebase with new config
-    } catch (e) { setCfgErr("Invalid JSON: " + e.message); }
-  };
-  const signIn = async () => {
-    setBusy(true); setErr("");
-    try { await window.CODEX_SYNC.signIn(); } catch (e) { setErr(e.message || String(e)); }
-    setBusy(false);
-  };
-  const signOut = async () => {
-    setBusy(true);
-    try { await window.CODEX_SYNC.signOut(); setUser(null); } catch (e) { setErr(e.message || String(e)); }
-    setBusy(false);
-  };
-  const pushNow = async () => {
-    setBusy(true); setErr("");
-    try { await window.CODEX_SYNC.pushNow(); } catch (e) { setErr(e.message || String(e)); }
-    setBusy(false);
-  };
-  const pullNow = async () => {
-    setBusy(true); setErr("");
-    try { await window.CODEX_SYNC.pullOnce(); } catch (e) { setErr(e.message || String(e)); }
-    setBusy(false);
-  };
 
   const fmtAgo = (t) => {
     if (!t) return "—";
@@ -327,82 +300,164 @@ function SyncSection() {
     return Math.floor(s/86400) + "d ago";
   };
 
-  const configured = !!window.CODEX_SYNC?.configured;
+  const connectGithub = async () => {
+    if (!pat.trim()) return;
+    setBusy(true); setErr("");
+    try {
+      const r = await window.CODEX_SYNC.github.connect(pat.trim());
+      setLink(r.link || "");
+      setPat("");  // never keep in component state
+    } catch (e) { setErr(e.message || String(e)); }
+    setBusy(false);
+  };
+  const disconnect = async () => {
+    if (backend === "github") window.CODEX_SYNC.github.disconnect();
+    else if (backend === "firebase") await window.CODEX_SYNC.firebase.signOut();
+    setUser(null); setBackendState(""); setLink("");
+  };
+  const pushNow = async () => {
+    setBusy(true); setErr("");
+    try { await window.CODEX_SYNC.pushNow(); } catch (e) { setErr(e.message || String(e)); }
+    setBusy(false);
+  };
+  const pullNow = async () => {
+    setBusy(true); setErr("");
+    try { await window.CODEX_SYNC.pullOnce(); } catch (e) { setErr(e.message || String(e)); }
+    setBusy(false);
+  };
+  const copyLink = async () => {
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link); setErr(""); } catch {}
+  };
 
-  return (
-    <div className="cx-sync">
-      {!configured ? (
+  if (!backend || !user) {
+    return (
+      <div className="cx-sync">
         <div className="cx-sync-setup">
           <p className="cx-sync-hint">
-            Cross-device sync is off. Paste a Firebase Web config to enable it.
-            Your data stays in your own Firebase project (free Spark plan covers
-            personal use).
+            Sync your marks, notes, settings, and cached scripture across every
+            device you use. <b>Recommended: GitHub Gist</b> — 30-second setup,
+            no new account, your data lives in a private gist only your token
+            can read.
           </p>
-          <details className="cx-sync-help">
-            <summary>How to get a Firebase config (one-time, ~2 min)</summary>
+          <details className="cx-sync-help" open>
+            <summary><b>Personal link via GitHub (recommended)</b></summary>
             <ol>
-              <li>Open <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer">console.firebase.google.com</a> → <b>Add project</b> (any name)</li>
-              <li>In the project: <b>Authentication → Sign-in method → Google → Enable</b></li>
-              <li><b>Firestore Database → Create database</b> (Production mode, any region)</li>
-              <li>Project settings (gear icon) → <b>General → Your apps → Add app → Web</b></li>
-              <li>Register the app (any nickname); copy the <code>firebaseConfig</code> object</li>
-              <li>Paste it below as JSON (keys in quotes)</li>
-              <li>Firestore → Rules → paste: <code>match /users/{"{uid}"}/&#123;document=**&#125; &#123; allow read, write: if request.auth.uid == uid; &#125;</code></li>
+              <li>Open <a href="https://github.com/settings/tokens/new?description=CODEX%20sync&scopes=gist" target="_blank" rel="noopener noreferrer">github.com/settings/tokens/new</a> (this link pre-fills the right scope)</li>
+              <li>Scroll down, click <b>Generate token</b></li>
+              <li>Copy the token (starts with <code>ghp_</code>) and paste below</li>
             </ol>
           </details>
-          <textarea
+          <input
             className="cx-sync-cfg"
-            placeholder={`{\n  "apiKey": "AIza...",\n  "authDomain": "your.firebaseapp.com",\n  "projectId": "your-project",\n  "storageBucket": "your.appspot.com",\n  "messagingSenderId": "...",\n  "appId": "..."\n}`}
-            value={cfgText}
-            onChange={e => setCfgText(e.target.value)}
-            rows={8}
+            type="password"
+            placeholder="ghp_your-personal-access-token"
+            value={pat}
+            onChange={e => setPat(e.target.value)}
             spellCheck={false}
+            autoComplete="off"
+            style={{ fontFamily: "ui-monospace, monospace", padding: "10px", height: "auto" }}
           />
-          {cfgErr ? <p className="cx-sync-err">{cfgErr}</p> : null}
-          <button className="cx-mini-btn" onClick={saveCfg} disabled={!cfgText.trim()}>Save & reload</button>
-        </div>
-      ) : !user ? (
-        <div className="cx-sync-signin">
-          <p className="cx-sync-hint">Sign in with Google to sync this device with all your others.</p>
-          <button className="cx-mini-btn" onClick={signIn} disabled={busy}>
-            {busy ? "···" : "Sign in with Google"}
-          </button>
-          <button className="cx-mini-btn cx-sync-tiny" onClick={() => { window.CODEX_SYNC.clearConfig(); window.location.reload(); }}>
-            change Firebase config
-          </button>
           {err ? <p className="cx-sync-err">{err}</p> : null}
+          <button className="cx-mini-btn" onClick={connectGithub} disabled={busy || !pat.trim()}>
+            {busy ? "Connecting…" : "Connect & create personal gist"}
+          </button>
+          <details className="cx-sync-help">
+            <summary>Or use Firebase (Google sign-in, more setup)</summary>
+            <FirebaseSetupBlock onConnected={() => {/* will refresh via auth event */}} />
+          </details>
         </div>
-      ) : (
-        <div className="cx-sync-active">
-          <div className="cx-sync-user">
-            {user.photo ? <img src={user.photo} alt="" className="cx-sync-avatar" referrerPolicy="no-referrer" /> : null}
-            <div>
-              <b>{user.name || user.email}</b>
-              <em>{user.email}</em>
-            </div>
+      </div>
+    );
+  }
+
+  // Connected state
+  return (
+    <div className="cx-sync">
+      <div className="cx-sync-active">
+        <div className="cx-sync-user">
+          {user.photo ? <img src={user.photo} alt="" className="cx-sync-avatar" referrerPolicy="no-referrer" /> : null}
+          <div>
+            <b>{user.name || user.email || "(connected)"}</b>
+            <em>{backend === "github" ? "GitHub Gist" : "Firebase · " + (user.email || "")}</em>
           </div>
-          <div className="cx-sync-status">
-            <span>Last sync:</span>
-            <b>{last ? `${fmtAgo(last.at)} (${last.direction || "↕"}${last.changed ? " · " + last.changed + " keys" : last.count ? " · " + last.count + " keys" : ""})` : "never"}</b>
-          </div>
-          <div className="cx-sync-row">
-            <button className="cx-mini-btn" onClick={pushNow} disabled={busy}>↑ Push now</button>
-            <button className="cx-mini-btn" onClick={pullNow} disabled={busy}>↓ Pull now</button>
-            <label className="cx-sync-auto">
-              <input type="checkbox" checked={auto} onChange={e => {
-                setAuto(e.target.checked);
-                window.CODEX_SYNC.setAuto(e.target.checked);
-              }} />
-              <span>auto-sync on change</span>
-            </label>
-          </div>
-          <div className="cx-sync-row">
-            <button className="cx-mini-btn cx-sync-tiny" onClick={signOut} disabled={busy}>Sign out</button>
-          </div>
-          {err ? <p className="cx-sync-err">{err}</p> : null}
         </div>
-      )}
+
+        {link ? (
+          <div className="cx-sync-link">
+            <span>Your personal link:</span>
+            <input className="cx-sync-link-input" readOnly value={link} onFocus={e => e.target.select()} />
+            <button className="cx-mini-btn cx-sync-tiny" onClick={copyLink}>copy</button>
+            <p className="cx-sync-hint" style={{ marginTop: 4 }}>
+              Open this URL on any device, paste the same GitHub token in Settings, and it joins the sync.
+              Only your token can read the gist contents.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="cx-sync-status">
+          <span>Last sync:</span>
+          <b>{last ? `${fmtAgo(last.at)} · ${last.direction === "up" ? "↑ pushed" : "↓ pulled"}${last.changed ? ` ${last.changed} keys` : last.count ? ` ${last.count} keys` : ""}` : "never"}</b>
+        </div>
+        <div className="cx-sync-row">
+          <button className="cx-mini-btn" onClick={pushNow} disabled={busy}>↑ Push now</button>
+          <button className="cx-mini-btn" onClick={pullNow} disabled={busy}>↓ Pull now</button>
+          <label className="cx-sync-auto">
+            <input type="checkbox" checked={auto} onChange={e => {
+              setAuto(e.target.checked);
+              window.CODEX_SYNC.setAuto(e.target.checked);
+            }} />
+            <span>auto-sync on change</span>
+          </label>
+        </div>
+        <div className="cx-sync-row">
+          <button className="cx-mini-btn cx-sync-tiny" onClick={disconnect} disabled={busy}>Disconnect</button>
+        </div>
+        {err ? <p className="cx-sync-err">{err}</p> : null}
+      </div>
     </div>
+  );
+}
+
+// Firebase setup form, only shown when user expands the "or use Firebase" details
+function FirebaseSetupBlock() {
+  const [cfgText, setCfgText] = useState(() => {
+    const c = window.CODEX_SYNC?.firebase?.getConfig();
+    return c ? JSON.stringify(c, null, 2) : "";
+  });
+  const [err, setErr] = useState("");
+  const save = () => {
+    setErr("");
+    try {
+      const parsed = JSON.parse(cfgText.trim());
+      const need = ["apiKey", "authDomain", "projectId", "appId"];
+      const missing = need.filter(k => !parsed[k]);
+      if (missing.length) { setErr("Missing: " + missing.join(", ")); return; }
+      window.CODEX_SYNC.firebase.setConfig(parsed);
+      window.location.reload();
+    } catch (e) { setErr("Invalid JSON: " + e.message); }
+  };
+  return (
+    <>
+      <ol>
+        <li>console.firebase.google.com → Add project</li>
+        <li>Auth → Sign-in method → Google → Enable</li>
+        <li>Firestore Database → Create database</li>
+        <li>Project settings → Add web app → copy <code>firebaseConfig</code></li>
+        <li>Paste JSON below + add Firestore rule:{" "}
+            <code>match /users/{"{"}uid{"}"}/{"{"}document=**{"}"} {"{"} allow read, write: if request.auth.uid == uid; {"}"}</code></li>
+      </ol>
+      <textarea
+        className="cx-sync-cfg"
+        placeholder='{ "apiKey": "...", "authDomain": "...", "projectId": "...", "appId": "..." }'
+        value={cfgText}
+        onChange={e => setCfgText(e.target.value)}
+        rows={6}
+        spellCheck={false}
+      />
+      {err ? <p className="cx-sync-err">{err}</p> : null}
+      <button className="cx-mini-btn" onClick={save} disabled={!cfgText.trim()}>Save Firebase config & reload</button>
+    </>
   );
 }
 

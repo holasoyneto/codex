@@ -8850,3 +8850,14 @@ input, textarea, [contenteditable] { caret-color: var(--cx-accent); }
 .cx-sync-auto { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--cx-fg-dim); cursor: pointer; user-select: none; }
 .cx-sync-auto input { margin: 0; }
 .cx-sync-tiny { font-size: 10.5px !important; opacity: 0.75; }
+
+/* personal link row inside connected sync state */
+.cx-sync-link { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px dashed var(--cx-line); }
+.cx-sync-link > span { font-size: 11px; color: var(--cx-fg-dim); }
+.cx-sync-link-input {
+  width: 100%; box-sizing: border-box; padding: 6px 8px;
+  font-family: ui-monospace, monospace; font-size: 11px;
+  background: color-mix(in oklab, var(--cx-fg) 4%, transparent);
+  color: var(--cx-fg); border: 1px solid var(--cx-line); border-radius: 4px;
+}
+.cx-sync-help[open] { padding-bottom: 6px; }

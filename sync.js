@@ -1,37 +1,29 @@
-// CODEX sync — Firebase Auth (Google) + Firestore sync of personal data.
+// CODEX sync — TWO modes, both end up sharing one localStorage shape
+// and one Settings UI:
 //
-// What syncs:
-//   codex.tweaks.v1     — UI settings, theme, primary translation
-//   codex.marks.v1      — highlighted verses + colours
-//   codex.bookmarks.v1  — bookmarks (if present)
-//   codex.notes.v1      — notes from the Notes panel
-//   codex.bible.cache.v1 — cached scripture (so a new device gets your
-//                          offline library without re-downloading 40 MB)
-//   codex.panels.v1     — generated panel content
-//   codex.redletter.*   — red-letter detection cache
-//   codex.oracle.*      — Oracle conversation history (if persisted)
+//   1) GitHub Gist (Recommended) — ONE-step setup. User pastes a
+//      GitHub Personal Access Token with `gist` scope, the app
+//      creates a private gist and uses it as the sync target. The
+//      "personal link" is the gist URL. Open on any device, paste
+//      the same token, app finds the gist and joins the sync.
 //
-// What never syncs:
-//   codex.api.keys.v1   — security: each device gets its own key
-//   any *.session.*     — session-scoped state
+//   2) Firebase + Google sign-in — heavier setup but real-time
+//      multi-device push. Kept as an option for power users.
 //
-// Conflict resolution: per-key last-write-wins, timestamped at write.
-// Two-way: local edits push to Firestore; remote edits push back into
-// localStorage and broadcast a 'storage' event so the app reacts.
-//
-// Setup (one-time, per user):
-//   1) console.firebase.google.com → Add project (free Spark plan)
-//   2) Authentication → Sign-in method → enable Google
-//   3) Firestore Database → Create (production mode, any region)
-//   4) Project settings → General → Add app → Web → Register → copy config
-//   5) Paste config JSON into Settings → Sync → Firebase config
+// Both modes sync the same set of localStorage keys (everything
+// personal — never API keys). Conflict resolution is per-key
+// last-write-wins.
 
 (function () {
-  const LS_CONFIG = "codex.sync.firebaseConfig.v1";
-  const LS_AUTO   = "codex.sync.auto.v1";
-  const LS_LAST   = "codex.sync.lastSync.v1";
+  // ── Storage layout ───────────────────────────────────────────────
+  const LS_BACKEND  = "codex.sync.backend.v1";       // "github" | "firebase" | ""
+  const LS_GH_TOKEN = "codex.sync.github.token.v1";  // user's GitHub PAT
+  const LS_GH_GIST  = "codex.sync.github.gistId.v1"; // resolved private gist id
+  const LS_FB_CFG   = "codex.sync.firebaseConfig.v1";
+  const LS_AUTO     = "codex.sync.auto.v1";
+  const LS_LAST     = "codex.sync.lastSync.v1";
 
-  // Keys we sync — exact key prefixes. NEVER include API keys.
+  // ── Which keys sync ──────────────────────────────────────────────
   const SYNC_PREFIXES = [
     "codex.tweaks.",
     "codex.marks.",
@@ -49,7 +41,6 @@
     "codex.sync.",
     "codex.session.",
   ];
-
   function isSyncable(key) {
     if (!key || typeof key !== "string") return false;
     for (const bad of NEVER_SYNC) if (key.startsWith(bad)) return false;
@@ -57,116 +48,39 @@
     return false;
   }
 
-  let app = null, auth = null, db = null, user = null;
-  let unsubDoc = null;
-  let autoTimer = null;
-  let pushDebounce = null;
-
-  // ── State ─────────────────────────────────────────────────────────
-  function getConfig() {
-    try { return JSON.parse(localStorage.getItem(LS_CONFIG) || "null"); } catch { return null; }
+  // ── Utilities ────────────────────────────────────────────────────
+  const ls = {
+    get(k, d=null) { try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    raw: localStorage,
+  };
+  function fire(ev, payload) {
+    (_listeners[ev] || []).forEach(fn => { try { fn(payload); } catch {} });
   }
-  function setConfig(cfg) {
-    try { localStorage.setItem(LS_CONFIG, JSON.stringify(cfg)); } catch {}
-  }
-  function clearConfig() {
-    try { localStorage.removeItem(LS_CONFIG); } catch {}
-  }
-  function getAuto() {
-    return localStorage.getItem(LS_AUTO) === "1";
-  }
-  function setAuto(v) {
-    localStorage.setItem(LS_AUTO, v ? "1" : "0");
-    if (v) startAutoSync(); else stopAutoSync();
-  }
-  function getLast() {
-    try { return JSON.parse(localStorage.getItem(LS_LAST) || "null"); } catch { return null; }
-  }
-  function setLast(o) {
-    try { localStorage.setItem(LS_LAST, JSON.stringify(o)); } catch {}
+  const _listeners = {};
+  function on(ev, fn) {
+    (_listeners[ev] = _listeners[ev] || []).push(fn);
+    return () => { _listeners[ev] = (_listeners[ev] || []).filter(x => x !== fn); };
   }
 
-  // ── Firebase lifecycle ────────────────────────────────────────────
-  function ensureFirebaseLoaded() {
-    return new Promise((resolve, reject) => {
-      if (window.firebase && window.firebase.auth && window.firebase.firestore) {
-        return resolve();
-      }
-      // Lazy-load Firebase compat SDK from CDN
-      const scripts = [
-        "https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js",
-        "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js",
-        "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js",
-      ];
-      let i = 0;
-      const next = () => {
-        if (i >= scripts.length) return resolve();
-        const s = document.createElement("script");
-        s.src = scripts[i++];
-        s.onload = next;
-        s.onerror = () => reject(new Error("Failed to load Firebase: " + s.src));
-        document.head.appendChild(s);
-      };
-      next();
-    });
+  function getBackend() { return localStorage.getItem(LS_BACKEND) || ""; }
+  function setBackend(b) {
+    if (b) localStorage.setItem(LS_BACKEND, b);
+    else localStorage.removeItem(LS_BACKEND);
   }
 
-  async function init() {
-    const cfg = getConfig();
-    if (!cfg) return { ok: false, reason: "no-config" };
-    try {
-      await ensureFirebaseLoaded();
-      if (!app) {
-        app = window.firebase.initializeApp(cfg);
-        auth = window.firebase.auth();
-        db = window.firebase.firestore();
-        auth.onAuthStateChanged((u) => {
-          user = u;
-          fire("auth", { user: u ? { uid: u.uid, email: u.email, name: u.displayName, photo: u.photoURL } : null });
-          if (u) {
-            subscribeRemote();
-            // First-time: pull existing remote before pushing local, so a
-            // brand-new device doesn't clobber server state with empty.
-            pullOnce().then(() => {
-              if (getAuto()) startAutoSync();
-            });
-          } else {
-            unsubscribeRemote();
-            stopAutoSync();
-          }
-        });
-      }
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, reason: e.message || String(e) };
-    }
-  }
-
-  async function signIn() {
-    const r = await init();
-    if (!r.ok) throw new Error("Firebase not configured: " + r.reason);
-    const provider = new window.firebase.auth.GoogleAuthProvider();
-    await auth.signInWithPopup(provider);
-  }
-  async function signOut() {
-    if (auth) await auth.signOut();
-  }
-
-  // ── Data shape ────────────────────────────────────────────────────
-  // Firestore doc: users/{uid}/sync
-  // Shape: { keys: { <lsKey>: { v: <string>, t: <epoch_ms> } }, updatedAt: <epoch_ms> }
   function collectLocal() {
     const keys = {};
+    const now = Date.now();
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!isSyncable(k)) continue;
       const v = localStorage.getItem(k);
       if (v == null) continue;
-      keys[k] = { v, t: Date.now() };
+      keys[k] = { v, t: now };
     }
     return keys;
   }
-
   function applyRemote(remote) {
     if (!remote || !remote.keys) return { changed: 0 };
     let changed = 0;
@@ -176,126 +90,315 @@
       if (!entry || typeof entry.v !== "string") continue;
       const localRaw = localStorage.getItem(k);
       if (localRaw === entry.v) continue;
-      // Last-write-wins. If we have no local timestamp, the remote wins.
-      // Trivially correct on a fresh device; for active devices, the
-      // pre-push pullOnce + per-key timestamping keeps it convergent.
-      try { localStorage.setItem(k, entry.v); changed++; } catch {}
+      try { _suspendPush = true; localStorage.setItem(k, entry.v); changed++; }
+      finally { _suspendPush = false; }
       try { window.dispatchEvent(new StorageEvent("storage", { key: k, newValue: entry.v })); } catch {}
     }
     return { changed };
   }
 
-  let _lastRemoteSnapshot = null;
-  function subscribeRemote() {
-    if (!user) return;
-    unsubscribeRemote();
-    const ref = db.collection("users").doc(user.uid).collection("sync").doc("main");
-    unsubDoc = ref.onSnapshot((snap) => {
-      const data = snap.data();
-      if (!data) return;
-      _lastRemoteSnapshot = data;
-      const r = applyRemote(data);
-      if (r.changed) {
-        setLast({ at: Date.now(), direction: "down", changed: r.changed });
-        fire("synced", { direction: "down", changed: r.changed });
-      }
-    }, (err) => {
-      fire("error", { message: err.message || String(err) });
-    });
-  }
-  function unsubscribeRemote() {
-    if (unsubDoc) { unsubDoc(); unsubDoc = null; }
-  }
-
-  async function pullOnce() {
-    if (!user) return { ok: false, reason: "not signed in" };
-    const ref = db.collection("users").doc(user.uid).collection("sync").doc("main");
-    const snap = await ref.get();
-    if (snap.exists) {
-      _lastRemoteSnapshot = snap.data();
-      const r = applyRemote(snap.data());
-      setLast({ at: Date.now(), direction: "down", changed: r.changed });
-      fire("synced", { direction: "down", changed: r.changed });
-    }
-    return { ok: true };
-  }
-
-  async function pushNow() {
-    if (!user) return { ok: false, reason: "not signed in" };
-    const keys = collectLocal();
-    // Merge with last known remote: any remote-only keys we don't have
-    // locally STAY in remote. We only overwrite keys we have a value for.
-    let merged = keys;
-    if (_lastRemoteSnapshot && _lastRemoteSnapshot.keys) {
-      merged = { ..._lastRemoteSnapshot.keys, ...keys };
-    }
-    const ref = db.collection("users").doc(user.uid).collection("sync").doc("main");
-    await ref.set({ keys: merged, updatedAt: Date.now() }, { merge: true });
-    const last = { at: Date.now(), direction: "up", count: Object.keys(keys).length };
-    setLast(last);
-    fire("synced", last);
-    return { ok: true };
-  }
-
+  // ── Local-change watcher ─────────────────────────────────────────
+  let _suspendPush = false;     // true while applying remote (avoid feedback loop)
+  let _pushTimer = null;
   function schedulePush() {
-    if (!user || !getAuto()) return;
-    clearTimeout(pushDebounce);
-    pushDebounce = setTimeout(() => {
-      pushNow().catch((e) => fire("error", { message: e.message || String(e) }));
+    if (_suspendPush) return;
+    if (!localStorage.getItem(LS_AUTO) === "1") {/* still allow manual */}
+    clearTimeout(_pushTimer);
+    _pushTimer = setTimeout(() => {
+      if (localStorage.getItem(LS_AUTO) === "1") {
+        push().catch(e => fire("error", { message: e.message || String(e) }));
+      }
     }, 1500);
   }
-
-  function startAutoSync() {
-    stopAutoSync();
-    if (!user) return;
-    // Periodic push every 30s (debounced on local changes too)
-    autoTimer = setInterval(() => {
-      pushNow().catch(() => {});
-    }, 30000);
-    fire("auto", { on: true });
-  }
-  function stopAutoSync() {
-    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
-    fire("auto", { on: false });
-  }
-
-  // Watch local storage for changes from THIS tab (the storage event only
-  // fires for other tabs). We monkey-patch setItem to call schedulePush.
   const origSet = localStorage.setItem.bind(localStorage);
   localStorage.setItem = function (k, v) {
     const r = origSet(k, v);
     if (isSyncable(k)) schedulePush();
     return r;
   };
-  // Cross-tab change → schedule a push from this tab too
   window.addEventListener("storage", (e) => {
     if (isSyncable(e.key)) schedulePush();
   });
 
-  // ── Events bus ────────────────────────────────────────────────────
-  const _listeners = {};
-  function on(ev, fn) {
-    (_listeners[ev] = _listeners[ev] || []).push(fn);
-    return () => { _listeners[ev] = (_listeners[ev] || []).filter(x => x !== fn); };
-  }
-  function fire(ev, payload) {
-    (_listeners[ev] || []).forEach(fn => { try { fn(payload); } catch {} });
+  // ── Backend: GitHub Gist ─────────────────────────────────────────
+  // One private gist per user. File name: codex-sync.json. Updates via PATCH.
+  const GH_API = "https://api.github.com";
+  function ghToken() { return localStorage.getItem(LS_GH_TOKEN) || ""; }
+  function ghGistId() { return localStorage.getItem(LS_GH_GIST) || ""; }
+  function ghHeaders() {
+    return {
+      "Authorization": "token " + ghToken(),
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+    };
   }
 
-  // Public API
-  window.CODEX_SYNC = {
-    getConfig, setConfig, clearConfig,
-    init, signIn, signOut, pullOnce, pushNow,
-    getAuto, setAuto, getLast,
-    isSyncable, on,
-    get user() { return user ? { uid: user.uid, email: user.email, name: user.displayName, photo: user.photoURL } : null; },
-    get configured() { return !!getConfig(); },
-  };
+  async function ghVerifyToken(token) {
+    // Check token validity + scope (need "gist")
+    const r = await fetch(GH_API + "/user", {
+      headers: { Authorization: "token " + token, Accept: "application/vnd.github+json" },
+    });
+    if (!r.ok) throw new Error("GitHub auth failed: " + r.status + " (token invalid or revoked)");
+    const scopes = (r.headers.get("x-oauth-scopes") || "").split(",").map(s => s.trim());
+    if (!scopes.includes("gist")) {
+      throw new Error("Token is missing the 'gist' scope. Generate a new token with the 'gist' checkbox ticked.");
+    }
+    return await r.json();   // { login, ... }
+  }
+  async function ghFindOrCreateGist(token) {
+    // Search existing gists for our marker filename
+    const list = await fetch(GH_API + "/gists?per_page=100", { headers: { Authorization: "token " + token, Accept: "application/vnd.github+json" } });
+    if (!list.ok) throw new Error("GitHub /gists failed: " + list.status);
+    const gists = await list.json();
+    const existing = gists.find(g => g.files && g.files["codex-sync.json"]);
+    if (existing) return existing.id;
+    // Create new private gist
+    const create = await fetch(GH_API + "/gists", {
+      method: "POST",
+      headers: ghHeaders(),
+      body: JSON.stringify({
+        description: "CODEX · cross-device sync (encrypted-by-token; do not share)",
+        public: false,
+        files: { "codex-sync.json": { content: JSON.stringify({ keys: {}, updatedAt: Date.now() }, null, 2) } },
+      }),
+    });
+    if (!create.ok) throw new Error("GitHub gist create failed: " + create.status + " " + (await create.text()).slice(0, 200));
+    const g = await create.json();
+    return g.id;
+  }
+  async function ghReadGist() {
+    const id = ghGistId();
+    if (!id) throw new Error("No gist id — connect first.");
+    const r = await fetch(GH_API + "/gists/" + id, { headers: ghHeaders() });
+    if (!r.ok) throw new Error("GitHub gist read failed: " + r.status);
+    const g = await r.json();
+    const raw = g.files && g.files["codex-sync.json"] && g.files["codex-sync.json"].content;
+    if (!raw) return { keys: {}, updatedAt: 0 };
+    try { return JSON.parse(raw); } catch { return { keys: {}, updatedAt: 0 }; }
+  }
+  async function ghWriteGist(payload) {
+    const id = ghGistId();
+    if (!id) throw new Error("No gist id — connect first.");
+    const r = await fetch(GH_API + "/gists/" + id, {
+      method: "PATCH",
+      headers: ghHeaders(),
+      body: JSON.stringify({
+        files: { "codex-sync.json": { content: JSON.stringify(payload, null, 2) } },
+      }),
+    });
+    if (!r.ok) throw new Error("GitHub gist write failed: " + r.status + " " + (await r.text()).slice(0, 200));
+  }
 
-  // Auto-init if config is present (lets the app boot signed-in on reload)
-  if (getConfig()) {
-    init().then((r) => {
-      if (!r.ok) console.warn("[codex sync] init:", r.reason);
+  async function ghConnect(token) {
+    const user = await ghVerifyToken(token);
+    localStorage.setItem(LS_GH_TOKEN, token);
+    const gistId = await ghFindOrCreateGist(token);
+    localStorage.setItem(LS_GH_GIST, gistId);
+    setBackend("github");
+    fire("auth", { user: { name: user.login, email: user.email, photo: user.avatar_url, uid: user.login }, backend: "github" });
+    // Pull existing remote before pushing local
+    await pull();
+    return { user, gistId, link: gitHubGistLink(user.login, gistId) };
+  }
+  function ghDisconnect() {
+    localStorage.removeItem(LS_GH_TOKEN);
+    localStorage.removeItem(LS_GH_GIST);
+    setBackend("");
+    fire("auth", { user: null, backend: null });
+  }
+  function gitHubGistLink(login, gistId) {
+    return `https://gist.github.com/${login}/${gistId}`;
+  }
+
+  // Cached remote snapshot for merge logic
+  let _lastRemote = null;
+  async function pull() {
+    const backend = getBackend();
+    if (backend === "github") {
+      const remote = await ghReadGist();
+      _lastRemote = remote;
+      const r = applyRemote(remote);
+      const last = { at: Date.now(), direction: "down", changed: r.changed };
+      ls.set(LS_LAST, last); fire("synced", last);
+      return r;
+    }
+    if (backend === "firebase") {
+      return fbPull();
+    }
+    throw new Error("No sync backend configured.");
+  }
+  async function push() {
+    const backend = getBackend();
+    const local = collectLocal();
+    // Merge: keep remote-only keys, overwrite shared/local-only keys
+    const merged = (_lastRemote && _lastRemote.keys) ? { ..._lastRemote.keys, ...local } : local;
+    const payload = { keys: merged, updatedAt: Date.now() };
+    if (backend === "github") {
+      await ghWriteGist(payload);
+      _lastRemote = payload;
+    } else if (backend === "firebase") {
+      await fbPushPayload(payload);
+      _lastRemote = payload;
+    } else {
+      throw new Error("No sync backend configured.");
+    }
+    const last = { at: Date.now(), direction: "up", count: Object.keys(local).length };
+    ls.set(LS_LAST, last); fire("synced", last);
+    return { ok: true };
+  }
+  function setAuto(v) {
+    localStorage.setItem(LS_AUTO, v ? "1" : "0");
+    if (v && getBackend() === "github") startGhPoll();
+    else stopGhPoll();
+    fire("auto", { on: v });
+  }
+  function getAuto() { return localStorage.getItem(LS_AUTO) === "1"; }
+
+  // Periodic pull for GitHub (no real-time sub; poll every 60s)
+  let _ghPollTimer = null;
+  function startGhPoll() {
+    stopGhPoll();
+    _ghPollTimer = setInterval(() => {
+      pull().catch(e => fire("error", { message: e.message || String(e) }));
+    }, 60000);
+  }
+  function stopGhPoll() {
+    if (_ghPollTimer) { clearInterval(_ghPollTimer); _ghPollTimer = null; }
+  }
+
+  // ── Backend: Firebase (kept as alt path) ─────────────────────────
+  let fbApp = null, fbAuth = null, fbDb = null, fbUser = null, fbUnsub = null;
+  function fbGetConfig() { return ls.get(LS_FB_CFG, null); }
+  function fbSetConfig(c) { ls.set(LS_FB_CFG, c); }
+  function fbClearConfig() { try { localStorage.removeItem(LS_FB_CFG); } catch {} }
+  function fbEnsureLoaded() {
+    return new Promise((resolve, reject) => {
+      if (window.firebase && window.firebase.auth && window.firebase.firestore) return resolve();
+      const scripts = [
+        "https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js",
+        "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js",
+        "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js",
+      ];
+      let i = 0;
+      const next = () => {
+        if (i >= scripts.length) return resolve();
+        const s = document.createElement("script");
+        s.src = scripts[i++]; s.onload = next; s.onerror = () => reject(new Error("Failed " + s.src));
+        document.head.appendChild(s);
+      };
+      next();
     });
   }
+  async function fbInit() {
+    const cfg = fbGetConfig();
+    if (!cfg) return { ok: false, reason: "no-config" };
+    await fbEnsureLoaded();
+    if (!fbApp) {
+      fbApp = window.firebase.initializeApp(cfg);
+      fbAuth = window.firebase.auth();
+      fbDb = window.firebase.firestore();
+      fbAuth.onAuthStateChanged(async (u) => {
+        fbUser = u;
+        fire("auth", { user: u ? { uid: u.uid, email: u.email, name: u.displayName, photo: u.photoURL } : null, backend: u ? "firebase" : null });
+        if (u) {
+          setBackend("firebase");
+          fbSubscribe();
+          await fbPull();
+        } else {
+          fbUnsubscribe();
+        }
+      });
+    }
+    return { ok: true };
+  }
+  async function fbSignIn() {
+    const r = await fbInit();
+    if (!r.ok) throw new Error("Firebase not configured: " + r.reason);
+    const provider = new window.firebase.auth.GoogleAuthProvider();
+    await fbAuth.signInWithPopup(provider);
+  }
+  async function fbSignOut() { if (fbAuth) await fbAuth.signOut(); setBackend(""); }
+  function fbSubscribe() {
+    if (!fbUser) return;
+    fbUnsubscribe();
+    const ref = fbDb.collection("users").doc(fbUser.uid).collection("sync").doc("main");
+    fbUnsub = ref.onSnapshot((snap) => {
+      const data = snap.data(); if (!data) return;
+      _lastRemote = data;
+      const r = applyRemote(data);
+      if (r.changed) {
+        const last = { at: Date.now(), direction: "down", changed: r.changed };
+        ls.set(LS_LAST, last); fire("synced", last);
+      }
+    });
+  }
+  function fbUnsubscribe() { if (fbUnsub) { fbUnsub(); fbUnsub = null; } }
+  async function fbPull() {
+    if (!fbUser) return { ok: false };
+    const ref = fbDb.collection("users").doc(fbUser.uid).collection("sync").doc("main");
+    const snap = await ref.get();
+    if (snap.exists) { _lastRemote = snap.data(); applyRemote(snap.data()); }
+    return { ok: true };
+  }
+  async function fbPushPayload(payload) {
+    if (!fbUser) throw new Error("Not signed in");
+    const ref = fbDb.collection("users").doc(fbUser.uid).collection("sync").doc("main");
+    await ref.set(payload, { merge: true });
+  }
+
+  // ── Auto-init on page load ────────────────────────────────────────
+  const backendOnBoot = getBackend();
+  if (backendOnBoot === "github" && ghToken() && ghGistId()) {
+    // Restore "signed in" UI state on reload
+    setTimeout(async () => {
+      try {
+        const u = await ghVerifyToken(ghToken());
+        fire("auth", { user: { name: u.login, email: u.email, photo: u.avatar_url, uid: u.login }, backend: "github" });
+        const r = await pull();
+        if (getAuto()) startGhPoll();
+      } catch (e) {
+        fire("error", { message: "GitHub sync init failed: " + (e.message || e) });
+      }
+    }, 200);
+  } else if (backendOnBoot === "firebase" && fbGetConfig()) {
+    fbInit();
+  }
+
+  // ── Public API ────────────────────────────────────────────────────
+  window.CODEX_SYNC = {
+    on, isSyncable,
+    getBackend, getAuto, setAuto, getLast: () => ls.get(LS_LAST, null),
+
+    // GitHub mode
+    github: {
+      connect: ghConnect,
+      disconnect: ghDisconnect,
+      getToken: ghToken,
+      getGistId: ghGistId,
+      getLink: () => {
+        const id = ghGistId(); const token = ghToken();
+        if (!id || !token) return null;
+        // Need user login to build URL — read from cached fire state
+        return id;
+      },
+    },
+
+    // Firebase mode (kept available)
+    firebase: {
+      getConfig: fbGetConfig, setConfig: fbSetConfig, clearConfig: fbClearConfig,
+      init: fbInit, signIn: fbSignIn, signOut: fbSignOut,
+    },
+
+    // Generic
+    pullOnce: pull,
+    pushNow: push,
+    get user() {
+      if (getBackend() === "github") {
+        const tok = ghToken();
+        return tok ? { uid: "gh", name: "(connected)", email: "" } : null;
+      }
+      return fbUser ? { uid: fbUser.uid, email: fbUser.email, name: fbUser.displayName, photo: fbUser.photoURL } : null;
+    },
+  };
 })();
