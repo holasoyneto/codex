@@ -387,6 +387,10 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
     };
   }, [open]);
 
+  // Tab state has to live ABOVE the early-return below — React's
+  // rules-of-hooks require the same hook count every render.
+  const [activeTab, setActiveTab] = React.useState("reading");
+
   if (!open) return null;
 
   // ── Tab grouping ───────────────────────────────────────────────────
@@ -444,8 +448,10 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
       <TweakToggle key="__deck-rail" label="Thumbnail rail" value={railVisible} onChange={toggleRail} />,
     );
   }
+  // If the currently-selected tab is empty (because children changed),
+  // silently fall back to the first non-empty tab without re-rendering.
   const firstNonEmpty = TABS.find(t => buckets[t.id].length)?.id || "reading";
-  const [activeTab, setActiveTab] = React.useState(firstNonEmpty);
+  const effectiveTab = buckets[activeTab]?.length ? activeTab : firstNonEmpty;
 
   return (
     <>
@@ -462,7 +468,7 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
             {TABS.map(t => {
               const count = buckets[t.id].filter(n => n && n.type !== TweakSection).length;
               if (!buckets[t.id].length) return null;
-              const isActive = activeTab === t.id;
+              const isActive = effectiveTab === t.id;
               return (
                 <button
                   key={t.id}
@@ -477,8 +483,8 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
               );
             })}
           </nav>
-          <div className="twk-body" role="tabpanel" aria-label={activeTab}>
-            {buckets[activeTab]}
+          <div className="twk-body" role="tabpanel" aria-label={effectiveTab}>
+            {buckets[effectiveTab]}
           </div>
         </div>
       </div>
