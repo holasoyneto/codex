@@ -154,6 +154,68 @@ const __TWEAKS_STYLE = `
   .twk-chip>span>i:first-child{box-shadow:none}
   .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+
+  /* ── Fullscreen tabbed mode (default for CODEX) ──────────────── */
+  .twk-scrim{position:fixed;inset:0;z-index:2147483645;
+    background:rgba(8,10,14,.55);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    animation:twk-scrim-in 180ms ease}
+  @keyframes twk-scrim-in{from{opacity:0}to{opacity:1}}
+  @keyframes twk-panel-in{
+    from{opacity:0;transform:translateY(8px) scale(.985)}
+    to{opacity:1;transform:none}
+  }
+  .twk-fullscreen{
+    /* override the floating-card defaults */
+    right:auto !important;bottom:auto !important;
+    top:50% !important;left:50% !important;
+    transform:translate(-50%,-50%) scale(var(--dc-inv-zoom,1)) !important;
+    transform-origin:center !important;
+    width:min(960px, 94vw) !important;
+    height:min(720px, 88dvh) !important;
+    max-height:88dvh !important;
+    border-radius:18px;
+    animation:twk-panel-in 220ms cubic-bezier(.3,.7,.4,1)
+  }
+  .twk-fullscreen .twk-hd{cursor:default;padding:14px 14px 10px 20px;
+    border-bottom:.5px solid rgba(0,0,0,.08)}
+  .twk-fullscreen .twk-hd b{font-size:14px;letter-spacing:.005em}
+  .twk-fullscreen .twk-x{width:30px;height:30px;font-size:15px}
+  .twk-shell{display:grid;grid-template-columns:180px 1fr;flex:1;min-height:0}
+  .twk-tabs{display:flex;flex-direction:column;gap:2px;padding:14px 8px;
+    border-right:.5px solid rgba(0,0,0,.08);
+    background:rgba(0,0,0,.025);overflow-y:auto;min-height:0}
+  .twk-tab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    appearance:none;border:0;background:transparent;color:inherit;
+    padding:9px 12px;border-radius:8px;font:inherit;font-weight:500;
+    cursor:default;transition:background .12s,color .12s;
+    -webkit-tap-highlight-color:transparent}
+  .twk-tab:hover{background:rgba(0,0,0,.04)}
+  .twk-tab.is-active{background:rgba(0,0,0,.08);color:#000}
+  .twk-tab-icon{display:inline-flex;align-items:center;justify-content:center;
+    width:18px;font-size:13px;opacity:.55}
+  .twk-tab.is-active .twk-tab-icon{opacity:1}
+  .twk-tab-label{flex:1;font-size:12.5px}
+  .twk-fullscreen .twk-body{padding:18px 22px 22px;gap:12px}
+
+  /* Mobile: top-row scrolling tabs instead of sidebar; near-fullscreen */
+  @media (max-width: 700px){
+    .twk-fullscreen{
+      width:100vw !important;height:100dvh !important;
+      max-height:100dvh !important;
+      border-radius:0 !important;
+      top:0 !important;left:0 !important;
+      transform:none !important;
+    }
+    .twk-shell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    .twk-tabs{flex-direction:row;border-right:0;
+      border-bottom:.5px solid rgba(0,0,0,.08);
+      padding:8px;gap:4px;overflow-x:auto;overflow-y:hidden;
+      scrollbar-width:none}
+    .twk-tabs::-webkit-scrollbar{display:none}
+    .twk-tab{flex-shrink:0;padding:7px 12px}
+    .twk-fullscreen .twk-body{padding:14px 16px env(safe-area-inset-bottom,16px)}
+  }
 `;
 
 // ── useTweaks ───────────────────────────────────────────────────────────────
@@ -326,24 +388,98 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   }, [open]);
 
   if (!open) return null;
+
+  // ── Tab grouping ───────────────────────────────────────────────────
+  // Walk children, partition by <TweakSection label="X" /> markers, and
+  // route each label into a high-level tab. Anything between a section
+  // marker and the next is that section's "rows." Result: a tabbed
+  // fullscreen panel instead of a single scrolling list of 13 sections.
+  const TAB_OF = {
+    // Reading & visual
+    "Look":              "reading",
+    "Marks":             "reading",
+    "Reading":           "reading",
+    "First impression":  "reading",
+    // AI & engines
+    "AI Engines":        "ai",
+    "Advanced inference":"ai",
+    // Cross-device sync + data
+    "Cross-device sync": "sync",
+    "Offline · Bibles":  "sync",
+    "Cache":             "sync",
+    // i18n strings (Spanish/etc translations of canonical labels)
+    "Look · Apariencia": "reading",
+    "AI · Motores":      "ai",
+  };
+  // Catch-all unmapped labels fall into "system" so nothing disappears.
+  function tabFor(label) {
+    if (TAB_OF[label]) return TAB_OF[label];
+    // Heuristic fallback for translated labels
+    const lc = String(label || "").toLowerCase();
+    if (/look|reading|marks|first|fuente|tipograf|marcas|lectura/.test(lc)) return "reading";
+    if (/ai|engine|drift|infer|motor/.test(lc)) return "ai";
+    if (/sync|sincron|cache|caché|offline|export|import|bibles|biblias|portab/.test(lc)) return "sync";
+    return "system";
+  }
+
+  const TABS = [
+    { id: "reading", label: "Reading", icon: "✎" },
+    { id: "ai",      label: "AI",      icon: "✦" },
+    { id: "sync",    label: "Sync",    icon: "↔" },
+    { id: "system",  label: "System",  icon: "⚙" },
+  ];
+  // Children come in as a flat array of nodes — partition into tabs.
+  const childArr = React.Children.toArray(children);
+  const buckets = { reading: [], ai: [], sync: [], system: [] };
+  let currentTab = "system";  // anything before the first TweakSection goes to system
+  for (const node of childArr) {
+    if (node && node.type === TweakSection) {
+      currentTab = tabFor(node.props.label);
+    }
+    buckets[currentTab].push(node);
+  }
+  if (hasDeckStage && railEnabled && !noDeckControls) {
+    buckets.system.push(
+      <TweakSection key="__deck" label="Deck" />,
+      <TweakToggle key="__deck-rail" label="Thumbnail rail" value={railVisible} onChange={toggleRail} />,
+    );
+  }
+  const firstNonEmpty = TABS.find(t => buckets[t.id].length)?.id || "reading";
+  const [activeTab, setActiveTab] = React.useState(firstNonEmpty);
+
   return (
     <>
       <style>{__TWEAKS_STYLE}</style>
-      <div ref={dragRef} className="twk-panel" data-noncommentable=""
-           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
-        <div className="twk-hd" onMouseDown={onDragStart}>
+      <div className="twk-scrim" data-noncommentable="" onMouseDown={dismiss} />
+      <div ref={dragRef} className="twk-panel twk-fullscreen" data-noncommentable=""
+           role="dialog" aria-modal="true" aria-label={title}>
+        <div className="twk-hd">
           <b>{title}</b>
-          <button className="twk-x" aria-label="Close tweaks"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={dismiss}>✕</button>
+          <button className="twk-x" aria-label="Close tweaks" onClick={dismiss}>✕</button>
         </div>
-        <div className="twk-body">
-          {children}
-          {hasDeckStage && railEnabled && !noDeckControls && (
-            <TweakSection label="Deck">
-              <TweakToggle label="Thumbnail rail" value={railVisible} onChange={toggleRail} />
-            </TweakSection>
-          )}
+        <div className="twk-shell">
+          <nav className="twk-tabs" role="tablist" aria-label="Settings sections">
+            {TABS.map(t => {
+              const count = buckets[t.id].filter(n => n && n.type !== TweakSection).length;
+              if (!buckets[t.id].length) return null;
+              const isActive = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  className={`twk-tab ${isActive ? "is-active" : ""}`}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(t.id)}
+                >
+                  <span className="twk-tab-icon" aria-hidden="true">{t.icon}</span>
+                  <span className="twk-tab-label">{t.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="twk-body" role="tabpanel" aria-label={activeTab}>
+            {buckets[activeTab]}
+          </div>
         </div>
       </div>
     </>

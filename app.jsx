@@ -281,6 +281,124 @@ function SyncQR({ data, size = 180 }) {
 // it as a sync target. The "personal link" is the gist URL — bookmarkable,
 // emailable to yourself, copy-pastable to other devices. Same PAT on the
 // other device → app finds the gist and joins the sync.
+// Popup tutorial modal for the sync feature. Triggered by the "?" button.
+function SyncHelpModal({ open, onClose }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="cx-syncmod-scrim" onMouseDown={onClose}>
+      <div className="cx-syncmod" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Cross-device sync tutorial">
+        <div className="cx-syncmod-hd">
+          <b>How Cross-device sync works</b>
+          <button className="cx-syncmod-x" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="cx-syncmod-body">
+          <section>
+            <h4>What this does</h4>
+            <p>
+              Every device you use opens the same CODEX — your marks, notes,
+              settings, cached scripture, and Oracle history follow you.
+              Mark a verse on your phone, see it on your laptop within ~60s.
+            </p>
+          </section>
+
+          <section>
+            <h4>What stays on each device (never syncs)</h4>
+            <ul>
+              <li><b>API keys</b> — each device keeps its own. Security.</li>
+              <li><b>Boot intro toggle</b> — per-device preference.</li>
+              <li>Session-only state like the open tab.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Where your data lives</h4>
+            <p>
+              In a <b>private GitHub Gist owned by you</b>. CODEX creates one
+              file (<code>codex-sync.json</code>) the first time you connect.
+              Only requests signed with your token can read it — GitHub's
+              servers enforce that. I never see your data, your token, or
+              your gist.
+            </p>
+          </section>
+
+          <section>
+            <h4>Setup, first device</h4>
+            <ol>
+              <li>Click <b>Open GitHub token page</b> in the Sync section.
+                  GitHub opens with the right permission (<code>gist</code>)
+                  pre-checked.</li>
+              <li>Scroll down → <b>Generate token</b>.</li>
+              <li>Copy the <code>ghp_…</code> string.</li>
+              <li>Paste it back in CODEX → <b>Connect & create personal gist</b>.</li>
+            </ol>
+          </section>
+
+          <section>
+            <h4>Adding more devices</h4>
+            <ol>
+              <li>Once connected, expand <b>"Add another device →"</b>.</li>
+              <li>Scan the QR code with the new device's camera — it opens CODEX.</li>
+              <li>In Settings on the new device, paste the SAME GitHub token.</li>
+              <li>App finds your existing gist and joins the sync.</li>
+            </ol>
+            <p className="cx-syncmod-aside">
+              The QR contains <b>only the app URL</b>, never your token.
+              Re-pasting on the new device is the safe way to authorise it
+              (URLs leak through history, screenshots, screen shares — tokens
+              shouldn't).
+            </p>
+          </section>
+
+          <section>
+            <h4>Sync rhythm</h4>
+            <ul>
+              <li><b>Push:</b> 1.5s after any local change (when auto-sync is on).</li>
+              <li><b>Pull:</b> every 60s while the tab is open.</li>
+              <li>Manual <b>↑ Push now</b> / <b>↓ Pull now</b> always available.</li>
+              <li>Conflicts: per-key last-write-wins, merged against last
+                  known remote — keys edited only on Device A and keys
+                  edited only on Device B both survive.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Privacy &amp; cost</h4>
+            <ul>
+              <li><b>Cost:</b> $0. GitHub gists are free, unlimited for personal use.</li>
+              <li><b>Access:</b> only people with your token can read the gist.</li>
+              <li><b>Revoking:</b> github.com/settings/tokens → delete the CODEX token.
+                  All devices immediately lose sync (their local data is untouched).</li>
+              <li><b>Wiping remote:</b> github.com → gists → delete the
+                  <code>codex-sync.json</code> gist. Next push recreates it from
+                  the current device's state.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Troubleshooting</h4>
+            <ul>
+              <li>"Token is missing the 'gist' scope" → the token wasn't created
+                  with the gist box checked. Use the in-app
+                  <b> Open GitHub token page</b> button — it pre-checks it.</li>
+              <li>Marks don't appear on Device B → tap <b>↓ Pull now</b>.
+                  Auto-pull is 60s, manual is instant.</li>
+              <li>Got the token confused with the API key → API keys
+                  (<code>sk-ant-…</code>) are for the Oracle. Sync uses a
+                  GitHub PAT (<code>ghp_…</code>). They live in separate boxes.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SyncSection() {
   const [backend, setBackendState] = useState(() => window.CODEX_SYNC?.getBackend() || "");
   const [user, setUser] = useState(() => window.CODEX_SYNC?.user || null);
@@ -291,6 +409,7 @@ function SyncSection() {
   const [now, setNow] = useState(Date.now());
   const [pat, setPat] = useState("");
   const [link, setLink] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     if (!window.CODEX_SYNC) return;
@@ -348,9 +467,20 @@ function SyncSection() {
     try { await navigator.clipboard.writeText(link); setErr(""); } catch {}
   };
 
+  const helpBtn = (
+    <button className="cx-sync-help-btn" onClick={() => setHelpOpen(true)} title="How sync works" aria-label="Open sync tutorial">
+      ?
+    </button>
+  );
+
   if (!backend || !user) {
     return (
       <div className="cx-sync">
+        <SyncHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+        <div className="cx-sync-titlebar">
+          <span>Cross-device sync</span>
+          {helpBtn}
+        </div>
         <div className="cx-sync-setup">
           <p className="cx-sync-hint">
             Sync your marks, notes, settings, and cached scripture across every
@@ -421,6 +551,11 @@ function SyncSection() {
   // Connected state
   return (
     <div className="cx-sync">
+      <SyncHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <div className="cx-sync-titlebar">
+        <span>Cross-device sync</span>
+        {helpBtn}
+      </div>
       <div className="cx-sync-active">
         <div className="cx-sync-user">
           {user.photo ? <img src={user.photo} alt="" className="cx-sync-avatar" referrerPolicy="no-referrer" /> : null}

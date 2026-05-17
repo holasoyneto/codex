@@ -6336,11 +6336,21 @@ body.cx-note-dragging * { cursor: grabbing !important; user-select: none !import
 .cx-oracle-fs-btn { font-size: 12px; line-height: 1; padding: 2px 7px; }
 body.cx-oracle-fs-lock { overflow: hidden; }
 .cx-oracle.is-fullscreen {
-  /* No more position:fixed — theater mode collapses the layout above so
-     the Oracle simply fills its container, which now is the viewport. */
+  /* Escape the right-rail / parent container so we genuinely fill the
+     viewport. Previous "container-relative" approach left a black gap on
+     mobile because the right rail itself was width-clamped (see issue
+     report from 2026-05-17). position:fixed + dvh handles iOS chrome
+     correctly (URL bar + bottom safe-area).  */
+  position: fixed; inset: 0;
+  z-index: 999;
+  width: 100vw; height: 100vh; height: 100dvh;
+  max-width: 100vw; max-height: 100dvh;
   border: none;
   border-radius: 0;
-  padding: 24px clamp(16px, 6vw, 80px);
+  padding: max(env(safe-area-inset-top, 0px), 18px)
+           max(env(safe-area-inset-right, 0px), clamp(14px, 5vw, 80px))
+           max(env(safe-area-inset-bottom, 0px), 14px)
+           max(env(safe-area-inset-left, 0px), clamp(14px, 5vw, 80px));
   display: flex;
   flex-direction: column;
   background: var(--cx-bg, #0a0a0a);
@@ -8897,3 +8907,86 @@ input, textarea, [contenteditable] { caret-color: var(--cx-accent); }
 
 /* connected user · link section padding */
 .cx-sync-link { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-top: 1px dashed var(--cx-line); }
+
+/* sync titlebar + help button */
+.cx-sync-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.cx-sync-titlebar > span { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.55; }
+.cx-sync-help-btn {
+  appearance: none; border: 0;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: color-mix(in oklab, var(--cx-accent, #6db4d6) 18%, transparent);
+  color: var(--cx-accent, #6db4d6);
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 12px; font-weight: 700; line-height: 1;
+  cursor: pointer; transition: background 120ms, transform 120ms;
+}
+.cx-sync-help-btn:hover { background: color-mix(in oklab, var(--cx-accent) 32%, transparent); transform: scale(1.08); }
+
+/* sync help modal */
+.cx-syncmod-scrim {
+  position: fixed; inset: 0; z-index: 2147483647;
+  background: rgba(6, 8, 14, 0.65);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: cx-syncmod-fade 200ms ease;
+}
+@keyframes cx-syncmod-fade { from { opacity: 0 } to { opacity: 1 } }
+.cx-syncmod {
+  background: var(--cx-bg, #0a0a0a);
+  color: var(--cx-fg, #e7e2d6);
+  border: 1px solid var(--cx-line, rgba(255,255,255,0.08));
+  border-radius: 14px;
+  width: min(640px, 100%);
+  max-height: 86dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: cx-syncmod-rise 240ms cubic-bezier(.3,.7,.4,1);
+}
+@keyframes cx-syncmod-rise { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: none } }
+.cx-syncmod-hd {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px 12px 20px;
+  border-bottom: 1px solid var(--cx-line);
+}
+.cx-syncmod-hd b { font-size: 14px; font-weight: 600; letter-spacing: 0.005em; }
+.cx-syncmod-x {
+  appearance: none; border: 0; background: transparent;
+  color: var(--cx-fg-dim, #6b7785); width: 28px; height: 28px;
+  border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+.cx-syncmod-x:hover { background: color-mix(in oklab, var(--cx-fg) 8%, transparent); color: var(--cx-fg); }
+.cx-syncmod-body {
+  padding: 18px 22px 24px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 16px;
+  font-family: var(--cx-sans, -apple-system, system-ui, sans-serif);
+  font-size: 13px; line-height: 1.55;
+}
+.cx-syncmod-body section { display: flex; flex-direction: column; gap: 4px; }
+.cx-syncmod-body h4 {
+  margin: 0 0 4px; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--cx-accent, #6db4d6);
+}
+.cx-syncmod-body p { margin: 0; color: var(--cx-fg-soft, #c9d4dc); }
+.cx-syncmod-body ul, .cx-syncmod-body ol { margin: 4px 0 0 20px; padding: 0; color: var(--cx-fg-soft, #c9d4dc); }
+.cx-syncmod-body li { margin-bottom: 4px; }
+.cx-syncmod-body code {
+  background: color-mix(in oklab, var(--cx-fg) 8%, transparent);
+  padding: 1px 5px; border-radius: 3px;
+  font-family: ui-monospace, monospace; font-size: 11.5px;
+}
+.cx-syncmod-aside {
+  margin-top: 6px !important;
+  padding: 8px 10px;
+  background: color-mix(in oklab, var(--cx-accent, #6db4d6) 6%, transparent);
+  border-left: 2px solid var(--cx-accent, #6db4d6);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .cx-syncmod { border-radius: 12px 12px 0 0; max-height: 92dvh; align-self: flex-end; width: 100%; }
+  .cx-syncmod-body { font-size: 14px; padding: 16px 18px 24px; }
+}
