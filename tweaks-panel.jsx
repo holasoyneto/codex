@@ -170,14 +170,18 @@ const __TWEAKS_STYLE = `
     to{opacity:1;transform:none}
   }
   .twk-fullscreen{
-    /* override the floating-card defaults */
+    /* override the floating-card defaults. Sized dynamically so the
+       panel breathes on a Studio Display (5K) and stays usable on a
+       laptop — was previously hard-capped at 960×720, making the Help
+       wiki feel cramped and unscrollable on huge monitors. */
     right:auto !important;bottom:auto !important;
     top:50% !important;left:50% !important;
     transform:translate(-50%,-50%) scale(var(--dc-inv-zoom,1)) !important;
     transform-origin:center !important;
-    width:min(960px, 94vw) !important;
-    height:min(720px, 88dvh) !important;
-    max-height:88dvh !important;
+    width:clamp(720px, 78vw, 1600px) !important;
+    height:clamp(560px, 84dvh, 1200px) !important;
+    max-width:96vw !important;
+    max-height:92dvh !important;
     border-radius:18px;
     animation:twk-panel-in 220ms cubic-bezier(.3,.7,.4,1)
   }

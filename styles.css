@@ -9624,10 +9624,22 @@ input, textarea, [contenteditable] { caret-color: var(--cx-accent); }
   display: flex; flex-direction: column; gap: 14px;
   font-family: var(--cx-sans);
   color: var(--cx-fg);
-  max-width: 760px;
+  /* Dynamic column width — generous on big displays, sane on phones.
+     Was hard-capped at 760px which made the wiki feel claustrophobic
+     on a Studio Display. */
+  max-width: clamp(560px, 88%, 1080px);
   margin: 0 auto;
   width: 100%;
+  /* Fill the parent (.twk-body) so its overflow can take effect.
+     Without explicit height/min-height the column can collapse on tall
+     panels and content above the fold appears un-scrollable. */
+  flex: 1 1 auto;
+  min-height: 0;
 }
+/* When help is mounted inside the tweaks panel body, ensure that body
+   itself flexes properly and scroll works. .twk-body already has
+   overflow-y:auto + min-height:0 but its child needs to participate. */
+.twk-body > .cx-help { height: 100%; }
 .cx-help-loading,
 .cx-help-error {
   padding: 24px 12px;
@@ -10279,3 +10291,116 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ===== Full-text Search (Phase 1.2) ===== */
+.cx-search-backdrop {
+  position: fixed; inset: 0; z-index: 1200;
+  background: color-mix(in oklab, #000 55%, transparent);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 64px 20px 20px;
+  animation: cx-search-fade 140ms ease;
+}
+@keyframes cx-search-fade { from { opacity: 0; } to { opacity: 1; } }
+.cx-search-modal {
+  width: min(540px, 100%);
+  background: var(--cx-bg, #0a0a0a);
+  border: 1px solid var(--cx-line);
+  border-radius: 10px;
+  box-shadow: 0 28px 80px rgba(0,0,0,0.65),
+              0 0 0 1px color-mix(in oklab, var(--cx-accent) 15%, transparent);
+  overflow: hidden;
+  animation: cx-search-pop 220ms cubic-bezier(.2,.8,.2,1);
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 100px);
+}
+@keyframes cx-search-pop {
+  from { opacity: 0; transform: translateY(-10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cx-search-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cx-line);
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--cx-accent) 5%, transparent), transparent);
+}
+.cx-search-prompt {
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  color: var(--cx-accent);
+  font-size: 16px; line-height: 1;
+}
+.cx-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--cx-fg, #e5e5e5);
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 14px;
+  padding: 4px 0;
+}
+.cx-search-input::placeholder { color: var(--cx-fg-dim, #6b7785); }
+.cx-search-kbd {
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 9.5px; letter-spacing: 0.18em;
+  color: var(--cx-fg-dim);
+  border: 1px solid color-mix(in oklab, var(--cx-line) 80%, transparent);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.cx-search-results {
+  list-style: none; margin: 0; padding: 4px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.cx-search-row {
+  padding: 8px 14px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.cx-search-row:hover {
+  background: color-mix(in oklab, var(--cx-accent) 5%, transparent);
+}
+.cx-search-row.is-sel {
+  background: color-mix(in oklab, var(--cx-accent) 9%, transparent);
+  border-left-color: var(--cx-accent);
+}
+.cx-search-ref {
+  font-size: 12.5px;
+  color: var(--cx-fg);
+  display: flex; align-items: baseline; gap: 6px;
+}
+.cx-search-trans {
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 10px; letter-spacing: 0.14em;
+  color: var(--cx-accent);
+  opacity: 0.85;
+}
+.cx-search-snippet {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--cx-fg-dim, #97a3b0);
+}
+.cx-search-snippet mark {
+  background: color-mix(in oklab, var(--cx-accent) 35%, transparent);
+  color: var(--cx-fg);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+.cx-search-empty {
+  padding: 22px 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--cx-fg-dim);
+}
+.cx-search-foot {
+  padding: 8px 14px;
+  border-top: 1px solid var(--cx-line);
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 10px; letter-spacing: 0.08em;
+  color: var(--cx-fg-dim);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.cx-search-hint { opacity: 0.8; }

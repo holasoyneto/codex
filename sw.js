@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v160";
+const VERSION = "v161";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -41,6 +41,7 @@ const SHELL_FILES = [
   r("plugins.js"),
   r("panels-gen.js"),
   r("mark-search.js"),
+  r("search.js"),
   r("tweaks-panel.jsx"),
   r("help.jsx"),
   r("data/help/articles.json"),
@@ -56,6 +57,8 @@ const SHELL_FILES = [
   r("repo-add.jsx"),
   r("notes.jsx"),
   r("quest-messiah.jsx"),
+  r("crossref.jsx"),
+  r("data/modules/tsk-sample.json"),
   r("app.jsx"),
   // Bundled Bibles (static JSON shipped in the repo). Pre-cached so
   // first cold offline launch can render apocryphal/Enoch content too.
