@@ -461,6 +461,7 @@ window.BIBLE = (function () {
   // (e.g. if we add new books later or a chapter is missing).
   const RED_LETTER_TRUTH = {};         // `${bookId}.${chapter}` → Set<verseNum>
   let _truthLoaded = false;
+  let _truthLoadPromise = null;
   function parseRange(spec) {
     const out = new Set();
     if (!spec || typeof spec !== "string") return out;
@@ -477,19 +478,29 @@ window.BIBLE = (function () {
     }
     return out;
   }
-  async function _loadRedLetterTruth() {
-    if (_truthLoaded) return;
-    try {
-      const r = await fetch("data/red-letter.json", { cache: "force-cache" });
-      if (!r.ok) { _truthLoaded = true; return; }
-      const raw = await r.json();
-      for (const k of Object.keys(raw)) {
-        if (k.startsWith("_")) continue;          // doc fields
-        if (typeof raw[k] !== "string") continue;
-        RED_LETTER_TRUTH[k] = parseRange(raw[k]);
-      }
-    } catch (e) { /* swallow — heuristic still works */ }
-    _truthLoaded = true;
+  function _loadRedLetterTruth() {
+    // Dedupe concurrent callers: every entrant gets the same in-flight
+    // Promise. Without this, two simultaneous calls each kick off their
+    // own fetch — and a loadMulti that fires before module-init's fetch
+    // resolves can see _truthLoaded=false, start a parallel load, and
+    // then race to populate RED_LETTER_TRUTH. The race manifested as
+    // empty truth sets for the very first chapter view post-cold-start.
+    if (_truthLoaded) return Promise.resolve();
+    if (_truthLoadPromise) return _truthLoadPromise;
+    _truthLoadPromise = (async () => {
+      try {
+        const r = await fetch("data/red-letter.json", { cache: "force-cache" });
+        if (!r.ok) { _truthLoaded = true; return; }
+        const raw = await r.json();
+        for (const k of Object.keys(raw)) {
+          if (k.startsWith("_")) continue;          // doc fields
+          if (typeof raw[k] !== "string") continue;
+          RED_LETTER_TRUTH[k] = parseRange(raw[k]);
+        }
+      } catch (e) { /* swallow — heuristic still works */ }
+      _truthLoaded = true;
+    })();
+    return _truthLoadPromise;
   }
   // Kick off load immediately at module init.
   _loadRedLetterTruth();
@@ -948,7 +959,10 @@ window.BIBLE = (function () {
 
     // Truth dataset is async — make sure it's loaded before annotation so
     // the static positive-list overrides the heuristic deterministically.
-    if (RED_LETTER_BOOKS.has(bookId) && !_truthLoaded) {
+    if (RED_LETTER_BOOKS.has(bookId)) {
+      // Always await — dedupe inside _loadRedLetterTruth makes this cheap
+      // and removes the cold-start race that left v.red empty on the
+      // very first chapter view.
       await _loadRedLetterTruth();
     }
     const detected = annotateRedLetter(out, bookId, translations, chapter) || new Set();

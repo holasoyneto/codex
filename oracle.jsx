@@ -1338,6 +1338,16 @@ Suggestion policy: when the current passage materially benefits from a translati
       setMessages(m => [...m, { role: "oracle", text: friendly, error: true }]);
     } finally {
       setBusy(false);
+      // H7 — restore caret to the composer once the reply lands so the
+      // user can keep typing without grabbing the mouse. Only refocus if
+      // the user hasn't already focused something else.
+      try {
+        const active = document.activeElement;
+        const inOracle = active && active.closest && active.closest(".cx-oracle");
+        if (!active || active === document.body || inOracle) {
+          setTimeout(() => inputRef.current?.focus(), 40);
+        }
+      } catch {}
     }
   };
 
@@ -1525,7 +1535,15 @@ Suggestion policy: when the current passage materially benefits from a translati
         </div>
       ) : null}
 
-      <div className="cx-oracle-log" ref={scrollRef}>
+      <div
+        className="cx-oracle-log"
+        ref={scrollRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-busy={busy ? "true" : "false"}
+        aria-label="Oracle conversation"
+      >
         {messages.map((m, i) => {
           if (m.role === "memory") {
             return (
