@@ -193,13 +193,18 @@
   async function ghConnect(token) {
     const user = await ghVerifyToken(token);
     localStorage.setItem(LS_GH_TOKEN, token);
+    localStorage.setItem("codex.sync.github.login.v1", user.login);
     const gistId = await ghFindOrCreateGist(token);
     localStorage.setItem(LS_GH_GIST, gistId);
     setBackend("github");
     fire("auth", { user: { name: user.login, email: user.email, photo: user.avatar_url, uid: user.login }, backend: "github" });
     // Pull existing remote before pushing local
     await pull();
-    return { user, gistId, link: gitHubGistLink(user.login, gistId) };
+    return {
+      user,
+      gistId,
+      gistLink: gitHubGistLink(user.login, gistId),
+    };
   }
   function ghDisconnect() {
     localStorage.removeItem(LS_GH_TOKEN);

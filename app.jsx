@@ -258,6 +258,24 @@ function ApiKeysSection() {
   );
 }
 
+// Tiny QR-code component — uses the public api.qrserver.com PNG endpoint
+// so we don't ship a 50KB JS QR lib. The data param is URL-encoded.
+// Falls back to a plain link if the image fails to load.
+function SyncQR({ data, size = 180 }) {
+  const [errored, setErrored] = useState(false);
+  const enc = encodeURIComponent(data);
+  const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=2&data=${enc}`;
+  if (errored) {
+    return <div className="cx-sync-qr-fallback"><a href={data} target="_blank" rel="noopener noreferrer">{data}</a></div>;
+  }
+  return (
+    <div className="cx-sync-qr">
+      <img src={src} alt="QR code" width={size} height={size} onError={() => setErrored(true)} />
+      <a className="cx-sync-qr-link" href={data} target="_blank" rel="noopener noreferrer">{data.length > 48 ? data.slice(0, 48) + "…" : data}</a>
+    </div>
+  );
+}
+
 // ── SyncSection — personal-link sync, default = GitHub Gist ──
 // One PAT-paste step: app creates a private gist owned by the user, uses
 // it as a sync target. The "personal link" is the gist URL — bookmarkable,
@@ -280,8 +298,8 @@ function SyncSection() {
       setUser(info.user);
       setBackendState(info.backend || "");
       if (info.user && info.backend === "github") {
-        const id = window.CODEX_SYNC.github.getGistId();
-        if (id) setLink(`https://gist.github.com/${info.user.name}/${id}`);
+        const gl = window.CODEX_SYNC.github.getGistLink?.();
+        if (gl) setLink(gl);
       } else { setLink(""); }
     });
     const offSynced = window.CODEX_SYNC.on("synced", (info) => setLast(info));
@@ -305,7 +323,7 @@ function SyncSection() {
     setBusy(true); setErr("");
     try {
       const r = await window.CODEX_SYNC.github.connect(pat.trim());
-      setLink(r.link || "");
+      setLink(r.gistLink || "");
       setPat("");  // never keep in component state
     } catch (e) { setErr(e.message || String(e)); }
     setBusy(false);
@@ -336,35 +354,64 @@ function SyncSection() {
         <div className="cx-sync-setup">
           <p className="cx-sync-hint">
             Sync your marks, notes, settings, and cached scripture across every
-            device you use. <b>Recommended: GitHub Gist</b> — 30-second setup,
-            no new account, your data lives in a private gist only your token
-            can read.
+            device you use. Setup takes about 30 seconds — your data lives in a
+            private gist owned by your GitHub account; only your token can read it.
           </p>
-          <details className="cx-sync-help" open>
-            <summary><b>Personal link via GitHub (recommended)</b></summary>
-            <ol>
-              <li>Open <a href="https://github.com/settings/tokens/new?description=CODEX%20sync&scopes=gist" target="_blank" rel="noopener noreferrer">github.com/settings/tokens/new</a> (this link pre-fills the right scope)</li>
-              <li>Scroll down, click <b>Generate token</b></li>
-              <li>Copy the token (starts with <code>ghp_</code>) and paste below</li>
-            </ol>
-          </details>
-          <input
-            className="cx-sync-cfg"
-            type="password"
-            placeholder="ghp_your-personal-access-token"
-            value={pat}
-            onChange={e => setPat(e.target.value)}
-            spellCheck={false}
-            autoComplete="off"
-            style={{ fontFamily: "ui-monospace, monospace", padding: "10px", height: "auto" }}
-          />
-          {err ? <p className="cx-sync-err">{err}</p> : null}
-          <button className="cx-mini-btn" onClick={connectGithub} disabled={busy || !pat.trim()}>
-            {busy ? "Connecting…" : "Connect & create personal gist"}
-          </button>
+
+          {/* Two-step in-app generator: button opens the prefilled GitHub
+              token page in a popup, then user pastes back here. */}
+          <div className="cx-sync-steps">
+            <div className="cx-sync-step">
+              <span className="cx-sync-step-n">1</span>
+              <div>
+                <b>Get your GitHub token</b>
+                <p>Click below — opens GitHub with the right scope (<code>gist</code>) pre-checked. Scroll down and hit <b>Generate token</b>, then copy.</p>
+                <button
+                  className="cx-mini-btn"
+                  onClick={() => {
+                    const url = "https://github.com/settings/tokens/new?description=CODEX%20sync&scopes=gist";
+                    // Try popup first (gives focus back to us when closed);
+                    // fall back to new tab for popup-blocker browsers.
+                    const w = window.open(url, "codex-gh-token", "width=900,height=700,noopener,noreferrer");
+                    if (!w) window.open(url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  ⚡ Open GitHub token page
+                </button>
+                <details className="cx-sync-help">
+                  <summary>On a phone? Scan this with your laptop instead</summary>
+                  <SyncQR data="https://github.com/settings/tokens/new?description=CODEX%20sync&scopes=gist" size={160} />
+                </details>
+              </div>
+            </div>
+
+            <div className="cx-sync-step">
+              <span className="cx-sync-step-n">2</span>
+              <div>
+                <b>Paste the token here</b>
+                <p>App will create your private gist and turn on sync.</p>
+                <input
+                  className="cx-sync-cfg"
+                  type="password"
+                  placeholder="ghp_..."
+                  value={pat}
+                  onChange={e => setPat(e.target.value)}
+                  spellCheck={false}
+                  autoComplete="off"
+                  style={{ fontFamily: "ui-monospace, monospace", padding: "10px", height: "auto" }}
+                  onKeyDown={e => { if (e.key === "Enter") connectGithub(); }}
+                />
+                {err ? <p className="cx-sync-err">{err}</p> : null}
+                <button className="cx-mini-btn" onClick={connectGithub} disabled={busy || !pat.trim()}>
+                  {busy ? "Connecting…" : "Connect & create personal gist"}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <details className="cx-sync-help">
             <summary>Or use Firebase (Google sign-in, more setup)</summary>
-            <FirebaseSetupBlock onConnected={() => {/* will refresh via auth event */}} />
+            <FirebaseSetupBlock />
           </details>
         </div>
       </div>
@@ -385,13 +432,33 @@ function SyncSection() {
 
         {link ? (
           <div className="cx-sync-link">
-            <span>Your personal link:</span>
-            <input className="cx-sync-link-input" readOnly value={link} onFocus={e => e.target.select()} />
-            <button className="cx-mini-btn cx-sync-tiny" onClick={copyLink}>copy</button>
-            <p className="cx-sync-hint" style={{ marginTop: 4 }}>
-              Open this URL on any device, paste the same GitHub token in Settings, and it joins the sync.
-              Only your token can read the gist contents.
-            </p>
+            <span>Your personal sync gist:</span>
+            <div className="cx-sync-link-row">
+              <input className="cx-sync-link-input" readOnly value={link} onFocus={e => e.target.select()} />
+              <button className="cx-mini-btn cx-sync-tiny" onClick={copyLink}>copy</button>
+              <a className="cx-mini-btn cx-sync-tiny" href={link} target="_blank" rel="noopener noreferrer">open ↗</a>
+            </div>
+            <details className="cx-sync-help" style={{ marginTop: 6 }}>
+              <summary><b>Add another device →</b> two ways</summary>
+              <div className="cx-sync-join">
+                <p className="cx-sync-hint">
+                  <b>Quick path:</b> open <a href={location.origin + location.pathname} target="_blank" rel="noopener noreferrer">{location.host + location.pathname}</a> on the other device,
+                  open <b>Settings → Cross-device sync</b>, and paste the same GitHub token
+                  (the one starting <code>ghp_</code>). It will find this gist and join the sync.
+                </p>
+                <div className="cx-sync-qr-block">
+                  <SyncQR data={location.origin + location.pathname} size={160} />
+                  <div>
+                    <p className="cx-sync-hint" style={{ margin: 0 }}>
+                      Scan this with your phone camera to open CODEX there,
+                      then paste your token. <b>Your token never leaves this
+                      device</b> — re-pasting it on the new device is the secure
+                      way to authorise it.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         ) : null}
 
