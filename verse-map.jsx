@@ -297,6 +297,119 @@ function MapBody({ data, onRefresh }) {
   const cx = inBounds ? px : Math.max(8, Math.min(MAP_W - 8, px));
   const cy = inBounds ? py : Math.max(8, Math.min(MAP_H - 8, py));
 
+  // ── Tourist Mode + overlays state lifted to MapBody so the side panel
+  // ("PLACES NEAR YOU") and the Leaflet field share it. The map listens for
+  // window events to add/remove its own layers — keeps coupling loose.
+  const [touristOn, setTouristOn] = useState(false);
+  const [tourist, setTourist] = useState(null);   // { your_location, places: [...], ... }
+  const [touristErr, setTouristErr] = useState(null);
+  const [touristLoading, setTouristLoading] = useState(false);
+  const [userPos, setUserPos] = useState(null);   // { lat, lng, accuracy }
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [overlays, setOverlays] = useState({ biblical: true, pilgrimage: false, manuscripts: false, empires: false, mine: true });
+  const [discoveredCount, setDiscoveredCount] = useState(() => {
+    try { return Object.keys(JSON.parse(localStorage.getItem("codex.discovered") || "{}")).length; }
+    catch { return 0; }
+  });
+
+  // GPS — graceful permission flow. maximumAge 60s = no spam, enableHighAccuracy
+  // because the user explicitly opted in. Fail-open with a hint.
+  const requestGPS = useCallback(() => {
+    setTouristErr(null);
+    if (!navigator.geolocation) {
+      setTouristErr("Geolocation not supported on this device.");
+      return;
+    }
+    setTouristLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        setUserPos(p);
+        window.dispatchEvent(new CustomEvent("codex:userpos", { detail: p }));
+        fetchTourist(p);
+      },
+      (err) => {
+        setTouristLoading(false);
+        setTouristErr(err.code === 1
+          ? "Location denied. Enable location in your browser to use Tourist mode."
+          : `Location unavailable (${err.message || "unknown"}).`);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
+
+  const fetchTourist = useCallback(async (pos) => {
+    setTouristLoading(true);
+    setTouristErr(null);
+    const cacheKey = touristCacheKey(pos);
+    try {
+      const cached = readTouristCache(cacheKey);
+      if (cached) {
+        setTourist(cached);
+        setTouristLoading(false);
+        window.dispatchEvent(new CustomEvent("codex:tourist", { detail: { tourist: cached, pos } }));
+        return;
+      }
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          system: TOURIST_PROMPT,
+          messages: [{
+            role: "user",
+            content: `User location: lat ${pos.lat.toFixed(4)}, lng ${pos.lng.toFixed(4)} (±${Math.round(pos.accuracy || 0)}m).\nList biblical/historical/sacred-text places within 50 km. Return ONLY the JSON object.`,
+          }],
+          max_tokens: 2600,
+        }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+      const text = (body.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+      const i = text.indexOf("{");
+      if (i === -1) throw new Error("Tourist response not JSON");
+      const obj = parseMapJSON(text.slice(i));
+      writeTouristCache(cacheKey, obj);
+      setTourist(obj);
+      setTouristLoading(false);
+      window.dispatchEvent(new CustomEvent("codex:tourist", { detail: { tourist: obj, pos } }));
+    } catch (e) {
+      setTouristErr(String(e.message || e));
+      setTouristLoading(false);
+    }
+  }, []);
+
+  const onToggleTourist = useCallback(() => {
+    const next = !touristOn;
+    setTouristOn(next);
+    window.dispatchEvent(new CustomEvent("codex:tourist-mode", { detail: { on: next } }));
+    if (next && !userPos) requestGPS();
+    else if (next && userPos && !tourist) fetchTourist(userPos);
+  }, [touristOn, userPos, tourist, requestGPS, fetchTourist]);
+
+  const onSelectPlace = useCallback((place) => {
+    setSelectedPlace(place);
+    window.dispatchEvent(new CustomEvent("codex:tourist-select", { detail: { place, from: userPos } }));
+  }, [userPos]);
+
+  const onToggleOverlay = useCallback((k) => {
+    setOverlays(prev => {
+      const next = { ...prev, [k]: !prev[k] };
+      window.dispatchEvent(new CustomEvent("codex:overlays", { detail: next }));
+      return next;
+    });
+  }, []);
+
+  // Refresh discovered count when LeafletField broadcasts a new discovery.
+  useEffect(() => {
+    const onDisc = () => {
+      try { setDiscoveredCount(Object.keys(JSON.parse(localStorage.getItem("codex.discovered") || "{}")).length); }
+      catch {}
+    };
+    window.addEventListener("codex:discovered", onDisc);
+    return () => window.removeEventListener("codex:discovered", onDisc);
+  }, []);
+
   // Reference cities — anchor your eye whether or not the verse is in view.
   const REF = [
     { name: "Jerusalem", lat: 31.78, lng: 35.22 },
@@ -314,13 +427,39 @@ function MapBody({ data, onRefresh }) {
   const proj = projXY;
 
   return (
-    <div className="cx-map-body">
+    <div className={`cx-map-body ${touristOn ? "is-tourist" : ""}`}>
       <div className="cx-map-field-wrap">
+        <div className="cx-map-controls">
+          <button
+            className={`cx-map-ctrl cx-map-ctrl-tourist ${touristOn ? "is-on" : ""}`}
+            onClick={onToggleTourist}
+            title="Tourist mode — show biblical sites near you"
+          >{touristOn ? "◉ TOURIST" : "○ TOURIST"}</button>
+          <div className="cx-map-ctrl-layers" role="group" aria-label="Map layers">
+            <button className={`cx-map-layer ${overlays.biblical ? "is-on" : ""}`}     onClick={() => onToggleOverlay("biblical")}     title="Biblical events"     >✦</button>
+            <button className={`cx-map-layer ${overlays.pilgrimage ? "is-on" : ""}`}   onClick={() => onToggleOverlay("pilgrimage")}   title="Pilgrimage routes"   >◯</button>
+            <button className={`cx-map-layer ${overlays.manuscripts ? "is-on" : ""}`}  onClick={() => onToggleOverlay("manuscripts")}  title="Manuscript discoveries">⬡</button>
+            <button className={`cx-map-layer ${overlays.empires ? "is-on" : ""}`}      onClick={() => onToggleOverlay("empires")}      title="Empire borders (era)" >☰</button>
+            <button className={`cx-map-layer ${overlays.mine ? "is-on" : ""}`}         onClick={() => onToggleOverlay("mine")}         title="My discoveries"      >⚐</button>
+          </div>
+          <span className="cx-map-discovered" title="Sites you have discovered">🏛 {discoveredCount}</span>
+        </div>
         <LeafletField data={data} />
         <div className="cx-map-coords">
           <span><b>LAT</b> {data.lat?.toFixed(3)}°</span>
           <span><b>LNG</b> {data.lng?.toFixed(3)}°</span>
         </div>
+        {touristOn ? (
+          <TouristPanel
+            loading={touristLoading}
+            err={touristErr}
+            tourist={tourist}
+            userPos={userPos}
+            selected={selectedPlace}
+            onSelect={onSelectPlace}
+            onRetry={requestGPS}
+          />
+        ) : null}
       </div>
 
       <div className="cx-map-info">
@@ -411,6 +550,208 @@ function LeafletField({ data }) {
     window.addEventListener("codex:year", onYr);
     return () => window.removeEventListener("codex:year", onYr);
   }, [data]);
+
+  // Tourist + overlays + discoveries — listen to events from MapBody. We
+  // route all of this through the window bus so MapBody owns state and
+  // LeafletField owns Leaflet — no prop-drilling spaghetti.
+  useEffect(() => {
+    const layers = layersRef.current;
+    const L = window.L;
+    if (!L) return;
+
+    const ensureLayer = (key) => {
+      if (!mapRef.current) return null;
+      if (!layers[key]) { layers[key] = L.layerGroup().addTo(mapRef.current); }
+      return layers[key];
+    };
+    const clearLayer = (key) => {
+      if (layers[key] && mapRef.current) { mapRef.current.removeLayer(layers[key]); layers[key] = null; }
+    };
+
+    const onPos = (e) => {
+      const p = e.detail; if (!p || !mapRef.current) return;
+      clearLayer("user");
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.user = grp;
+      const userIcon = L.divIcon({ className: "cx-map-user", html: '<span class="cx-user-core"></span><span class="cx-user-pulse"></span><span class="cx-user-lbl">YOU</span>', iconSize: [14, 14], iconAnchor: [7, 7] });
+      L.marker([p.lat, p.lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(grp);
+      L.circle([p.lat, p.lng], { radius: Math.min(p.accuracy || 100, 2000), color: "#7cf", weight: 1, opacity: 0.4, fillOpacity: 0.05 }).addTo(grp);
+      mapRef.current.flyTo([p.lat, p.lng], 10, { duration: 0.9 });
+    };
+
+    const onTourist = (e) => {
+      const { tourist, pos } = e.detail || {};
+      if (!tourist || !mapRef.current) return;
+      clearLayer("tourist");
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.tourist = grp;
+      const places = Array.isArray(tourist.places) ? tourist.places : [];
+      places.forEach((pl, idx) => {
+        if (typeof pl.lat !== "number" || typeof pl.lng !== "number") return;
+        const icon = L.divIcon({
+          className: "cx-map-tourist-pin",
+          html: `<span class="cx-tpin-glyph">⛪</span><span class="cx-tpin-lbl">${escapeHtml(pl.name)}</span><span class="cx-tpin-dist">${pl.distance_km != null ? pl.distance_km.toFixed(1) + " km" : ""}</span>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        });
+        const m = L.marker([pl.lat, pl.lng], { icon, riseOnHover: true })
+          .bindPopup(touristPopupHtml(pl), { maxWidth: 280, className: "cx-poi-popup cx-tourist-pop" })
+          .addTo(grp);
+        m.on("click", () => window.dispatchEvent(new CustomEvent("codex:tourist-select", { detail: { place: pl, from: pos } })));
+      });
+    };
+
+    const onSelect = (e) => {
+      const { place, from } = e.detail || {};
+      if (!place || !mapRef.current) return;
+      clearLayer("breadcrumbs");
+      if (from && typeof place.lat === "number") {
+        const line = L.polyline([[from.lat, from.lng], [place.lat, place.lng]], {
+          color: "#7cf", weight: 2, opacity: 0.7, dashArray: "6 8",
+          className: "cx-map-breadcrumb",
+        });
+        layers.breadcrumbs = L.layerGroup([line]).addTo(mapRef.current);
+        const b = L.latLngBounds([[from.lat, from.lng], [place.lat, place.lng]]).pad(0.4);
+        mapRef.current.flyToBounds(b, { duration: 0.9, maxZoom: 11 });
+      } else {
+        mapRef.current.flyTo([place.lat, place.lng], 11, { duration: 0.9 });
+      }
+    };
+
+    const onTouristMode = (e) => {
+      if (!e.detail?.on) {
+        ["tourist", "breadcrumbs", "discoverable", "discovered"].forEach(clearLayer);
+      } else {
+        drawDiscoverables();
+        drawDiscovered();
+      }
+    };
+
+    const onOverlays = (e) => {
+      const o = e.detail || {};
+      if (!o.mine)        clearLayer("discovered"); else drawDiscovered();
+      if (!o.pilgrimage)  clearLayer("pilgrimage"); else drawPilgrimage();
+      if (!o.manuscripts) clearLayer("manuscripts"); else drawManuscripts();
+      if (!o.empires)     clearLayer("empires"); else drawEmpires(year);
+      // Biblical = the existing POI layer; toggle visibility.
+      if (layers.poi) {
+        if (o.biblical) { try { layers.poi.addTo(mapRef.current); } catch {} }
+        else { try { mapRef.current.removeLayer(layers.poi); } catch {} }
+      }
+    };
+
+    const onDiscovered = () => { drawDiscovered(); drawDiscoverables(); };
+
+    // ── Drawers ────────────────────────────────────────────────────────
+    function drawDiscoverables() {
+      if (!mapRef.current) return;
+      clearLayer("discoverable");
+      const sites = window.CODEX_BIBLE_SITES || [];
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.discoverable = grp;
+      const userMarker = layers.user;
+      const userLatLng = userMarker?.getLayers?.()[0]?.getLatLng?.();
+      const disc = JSON.parse(localStorage.getItem("codex.discovered") || "{}");
+      sites.forEach(s => {
+        if (disc[s.id]) return;
+        const near = userLatLng ? haversineKm(userLatLng.lat, userLatLng.lng, s.lat, s.lng) <= 1 : false;
+        const icon = L.divIcon({
+          className: `cx-map-disc ${near ? "is-near" : ""}`,
+          html: near ? `<span class="cx-disc-pulse"></span><span class="cx-disc-lbl">DISCOVERABLE · ${escapeHtml(s.name)}</span>` : `<span class="cx-disc-dot"></span>`,
+          iconSize: [8, 8], iconAnchor: [4, 4],
+        });
+        const m = L.marker([s.lat, s.lng], { icon }).addTo(grp);
+        m.on("click", () => discoverSite(s, userLatLng));
+      });
+    }
+    function drawDiscovered() {
+      if (!mapRef.current) return;
+      clearLayer("discovered");
+      const disc = JSON.parse(localStorage.getItem("codex.discovered") || "{}");
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.discovered = grp;
+      Object.values(disc).forEach(s => {
+        const icon = L.divIcon({ className: "cx-map-mine", html: `<span class="cx-mine-flag">⚐</span><span class="cx-mine-lbl">${escapeHtml(s.name)}</span>`, iconSize: [12, 12], iconAnchor: [6, 6] });
+        L.marker([s.lat, s.lng], { icon }).bindPopup(`<div class="cx-mine-pop"><b>${escapeHtml(s.name)}</b><p>${escapeHtml(s.narrative || "")}</p>${s.refs ? `<small>${escapeHtml(s.refs.join(", "))}</small>` : ""}<button class="cx-mine-tts" onclick="window.codexSpeak(this.parentNode.querySelector('p').textContent)">▶ PLAY TOUR</button></div>`).addTo(grp);
+      });
+    }
+    function drawPilgrimage() {
+      if (!mapRef.current) return;
+      clearLayer("pilgrimage");
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.pilgrimage = grp;
+      (window.CODEX_PILGRIM_ROUTES || []).forEach(r => {
+        L.polyline(r.path, { color: r.color || "#d1a45a", weight: 2.5, opacity: 0.7, dashArray: "2 6" })
+          .bindPopup(`<b>${escapeHtml(r.name)}</b><br><small>${escapeHtml(r.note || "")}</small>`)
+          .addTo(grp);
+      });
+    }
+    function drawManuscripts() {
+      if (!mapRef.current) return;
+      clearLayer("manuscripts");
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.manuscripts = grp;
+      (window.CODEX_MANUSCRIPT_SITES || []).forEach(s => {
+        const icon = L.divIcon({ className: "cx-map-ms", html: `<span class="cx-ms-glyph">⬡</span><span class="cx-ms-lbl">${escapeHtml(s.name)}</span>`, iconSize: [12, 12], iconAnchor: [6, 6] });
+        L.marker([s.lat, s.lng], { icon }).bindPopup(`<b>${escapeHtml(s.name)}</b><br><small>${escapeHtml(s.note || "")}</small>`).addTo(grp);
+      });
+    }
+    async function drawEmpires(yr) {
+      if (!mapRef.current) return;
+      clearLayer("empires");
+      try {
+        const c = mapRef.current.getCenter();
+        const poly = await fetchEmpirePolygon(c.lat, c.lng, yr);
+        if (!poly || !poly.coords) return;
+        const grp = L.layerGroup().addTo(mapRef.current);
+        layers.empires = grp;
+        L.polygon(poly.coords, { color: "#b88cff", weight: 1.5, opacity: 0.7, fillOpacity: 0.08, dashArray: "4 4" })
+          .bindPopup(`<b>${escapeHtml(poly.name)}</b><br><small>${escapeHtml(poly.note || "")} · ${fmtYear(yr)}</small>`)
+          .addTo(grp);
+      } catch {}
+    }
+
+    async function discoverSite(s, userLatLng) {
+      const disc = JSON.parse(localStorage.getItem("codex.discovered") || "{}");
+      if (disc[s.id]) return;
+      // Optimistic placeholder; AI fills in narrative.
+      const entry = { id: s.id, name: s.name, lat: s.lat, lng: s.lng, refs: s.refs || [], narrative: "Discovering…", at: Date.now() };
+      disc[s.id] = entry;
+      localStorage.setItem("codex.discovered", JSON.stringify(disc));
+      window.dispatchEvent(new CustomEvent("codex:discovered", { detail: { site: entry } }));
+      try {
+        const r = await fetch("/api/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            system: "You are CODEX DISCOVERY. The user is physically present at a biblical site. Write a single short evocative paragraph (60-90 words) in second person ('You are standing where…'), naming the verse references, what happened here, and one sensory detail of the place today. No fences. No headings. Just prose.",
+            messages: [{ role: "user", content: `Site: ${s.name}\nRefs: ${(s.refs || []).join(", ")}\nNotes: ${s.note || ""}` }],
+            max_tokens: 240,
+          }),
+        });
+        const body = await r.json();
+        entry.narrative = (body.text || "").trim() || "Discovered.";
+      } catch (e) { entry.narrative = `Discovered ${s.name}.`; }
+      disc[s.id] = entry;
+      localStorage.setItem("codex.discovered", JSON.stringify(disc));
+      window.dispatchEvent(new CustomEvent("codex:discovered", { detail: { site: entry } }));
+    }
+
+    window.addEventListener("codex:userpos", onPos);
+    window.addEventListener("codex:tourist", onTourist);
+    window.addEventListener("codex:tourist-select", onSelect);
+    window.addEventListener("codex:tourist-mode", onTouristMode);
+    window.addEventListener("codex:overlays", onOverlays);
+    window.addEventListener("codex:discovered", onDiscovered);
+    return () => {
+      window.removeEventListener("codex:userpos", onPos);
+      window.removeEventListener("codex:tourist", onTourist);
+      window.removeEventListener("codex:tourist-select", onSelect);
+      window.removeEventListener("codex:tourist-mode", onTouristMode);
+      window.removeEventListener("codex:overlays", onOverlays);
+      window.removeEventListener("codex:discovered", onDiscovered);
+    };
+  }, [data, year]);
 
   if (!window.L) {
     return <div className="cx-map-fallback">Leaflet failed to load — check your network and reload.</div>;
@@ -653,15 +994,53 @@ function PolityTimeline({ polities, verseYear, theoryNames }) {
            }, null);
   }, [polities, year]);
 
-  // Tick labels for the slider — every ~500 years and at every major
-  // polity boundary that lands inside the window.
-  const ticks = useMemo(() => {
-    const out = new Set();
-    for (let y = Math.ceil(yMin/500)*500; y <= yMax; y += 500) out.add(y);
-    out.add(0);
-    polities.forEach(p => { if (p.from > yMin && p.from < yMax) out.add(p.from); });
-    return [...out].sort((a, b) => a - b);
+  // Major labelled ticks (always shown — round millennia) and minor unlabelled
+  // dashes every 250y. Polity boundaries get a tiny accent line, not a label.
+  const majorTicks = useMemo(() => {
+    const out = [];
+    for (let y = -2000; y <= 2000; y += 1000) if (y >= yMin && y <= yMax) out.push(y);
+    return out;
+  }, [yMin, yMax]);
+  const minorTicks = useMemo(() => {
+    const out = [];
+    for (let y = Math.ceil(yMin / 250) * 250; y <= yMax; y += 250) {
+      if (!majorTicks.includes(y)) out.push(y);
+    }
+    return out;
+  }, [yMin, yMax, majorTicks]);
+  const boundaryTicks = useMemo(() => {
+    return polities.map(p => p.from).filter(y => y > yMin && y < yMax);
   }, [polities, yMin, yMax]);
+
+  // Decimate major labels if the slider gets narrow (ResizeObserver).
+  const tickWrapRef = useRef(null);
+  const [skipEvery, setSkipEvery] = useState(0); // 0 = show all, 1 = every other
+  useEffect(() => {
+    if (!tickWrapRef.current || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect?.width || 320;
+      // each label ~36px; need ~48px breathing room
+      const need = majorTicks.length * 48;
+      setSkipEvery(w < need ? (w < need / 2 ? 2 : 1) : 0);
+    });
+    ro.observe(tickWrapRef.current);
+    return () => ro.disconnect();
+  }, [majorTicks.length]);
+
+  // AI year-context badge — debounced fetch keyed by location+decade.
+  const [ctxBadge, setCtxBadge] = useState(null);
+  const [ctxLoading, setCtxLoading] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => fetchYearContext(year).then(setCtxBadge).catch(() => {}).finally(() => setCtxLoading(false)), 320);
+    setCtxLoading(true);
+    return () => clearTimeout(t);
+  }, [year]);
+
+  const fmtMajor = (y) => {
+    if (y === 0) return "0";
+    const k = Math.abs(y) / 1000;
+    return `${k}K${y < 0 ? " BC" : ""}`;
+  };
 
   return (
     <div className="cx-map-timeline">
@@ -699,15 +1078,33 @@ function PolityTimeline({ polities, verseYear, theoryNames }) {
         aria-label="Year"
       />
 
-      <div className="cx-map-timeline-ticks">
-        {ticks.map(t => (
+      <div className="cx-map-timeline-ticks" ref={tickWrapRef}>
+        {boundaryTicks.map((t, i) => (
+          <span key={`b${i}`} className="cx-map-timeline-tick is-boundary" style={{ left: `${((t - yMin) / (yMax - yMin)) * 100}%` }} aria-hidden />
+        ))}
+        {minorTicks.map(t => (
+          <span key={`m${t}`} className="cx-map-timeline-tick is-minor" style={{ left: `${((t - yMin) / (yMax - yMin)) * 100}%` }} aria-hidden />
+        ))}
+        {majorTicks.map((t, i) => (
           <span
             key={t}
-            className="cx-map-timeline-tick"
+            className={`cx-map-timeline-tick is-major ${skipEvery && i % (skipEvery + 1) !== 0 ? "is-dim" : ""}`}
             style={{ left: `${((t - yMin) / (yMax - yMin)) * 100}%` }}
             title={fmtYear(t)}
-          >{Math.abs(t)}</span>
+          >{fmtMajor(t)}</span>
         ))}
+      </div>
+
+      <div className={`cx-map-yrctx ${ctxLoading ? "is-loading" : ""}`} aria-live="polite">
+        <span className="cx-map-yrctx-tag">WHEN</span>
+        {ctxBadge ? (
+          <div className="cx-map-yrctx-body">
+            <b>{ctxBadge.headline}</b>
+            {Array.isArray(ctxBadge.events) && ctxBadge.events.length ? (
+              <ul>{ctxBadge.events.slice(0, 3).map((e, i) => <li key={i}>{e}</li>)}</ul>
+            ) : null}
+          </div>
+        ) : <span className="cx-map-yrctx-load">resolving {fmtYear(year)}…</span>}
       </div>
 
       <details className="cx-map-timeline-list">
@@ -753,5 +1150,250 @@ function MapField({ label, body }) {
     </div>
   );
 }
+
+// ── Tourist Mode — AI prompt + caching ─────────────────────────────────
+const TOURIST_PROMPT = `You are CODEX TOURIST — a scholarly biblical-history guide. Given a user's current GPS coordinates, list places of biblical/sacred-text/historical importance within 50 km, ranked by significance. Return a single JSON object. No prose, no fences.
+
+Schema:
+{
+  "your_location": "Human-readable nearest known landmark or town",
+  "places": [
+    {
+      "name": "Capernaum",
+      "lat": 32.881, "lng": 35.575,
+      "distance_km": 12.4,
+      "era": "1st century CE",
+      "biblical_refs": ["matt.4.13", "mark.1.21"],
+      "summary": "1-2 sentences on why this matters.",
+      "things_to_see": ["Synagogue ruins", "House of Peter"],
+      "best_at": "morning, before tour buses",
+      "walking_route_hint": "30-min walk along the lake from Tabgha"
+    }
+  ],
+  "if_you_only_have_an_hour": "Ranked top 3 by accessibility + meaning, 2 sentences.",
+  "deeper_rabbit_hole": "1 paragraph on a less-visited but historically rich site nearby."
+}
+
+Rules:
+- Only real, attested sites with accurate coordinates.
+- If nowhere within 50 km has direct biblical relevance, broaden to sacred-text / early-church / pilgrim / archaeological relevance and SAY so in your_location.
+- 4-10 places. Sort by significance (most important first).
+- Calm scholarly tone. Return ONLY the JSON.`;
+
+const YEAR_CTX_PROMPT = `You are CODEX CHRONO. Given a location centroid and a year, return a single JSON object describing the political/religious situation at that exact year and 3 contemporary nearby events. No prose, no fences.
+
+Schema:
+{ "headline": "Babylonian siege under Nebuchadnezzar", "events": ["Temple destroyed", "Lamentations being composed", "Jeremiah in Egypt"] }
+
+Rules: brief, factual, present-tense fragments. Return ONLY the JSON.`;
+
+const EMPIRE_PROMPT = `You are CODEX EMPIRE. Given a location and a year, return the major empire/polity controlling that area as a rough polygon (8-14 lat,lng vertices). JSON only, no fences.
+
+Schema:
+{ "name": "Neo-Assyrian Empire", "note": "Sargonid dynasty at peak extent", "coords": [[lat,lng],[lat,lng],...] }
+Rules: coords must be real-world plausible. Return ONLY the JSON.`;
+
+function touristCacheKey(p) {
+  return `codex.tourist.${p.lat.toFixed(3)},${p.lng.toFixed(3)}`;
+}
+function readTouristCache(k) {
+  try {
+    const raw = localStorage.getItem(k);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (Date.now() - (obj._at || 0) > 24 * 60 * 60 * 1000) return null;
+    return obj.data;
+  } catch { return null; }
+}
+function writeTouristCache(k, data) {
+  try { localStorage.setItem(k, JSON.stringify({ _at: Date.now(), data })); } catch {}
+}
+
+async function fetchYearContext(year) {
+  const decade = Math.round(year / 10) * 10;
+  const k = `codex.yrctx.${decade}`;
+  try {
+    const raw = localStorage.getItem(k);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        system: YEAR_CTX_PROMPT,
+        messages: [{ role: "user", content: `Year: ${year} (${year < 0 ? Math.abs(year) + " BCE" : year + " CE"}). Return JSON.` }],
+        max_tokens: 220,
+      }),
+    });
+    const body = await r.json();
+    const text = (body.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+    const i = text.indexOf("{"); if (i === -1) throw new Error("no json");
+    const obj = parseMapJSON(text.slice(i));
+    try { localStorage.setItem(k, JSON.stringify(obj)); } catch {}
+    return obj;
+  } catch { return null; }
+}
+
+async function fetchEmpirePolygon(lat, lng, year) {
+  const k = `codex.empire.${lat.toFixed(0)},${lng.toFixed(0)},${Math.round(year / 50) * 50}`;
+  try { const raw = localStorage.getItem(k); if (raw) return JSON.parse(raw); } catch {}
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        system: EMPIRE_PROMPT,
+        messages: [{ role: "user", content: `Location: lat ${lat.toFixed(2)}, lng ${lng.toFixed(2)}. Year: ${year}. Return JSON polygon.` }],
+        max_tokens: 600,
+      }),
+    });
+    const body = await r.json();
+    const text = (body.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+    const i = text.indexOf("{"); if (i === -1) return null;
+    const obj = parseMapJSON(text.slice(i));
+    try { localStorage.setItem(k, JSON.stringify(obj)); } catch {}
+    return obj;
+  } catch { return null; }
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function touristPopupHtml(pl) {
+  const things = Array.isArray(pl.things_to_see) ? pl.things_to_see.slice(0, 4).map(t => `<li>${escapeHtml(t)}</li>`).join("") : "";
+  const refs = Array.isArray(pl.biblical_refs) && pl.biblical_refs.length
+    ? `<div class="cx-tpop-refs">${pl.biblical_refs.slice(0,4).map(r => `<code>${escapeHtml(r)}</code>`).join(" ")}</div>` : "";
+  return `<div class="cx-tpop">
+    <h4>${escapeHtml(pl.name || "")}</h4>
+    <div class="cx-tpop-meta">${escapeHtml(pl.era || "")}${pl.distance_km != null ? ` · ${pl.distance_km.toFixed(1)} km` : ""}</div>
+    <p>${escapeHtml(pl.summary || "")}</p>
+    ${things ? `<ul class="cx-tpop-things">${things}</ul>` : ""}
+    ${pl.best_at ? `<div class="cx-tpop-tip"><b>Best at:</b> ${escapeHtml(pl.best_at)}</div>` : ""}
+    ${pl.walking_route_hint ? `<div class="cx-tpop-tip"><b>Route:</b> ${escapeHtml(pl.walking_route_hint)}</div>` : ""}
+    ${refs}
+    <button class="cx-tpop-tts" onclick="window.codexSpeak(this.parentNode.querySelector('p').textContent)">▶ PLAY TOUR</button>
+  </div>`;
+}
+
+// Web Speech narration — exposed on window so popup-inline onclick handlers
+// (which can't reach React closures) can trigger it.
+window.codexSpeak = function (text) {
+  try {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(text || ""));
+    u.lang = (document.documentElement.lang || navigator.language || "en");
+    u.rate = 0.98; u.pitch = 1.0;
+    window.speechSynthesis.speak(u);
+  } catch {}
+};
+
+// ── Tourist side panel — cards for AI-suggested places. Clicking a card
+// recenters the map + drops the dashed breadcrumb line via window event.
+function TouristPanel({ loading, err, tourist, userPos, selected, onSelect, onRetry }) {
+  return (
+    <div className="cx-tourist-panel">
+      <div className="cx-tourist-h">
+        <span className="cx-tourist-tag">PLACES NEAR YOU</span>
+        {userPos ? <span className="cx-tourist-pos">{userPos.lat.toFixed(3)}, {userPos.lng.toFixed(3)} ±{Math.round(userPos.accuracy || 0)}m</span> : null}
+      </div>
+      {loading ? (
+        <div className="cx-tourist-loading">scanning 50 km radius for sacred sites…</div>
+      ) : err ? (
+        <div className="cx-tourist-err">
+          <p>{err}</p>
+          <button onClick={onRetry}>Retry</button>
+        </div>
+      ) : tourist ? (
+        <>
+          <div className="cx-tourist-here">📍 {tourist.your_location || "—"}</div>
+          <ul className="cx-tourist-list">
+            {(tourist.places || []).map((p, i) => (
+              <li
+                key={i}
+                className={selected && selected.name === p.name ? "is-selected" : ""}
+                onClick={() => onSelect(p)}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="cx-tplace-h">
+                  <span className="cx-tplace-name">{p.name}</span>
+                  {p.distance_km != null ? <span className="cx-tplace-d">{p.distance_km.toFixed(1)} km</span> : null}
+                </div>
+                <div className="cx-tplace-era">{p.era}</div>
+                <p className="cx-tplace-sum">{p.summary}</p>
+                {Array.isArray(p.biblical_refs) && p.biblical_refs.length ? (
+                  <div className="cx-tplace-refs">{p.biblical_refs.slice(0, 3).map((r, j) => <code key={j}>{r}</code>)}</div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {tourist.if_you_only_have_an_hour ? (
+            <div className="cx-tourist-hour"><b>If you only have an hour</b><p>{tourist.if_you_only_have_an_hour}</p></div>
+          ) : null}
+          {tourist.deeper_rabbit_hole ? (
+            <div className="cx-tourist-hole"><b>Deeper rabbit hole</b><p>{tourist.deeper_rabbit_hole}</p></div>
+          ) : null}
+        </>
+      ) : (
+        <div className="cx-tourist-empty">
+          <p>Tourist mode reveals biblical sites around your current location.</p>
+          <button onClick={onRetry}>Enable location</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Static seed list of well-known biblical sites — the "Pokemon GO" overlay
+// pool. Lat/lng are real. Kept compact; AI fills narrative on discover.
+window.CODEX_BIBLE_SITES = [
+  { id: "jerusalem-temple-mount", name: "Temple Mount",     lat: 31.7780, lng: 35.2354, refs: ["2chr.3.1", "matt.24.1"], note: "Site of Solomon's and Herod's Temples." },
+  { id: "garden-of-gethsemane",   name: "Gethsemane",       lat: 31.7796, lng: 35.2398, refs: ["matt.26.36"], note: "Olive grove where Jesus prayed before his arrest." },
+  { id: "via-dolorosa",           name: "Via Dolorosa",     lat: 31.7790, lng: 35.2330, refs: ["luke.23.26"], note: "Traditional route Jesus walked to crucifixion." },
+  { id: "bethlehem",              name: "Bethlehem",        lat: 31.7054, lng: 35.2024, refs: ["luke.2.4"], note: "Birthplace of Jesus and King David." },
+  { id: "nazareth",               name: "Nazareth",         lat: 32.7019, lng: 35.2972, refs: ["matt.2.23"], note: "Boyhood home of Jesus." },
+  { id: "capernaum",              name: "Capernaum",        lat: 32.8810, lng: 35.5750, refs: ["matt.4.13"], note: "Jesus' Galilean ministry base." },
+  { id: "sea-of-galilee",         name: "Sea of Galilee",   lat: 32.8333, lng: 35.5900, refs: ["matt.4.18"], note: "Waters Jesus walked on; many miracles here." },
+  { id: "mount-of-beatitudes",    name: "Mt. of Beatitudes",lat: 32.8806, lng: 35.5536, refs: ["matt.5.1"], note: "Hill of the Sermon on the Mount." },
+  { id: "jericho",                name: "Jericho",          lat: 31.8569, lng: 35.4442, refs: ["josh.6.20"], note: "Walls fell to Joshua; oldest continuously inhabited city." },
+  { id: "jordan-river-baptism",   name: "Qasr al-Yahud",    lat: 31.8378, lng: 35.5300, refs: ["matt.3.13"], note: "Traditional baptism site of Jesus." },
+  { id: "qumran",                 name: "Qumran",           lat: 31.7414, lng: 35.4592, refs: [], note: "Dead Sea Scrolls discovery site." },
+  { id: "masada",                 name: "Masada",           lat: 31.3158, lng: 35.3535, refs: [], note: "Herodian fortress; last Jewish stand against Rome 73 CE." },
+  { id: "mount-sinai",            name: "Mt. Sinai (Jebel Musa)", lat: 28.5392, lng: 33.9750, refs: ["exod.19.20"], note: "Traditional site of the giving of the Law." },
+  { id: "athens-areopagus",       name: "Areopagus",        lat: 37.9716, lng: 23.7233, refs: ["acts.17.22"], note: "Where Paul addressed the philosophers." },
+  { id: "ephesus",                name: "Ephesus",          lat: 37.9395, lng: 27.3417, refs: ["acts.19.1"], note: "Major Pauline mission city; Temple of Artemis." },
+  { id: "rome-mamertine",         name: "Mamertine Prison", lat: 41.8930, lng: 12.4845, refs: [], note: "Traditional site of Peter's and Paul's imprisonment." },
+  { id: "patmos",                 name: "Patmos",           lat: 37.3081, lng: 26.5500, refs: ["rev.1.9"], note: "Where John received the Apocalypse." },
+  { id: "antioch",                name: "Antioch",          lat: 36.2021, lng: 36.1604, refs: ["acts.11.26"], note: "Disciples first called Christians here." },
+  { id: "damascus-straight-st",   name: "Straight Street",  lat: 33.5118, lng: 36.3070, refs: ["acts.9.11"], note: "Paul's conversion led him here." },
+  { id: "babylon-ruins",          name: "Babylon",          lat: 32.5424, lng: 44.4209, refs: ["dan.1.1"], note: "Nebuchadnezzar's capital; Jewish exile." },
+  { id: "nineveh",                name: "Nineveh",          lat: 36.3590, lng: 43.1530, refs: ["jonah.3.3"], note: "Assyrian capital Jonah preached to." },
+  { id: "ur",                     name: "Ur",               lat: 30.9626, lng: 46.1030, refs: ["gen.11.31"], note: "Abraham's birthplace." },
+  { id: "mt-ararat",              name: "Mt. Ararat",       lat: 39.7019, lng: 44.2983, refs: ["gen.8.4"], note: "Traditional resting place of the Ark." },
+  { id: "tabgha",                 name: "Tabgha",           lat: 32.8731, lng: 35.5483, refs: ["john.21.9"], note: "Multiplication of loaves and fishes." },
+  { id: "caesarea-maritima",      name: "Caesarea Maritima",lat: 32.5018, lng: 34.8920, refs: ["acts.10.1"], note: "Roman provincial capital; Cornelius converted." },
+  { id: "hebron-machpelah",       name: "Cave of Machpelah",lat: 31.5246, lng: 35.1108, refs: ["gen.23.19"], note: "Burial place of Abraham, Sarah, Isaac, Rebekah." },
+];
+
+window.CODEX_MANUSCRIPT_SITES = [
+  { name: "Qumran (Dead Sea Scrolls)", lat: 31.7414, lng: 35.4592, note: "Scrolls found 1947–1956." },
+  { name: "Nag Hammadi",               lat: 26.0500, lng: 32.2400, note: "Gnostic codices found 1945." },
+  { name: "St. Catherine's Monastery", lat: 28.5559, lng: 33.9760, note: "Codex Sinaiticus discovered here 1844." },
+  { name: "Cairo Geniza",              lat: 30.0050, lng: 31.2330, note: "Vast medieval Jewish manuscript cache." },
+  { name: "Oxyrhynchus",               lat: 28.5333, lng: 30.6500, note: "Greek papyri including early Gospel fragments." },
+];
+
+window.CODEX_PILGRIM_ROUTES = [
+  { name: "Via Dolorosa",       color: "#d1a45a", note: "Jerusalem — Stations of the Cross", path: [[31.7811, 35.2347], [31.7803, 35.2338], [31.7790, 35.2330], [31.7785, 35.2320], [31.7783, 35.2304]] },
+  { name: "Camino de Santiago", color: "#7cf",    note: "Pyrenees → Santiago de Compostela", path: [[43.1626, -1.2380], [42.8125, -1.6458], [42.5520, -2.8550], [42.5460, -5.6700], [42.8800, -8.5448]] },
+  { name: "Jesus Trail",        color: "#9bd66b", note: "Nazareth → Capernaum (~65 km)", path: [[32.7019, 35.2972], [32.7600, 35.3500], [32.8200, 35.4500], [32.8731, 35.5483], [32.8810, 35.5750]] },
+  { name: "Hajj approach",      color: "#e29b6b", note: "Historical pilgrim route to Mecca (Damascus branch)", path: [[33.5118, 36.3070], [31.9500, 35.9100], [29.5320, 35.0060], [25.2854, 39.0900], [21.4225, 39.8262]] },
+];
 
 Object.assign(window, { VerseMap });

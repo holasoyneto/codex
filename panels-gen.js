@@ -108,6 +108,31 @@ OUTPUT FORMAT — RETURN ONLY a single JSON object, no prose, no fences. Be COMP
   "gematriaNotes": [   // 2 short resonance notes (1 sentence each)
     "..."
   ],
+  "gematriaDeep": {   // OPTIONAL but PREFERRED — intelligent cross-referencing
+    "_schema": 2,
+    "primary_word": "the most significant Hebrew/Greek word in the passage to focus on",
+    "primary_translit": "english transliteration",
+    "primary_gloss": "short english gloss",
+    "primary_lang": "hebrew|greek|english",
+    "symbolic_meaning": "1-2 sentences on what these numbers traditionally mean in Jewish/Christian numerology (e.g. 358=Mashiach, 7=completeness, 40=trial)",
+    "cross_matches": [   // 2-6 entries — verses that share the SAME numerical value
+      { "value": <int>, "via_system": "hechrachi|isopsephy|sidduri",
+        "matches": [
+          { "ref": "gen.49.10", "word": "Shiloh", "note": "messianic prophecy — same value as Mashiach" }
+        ]
+      }
+    ],
+    "notarikon": [   // 0-3 entries — acronym readings of the word/phrase
+      { "phrase": "...", "expansion": "letter-by-letter expansion" }
+    ],
+    "temurah": [   // 0-3 entries — letter-substitution ciphers (Atbash, Albam, etc.)
+      { "transform": "Atbash|Albam|...", "result": "transformed text", "note": "why this matters" }
+    ],
+    "rabbinic_sources": [   // 0-3 entries — actual citations from rabbinic tradition
+      { "name": "Baal HaTurim|Zohar|Bahir|Sefer Yetzirah|...", "quote": "brief relevant teaching" }
+    ],
+    "ai_insight": "1-paragraph synthesis of what's interesting about this verse's numerology and how it cross-references other scripture"
+  },
   "gnosis": [   // 3 entries
     { "sigil":"single unicode glyph", "title":"esoteric reading title",
       "body":"40-70 words, gnostic/hermetic/kabbalistic/perennialist lens" }
@@ -121,6 +146,7 @@ Rules:
 - Use accurate citations when known; otherwise pick plausible tractates for the topic.
 - Calm scholarly tone. No exclamations. No emoji (sigils OK).
 - Real gematria values (אהבה=13, λόγος=373, etc.).
+- For gematriaDeep: pick ONE primary Hebrew/Greek word from the passage. Compute its standard value (Mispar Hechrachi for Hebrew, isopsephy for Greek) and provide 2-4 cross_matches — other scripture words with the SAME value (e.g. נחש=358 and משיח=358 — serpent and messiah both equal 358). Cite real, well-documented gematria correspondences from your training. Include rabbinic_sources when you know them (Baal HaTurim is a classic source for parashah-level gematria).
 - Return ONLY the JSON. No commentary outside it. Stay compact so the response completes.`;
 
   // Tolerant JSON extraction: handles truncated arrays/objects by rewinding to
@@ -181,6 +207,24 @@ Rules:
     obj.commentary = Array.isArray(obj.commentary) ? obj.commentary.slice(0, 6) : [];
     obj.gematria = Array.isArray(obj.gematria) ? obj.gematria.slice(0, 10) : [];
     obj.gematriaNotes = Array.isArray(obj.gematriaNotes) ? obj.gematriaNotes.slice(0, 4) : [];
+    // Schema 2: deep gematria intelligence (optional, additive).
+    if (obj.gematriaDeep && typeof obj.gematriaDeep === "object") {
+      const d = obj.gematriaDeep;
+      d._schema = 2;
+      d.primary_word    = d.primary_word || "";
+      d.primary_translit = d.primary_translit || "";
+      d.primary_gloss   = d.primary_gloss || "";
+      d.primary_lang    = d.primary_lang || "hebrew";
+      d.symbolic_meaning = d.symbolic_meaning || "";
+      d.ai_insight      = d.ai_insight || "";
+      d.cross_matches   = Array.isArray(d.cross_matches) ? d.cross_matches.slice(0, 8) : [];
+      d.cross_matches.forEach(cm => {
+        cm.matches = Array.isArray(cm.matches) ? cm.matches.slice(0, 6) : [];
+      });
+      d.notarikon       = Array.isArray(d.notarikon) ? d.notarikon.slice(0, 4) : [];
+      d.temurah         = Array.isArray(d.temurah) ? d.temurah.slice(0, 4) : [];
+      d.rabbinic_sources = Array.isArray(d.rabbinic_sources) ? d.rabbinic_sources.slice(0, 4) : [];
+    }
     obj.gnosis = Array.isArray(obj.gnosis) ? obj.gnosis.slice(0, 6) : [];
     obj.crossRefs = Array.isArray(obj.crossRefs) ? obj.crossRefs.slice(0, 8) : [];
     // Drop entries that are clearly malformed (missing key string fields).
@@ -219,7 +263,7 @@ Return ONLY the JSON object as specified in the system instructions.${langDirect
           // padding overhead to a one-shot call.
           system: PROMPT_SYSTEM + langDirective,
           messages: [{ role: "user", content: userMsg }],
-          max_tokens: 3000,
+          max_tokens: 4500,
           // Multi-provider routing — server validates against its whitelist
           // and falls back to a sane default if these are missing/invalid.
           provider: opts.provider,

@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v163";
+const VERSION = "v164";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -39,6 +39,7 @@ const SHELL_FILES = [
   r("sync.js"),
   r("modules.js"),
   r("plugins.js"),
+  r("gematria.js"),
   r("panels-gen.js"),
   r("mark-search.js"),
   r("search.js"),

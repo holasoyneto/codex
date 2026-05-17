@@ -917,9 +917,259 @@ function GematriaPanel({ panelData, status, meta, passage, onRegenerate }) {
               ))}
             </div>
           </Collapsible>
+
+          {panelData.gematriaDeep && panelData.gematriaDeep._schema === 2 ? (
+            <GematriaDeep deep={panelData.gematriaDeep} passage={passage} />
+          ) : null}
         </>
       )}
     </div>
+  );
+}
+
+// ── GEMATRIA · DEEP / AI CROSS-REFERENCING ───────────────────────────
+// Renders the schema-2 panel block: primary word, full system grid (via
+// gematria.js), AI cross-matches + library cross-matches (computed
+// in-browser from the user's cached verses), notarikon, temurah, rabbinic
+// sources, and an AI insight paragraph.
+function GematriaDeep({ deep, passage }) {
+  const GEM = (typeof window !== "undefined") ? window.CODEX_GEMATRIA : null;
+  const IDX = (typeof window !== "undefined") ? window.CODEX_GEMATRIA_INDEX : null;
+
+  // Compute every system for the primary word — single source of truth
+  // for the values grid. Falls back gracefully if gematria.js failed load.
+  const values = useMemo(() => {
+    if (!GEM || !deep.primary_word) return null;
+    try { return GEM.all(deep.primary_word, deep.primary_lang); }
+    catch { return null; }
+  }, [deep.primary_word, deep.primary_lang]);
+
+  // Pick the canonical "value" for cross-referencing this word.
+  const canonicalValue = useMemo(() => {
+    if (!values) return null;
+    if (values.lang === "hebrew") return values.hechrachi;
+    if (values.lang === "greek")  return values.isopsephy;
+    return values.ordinal;
+  }, [values]);
+  const canonicalSystem = values?.lang === "hebrew" ? "hechrachi"
+                        : values?.lang === "greek"  ? "isopsephy"
+                        : "en_ordinal";
+
+  // Library cross-matches: scan user's cached verses for the same value.
+  const [libMatches, setLibMatches] = useState(null);
+  const [libBuilding, setLibBuilding] = useState(false);
+  const [libTab, setLibTab] = useState("canon"); // "canon" or "library"
+
+  useEffect(() => {
+    if (!IDX || !canonicalValue) return;
+    let alive = true;
+    (async () => {
+      setLibBuilding(true);
+      try {
+        await IDX.ensure();
+        if (!alive) return;
+        const hits = IDX.find(canonicalValue, { system: canonicalSystem });
+        setLibMatches(hits);
+      } catch {
+        setLibMatches([]);
+      } finally {
+        if (alive) setLibBuilding(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [canonicalValue, canonicalSystem]);
+
+  // Cross-translation comparison: same word in hebrew + greek + english
+  // would require alignment data we don't have here — instead show the
+  // primary word's value computed in the primary script, plus english
+  // transliteration value as a curiosity.
+  const crossLang = useMemo(() => {
+    if (!GEM || !deep.primary_word) return null;
+    const out = {};
+    if (values?.lang === "hebrew") out.HEBREW = values.hechrachi;
+    if (values?.lang === "greek")  out.GREEK = values.isopsephy;
+    if (deep.primary_translit) {
+      try { out.ENGLISH = GEM.english.ordinal(deep.primary_translit); } catch {}
+    }
+    return Object.keys(out).length ? out : null;
+  }, [values, deep.primary_translit]);
+
+  function jump(ref) {
+    // ref shape: "bookId.chapter.verse" — translate to display "Book ch:vs"
+    if (typeof window === "undefined" || !window.codexJumpToRef) return;
+    const parts = ref.split(".");
+    if (parts.length < 3) return window.codexJumpToRef(ref);
+    const bookId = parts[0];
+    const books = (window.CODEX_DATA?.books) || [];
+    const book = books.find(b => b.id === bookId);
+    const name = book?.name || bookId;
+    window.codexJumpToRef(`${name} ${parts[1]}:${parts[2]}`);
+  }
+
+  const SYSTEM_HELP = {
+    hechrachi: "Mispar Hechrachi — standard absolute value (א=1, י=10, ק=100, ת=400)",
+    gadol: "Mispar Gadol — finals lifted (ך=500, ם=600, ן=700, ף=800, ץ=900)",
+    sidduri: "Mispar Sidduri — ordinal position (1–22)",
+    katan: "Mispar Katan — each letter reduced to a single digit then summed",
+    katan_mispari: "Mispar Katan Mispari — sum reduced to a single digit (digital root)",
+    boneh: "Mispar Bone'eh — 'building' / cumulative running sum",
+    kidmi: "Mispar Kidmi — each letter's triangular value",
+    atbash: "Atbash — first↔last letter substitution cipher",
+    albam: "Albam — alphabet split in half, halves swapped",
+    neelam: "Mispar Ne'elam — value of the spelled-out letter NAME minus the letter itself",
+    haakhor: "Mispar Ha'akhor — each letter's value multiplied by its position",
+    isopsephy: "Greek isopsephy — α=1 … ω=800 (classical)",
+    ordinal: "Greek ordinal — letter position 1..24",
+    reduced: "Greek reduced — sum reduced to a single digit",
+    reduction: "English reduction — each letter reduced to 1..9",
+    reverse: "English reverse — z=1 … a=26",
+  };
+
+  return (
+    <>
+      {/* Primary word callout */}
+      {deep.primary_word ? (
+        <Collapsible defaultOpen title="PRIMARY WORD · FOCUS">
+          <div className="cx-gem-focus">
+            <div className="cx-gem-focus-word" dir="auto">{deep.primary_word}</div>
+            <div className="cx-gem-focus-meta">
+              {deep.primary_translit ? <span className="cx-gem-focus-tr">{deep.primary_translit}</span> : null}
+              {deep.primary_gloss ? <span className="cx-gem-focus-gl">— {deep.primary_gloss}</span> : null}
+            </div>
+            {canonicalValue ? (
+              <div className="cx-gem-focus-val">
+                <b>{canonicalValue}</b>
+                <i>{canonicalSystem.toUpperCase()}</i>
+              </div>
+            ) : null}
+            {deep.symbolic_meaning ? <p className="cx-gem-focus-sym">{deep.symbolic_meaning}</p> : null}
+          </div>
+        </Collapsible>
+      ) : null}
+
+      {/* Cross-language strip */}
+      {crossLang ? (
+        <div className="cx-gem-crosslang">
+          {Object.entries(crossLang).map(([k, v]) => (
+            <span key={k}><i>{k}</i><b>{v}</b></span>
+          ))}
+        </div>
+      ) : null}
+
+      {/* All-systems grid (computed locally — never wrong) */}
+      {values ? (
+        <Collapsible title="ALL NUMEROLOGICAL SYSTEMS" sub={`Computed offline · ${values.lang}`}>
+          <div className="cx-gem-sys-grid">
+            {Object.entries(values).filter(([k]) => k !== "lang").map(([k, v]) => {
+              const display = (v && typeof v === "object" && "value" in v) ? `${v.transformed} · ${v.value}` : String(v);
+              return (
+                <div key={k} className="cx-gem-sys-row" title={SYSTEM_HELP[k] || ""}>
+                  <span className="cx-gem-sys-k">{k.replace(/_/g, " ")}</span>
+                  <span className="cx-gem-sys-v">{display}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Collapsible>
+      ) : null}
+
+      {/* Cross-matches: AI canon + your library */}
+      {(deep.cross_matches?.length || libMatches?.length || libBuilding) ? (
+        <Collapsible defaultOpen title="CROSS-MATCHES · SAME VALUE" sub={`value: ${canonicalValue ?? "—"}`}>
+          <div className="cx-gem-xtabs">
+            <button className={`cx-gem-xtab ${libTab === "canon" ? "is-on" : ""}`}
+                    onClick={() => setLibTab("canon")}>
+              FROM CANON ({deep.cross_matches?.reduce((n, c) => n + (c.matches?.length || 0), 0) || 0})
+            </button>
+            <button className={`cx-gem-xtab ${libTab === "library" ? "is-on" : ""}`}
+                    onClick={() => setLibTab("library")}>
+              FROM YOUR LIBRARY ({libBuilding ? "…" : (libMatches?.length || 0)})
+            </button>
+          </div>
+          {libTab === "canon" ? (
+            <div className="cx-gem-xlist">
+              {(deep.cross_matches || []).map((cm, i) => (
+                <div key={i} className="cx-gem-xgroup">
+                  <div className="cx-gem-xgh"><b>{cm.value}</b> <i>via {cm.via_system}</i></div>
+                  {(cm.matches || []).map((m, j) => (
+                    <div key={j} className="cx-gem-xrow"
+                         onClick={() => m.ref && jump(m.ref)}
+                         role="button" tabIndex={0}>
+                      <span className="cx-gem-xref">{m.ref}</span>
+                      {m.word ? <span className="cx-gem-xword" dir="auto">{m.word}</span> : null}
+                      {m.note ? <span className="cx-gem-xnote">— {m.note}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {!(deep.cross_matches || []).length ? <p className="cx-gem-empty">No canonical matches surfaced.</p> : null}
+            </div>
+          ) : (
+            <div className="cx-gem-xlist">
+              {libBuilding ? (
+                <p className="cx-gem-empty">⌬ Indexing your cached verses…</p>
+              ) : (libMatches && libMatches.length) ? (
+                libMatches.slice(0, 30).map((m, i) => (
+                  <div key={i} className="cx-gem-xrow"
+                       onClick={() => jump(m.ref)}
+                       role="button" tabIndex={0}>
+                    <span className="cx-gem-xref">{m.ref}</span>
+                    <span className="cx-gem-xword" dir="auto">{m.word}</span>
+                    <span className="cx-gem-xnote">— {m.system}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="cx-gem-empty">No verses in your library share value {canonicalValue}. Read more chapters to grow the index.</p>
+              )}
+              {libMatches && libMatches.length > 30 ? (
+                <p className="cx-gem-empty">+{libMatches.length - 30} more matches in your library</p>
+              ) : null}
+            </div>
+          )}
+        </Collapsible>
+      ) : null}
+
+      {deep.notarikon?.length ? (
+        <Collapsible title="NOTARIKON · ACRONYM READINGS" count={deep.notarikon.length}>
+          {deep.notarikon.map((n, i) => (
+            <div key={i} className="cx-gem-card">
+              <div className="cx-gem-card-h" dir="auto">{n.phrase}</div>
+              <p className="cx-gem-card-b">{n.expansion}</p>
+            </div>
+          ))}
+        </Collapsible>
+      ) : null}
+
+      {deep.temurah?.length ? (
+        <Collapsible title="TEMURAH · LETTER CIPHERS" count={deep.temurah.length}>
+          {deep.temurah.map((t, i) => (
+            <div key={i} className="cx-gem-card">
+              <div className="cx-gem-card-h"><b>{t.transform}</b> → <span dir="auto">{t.result}</span></div>
+              {t.note ? <p className="cx-gem-card-b">{t.note}</p> : null}
+            </div>
+          ))}
+        </Collapsible>
+      ) : null}
+
+      {deep.rabbinic_sources?.length ? (
+        <Collapsible title="RABBINIC SOURCES" count={deep.rabbinic_sources.length}>
+          {deep.rabbinic_sources.map((r, i) => (
+            <div key={i} className="cx-gem-card">
+              <div className="cx-gem-card-h">{r.name}</div>
+              <p className="cx-gem-card-b cx-gem-quote">“{r.quote}”</p>
+            </div>
+          ))}
+        </Collapsible>
+      ) : null}
+
+      {deep.ai_insight ? (
+        <Collapsible defaultOpen title="AI SYNTHESIS">
+          <div className="cx-gem-insight">
+            <p>{deep.ai_insight}</p>
+          </div>
+        </Collapsible>
+      ) : null}
+    </>
   );
 }
 
