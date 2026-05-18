@@ -16326,3 +16326,73 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   .cx-palette-btn:hover,
   .bf-btn:hover { transform: none !important; }
 }
+
+/* ── v197 reclaim wasted header space on phone ─────────────────────── */
+@media (max-width: 640px) {
+  /* Lose the frame "JUDGES · CH 9 · 1 VV" corner badge — same info
+     already sits in the status bar / library nav. */
+  .cx-reader .cx-frame-label { display: none !important; }
+
+  /* Tighter frame padding so the reader starts higher. */
+  .cx-reader .cx-frame { padding: 8px 10px 6px; }
+
+  /* Header: title + Aa in a single row, sub on its own tight line,
+     no extra breathing room. */
+  .cx-reader-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "title meta" "sub sub";
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 2px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid color-mix(in oklab, var(--cx-line) 60%, transparent);
+  }
+  .cx-reader-titles {
+    grid-area: title;
+    text-align: left;
+    min-width: 0;
+  }
+  .cx-reader-titles h1 {
+    font-size: 19px;
+    line-height: 1.15;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cx-reader-titles p {
+    grid-area: sub;
+    font-size: 9.5px;
+    margin: 0;
+    opacity: 0.55;
+    text-align: left;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cx-reader-meta {
+    grid-area: meta;
+    flex: 0 0 auto;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+  /* Hide the translation pills on phone — already in the right-rail
+     translations picker; the Aa view-toggle is what users actually
+     need quick access to. */
+  .cx-reader-meta .cx-pill { display: none; }
+  .cx-vp-trigger {
+    min-width: 36px; min-height: 32px;
+    padding: 4px 8px;
+  }
+}
+
+/* Even tighter on very small screens. */
+@media (max-width: 380px) {
+  .cx-reader-titles h1 { font-size: 17px; }
+  .cx-reader-titles p { font-size: 9px; }
+  .cx-reader .cx-frame { padding: 6px 8px 4px; }
+}
