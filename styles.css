@@ -16231,3 +16231,98 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   .cx-mobile-fab { width: 40px !important; height: 40px !important; }
 }
 
+
+/* ── v196 mobile polish — fix the artifacts the user reported ───────── */
+@media (max-width: 640px) {
+  /* Suppress focus rings from prior taps (the pager's "next" button
+     was showing a stuck cyan ring after click). Keep :focus-visible
+     for keyboard users. */
+  .cx-nav-btn:focus:not(:focus-visible),
+  .cx-tab:focus:not(:focus-visible),
+  .cx-mobile-fab:focus:not(:focus-visible),
+  .cx-status-fab:focus:not(:focus-visible),
+  .cx-vp-trigger:focus:not(:focus-visible),
+  .cx-palette-btn:focus:not(:focus-visible),
+  .bf-btn:focus:not(:focus-visible) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .cx-nav-btn { -webkit-tap-highlight-color: transparent; }
+
+  /* Reader title block — tighter, no leftover separators from the
+     side-by-side cols-head when single-pane. */
+  .cx-reader-head {
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid color-mix(in oklab, var(--cx-line) 70%, transparent);
+  }
+  .cx-reader-titles { text-align: center; flex: 1 1 100%; }
+  .cx-reader-titles h1 { margin: 0; font-size: 22px; }
+  .cx-reader-titles p { margin: 4px 0 0; font-size: 10.5px; opacity: 0.7; }
+  .cx-reader-meta {
+    flex: 1 1 100%;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* View popover trigger — keep the indicator dot inside the trigger,
+     not bleeding above into the title row. */
+  .cx-vp-trigger { min-width: 44px; min-height: 36px; }
+  .cx-vp-trigger-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--cx-accent);
+  }
+
+  /* Top status bar — pad iOS safe area, even spacing, no overlap. */
+  .cx-status {
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    gap: 8px;
+  }
+  .cx-status-l, .cx-status-r {
+    gap: 8px !important;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  .cx-status-c { display: none !important; }
+  .cx-status-fab, .cx-mobile-fab {
+    width: 40px !important; height: 40px !important;
+    border-radius: 10px !important;
+  }
+  /* The QUESTS pill in the status bar gets too cramped — hide if it
+     would force a wrap. Reachable via Library / palette. */
+  .cx-status .cx-quest-chip,
+  .cx-status .cx-quests-chip { display: none !important; }
+
+  /* Pager — kill the leftover focus highlight on the next-button. */
+  .cx-reader-foot { gap: 8px; }
+  .cx-nav-btn {
+    background: color-mix(in oklab, var(--cx-fg-dim) 4%, transparent);
+    border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 16%, transparent);
+    border-radius: 10px;
+  }
+  .cx-nav-btn:hover {
+    /* Suppress hover-lift on touch devices to avoid sticky hover. */
+    transform: none;
+    background: color-mix(in oklab, var(--cx-fg-dim) 8%, transparent);
+  }
+
+  /* Suppress reader corner-frame decorations on phone — they look like
+     stray ticks on small screens. */
+  .cx-reader .cx-corner { display: none !important; }
+}
+
+/* Sticky-hover suppression universally on touch devices */
+@media (hover: none) {
+  .cx-nav-btn:hover,
+  .cx-tab:hover,
+  .cx-mobile-fab:hover,
+  .cx-palette-btn:hover,
+  .bf-btn:hover { transform: none !important; }
+}
