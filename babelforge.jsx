@@ -39,6 +39,51 @@
   // ── Engine bridge (graceful if engine not yet loaded) ───────────────
   function engine() { return window.CODEX_BabelForgeEngine || null; }
 
+  // ── Canon presets (book id arrays for the wizard scope) ─────────────
+  const CANON = {
+    OT: ["gen","exo","lev","num","deu","jos","jdg","rut","1sa","2sa","1ki","2ki","1ch","2ch","ezr","neh","est","job","psa","pro","ecc","sng","isa","jer","lam","ezk","dan","hos","jol","amo","oba","jon","mic","nam","hab","zep","hag","zec","mal"],
+    NT: ["mat","mrk","luk","jhn","act","rom","1co","2co","gal","eph","php","col","1th","2th","1ti","2ti","tit","phm","heb","jas","1pe","2pe","1jn","2jn","3jn","jud","rev"],
+    TORAH: ["gen","exo","lev","num","deu"],
+    GOSPELS: ["mat","mrk","luk","jhn"],
+    PAULINE: ["rom","1co","2co","gal","eph","php","col","1th","2th","1ti","2ti","tit","phm"],
+  };
+  CANON.BIBLE = CANON.OT.concat(CANON.NT);
+  const PRESETS = [
+    { id: "bible",   label: "Whole Bible (66)",  books: CANON.BIBLE   },
+    { id: "ot",      label: "Whole OT (39)",     books: CANON.OT      },
+    { id: "nt",      label: "Whole NT (27)",     books: CANON.NT      },
+    { id: "torah",   label: "Torah (5)",         books: CANON.TORAH   },
+    { id: "gospels", label: "Gospels (4)",       books: CANON.GOSPELS },
+    { id: "pauline", label: "Pauline (13)",      books: CANON.PAULINE },
+  ];
+
+  // Normalize a project's scope to an iterable of { bookId, fromChap, toChap }.
+  // Supports both new multi-book `scope.books: [...]` and legacy single-book
+  // `scope.book + scope.chapters: [a,b]`. Read-time migration only.
+  function normalizeScope(project) {
+    const sc = project.scope || {};
+    const out = [];
+    if (Array.isArray(sc.books) && sc.books.length) {
+      for (const bid of sc.books) {
+        const b = bookById(bid);
+        out.push({ bookId: bid, fromChap: 1, toChap: b.chapters || 1 });
+      }
+      return out;
+    }
+    if (sc.book) {
+      const [a, b] = Array.isArray(sc.chapters) ? sc.chapters : [1, 1];
+      out.push({ bookId: sc.book, fromChap: a, toChap: b });
+    }
+    return out;
+  }
+
+  // First book / chapter pair for navigation defaults.
+  function scopeFirst(project) {
+    const arr = normalizeScope(project);
+    if (!arr.length) return { bookId: "gen", chapter: 1 };
+    return { bookId: arr[0].bookId, chapter: arr[0].fromChap };
+  }
+
   // ── Books table for scope picker ────────────────────────────────────
   function bookList() {
     try {
@@ -81,23 +126,33 @@
 
   // ── Fetch a verse from a base translation (best-effort) ─────────────
   async function fetchBaseVerse(translationId, bookId, chapter, verse) {
+    if (!translationId || translationId === "blank") return "";
     try {
-      if (window.CODEX_Bible && typeof window.CODEX_Bible.getVerse === "function") {
-        const v = await window.CODEX_Bible.getVerse(translationId, bookId, chapter, verse);
-        if (v && (v.text || typeof v === "string")) return v.text || v;
+      if (window.BIBLE && typeof window.BIBLE.loadChapter === "function") {
+        const list = await window.BIBLE.loadChapter(bookId, chapter, translationId);
+        const v = Array.isArray(list) ? list.find(x => x.n === verse) : null;
+        if (v && v.text) return v.text;
       }
-    } catch {}
-    try {
-      const url = `data/bibles/${translationId}/${bookId}.json`;
-      const r = await fetch(url);
-      if (r.ok) {
-        const j = await r.json();
-        const ch = (j.chapters && j.chapters[chapter - 1]) || (j[String(chapter)]);
-        const v = ch && (ch.verses ? ch.verses[verse - 1] : ch[String(verse)]);
-        if (v) return typeof v === "string" ? v : (v.text || "");
-      }
-    } catch {}
+    } catch (e) { /* fall through */ }
     return "";
+  }
+
+  // Cache chapter verse-lengths per project so verse navigation can step
+  // past true chapter ends rather than a hardcoded "v > 60". Maps
+  // `${bookId}.${chapter}.${translation}` → integer length.
+  const _chapterLenCache = {};
+  async function chapterLen(translationId, bookId, chapter) {
+    const k = `${bookId}.${chapter}.${translationId}`;
+    if (_chapterLenCache[k]) return _chapterLenCache[k];
+    if (!translationId || translationId === "blank") return 50;
+    try {
+      if (window.BIBLE && typeof window.BIBLE.loadChapter === "function") {
+        const list = await window.BIBLE.loadChapter(bookId, chapter, translationId);
+        const n = Array.isArray(list) && list.length ? list[list.length - 1].n : 0;
+        if (n) { _chapterLenCache[k] = n; return n; }
+      }
+    } catch {}
+    return 50;
   }
 
   // ── Strong's-based literal crib (best-effort, optional) ─────────────
@@ -117,20 +172,33 @@
   // ── AI call ─────────────────────────────────────────────────────────
   async function callAI(systemPrompt, userMsg) {
     const tweaks = (window.CODEX_DATA && window.CODEX_DATA.tweaks) || {};
-    const r = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMsg }],
-        max_tokens: 1200,
-        provider: tweaks.aiProvider || tweaks.provider,
-        model: tweaks.aiModel || tweaks.model
-      })
+    const body = JSON.stringify({
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMsg }],
+      max_tokens: 1200,
+      provider: tweaks.aiProvider || tweaks.provider,
+      model: tweaks.aiModel || tweaks.model
     });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || `BabelForge AI HTTP ${r.status}`);
-    return data.text || "";
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body
+      });
+      if (r.status === 429) {
+        const ra = parseFloat(r.headers.get("Retry-After") || "");
+        const baseWait = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 2000;
+        const jitter = Math.floor(Math.random() * 500);
+        await new Promise(res => setTimeout(res, baseWait * (attempt + 1) + jitter));
+        lastErr = new Error("rate-limited (429)");
+        continue;
+      }
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || `BabelForge AI HTTP ${r.status}`);
+      return data.text || "";
+    }
+    throw lastErr || new Error("BabelForge AI: 429 retries exhausted");
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -313,6 +381,7 @@
     const [bookId, setBookId] = useState("gen");
     const [chapStart, setChapStart] = useState(1);
     const [chapEnd, setChapEnd] = useState(1);
+    const [scopePreset, setScopePreset] = useState("single"); // "single" or preset.id
 
     useEffect(() => {
       const eng = engine();
@@ -348,7 +417,9 @@
         } : null,
         rigor,
         target_language: targetLang,
-        scope: { book: bookId, chapters: [Math.min(chapStart, chapEnd), Math.max(chapStart, chapEnd)] },
+        scope: scopePreset === "single"
+          ? { book: bookId, chapters: [Math.min(chapStart, chapEnd), Math.max(chapStart, chapEnd)] }
+          : { books: (PRESETS.find(p => p.id === scopePreset) || {}).books || [bookId] },
         verses: {}
       };
       onCreate(project);
@@ -409,29 +480,50 @@
             )
           ),
           step === 5 && E("div", { className: "bf-form" },
-            E("label", null, "Scope — which book?"),
-            E("select", { className: "bf-in", value: bookId, onChange: e => {
-              setBookId(e.target.value);
-              setChapStart(1); setChapEnd(1);
-            }},
-              books.map(b => E("option", { key: b.id || b.bookId, value: b.id || b.bookId },
-                b.name + " (" + (b.chapters || "?") + ")"))
+            E("label", null, "Scope — preset"),
+            E("div", { className: "bf-preset-row", style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 } },
+              E("button", {
+                type: "button",
+                className: "bf-rigor-btn" + (scopePreset === "single" ? " on" : ""),
+                onClick: () => setScopePreset("single")
+              }, "Single book"),
+              PRESETS.map(p => E("button", {
+                key: p.id, type: "button",
+                className: "bf-rigor-btn" + (scopePreset === p.id ? " on" : ""),
+                onClick: () => setScopePreset(p.id)
+              }, p.label))
             ),
-            E("div", { style: { display: "flex", gap: 12 } },
-              E("div", { style: { flex: 1 } },
-                E("label", null, "From chapter"),
-                E("input", {
-                  className: "bf-in", type: "number", min: 1, max: book.chapters || 150,
-                  value: chapStart, onChange: e => setChapStart(parseInt(e.target.value) || 1)
-                })
+            scopePreset === "single" ? E("div", null,
+              E("label", null, "Book"),
+              E("select", { className: "bf-in", value: bookId, onChange: e => {
+                setBookId(e.target.value);
+                setChapStart(1); setChapEnd(1);
+              }},
+                books.map(b => E("option", { key: b.id || b.bookId, value: b.id || b.bookId },
+                  b.name + " (" + (b.chapters || "?") + ")"))
               ),
-              E("div", { style: { flex: 1 } },
-                E("label", null, "To chapter"),
-                E("input", {
-                  className: "bf-in", type: "number", min: 1, max: book.chapters || 150,
-                  value: chapEnd, onChange: e => setChapEnd(parseInt(e.target.value) || 1)
-                })
+              E("div", { style: { display: "flex", gap: 12 } },
+                E("div", { style: { flex: 1 } },
+                  E("label", null, "From chapter"),
+                  E("input", {
+                    className: "bf-in", type: "number", min: 1, max: book.chapters || 150,
+                    value: chapStart, onChange: e => setChapStart(parseInt(e.target.value) || 1)
+                  })
+                ),
+                E("div", { style: { flex: 1 } },
+                  E("label", null, "To chapter"),
+                  E("input", {
+                    className: "bf-in", type: "number", min: 1, max: book.chapters || 150,
+                    value: chapEnd, onChange: e => setChapEnd(parseInt(e.target.value) || 1)
+                  })
+                )
               )
+            ) : E("div", { className: "bf-preset-summary", style: { padding: 10, background: "#0f1620", borderRadius: 6, fontSize: 13, color: "#8a98a8" } },
+              (() => {
+                const p = PRESETS.find(x => x.id === scopePreset);
+                if (!p) return null;
+                return p.books.length + " books — translation will run book-by-book in the background. You can stop any time.";
+              })()
             )
           )
         ),
@@ -458,9 +550,10 @@
     const [locked, setLocked] = useState(false);
     const [err, setErr] = useState("");
 
-    const [, ch, vs] = ref_.split(".");
+    const [bk, ch, vs] = ref_.split(".");
     const chapter = parseInt(ch, 10);
     const verse = parseInt(vs, 10);
+    const bookForRef = bk;
 
     // Load existing verse from project
     useEffect(() => {
@@ -475,14 +568,14 @@
       } else {
         setDraft(""); setAiNotes([]); setRigorBadge(null); setMode("ai"); setLocked(false);
       }
-      setLiteral(literalCribFor(project.scope.book, chapter, verse));
+      setLiteral(literalCribFor(bookForRef, chapter, verse));
     }, [ref_, project.id]);
 
     // Load base verse from existing translation
     useEffect(() => {
       let alive = true;
       if (project.base_translation && project.base_translation !== "blank") {
-        fetchBaseVerse(project.base_translation, project.scope.book, chapter, verse)
+        fetchBaseVerse(project.base_translation, bookForRef, chapter, verse)
           .then(text => { if (alive) setBase(text || ""); });
       } else {
         setBase("");
@@ -549,7 +642,7 @@
     return E("div", { className: "bf-editor" },
       E("div", { className: "bf-editor-toolbar" },
         E("button", { className: "bf-btn ghost", onClick: onPrev, title: "Previous verse" }, "‹"),
-        E("div", { className: "bf-ref" }, project.scope.book.toUpperCase(), " ", chapter, ":", verse),
+        E("div", { className: "bf-ref" }, bookForRef.toUpperCase(), " ", chapter, ":", verse),
         E("button", { className: "bf-btn ghost", onClick: onNext, title: "Next verse" }, "›"),
         E("div", { style: { flex: 1 } }),
         E("button", {
@@ -599,11 +692,13 @@
   }
 
   // ── Project Editor ─────────────────────────────────────────────────
-  function ProjectEditor({ project, onUpdate, onBack }) {
+  function ProjectEditor({ project, onUpdate, onBack, autoForge, onAutoForgeStarted }) {
     const eng = engine();
     const [voiceTpl, setVoiceTpl] = useState(null);
+    const _first = scopeFirst(project);
+    const [currentBook, setCurrentBook] = useState(_first.bookId);
     const [currentVerse, setCurrentVerse] = useState(1);
-    const [currentChap, setCurrentChap] = useState(project.scope.chapters[0]);
+    const [currentChap, setCurrentChap] = useState(_first.chapter);
     const [bulkBusy, setBulkBusy] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
 
@@ -618,7 +713,7 @@
       }
     }, [project.id, project.voice_template]);
 
-    const ref_ = `${project.scope.book}.${currentChap}.${currentVerse}`;
+    const ref_ = `${currentBook}.${currentChap}.${currentVerse}`;
 
     function updateVerse(refKey, patch) {
       const verses = Object.assign({}, project.verses);
@@ -627,12 +722,38 @@
       onUpdate(Object.assign({}, project, { verses, modified: Date.now() }));
     }
 
-    function step(d) {
+    // Async-aware step: respects the actual chapter length from the base
+    // translation. Falls back to bookById(...).chapters for the chapter
+    // upper bound when traversing into a new chapter.
+    async function step(d) {
       let v = currentVerse + d;
       let c = currentChap;
-      if (v < 1) { c = Math.max(project.scope.chapters[0], c - 1); v = 30; }
-      if (v > 60) { c = Math.min(project.scope.chapters[1], c + 1); v = 1; }
-      setCurrentChap(c); setCurrentVerse(v);
+      let b = currentBook;
+      const scope = normalizeScope(project);
+      const cur = scope.find(s => s.bookId === b) || scope[0] || { bookId: b, fromChap: 1, toChap: bookById(b).chapters || 1 };
+      if (v < 1) {
+        c = Math.max(cur.fromChap, c - 1);
+        const len = await chapterLen(project.base_translation, b, c);
+        v = len;
+      }
+      const curLen = await chapterLen(project.base_translation, b, c);
+      if (v > curLen) {
+        c = c + 1;
+        if (c > cur.toChap) {
+          // step into next book in scope
+          const idx = scope.findIndex(s => s.bookId === b);
+          if (idx >= 0 && idx + 1 < scope.length) {
+            b = scope[idx + 1].bookId;
+            c = scope[idx + 1].fromChap;
+          } else {
+            c = cur.toChap;
+            const len2 = await chapterLen(project.base_translation, b, c);
+            v = Math.min(v, len2); setCurrentBook(b); setCurrentChap(c); setCurrentVerse(v); return;
+          }
+        }
+        v = 1;
+      }
+      setCurrentBook(b); setCurrentChap(c); setCurrentVerse(v);
     }
 
     async function bulkTranslate(n) {
@@ -641,29 +762,243 @@
       try {
         const voice = voiceTpl || project.voice_custom || {};
         const sys = eng.buildSystemPrompt(voice, project.rigor, { target_language: project.target_language });
-        let c = currentChap, v = currentVerse;
+        const scope = normalizeScope(project);
+        let b = currentBook, c = currentChap, v = currentVerse;
+        let cur = scope.find(s => s.bookId === b) || scope[0];
         const updates = Object.assign({}, project.verses);
+        let refused = 0;
         for (let i = 0; i < n; i++) {
-          const key = `${project.scope.book}.${c}.${v}`;
-          if (updates[key] && updates[key].locked) { v++; continue; }
-          const base = await fetchBaseVerse(project.base_translation, project.scope.book, c, v);
-          if (!base) { v++; continue; }
-          const userMsg = eng.buildUserMessage({ ref: key, base, literal_crib: literalCribFor(project.scope.book, c, v) });
-          try {
-            const raw = await callAI(sys, userMsg);
-            const parsed = eng.parseAIDraft(raw);
-            const r = eng.checkRigor(parsed.draft, base, "", project.rigor);
-            updates[key] = {
-              base, draft: parsed.draft, mode: "ai",
-              ai_notes: eng.mergeNotes(parsed.notes, r.notes),
-              badge: r.badge, locked: false
-            };
-          } catch (e) { /* keep going */ }
-          v++;
-          if (v > 60) { c++; v = 1; if (c > project.scope.chapters[1]) break; }
+          if (!cur) break;
+          const key = `${b}.${c}.${v}`;
+          if (updates[key] && updates[key].locked) { v++; }
+          else {
+            const base = await fetchBaseVerse(project.base_translation, b, c, v);
+            if (base) {
+              const userMsg = eng.buildUserMessage({ ref: key, base, literal_crib: literalCribFor(b, c, v) });
+              try {
+                const raw = await callAI(sys, userMsg);
+                const parsed = eng.parseAIDraft(raw);
+                if (parsed.draft && parsed.draft.trim()) {
+                  const r = eng.checkRigor(parsed.draft, base, "", project.rigor);
+                  updates[key] = {
+                    base, draft: parsed.draft, mode: "ai",
+                    ai_notes: eng.mergeNotes(parsed.notes, r.notes),
+                    badge: r.badge, locked: false
+                  };
+                } else {
+                  refused++;
+                }
+              } catch (e) { /* keep going */ }
+            }
+            v++;
+          }
+          const len = await chapterLen(project.base_translation, b, c);
+          if (v > len) {
+            c++; v = 1;
+            if (c > cur.toChap) {
+              const idx = scope.findIndex(s => s.bookId === b);
+              if (idx + 1 < scope.length) { cur = scope[idx + 1]; b = cur.bookId; c = cur.fromChap; }
+              else break;
+            }
+          }
         }
         onUpdate(Object.assign({}, project, { verses: updates, modified: Date.now() }));
+        if (refused) console.warn(`BabelForge: ${refused} verses refused (empty draft)`);
+        try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: "bf-" + project.id.replace(/^proj-/, "") } })); } catch {}
       } finally { setBulkBusy(false); }
+    }
+
+    // ── Full-scope translation ──────────────────────────────────────
+    // Walks every chapter in the project's scope, fetches each chapter
+    // from the base translation in one shot (so we know how many verses
+    // it actually has), then translates each verse with bounded
+    // parallelism. Live progress so the user can leave it running.
+    const [fullBusy, setFullBusy] = useState(false);
+    const [fullProgress, setFullProgress] = useState(null);
+    const fullAbort = useRef({ stop: false });
+    const progressRef = useRef({ done: 0, total: 0, skipped: 0, refused: 0, label: "" });
+    const progressRaf = useRef(null);
+    function scheduleProgressFlush() {
+      if (progressRaf.current) return;
+      progressRaf.current = requestAnimationFrame(() => {
+        progressRaf.current = null;
+        const snap = Object.assign({}, progressRef.current);
+        setFullProgress(snap);
+        // Mirror to global forge status so the projects-list banner can show it.
+        try {
+          if (window.CODEX_BabelForge && window.CODEX_BabelForge.forgeStatus &&
+              window.CODEX_BabelForge.forgeStatus.projectId === project.id) {
+            setForgeStatus({
+              projectId: project.id, name: project.name,
+              done: snap.done, total: snap.total, running: true
+            });
+          }
+        } catch {}
+      });
+    }
+
+    async function translateEntireScope(opts) {
+      if (!eng) return;
+      if (fullBusy) return;
+      const silent = opts && opts.silent;
+      const scope = normalizeScope(project);
+      if (!scope.length) return;
+      const scopeLabel = scope.length === 1
+        ? `${scope[0].bookId} ${scope[0].fromChap}–${scope[0].toChap}`
+        : `${scope.length} books`;
+      if (!silent && !window.confirm(`Translate the ENTIRE scope (${scopeLabel}) in voice "${project.voice_template}"? This may take many minutes and many AI calls. You can stop at any time.`)) return;
+      setFullBusy(true);
+      fullAbort.current.stop = false;
+      progressRef.current = { done: 0, total: 0, skipped: 0, refused: 0, label: "starting…" };
+      scheduleProgressFlush();
+      const voice = voiceTpl || project.voice_custom || {};
+      const sys = eng.buildSystemPrompt(voice, project.rigor, { target_language: project.target_language });
+      const updates = Object.assign({}, project.verses);
+      const CONCURRENCY = 4;
+      const trId = "bf-" + project.id.replace(/^proj-/, "");
+      try {
+        for (const seg of scope) {
+          if (fullAbort.current.stop) break;
+          const { bookId, fromChap, toChap } = seg;
+          // Discover verse counts per chapter for THIS book first.
+          const chapters = [];
+          for (let c = fromChap; c <= toChap; c++) {
+            if (fullAbort.current.stop) break;
+            let baseList = [];
+            try {
+              baseList = await window.BIBLE.loadChapter(bookId, c, project.base_translation);
+            } catch { baseList = []; }
+            chapters.push({ c, verses: baseList });
+            progressRef.current.total += baseList.length;
+            progressRef.current.label = `discovered ${bookId} ${c}`;
+            scheduleProgressFlush();
+          }
+          // Translate chapter-by-chapter with bounded concurrency.
+          for (const ch of chapters) {
+            if (fullAbort.current.stop) break;
+            const queue = ch.verses.slice();
+            const workers = Array.from({ length: CONCURRENCY }, async () => {
+              while (queue.length && !fullAbort.current.stop) {
+                const v = queue.shift();
+                if (!v) break;
+                const key = `${bookId}.${ch.c}.${v.n}`;
+                if (updates[key] && updates[key].locked) {
+                  progressRef.current.skipped++;
+                  progressRef.current.done++;
+                  progressRef.current.label = `${bookId} ${ch.c}:${v.n} (locked)`;
+                  scheduleProgressFlush();
+                  continue;
+                }
+                if (updates[key] && updates[key].draft && updates[key].draft.trim()) {
+                  progressRef.current.done++;
+                  progressRef.current.label = `${bookId} ${ch.c}:${v.n} (skip)`;
+                  scheduleProgressFlush();
+                  continue;
+                }
+                try {
+                  const userMsg = eng.buildUserMessage({ ref: key, base: v.text, literal_crib: literalCribFor(bookId, ch.c, v.n) });
+                  const raw = await callAI(sys, userMsg);
+                  const parsed = eng.parseAIDraft(raw);
+                  if (parsed.draft && parsed.draft.trim()) {
+                    const r = eng.checkRigor(parsed.draft, v.text, "", project.rigor);
+                    updates[key] = {
+                      base: v.text, draft: parsed.draft, mode: "ai",
+                      ai_notes: eng.mergeNotes(parsed.notes, r.notes),
+                      badge: r.badge, locked: false
+                    };
+                  } else {
+                    progressRef.current.refused++;
+                  }
+                } catch (e) { /* skip on failure */ }
+                progressRef.current.done++;
+                progressRef.current.label = `${bookId} ${ch.c}:${v.n}`;
+                scheduleProgressFlush();
+              }
+            });
+            await Promise.all(workers);
+            // Commit per-chapter so progress survives reload.
+            onUpdate(Object.assign({}, project, { verses: updates, modified: Date.now() }));
+            try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: trId } })); } catch {}
+          }
+        }
+      } finally {
+        setFullBusy(false);
+        setFullProgress(null);
+        if (progressRaf.current) { cancelAnimationFrame(progressRaf.current); progressRaf.current = null; }
+        try {
+          if (window.CODEX_BabelForge && window.CODEX_BabelForge.forgeStatus &&
+              window.CODEX_BabelForge.forgeStatus.projectId === project.id) {
+            setForgeStatus(null);
+          }
+        } catch {}
+      }
+    }
+    function stopFull() { fullAbort.current.stop = true; }
+    // Expose so the projects-list one-click flow can start a background pass.
+    ProjectEditor._lastTranslateEntireScope = translateEntireScope;
+
+    // Auto-forge: started from the one-click flow. Wait until voiceTpl is
+    // resolved, then kick off translateEntireScope({ silent: true }).
+    const autoForgeStarted = useRef(false);
+    useEffect(() => {
+      if (!autoForge || autoForgeStarted.current) return;
+      if (!eng) return;
+      // voiceTpl may still be loading for built-in templates — wait one tick.
+      const ready = (project.voice_template === "custom") || voiceTpl;
+      if (!ready) return;
+      autoForgeStarted.current = true;
+      onAutoForgeStarted && onAutoForgeStarted();
+      translateEntireScope({ silent: true });
+    }, [autoForge, voiceTpl, eng]);
+
+    // ── Install in Reader ───────────────────────────────────────────
+    // Registers this project as a translation in CODEX_DATA.translations,
+    // backed by the babelforge source kind. The user can then pick it
+    // from the right-rail translations picker.
+    function installInReader() {
+      try {
+        const data = window.CODEX_DATA;
+        if (!data || !Array.isArray(data.translations)) {
+          alert("Reader catalog not available.");
+          return;
+        }
+        const trId = "bf-" + project.id.replace(/^proj-/, "");
+        const existing = data.translations.find(t => t.id === trId);
+        const entry = {
+          id: trId,
+          name: project.name + " · BabelForge",
+          year: new Date().getFullYear() + "",
+          license: "User-generated (BabelForge)",
+          glyph: "⌬",
+          lang: (project.target_language || "en").toUpperCase().slice(0, 2),
+          source: "babelforge",
+          apiId: trId,
+          projectId: project.id,
+          babelforge: true,
+        };
+        if (existing) {
+          Object.assign(existing, entry);
+          data.translations = data.translations.slice();
+        } else {
+          data.translations = data.translations.concat([entry]);
+        }
+        onUpdate(Object.assign({}, project, { installed: true, modified: Date.now() }));
+        try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: trId } })); } catch {}
+        alert(`"${project.name}" is now available in the Reader translation picker as "${entry.name}".`);
+      } catch (e) {
+        alert("Install failed: " + e.message);
+      }
+    }
+    function uninstallFromReader() {
+      try {
+        const data = window.CODEX_DATA;
+        const trId = "bf-" + project.id.replace(/^proj-/, "");
+        if (data && Array.isArray(data.translations)) {
+          data.translations = data.translations.filter(t => t.id !== trId);
+        }
+        onUpdate(Object.assign({}, project, { installed: false, modified: Date.now() }));
+        try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: trId, removed: true } })); } catch {}
+      } catch (e) { alert("Uninstall failed: " + e.message); }
     }
 
     function recheckAll() {
@@ -680,12 +1015,25 @@
     function exportJSON() {
       const verses = {};
       Object.entries(project.verses).forEach(([k, v]) => { verses[k] = v.draft; });
+      // Try to inline the full voice template so importers can restore it.
+      let voiceInline = null;
+      try {
+        if (project.voice_template === "custom") {
+          voiceInline = project.voice_custom || null;
+        } else if (eng && eng.getTemplate) {
+          voiceInline = eng.getTemplate(project.voice_template) || null;
+        }
+      } catch {}
       const out = {
         meta: {
           id: project.id, name: project.name,
-          type: "translation", format: "codex-translation/1",
+          type: "translation", format: "codex-translation/2",
+          manifest_version: "codex-translation/2",
           voice: project.voice_template, rigor: project.rigor,
           base: project.base_translation, target_language: project.target_language,
+          source_language: project.source_language,
+          scope: project.scope,
+          voice_template_inline: voiceInline,
           created: project.created, modified: project.modified
         },
         verses
@@ -739,7 +1087,11 @@
           E("div", { className: "bf-proj-meta" },
             "voice: ", E("strong", null, project.voice_template), " · ",
             "rigor: ", E("strong", null, project.rigor), " · ",
-            "scope: ", project.scope.book, " ", project.scope.chapters[0], "–", project.scope.chapters[1]
+            "scope: ", (() => {
+              const s = normalizeScope(project);
+              if (s.length === 1) return `${s[0].bookId} ${s[0].fromChap}–${s[0].toChap}`;
+              return `${s.length} books`;
+            })()
           )
         )
       ),
@@ -756,16 +1108,181 @@
         voiceTpl
       }),
       E("div", { className: "bf-bulk" },
-        E("button", { className: "bf-btn", onClick: () => bulkTranslate(10), disabled: bulkBusy },
+        E("button", { className: "bf-btn", onClick: () => bulkTranslate(10), disabled: bulkBusy || fullBusy },
           bulkBusy ? "Translating…" : "Translate next 10 verses ⌬"),
-        E("button", { className: "bf-btn ghost", onClick: recheckAll }, "Re-check rigor on all"),
+        E("button", { className: "bf-btn primary", onClick: translateEntireScope, disabled: bulkBusy || fullBusy, title: "Generate the whole scope automatically — usable in the Reader in seconds" },
+          fullBusy ? "Translating ENTIRE scope…" : "⚡ Translate ENTIRE scope"),
+        fullBusy && E("button", { className: "bf-btn ghost", onClick: stopFull }, "Stop"),
+        E("button", { className: "bf-btn ghost", onClick: recheckAll, disabled: fullBusy }, "Re-check rigor on all"),
         E("div", { style: { flex: 1 } }),
+        E("button", {
+          className: "bf-btn " + (project.installed ? "ghost" : "primary"),
+          onClick: project.installed ? uninstallFromReader : installInReader,
+          disabled: fullBusy,
+          title: project.installed ? "Remove from Reader translation picker" : "Make available in the main Bible reader"
+        }, project.installed ? "✓ Installed in Reader · Remove" : "📖 Install in Reader"),
         E("button", { className: "bf-btn", onClick: () => setExportOpen(o => !o) }, "Export ▾")
+      ),
+      fullProgress && E("div", { className: "bf-fullprog", style: { padding: "8px 12px", fontFamily: "ui-monospace, monospace", fontSize: "12px", color: "var(--cx-fg-dim, #8a98a8)" } },
+        `${fullProgress.done} / ${fullProgress.total} verses · ${fullProgress.label || ""}`,
+        (fullProgress.skipped || fullProgress.refused) ? E("div", { style: { marginTop: 2, fontSize: 11 } },
+          fullProgress.skipped ? `${fullProgress.skipped} skipped (locked) · ` : "",
+          fullProgress.refused ? `${fullProgress.refused} refused (empty draft)` : ""
+        ) : null,
+        E("div", { style: { height: 3, background: "#1f2a36", marginTop: 6, borderRadius: 2, overflow: "hidden" } },
+          E("div", { style: { height: "100%", width: ((fullProgress.total ? fullProgress.done / fullProgress.total : 0) * 100) + "%", background: "#7ee0ff", transition: "width 200ms ease" } })
+        )
       ),
       exportOpen && E("div", { className: "bf-export-tray" },
         E("button", { className: "bf-btn", onClick: exportJSON }, "CODEX Translation JSON"),
         E("button", { className: "bf-btn", onClick: exportMarkdown }, "Markdown"),
-        E("button", { className: "bf-btn", onClick: shareUrl }, "Copy share URL")
+        E("button", { className: "bf-btn", onClick: shareUrl }, "Copy share URL"),
+        E("button", {
+          className: "bf-btn", onClick: () => {
+            const pick = window.CODEX_BabelForge && window.CODEX_BabelForge.importPicker;
+            if (pick) pick();
+            else alert("Importer not ready — go back to the projects list.");
+          }
+        }, "⤒ Import .json")
+      )
+    );
+  }
+
+  // Direct install (used by 1-click Forge flow + import). Mirrors
+  // installInReader() in ProjectEditor but works without component context.
+  function _directInstall(project) {
+    try {
+      const data = window.CODEX_DATA;
+      if (!data || !Array.isArray(data.translations)) return false;
+      const trId = "bf-" + project.id.replace(/^proj-/, "");
+      const existing = data.translations.find(t => t.id === trId);
+      const entry = {
+        id: trId,
+        name: project.name + " · BabelForge",
+        year: new Date().getFullYear() + "",
+        license: "User-generated (BabelForge)",
+        glyph: "⌬",
+        lang: (project.target_language || "en").toUpperCase().slice(0, 2),
+        source: "babelforge",
+        apiId: trId,
+        projectId: project.id,
+        babelforge: true,
+      };
+      if (existing) {
+        Object.assign(existing, entry);
+        data.translations = data.translations.slice(); // new ref so React memos re-derive
+      } else {
+        data.translations = data.translations.concat([entry]);
+      }
+      try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: trId } })); } catch {}
+      return true;
+    } catch { return false; }
+  }
+
+  // Persistent global forge status (only one at a time for now).
+  window.CODEX_BabelForge = window.CODEX_BabelForge || {};
+  function setForgeStatus(s) {
+    window.CODEX_BabelForge.forgeStatus = s;
+    try { window.dispatchEvent(new CustomEvent("codex:babelforge-forge-status", { detail: s })); } catch {}
+  }
+
+  // 1-step Forge-Entire-Bible modal: voice + source text + name → go.
+  function ForgeBibleModal({ onForge, onClose }) {
+    const [templates, setTemplates] = useState([]);
+    const [voiceId, setVoiceId] = useState("modern-scholar");
+    const [customPrompt, setCustomPrompt] = useState("");
+    const [name, setName] = useState("");
+    const [sourceTr, setSourceTr] = useState("kjv");
+    const [targetLang, setTargetLang] = useState("en");
+    useEffect(() => {
+      const eng = engine();
+      if (eng) eng.loadVoiceTemplates().then(setTemplates);
+    }, []);
+    const tpl = templates.find(t => t.id === voiceId);
+    const defaultName = (tpl ? tpl.name : voiceId) + " Bible";
+    const trans = translationList().filter(t => !String(t.id || "").startsWith("bf-"));
+    // Detect missing API key so we can warn before the user clicks Forge.
+    let hasKey = true;
+    try {
+      const raw = localStorage.getItem("codex.api.keys.v1");
+      const j = raw ? JSON.parse(raw) : null;
+      hasKey = !!(j && (j.anthropic || j.xai || j.openai || j.google));
+    } catch {}
+    const LANGS = (window.CODEX_LANGS || [
+      { id: "en", label: "English" }, { id: "es", label: "Español" },
+      { id: "pt", label: "Português" }, { id: "fr", label: "Français" },
+      { id: "de", label: "Deutsch" }, { id: "la", label: "Latina" },
+      { id: "he", label: "עברית" }, { id: "el", label: "Ἑλληνική" },
+      { id: "hi", label: "हिन्दी" }
+    ]);
+    return E("div", { className: "bf-modal-bg", onClick: e => { if (e.target === e.currentTarget) onClose(); } },
+      E("div", { className: "bf-modal" },
+        E("div", { className: "bf-modal-head" },
+          E("h2", null, "⚡ Forge an Entire Bible"),
+          E("button", { className: "bf-x", onClick: onClose }, "×")
+        ),
+        E("div", { className: "bf-step" },
+          E("div", { className: "bf-form" },
+            !hasKey && E("div", { style: { padding: "10px 12px", background: "#3a2418", border: "1px solid #6a3a22", borderRadius: 6, color: "#ffc46b", fontSize: 12, marginBottom: 12 } },
+              "⚠ No AI key configured. Add an Anthropic / xAI / OpenAI key in Settings before forging."
+            ),
+            E("label", null, "Source text (what to translate FROM)"),
+            E("select", { className: "bf-in", value: sourceTr, onChange: e => setSourceTr(e.target.value) },
+              trans.map(t => E("option", { key: t.id, value: t.id }, `${t.name} (${t.id})`))
+            ),
+            E("div", { style: { fontSize: 11, opacity: 0.65, marginTop: 4 } },
+              "Pick a literal/formal translation for the most faithful base (KJV, ASV, ESV). For Hebrew/Greek roots, choose a translation in that language."
+            ),
+            E("label", { style: { marginTop: 12 } }, "Target language"),
+            E("select", { className: "bf-in", value: targetLang, onChange: e => setTargetLang(e.target.value) },
+              LANGS.map(l => E("option", { key: l.id, value: l.id }, l.label))
+            ),
+            E("label", { style: { marginTop: 12 } }, "Voice"),
+            E(VoicePicker, {
+              templates, voiceId, setVoiceId, customPrompt, setCustomPrompt,
+              onTemplatesChanged: () => { const eng = engine(); if (eng) eng.loadVoiceTemplates().then(setTemplates); }
+            }),
+            E("label", { style: { marginTop: 12 } }, "Name (optional)"),
+            E("input", {
+              className: "bf-in", value: name, onChange: e => setName(e.target.value),
+              placeholder: defaultName
+            })
+          )
+        ),
+        E("div", { className: "bf-modal-foot" },
+          E("div", { style: { flex: 1 } }),
+          E("button", { className: "bf-btn ghost", onClick: onClose }, "Cancel"),
+          E("button", {
+            className: "bf-btn primary",
+            disabled: !hasKey,
+            onClick: () => onForge({ voiceId, customPrompt, name: name || defaultName, sourceTr, targetLang })
+          }, hasKey ? "Forge ⚡" : "Add a key first")
+        )
+      )
+    );
+  }
+
+  // Importer modal for a share-URL payload.
+  function ImportShareModal({ payload, onAccept, onClose }) {
+    const verseCount = payload && payload.verses ? Object.keys(payload.verses).length : 0;
+    return E("div", { className: "bf-modal-bg", onClick: e => { if (e.target === e.currentTarget) onClose(); } },
+      E("div", { className: "bf-modal" },
+        E("div", { className: "bf-modal-head" },
+          E("h2", null, "Import this BabelForge share?"),
+          E("button", { className: "bf-x", onClick: onClose }, "×")
+        ),
+        E("div", { className: "bf-step" },
+          E("div", { className: "bf-form" },
+            E("p", null, "Name: ", E("strong", null, payload && payload.n || "(unnamed)")),
+            E("p", null, "Voice: ", E("strong", null, payload && payload.v || "?")),
+            E("p", null, verseCount, " verses")
+          )
+        ),
+        E("div", { className: "bf-modal-foot" },
+          E("div", { style: { flex: 1 } }),
+          E("button", { className: "bf-btn ghost", onClick: onClose }, "Dismiss"),
+          E("button", { className: "bf-btn primary", onClick: onAccept }, "Accept & Import")
+        )
       )
     );
   }
@@ -774,8 +1291,30 @@
   function BabelForgePanel(ctx) {
     const [state, setState] = useState(() => loadState());
     const [showWizard, setShowWizard] = useState(false);
+    const [showForge, setShowForge] = useState(false);
+    const [sharePayload, setSharePayload] = useState(null);
+    const [forgeStatus, setForgeStatusLocal] = useState(window.CODEX_BabelForge.forgeStatus || null);
+    const [pendingForgeId, setPendingForgeId] = useState(null);
 
     useEffect(() => { saveState(state); }, [state]);
+
+    // Share-URL importer (#bf=<base64>).
+    useEffect(() => {
+      try {
+        const m = (location.hash || "").match(/#bf=([^&]+)/);
+        if (!m) return;
+        const json = decodeURIComponent(escape(atob(m[1])));
+        const parsed = JSON.parse(json);
+        if (parsed && (parsed.n || parsed.verses)) setSharePayload(parsed);
+      } catch {}
+    }, []);
+
+    // Live forge status mirror.
+    useEffect(() => {
+      const fn = (e) => setForgeStatusLocal(e.detail);
+      window.addEventListener("codex:babelforge-forge-status", fn);
+      return () => window.removeEventListener("codex:babelforge-forge-status", fn);
+    }, []);
 
     // Listen for "translate this verse" action coming from the verse menu.
     useEffect(() => {
@@ -797,6 +1336,99 @@
       };
       setState(next);
       setShowWizard(false);
+    }
+
+    // One-click: voice → source → target → name → forge entire Bible.
+    async function doForgeBible({ voiceId, customPrompt, name, sourceTr, targetLang }) {
+      const id = "proj-" + ulid();
+      const project = {
+        id,
+        name: name || "Forged Bible",
+        description: "Forged with one click — entire 66-book Bible.",
+        created: Date.now(),
+        modified: Date.now(),
+        source_language: "auto",
+        base_translation: sourceTr || "kjv",
+        voice_template: voiceId === "custom" ? "custom" : voiceId,
+        voice_custom: voiceId === "custom" ? {
+          name: "Custom Voice",
+          system_prompt: customPrompt || "Render in a thoughtful, lightly modernized English.",
+          samples: []
+        } : null,
+        rigor: "balanced",
+        target_language: targetLang || "en",
+        scope: { books: CANON.BIBLE.slice() },
+        verses: {},
+        installed: true,
+      };
+      // Persist project; install in Reader immediately.
+      const next = { projects: state.projects.concat([project]), activeId: project.id };
+      setState(next); saveState(next);
+      _directInstall(project);
+      setShowForge(false);
+      setPendingForgeId(project.id);
+      setForgeStatus({ projectId: project.id, name: project.name, done: 0, total: 0, running: true });
+    }
+
+    // Import a .codex-translation/2 file.
+    async function importTranslationJSON(file) {
+      try {
+        const txt = await file.text();
+        const j = JSON.parse(txt);
+        const meta = j.meta || {};
+        const verses = {};
+        Object.entries(j.verses || {}).forEach(([k, draft]) => { verses[k] = { draft: String(draft || ""), mode: "ai", locked: false }; });
+        const id = "proj-" + ulid();
+        const project = {
+          id,
+          name: meta.name || "Imported Translation",
+          description: "Imported from " + (file.name || "JSON"),
+          created: Date.now(),
+          modified: Date.now(),
+          source_language: meta.source_language || "auto",
+          base_translation: meta.base || "kjv",
+          voice_template: meta.voice || "modern-scholar",
+          voice_custom: meta.voice === "custom" ? (meta.voice_template_inline || null) : null,
+          rigor: meta.rigor || "balanced",
+          target_language: meta.target_language || "en",
+          scope: meta.scope || { books: CANON.BIBLE.slice() },
+          verses,
+        };
+        const next = { projects: state.projects.concat([project]), activeId: project.id };
+        setState(next); saveState(next);
+        if (window.confirm("Imported. Install in the Reader now?")) _directInstall(Object.assign(project, { installed: true }));
+      } catch (e) {
+        alert("Import failed: " + e.message);
+      }
+    }
+    function pickImportFile() {
+      const inp = document.createElement("input");
+      inp.type = "file"; inp.accept = "application/json,.json";
+      inp.onchange = () => { if (inp.files && inp.files[0]) importTranslationJSON(inp.files[0]); };
+      inp.click();
+    }
+    // Expose for ProjectEditor's export tray.
+    window.CODEX_BabelForge.importPicker = pickImportFile;
+
+    function acceptShare() {
+      if (!sharePayload) return;
+      const id = "proj-" + ulid();
+      const verses = {};
+      Object.entries(sharePayload.verses || {}).forEach(([k, draft]) => { verses[k] = { draft: String(draft || ""), mode: "ai" }; });
+      const project = {
+        id,
+        name: sharePayload.n || "Shared Translation",
+        description: "Imported from share URL",
+        created: Date.now(), modified: Date.now(),
+        source_language: "auto", base_translation: "kjv",
+        voice_template: sharePayload.v || "modern-scholar",
+        voice_custom: null, rigor: "balanced", target_language: "en",
+        scope: { books: CANON.BIBLE.slice() }, verses,
+      };
+      const next = { projects: state.projects.concat([project]), activeId: project.id };
+      setState(next); saveState(next);
+      setSharePayload(null);
+      try { history.replaceState(null, "", location.pathname + location.search); } catch {}
     }
     function openProject(id) { setState(Object.assign({}, state, { activeId: id })); }
     function backToList()   { setState(Object.assign({}, state, { activeId: null })); }
@@ -826,8 +1458,20 @@
         )
       ),
       !active && E("div", { className: "bf-list" },
+        E("div", { className: "bf-forge-mega", style: { padding: 14, margin: "8px 0 14px", background: "linear-gradient(135deg,#1a2a3f,#26334a)", border: "1px solid #3a4d6a", borderRadius: 10 } },
+          E("div", { style: { fontSize: 16, fontWeight: 600, color: "#cfe4ff" } }, "⚡ Forge an Entire Bible in one click"),
+          E("div", { style: { fontSize: 12, color: "#8aa6c8", marginTop: 4 } }, "Pick a voice → name it → go. We translate all 66 books in the background."),
+          E("button", {
+            className: "bf-btn primary", style: { marginTop: 10 },
+            onClick: () => setShowForge(true)
+          }, "Forge ⚡")
+        ),
+        forgeStatus && forgeStatus.running && E("div", { style: { padding: "6px 10px", margin: "0 0 12px", background: "#102030", borderRadius: 6, fontSize: 12, color: "#cfe4ff" } },
+          `Forging "${forgeStatus.name}"… ${forgeStatus.done}/${forgeStatus.total} verses`
+        ),
         E("div", { className: "bf-list-head" },
           E("h3", null, "Your Translations"),
+          E("button", { className: "bf-btn ghost", onClick: pickImportFile, title: "Import a .codex-translation/2 file" }, "⤒ Import"),
           E("button", { className: "bf-btn primary", onClick: () => setShowWizard(true) }, "+ New Translation")
         ),
         state.projects.length === 0 && E("div", { className: "bf-empty" },
@@ -838,8 +1482,13 @@
           E("div", { className: "bf-proj-row-main", onClick: () => openProject(p.id) },
             E("div", { className: "bf-proj-row-name" }, p.name),
             E("div", { className: "bf-proj-row-meta" },
-              p.voice_template, " · ", p.rigor, " · ", p.scope.book.toUpperCase(),
-              " ", p.scope.chapters[0], "–", p.scope.chapters[1],
+              p.voice_template, " · ", p.rigor, " · ",
+              (() => {
+                const s = normalizeScope(p);
+                if (!s.length) return "(no scope)";
+                if (s.length === 1) return `${s[0].bookId.toUpperCase()} ${s[0].fromChap}–${s[0].toChap}`;
+                return `${s.length} books`;
+              })(),
               " · ", Object.keys(p.verses || {}).length, " verses"
             )
           ),
@@ -854,11 +1503,22 @@
       active && E(ProjectEditor, {
         project: active,
         onUpdate: updateProject,
-        onBack: backToList
+        onBack: backToList,
+        autoForge: pendingForgeId === active.id,
+        onAutoForgeStarted: () => setPendingForgeId(null)
       }),
       showWizard && E(NewProjectWizard, {
         onCreate: createProject,
         onClose: () => setShowWizard(false)
+      }),
+      showForge && E(ForgeBibleModal, {
+        onForge: doForgeBible,
+        onClose: () => setShowForge(false)
+      }),
+      sharePayload && E(ImportShareModal, {
+        payload: sharePayload,
+        onAccept: acceptShare,
+        onClose: () => setSharePayload(null)
       })
     );
   }
@@ -902,5 +1562,43 @@
     // Defer until plugin API is ready (loaded by plugins.js).
     document.addEventListener("DOMContentLoaded", doRegister, { once: true });
     window.addEventListener("load", doRegister, { once: true });
+  }
+
+  // ── Re-register installed BabelForge projects as Reader translations
+  // every boot so a user-authored translation survives reload.
+  function reregisterInstalled() {
+    try {
+      const data = window.CODEX_DATA;
+      if (!data || !Array.isArray(data.translations)) return;
+      const state = loadState();
+      let added = false;
+      (state.projects || []).forEach(p => {
+        if (!p.installed) return;
+        const trId = "bf-" + p.id.replace(/^proj-/, "");
+        if (data.translations.find(t => t.id === trId)) return;
+        data.translations.push({
+          id: trId,
+          name: p.name + " · BabelForge",
+          year: new Date(p.modified || Date.now()).getFullYear() + "",
+          license: "User-generated (BabelForge)",
+          glyph: "⌬",
+          lang: (p.target_language || "en").toUpperCase().slice(0, 2),
+          source: "babelforge",
+          apiId: trId,
+          projectId: p.id,
+          babelforge: true,
+        });
+        added = true;
+      });
+      if (added) {
+        data.translations = data.translations.slice();
+        try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { boot: true } })); } catch {}
+      }
+    } catch (e) { console.warn("babelforge: reregister failed", e); }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", reregisterInstalled, { once: true });
+  } else {
+    reregisterInstalled();
   }
 })();

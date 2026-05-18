@@ -508,7 +508,7 @@
           label: "PLANS",
           glyph: "⥁",
           icon: "⥁",
-          render: (ctx) => React.createElement(PlansPanel, ctx),
+          render: (ctx) => React.createElement(PlansPanel, ctx || {}),
         }],
       });
       setTimeout(bootReminders, 1500);

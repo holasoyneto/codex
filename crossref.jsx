@@ -377,12 +377,13 @@
         label: "CROSS-REFS",
         glyph: "✝",
         render(ctx) {
+          const c = ctx || {};
           return React.createElement(CrossRefPanel, {
-            book: ctx.book,
-            bookId: ctx.bookId,
-            chapter: ctx.chapter,
-            verse: ctx.verse,
-            translation: ctx.translation,
+            book: c.book,
+            bookId: c.bookId || "John",
+            chapter: c.chapter || 1,
+            verse: c.verse || 1,
+            translation: c.translation,
           });
         },
       }],

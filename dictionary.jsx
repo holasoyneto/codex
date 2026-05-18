@@ -621,12 +621,13 @@
         label: "DICT",
         glyph: "ℵ",
         render(ctx) {
+          const c = ctx || {};
           return React.createElement(DictionaryPanel, {
-            book: ctx.book,
-            bookId: ctx.bookId,
-            chapter: ctx.chapter,
-            verse: ctx.verse,
-            translation: ctx.translation,
+            book: c.book,
+            bookId: c.bookId,
+            chapter: c.chapter,
+            verse: c.verse,
+            translation: c.translation,
           });
         },
       }],

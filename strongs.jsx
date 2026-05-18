@@ -332,9 +332,9 @@
       version: "1.0.0",
       panels: [{
         id: "strongs",
-        label: "Strong's",
+        label: "STRONG'S",
         glyph: "ℋ",
-        render: function (ctx) { return React.createElement(StrongsPanel, ctx); },
+        render: function (ctx) { return React.createElement(StrongsPanel, ctx || {}); },
       }],
       verseActions: [{
         label: "Strong's Lookup",

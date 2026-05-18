@@ -457,20 +457,31 @@
   // Panel + fullscreen mode
   // ───────────────────────────────────────────────────────────────────────
 
+  // Reels is fullscreen ONLY. When the panel tab mounts, we immediately
+  // pop the fullscreen overlay; the in-panel area is just a thin launcher
+  // so the user can re-open after dismissing without leaving the tab.
   function ReelsPanel(ctx) {
-    const [fs, setFs] = useState(false);
+    const [fs, setFs] = useState(true);
+    useEffect(() => { setFs(true); }, []);
+    // Render the overlay through a portal to document.body so it escapes
+    // every parent stacking context / transform / clip (the right-rail
+    // panel was clipping the "fullscreen" overlay on some viewports).
+    const overlay = fs ? (
+      <div className="cx-reels-overlay" role="dialog" aria-label="Reels fullscreen" onClick={(e) => e.target === e.currentTarget && setFs(false)}>
+        <ReelsFeed ctx={ctx} fullscreen={true} onClose={() => setFs(false)} />
+      </div>
+    ) : null;
+    const portal = (overlay && window.ReactDOM && window.ReactDOM.createPortal)
+      ? window.ReactDOM.createPortal(overlay, document.body)
+      : overlay;
     return (
       <div className="cx-reels-pane">
         <div className="cx-reels-head">
           <span className="cx-reels-title">REELS</span>
-          <button type="button" className="cx-reels-fs" onClick={() => setFs(true)} title="Open fullscreen">⛶</button>
+          <span className="cx-reels-sub" style={{opacity:0.6, fontSize:"11px", marginLeft:"8px"}}>fullscreen only</span>
+          <button type="button" className="cx-reels-fs" onClick={() => setFs(true)} title="Open reels">⛶ Open</button>
         </div>
-        <ReelsFeed ctx={ctx} fullscreen={false} />
-        {fs ? (
-          <div className="cx-reels-overlay" role="dialog" aria-label="Reels fullscreen" onClick={(e) => e.target === e.currentTarget && setFs(false)}>
-            <ReelsFeed ctx={ctx} fullscreen={true} onClose={() => setFs(false)} />
-          </div>
-        ) : null}
+        {portal}
       </div>
     );
   }
@@ -492,8 +503,9 @@
         panels: [{
           id: "reels",
           label: "REELS",
+          glyph: "▶",
           icon: "⬚",
-          render: (ctx) => React.createElement(ReelsPanel, ctx),
+          render: (ctx) => React.createElement(ReelsPanel, ctx || {}),
         }],
         onNavigate: (book, chapter) => {
           schedulePreload({ bookId: book, chapter });

@@ -13,8 +13,8 @@ function railTabs() {
     { id: "comm",   label: t("panel.commentary"),   glyph: "§"   },
     { id: "gem",    label: t("panel.gematria"),     glyph: "Σn"  },
     { id: "gnosis", label: t("panel.gnosis"),       glyph: "⟁"   },
-    { id: "exeg",   label: t("panel.exegesis") || "EXEGESIS", glyph: "✎" },
-    { id: "txan",   label: t("panel.txanalysis") || "TRANSLATIONS·", glyph: "⟷" },
+    { id: "exeg",   label: t("panel.exegesis"), glyph: "✎" },
+    { id: "txan",   label: t("panel.txanalysis"), glyph: "⟷" },
   ];
   // Merge plugin-registered panel tabs. Each plugin panel gets a unique tab
   // id namespaced as `plugin:<pluginId>:<panelId>` to avoid collisions.
@@ -32,6 +32,140 @@ function railTabs() {
 // without re-declaring the canonical list.
 if (typeof window !== "undefined") window.railTabs = railTabs;
 
+// ── Panel palette ──────────────────────────────────────────────────────
+// A command-palette style picker that replaces the old overflow tab-strip.
+// Opens via the ⌘ button in the rail header or Cmd/Ctrl+K. Tabs are grouped
+// into intent-driven sections (READING, STUDY, REFERENCE, DISCOVER, FORGE)
+// and filterable by typing. The rail itself only shows 3 user-pinned tabs
+// plus the palette button — much calmer at 280px and beyond.
+const PALETTE_SECTIONS = [
+  { id: "reading",   label: "READING",   ids: ["trans"] },
+  { id: "study",     label: "STUDY",     ids: ["comm", "talmud", "exeg", "txan", "gem", "gnosis"] },
+  { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs:crossrefs", "plugin:word-study:word", "plugin:dictionary:dictionary", "plugin:passage-guide:guide"] },
+  { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:timeline:timeline", "plugin:jewish-study:torah", "plugin:plans:plans", "plugin:ai-quests:quests", "plugin:builder:builder"] },
+  { id: "forge",     label: "FORGE",     ids: ["plugin:babelforge:babel", "plugin:marketplace:market"] },
+];
+const PALETTE_DESCRIPTIONS = {
+  trans: "Translations and side-by-side compare",
+  comm: "Commentary on the open passage",
+  talmud: "Talmudic context and questions",
+  exeg: "Verse-level exegesis",
+  txan: "Word-by-word translation analysis",
+  gem: "Gematria and numeric resonance",
+  gnosis: "Esoteric / mystical reading layer",
+  "plugin:strongs-concordance:strongs": "Strong's concordance lookups",
+  "plugin:crossrefs:crossrefs": "Cross-references for the verse",
+  "plugin:word-study:word": "Deep word studies",
+  "plugin:dictionary:dictionary": "Bible dictionary",
+  "plugin:passage-guide:guide": "Guided tour of the passage",
+  "plugin:reels:reels": "Short-form scripture reels",
+  "plugin:timeline:timeline": "Biblical timeline",
+  "plugin:jewish-study:torah": "Torah portions and Jewish lens",
+  "plugin:plans:plans": "Reading plans",
+  "plugin:ai-quests:quests": "Quests and challenges",
+  "plugin:builder:builder": "Study workspace builder",
+  "plugin:babelforge:babel": "BabelForge translation playground",
+  "plugin:marketplace:market": "Plugin marketplace",
+};
+const DEFAULT_PINNED = ["trans", "comm", "plugin:strongs-concordance:strongs"];
+const PINNED_KEY = "codex.rail.pinned";
+function loadPinned() {
+  try {
+    const raw = localStorage.getItem(PINNED_KEY);
+    if (!raw) return DEFAULT_PINNED.slice();
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr) && arr.length) return arr.slice(0, 3);
+  } catch {}
+  return DEFAULT_PINNED.slice();
+}
+function savePinned(arr) {
+  try { localStorage.setItem(PINNED_KEY, JSON.stringify(arr.slice(0, 3))); } catch {}
+}
+
+function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, gnosisOn, onToggleGnosis }) {
+  const [q, setQ] = React.useState("");
+  const inputRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    setQ("");
+    const id = requestAnimationFrame(() => inputRef.current?.focus());
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    document.addEventListener("keydown", onKey, true);
+    return () => { cancelAnimationFrame(id); document.removeEventListener("keydown", onKey, true); };
+  }, [open, onClose]);
+  if (!open) return null;
+  const byId = new Map(tabs.map(t => [t.id, t]));
+  const filter = q.trim().toLowerCase();
+  const matches = (tb) => !filter
+    || tb.label.toLowerCase().includes(filter)
+    || (PALETTE_DESCRIPTIONS[tb.id] || "").toLowerCase().includes(filter);
+  const pick = (tb) => {
+    if (tb.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
+    onPick(tb.id);
+    onClose();
+  };
+  const node = (
+    <div className="cx-palette-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="cx-palette" role="dialog" aria-modal="true" aria-label="Panel library">
+        <header className="cx-palette-hd">
+          <span className="cx-palette-sigil" aria-hidden="true">⌘</span>
+          <input
+            ref={inputRef}
+            className="cx-palette-input"
+            type="text"
+            placeholder="Search panels…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <button className="cx-palette-x" onClick={onClose} aria-label="Close">×</button>
+        </header>
+        <div className="cx-palette-body">
+          {PALETTE_SECTIONS.map(sec => {
+            const items = sec.ids.map(id => byId.get(id)).filter(Boolean).filter(matches);
+            if (!items.length) return null;
+            return (
+              <section key={sec.id} className="cx-palette-sect">
+                <h4>{sec.label}</h4>
+                <div className="cx-palette-grid">
+                  {items.map(tb => {
+                    const isActive = tb.id === currentTab;
+                    const isPinned = pinned.includes(tb.id);
+                    return (
+                      <button
+                        key={tb.id}
+                        className={`cx-palette-card ${isActive ? "is-active" : ""} ${isPinned ? "is-pinned" : ""}`}
+                        onClick={() => pick(tb)}
+                        title={PALETTE_DESCRIPTIONS[tb.id] || tb.label}
+                      >
+                        <span className="cx-palette-glyph" aria-hidden="true">{tb.glyph}</span>
+                        <span className="cx-palette-meta">
+                          <span className="cx-palette-lbl">{tb.label}</span>
+                          <span className="cx-palette-desc">{PALETTE_DESCRIPTIONS[tb.id] || ""}</span>
+                        </span>
+                        <span
+                          className={`cx-palette-pin ${isPinned ? "is-on" : ""}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={isPinned ? "Unpin" : "Pin to rail"}
+                          onClick={(e) => { e.stopPropagation(); onPin(tb.id); }}
+                        >{isPinned ? "★" : "☆"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+        <footer className="cx-palette-ft">
+          <kbd>Esc</kbd> close · <kbd>⌘K</kbd> open · ★ pins to rail
+        </footer>
+      </div>
+    </div>
+  );
+  return ReactDOM.createPortal(node, document.body);
+}
+
 function RightRail({
   tab, onTab, gnosisOn, onToggleGnosis,
   primary, onPrimary, compareSet, onToggleCompare,
@@ -43,6 +177,42 @@ function RightRail({
   // Recompute on plugin registration so new tabs appear without a remount.
   const tabs = useMemo(() => railTabs(), [pluginVersion]);
   const activePluginTab = tabs.find(x => x.id === tab && x.isPlugin);
+
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  const [pinned, setPinned] = React.useState(loadPinned);
+  const togglePin = (id) => {
+    setPinned(prev => {
+      let next;
+      if (prev.includes(id)) next = prev.filter(x => x !== id);
+      else next = [...prev, id].slice(-3); // newest stays, max 3
+      savePinned(next);
+      return next;
+    });
+  };
+
+  // Global Cmd/Ctrl+K opens the palette. Esc handled inside the palette.
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        // Don't fight an open text field that already uses ⌘K
+        if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+        e.preventDefault();
+        setPaletteOpen(v => !v);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Resolve pinned ids → live tab objects. Skip any that have been
+  // unregistered (e.g. plugin disabled) so we don't render dead chips.
+  const byId = new Map(tabs.map(t => [t.id, t]));
+  const pinnedTabs = pinned.map(id => byId.get(id)).filter(Boolean);
+  // Always include the currently-active tab as a chip if it isn't pinned,
+  // so users see what panel they're on without opening the palette.
+  if (tab && !pinned.includes(tab) && byId.get(tab)) {
+    pinnedTabs.push(byId.get(tab));
+  }
   return (
     <aside className="cx-rail cx-rail-r">
       <RightRailResizer />
@@ -55,25 +225,52 @@ function RightRail({
           aria-label="Collapse right rail"
         >▶</button>
       ) : null}
-      <div className="cx-tabs">
-        {tabs.map(t => {
-          const disabled = t.id === "gnosis" && !gnosisOn;
-          return (
-            <button
-              key={t.id}
-              className={`cx-tab ${tab === t.id ? "is-active" : ""} ${disabled ? "is-locked" : ""}`}
-              onClick={() => {
-                if (t.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
-                onTab(t.id);
-              }}
-            >
-              <span className="cx-tab-glyph">{t.glyph}</span>
-              <span className="cx-tab-lbl">{t.label}</span>
-              {disabled ? <span className="cx-tab-lock">⌬</span> : null}
-            </button>
-          );
-        })}
+      <div className="cx-tabs is-pinned" role="tablist" aria-label="Panel tabs">
+        <button
+          type="button"
+          className={`cx-palette-btn ${paletteOpen ? "is-on" : ""}`}
+          onClick={() => setPaletteOpen(v => !v)}
+          title="Open panel library (⌘K)"
+          aria-label="Open panel library"
+        >
+          <span className="cx-palette-btn-glyph">⌘</span>
+          <span className="cx-palette-btn-lbl">Library</span>
+        </button>
+        <div className="cx-tabs-pinned">
+          {pinnedTabs.map((tb) => {
+            const disabled = tb.id === "gnosis" && !gnosisOn;
+            return (
+              <button
+                key={tb.id}
+                role="tab"
+                aria-selected={tab === tb.id}
+                data-tab-id={tb.id}
+                title={tb.label}
+                className={`cx-tab ${tab === tb.id ? "is-active" : ""} ${disabled ? "is-locked" : ""} ${tb.isPlugin ? "is-plugin" : ""}`}
+                onClick={() => {
+                  if (tb.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
+                  onTab(tb.id);
+                }}
+              >
+                <span className="cx-tab-glyph" aria-hidden="true">{tb.glyph}</span>
+                <span className="cx-tab-lbl">{tb.label}</span>
+                {disabled ? <span className="cx-tab-lock">⌬</span> : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
+      <PanelPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        tabs={tabs}
+        currentTab={tab}
+        onPick={onTab}
+        pinned={pinned}
+        onPin={togglePin}
+        gnosisOn={gnosisOn}
+        onToggleGnosis={onToggleGnosis}
+      />
 
       <div className="cx-tab-body">
         {tab === "trans" && (
@@ -362,7 +559,7 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
       ];
       return { lang, items: ordered };
     });
-  }, [data.translations, langOrder, transOrder]);
+  }, [data.translations, langOrder, transOrder, bumpKey]);
 
   // ── Drag-and-drop handlers ──
   const onDragStart = (kind, id, lang) => (e) => {
@@ -403,6 +600,15 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
     const fn = () => bump(n => n + 1);
     _dlListeners.add(fn);
     return () => _dlListeners.delete(fn);
+  }, []);
+
+  // Re-render when a translation is installed/removed (e.g. BabelForge
+  // forges a Bible). data.translations is mutated in place so the
+  // useMemo above would otherwise miss it.
+  useEffect(() => {
+    const fn = () => bump(n => n + 1);
+    window.addEventListener("codex:translations-changed", fn);
+    return () => window.removeEventListener("codex:translations-changed", fn);
   }, []);
 
   // Per-translation cache stats. Recompute on every bump (download progress

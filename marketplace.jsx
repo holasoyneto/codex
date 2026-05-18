@@ -605,8 +605,8 @@
         panels: [{
           id: "market",
           label: "MARKET",
-          glyph: "⌬",
-          icon: "⌬",
+          glyph: "⊞",
+          icon: "⊞",
           render: () => React.createElement(MarketplacePanel, null),
         }],
       });

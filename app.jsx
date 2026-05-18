@@ -784,6 +784,16 @@ function App() {
   const [tab, setTab] = useState("trans");
   const [primary, setPrimary] = useState(t.primaryTranslation);
 
+  // Global bump so any consumer of window.CODEX_DATA.translations (right-rail
+  // picker, compare set, offline panel) re-derives when a translation is
+  // installed/removed (e.g. BabelForge).
+  const [, _bumpTrans] = useState(0);
+  useEffect(() => {
+    const fn = () => _bumpTrans(n => n + 1);
+    window.addEventListener("codex:translations-changed", fn);
+    return () => window.removeEventListener("codex:translations-changed", fn);
+  }, []);
+
   // Multi-provider AI registry. Re-fetched from /api/health on mount and
   // whenever a key/engine change is broadcast so the model selector grays
   // out providers that aren't reachable / configured.
@@ -841,15 +851,12 @@ function App() {
   }, []);
 
   // ── Schizo Mode eligibility ─────────────────────────────────────────────
-  // The state hook stays here; the useEffect that DEPENDS on `passage` lives
-  // BELOW the passage useState. Otherwise — under Babel-env's const→var
-  // transpile — `passage` is hoisted as `undefined` to the top of App, the
-  // deps array `[passage.bookId, ...]` is evaluated every render, and the
-  // app crashes with "Cannot read properties of undefined (reading 'bookId')"
-  // before anything paints. Found via live-debug error boundary 2026-05-18.
-  const [schizoEligible, setSchizoEligible] = useState(() => {
-    try { return localStorage.getItem("codex.schizo.eligible") === "1"; } catch { return false; }
-  });
+  // Toggle visibility is LIVE — only when the user is currently focused on
+  // Acts 16:26 (the prison earthquake, every bond loosed). Once they enable
+  // the mode it stays on across navigation; they just lose the toggle until
+  // they return to the verse. This makes the easter egg feel like a door
+  // that opens only when you're standing in front of it.
+  const [schizoEligible, setSchizoEligible] = useState(false);
 
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
@@ -894,21 +901,24 @@ function App() {
   // defined, because Babel-env transpiles const→var (hoists declarations)
   // and an earlier deps-array reference to passage.bookId would crash on
   // first render. See the schizoEligible useState above for the long note.
+  //
+  // Trigger: Acts 16:26 — the prison earthquake. "And suddenly there was a
+  // great earthquake, so that the foundations of the prison were shaken:
+  // and immediately all the doors were opened, and every one's bands were
+  // loosed." Schizo Mode is about breaking free; this verse is the canon's
+  // archetypal break-out. The trigger requires the user to actually land
+  // ON v26 as their cursor (not just open Acts 16) — so it's hidden enough
+  // that it's a real discovery, not a stumble.
   useEffect(() => {
-    if (schizoEligible) return;
-    if (passage.bookId === "rev" && passage.chapter === 13) {
-      // Trigger when verse 18 is the current cursor OR is present in viewport
-      // (we approximate "in viewport" by simply checking that v18 exists in
-      // the loaded passage — Revelation 13 has v18 and the reader renders
-      // every verse; the user scrolling to that chapter satisfies the spirit
-      // of the trigger). Lock in once observed.
-      const hasV18 = (passage.verses || []).some(v => v.n === 18);
-      if (hasV18) {
-        setSchizoEligible(true);
-        try { localStorage.setItem("codex.schizo.eligible", "1"); } catch {}
+    const focused = (passage.bookId === "act" && passage.chapter === 16 && currentVerse === 26);
+    setSchizoEligible(prev => {
+      if (focused && !prev) {
+        // First time landing — subtle feedback.
+        try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "⚯ a door opened in the settings panel", kind: "ok" } })); } catch {}
       }
-    }
-  }, [passage.bookId, passage.chapter, passage.verses, schizoEligible]);
+      return focused;
+    });
+  }, [passage.bookId, passage.chapter, currentVerse]);
 
   const loadPanelData = useCallback(async (bookId, chapter, bookName) => {
     const seed = data.seedPanels[`${bookId}.${chapter}`];
@@ -1726,6 +1736,21 @@ function App() {
           }}
         />
 
+        {/* Floating Reels launcher — single-pane only. Switches the right
+            rail to the Reels panel which auto-pops the fullscreen overlay. */}
+        {!sideBySide ? (
+          <button
+            className="cx-reels-fab"
+            title="Open Reels"
+            aria-label="Open Reels"
+            onClick={() => {
+              setRightOpen(true);
+              setRightCollapsed(false);
+              setTab("plugin:reels:reels");
+            }}
+          >⛶</button>
+        ) : null}
+
         <RightRail
           isCollapsed={rightCollapsed}
           onCollapse={() => setRightCollapsed(true)}
@@ -2013,9 +2038,10 @@ function App() {
           }} />
         <TweakToggle label={tt("look.scanlines")} value={t.scanlines}
           onChange={(v) => setTweak("scanlines", v)} />
-        {/* Schizo Mode toggle — only renders once the user has visited
-            Revelation 13:18. The label gets a subtle glitch animation via
-            .cx-schizo-toggle so it's easy to miss unless you're looking. */}
+        {/* Schizo Mode toggle — only renders once the user has landed on
+            Acts 16:26 (the prison earthquake, every bond loosed). The label
+            gets a subtle glitch animation via .cx-schizo-toggle so it's
+            easy to miss unless you're looking. */}
         {schizoEligible ? (
           <div className="cx-schizo-toggle">
             <TweakToggle label="Schizo Mode" value={!!t.schizo}
@@ -2058,6 +2084,20 @@ function App() {
             {tt("reading.caffeinate.unsupported")}
           </p>
         ) : null}
+
+        <TweakSection label="Modules" />
+        <div className="cx-export-row">
+          <button
+            className="cx-mini-btn"
+            title="Browse and install plugin modules"
+            onClick={() => {
+              setRightOpen(true);
+              setRightCollapsed(false);
+              setTab("plugin:marketplace:market");
+            }}
+          >Open Marketplace</button>
+        </div>
+        <p className="cx-export-hint">Install, update, and manage plugin modules from the Marketplace.</p>
 
         <TweakSection label={tt("data.portable")} />
         <div className="cx-export-row">

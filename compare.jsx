@@ -528,7 +528,7 @@
         id: "compare",
         label: "COMPARE",
         glyph: "⚖",
-        render: function (ctx) { return React.createElement(ComparePanel, ctx); },
+        render: function (ctx) { return React.createElement(ComparePanel, ctx || {}); },
       }],
     });
   }

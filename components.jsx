@@ -953,16 +953,53 @@ function useLongPress(onLongPress, ms = 450) {
 //   right-click → open full VerseMenu (mark / compare / translate / oracle / copy)
 // Restrained at rest, intensifies on hover/focus. The verse itself owns the
 // right-click context menu, so this stays as one quiet affordance.
-function VerseActions({ onMark, onMenu, isMarked }) {
+function VerseActions({ onMark, onMenu, isMarked, voxText }) {
+  return (
+    <>
+      {voxText ? <VerseVoxBtn text={voxText} /> : null}
+      <button
+        type="button"
+        className={`cx-vmark-btn ${isMarked ? "is-on" : ""}`}
+        onClick={onMark}
+        onContextMenu={onMenu}
+        title={isMarked ? "Click to remove highlight · right-click for menu" : "Click to highlight · right-click for menu"}
+        aria-label={isMarked ? "Remove highlight" : "Highlight verse"}
+      >{isMarked ? "★" : "☆"}</button>
+    </>
+  );
+}
+
+// Inline TTS button — uses the browser's Web Speech API for one-tap verse
+// playback. The full Vox panel still owns voice selection / queueing etc.;
+// this is purely a "press to hear THIS verse" affordance that materialises
+// on row hover. Reuses the active utterance so a second click stops it.
+function VerseVoxBtn({ text }) {
+  const [on, setOn] = React.useState(false);
+  React.useEffect(() => () => {
+    try { window.speechSynthesis?.cancel(); } catch {}
+  }, []);
+  if (typeof window === "undefined" || !window.speechSynthesis) return null;
+  const speak = (e) => {
+    e.stopPropagation();
+    const synth = window.speechSynthesis;
+    if (on) { synth.cancel(); setOn(false); return; }
+    try {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(String(text || "").trim());
+      u.onend = () => setOn(false);
+      u.onerror = () => setOn(false);
+      synth.speak(u);
+      setOn(true);
+    } catch { setOn(false); }
+  };
   return (
     <button
       type="button"
-      className={`cx-vmark-btn ${isMarked ? "is-on" : ""}`}
-      onClick={onMark}
-      onContextMenu={onMenu}
-      title={isMarked ? "Click to remove highlight · right-click for menu" : "Click to highlight · right-click for menu"}
-      aria-label={isMarked ? "Remove highlight" : "Highlight verse"}
-    >{isMarked ? "★" : "☆"}</button>
+      className={`cx-vox-inline ${on ? "is-on" : ""}`}
+      onClick={speak}
+      title={on ? "Stop reading" : "Read aloud"}
+      aria-label={on ? "Stop reading verse" : "Read verse aloud"}
+    >{on ? "◼" : "▷"}</button>
   );
 }
 
@@ -1085,6 +1122,7 @@ function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSel
         onMark={(e) => { e.stopPropagation(); onToggleHighlight?.(v.n); }}
         onMenu={(e) => { e.stopPropagation(); onOpenVerseMenu?.(v, e.currentTarget.closest(".cx-verse").getBoundingClientRect()); }}
         isMarked={!!markColor}
+        voxText={text}
       />
     </p>
   );
@@ -1120,6 +1158,7 @@ function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSe
         onMark={(e) => { e.stopPropagation(); onToggleHighlight?.(v.n); }}
         onMenu={(e) => { e.stopPropagation(); onOpenVerseMenu?.(v, e.currentTarget.closest(".cx-verse-row").getBoundingClientRect()); }}
         isMarked={!!markColor}
+        voxText={colsMeta[0] ? verseText(v, colsMeta[0].id) : ""}
       />
     </div>
   );
@@ -1497,8 +1536,9 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
         </div>
 
         <div className="cx-reader-foot">
-          <button className="cx-nav-btn" onClick={onPrevChapter} disabled={!prevLabel}>
-            <span className="cx-nav-arrow">&lsaquo;</span>{prevLabel || ""}
+          <button className="cx-nav-btn" onClick={onPrevChapter} disabled={!prevLabel} title={prevLabel || "Beginning"} aria-label={`Previous: ${prevLabel || "Beginning"}`}>
+            <span className="cx-nav-arrow" aria-hidden="true">&lsaquo;</span>
+            <span className="cx-nav-btn-label">{prevLabel || ""}</span>
           </button>
           <div className="cx-reader-progress">
             <span>{passage.chapter} of {totalChapters}</span>
@@ -1506,8 +1546,9 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
               <div className="cx-prog-fill" style={{ width: `${(passage.chapter/totalChapters)*100}%` }} />
             </div>
           </div>
-          <button className="cx-nav-btn" onClick={onNextChapter} disabled={!nextLabel}>
-            {nextLabel || ""}<span className="cx-nav-arrow">&rsaquo;</span>
+          <button className="cx-nav-btn" onClick={onNextChapter} disabled={!nextLabel} title={nextLabel || "End"} aria-label={`Next: ${nextLabel || "End"}`}>
+            <span className="cx-nav-btn-label">{nextLabel || ""}</span>
+            <span className="cx-nav-arrow" aria-hidden="true">&rsaquo;</span>
           </button>
         </div>
       </CornerFrame>

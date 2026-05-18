@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v182";
+const VERSION = "v187";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -33,6 +33,7 @@ const SHELL_FILES = [
   r("icon.svg"),
   r("direct-api.js"),
   r("i18n.js"),
+  r("ai-translate-ui.js"),
   r("light-themes.js"),
   r("data.js"),
   r("bible.js"),

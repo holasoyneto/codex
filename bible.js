@@ -250,7 +250,7 @@ window.BIBLE = (function () {
   function _sourceChain(t) {
     if (!t) return [];
     const chain = [];
-    if (t.source && t.apiId) chain.push({ kind: t.source, apiId: t.apiId });
+    if (t.source && t.apiId) chain.push({ kind: t.source, apiId: t.apiId, projectId: t.projectId });
     if (Array.isArray(t.mirrors)) for (const m of t.mirrors) chain.push(m);
     return chain;
   }
@@ -377,6 +377,38 @@ window.BIBLE = (function () {
         throw e;
       }
     }
+    if (src.kind === "babelforge") {
+      // User-authored translation produced by BabelForge. Lives in
+      // localStorage["codex.babelforge.v1"].projects[*].verses with keys
+      // like "gen.1.1" → { draft, base, ... }. The translation id maps
+      // to a project id via src.projectId.
+      try {
+        const raw = localStorage.getItem("codex.babelforge.v1");
+        const state = raw ? JSON.parse(raw) : null;
+        const proj = state && Array.isArray(state.projects)
+          ? state.projects.find(p => p.id === src.projectId)
+          : null;
+        if (!proj) throw new Error(`babelforge: project ${src.projectId} not installed`);
+        const out = [];
+        const keys = Object.keys(proj.verses || {});
+        keys.forEach(k => {
+          const parts = k.split(".");
+          if (parts.length !== 3) return;
+          if (parts[0] !== bookId) return;
+          if (parseInt(parts[1], 10) !== chapter) return;
+          const n = parseInt(parts[2], 10);
+          const draft = proj.verses[k] && proj.verses[k].draft;
+          if (draft && !isNaN(n)) out.push({ n, text: String(draft).replace(/\s+/g, " ").trim() });
+        });
+        out.sort((a, b) => a.n - b.n);
+        if (out.length === 0) {
+          return [{ n: 1, text: `[${proj.name}] · this chapter hasn't been translated yet in BabelForge. Open BabelForge to draft it.` }];
+        }
+        return out;
+      } catch (e) {
+        throw new Error("babelforge load failed: " + e.message);
+      }
+    }
     throw new Error("Unknown source kind: " + src.kind);
   }
 
@@ -403,7 +435,10 @@ window.BIBLE = (function () {
   async function loadChapter(bookId, chapter, translation) {
     if (_ready) await _ready;
     const key = `${bookId}.${chapter}.${translation}`;
-    if (_memCache[key]) {
+    // BabelForge translations live in localStorage and are edited live —
+    // never serve from cache, always re-read the project.
+    const isBf = typeof translation === "string" && translation.startsWith("bf-");
+    if (!isBf && _memCache[key]) {
       const scrubbed = _scrubVerses(_memCache[key]);
       if (scrubbed !== _memCache[key]) {
         _memCache[key] = scrubbed;
@@ -430,9 +465,11 @@ window.BIBLE = (function () {
     for (const src of chain) {
       try {
         const verses = await _fetchFromSource(src, bookId, chapter, translation);
-        _memCache[key] = verses;
-        _dirty.add(key);
-        _scheduleFlush();
+        if (!isBf) {
+          _memCache[key] = verses;
+          _dirty.add(key);
+          _scheduleFlush();
+        }
         return verses;
       } catch (e) {
         lastErr = e;
@@ -1388,6 +1425,22 @@ window.BIBLE = (function () {
       chapterCount: Object.keys(chapters).length,
       chapters,
     };
+  }
+
+  // Invalidate _memCache entries for a translation when its source changes
+  // (e.g. BabelForge project saved). bf-* keys aren't cached anyway, but
+  // any historic entries should still be wiped.
+  if (typeof window !== "undefined") {
+    window.addEventListener("codex:translations-changed", (e) => {
+      try {
+        const id = e && e.detail && e.detail.id;
+        if (!id) return;
+        const suffix = "." + id;
+        for (const k of Object.keys(_memCache)) {
+          if (k.endsWith(suffix)) delete _memCache[k];
+        }
+      } catch {}
+    });
   }
 
   return {

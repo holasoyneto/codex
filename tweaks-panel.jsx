@@ -997,7 +997,8 @@ function LightThemePicker() {
 
 // ── Schizo Mode toggle (easter egg) ────────────────────────────────────
 // Renders nothing unless `eligible` is true — eligibility is set by App
-// once the user has actually visited Revelation 13:18. The label inherits
+// once the user has actually landed on Acts 16:26 (the prison earthquake —
+// "every one's bands were loosed"). The label inherits
 // a faint glitch animation from .cx-schizo-toggle in styles.css so it's
 // easy to miss unless you're looking. Kept here so the gating logic
 // lives next to the other Tweak primitives.

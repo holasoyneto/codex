@@ -548,7 +548,7 @@
           label: "TIMELINE",
           glyph: "⏳",
           icon: "⏳",
-          render: (ctx) => React.createElement(TimelinePanel, ctx),
+          render: (ctx) => React.createElement(TimelinePanel, ctx || {}),
         }],
       });
     } catch (e) {
