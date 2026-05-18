@@ -367,62 +367,103 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 
 /* ── sun strip ─────────────────────────────────────────────────────────── */
 /* ── Solar strip · ultra-quiet 24h indicator ─────────────────────────────── */
-.cx-sun { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 320px; max-width: 100%; }
+/* ── Solar clock — fluid + elegant ──────────────────────────────────────
+   Single-gradient 24-hour band that scales fluidly from micro phones
+   (~180px wide) to Studio Displays (~480px). Tick density is set in JS
+   via ResizeObserver so labels never overlap. Phase color comes from
+   a tiny SVG sun that rises in arc above the cursor — not from a noisy
+   palette of background bands. */
+.cx-sun {
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 6px;
+  width: clamp(180px, 28vw, 460px);
+  max-width: 100%;
+  font-family: var(--cx-mono);
+  color: var(--cx-fg);
+}
 .cx-sun-bar {
   position: relative;
   height: 1px;
   background: var(--cx-line);
   border: none;
   overflow: visible;
-  margin: 6px 0 8px;
+  margin: 14px 0 8px;
 }
-/* Phase shading: a single faint gradient instead of competing color bands. */
-.cx-sun-night, .cx-sun-dawn, .cx-sun-day, .cx-sun-dusk {
-  position: absolute; top: -0.5px; bottom: -0.5px;
-  background: var(--cx-fg-dim);
-  opacity: 0;
-}
-.cx-sun-day {
-  opacity: 0.5;
-  background: var(--cx-fg-dim);
-}
-.cx-sun-dawn, .cx-sun-dusk {
-  opacity: 0.25;
-  background: var(--cx-fg-dim);
+/* Single horizontal gradient: night → dawn cool → day warm → dusk → night.
+   Stop positions roughly correspond to 5h/7h/18h/20h boundaries. */
+.cx-sun-bar-grad {
+  position: absolute; left: 0; right: 0;
+  top: -0.5px; height: 2px;
+  background: linear-gradient(to right,
+    color-mix(in oklab, var(--cx-fg-dim) 12%, transparent) 0%,
+    color-mix(in oklab, var(--cx-fg-dim) 12%, transparent) 18%,
+    color-mix(in oklab, var(--cx-accent-2, var(--cx-accent)) 25%, transparent) 25%,
+    color-mix(in oklab, var(--cx-fg-dim) 35%, transparent) 32%,
+    color-mix(in oklab, var(--cx-fg-dim) 50%, transparent) 50%,
+    color-mix(in oklab, var(--cx-fg-dim) 35%, transparent) 70%,
+    color-mix(in oklab, var(--cx-accent-2, var(--cx-accent)) 25%, transparent) 78%,
+    color-mix(in oklab, var(--cx-fg-dim) 12%, transparent) 88%,
+    color-mix(in oklab, var(--cx-fg-dim) 12%, transparent) 100%);
+  border-radius: 1px;
+  pointer-events: none;
 }
 .cx-sun-tick {
   position: absolute; top: 100%; transform: translateX(-50%);
-  font-size: 8px; color: var(--cx-fg-dim); letter-spacing: 0.1em;
-  margin-top: 4px; opacity: 0.45;
-  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  color: var(--cx-fg-dim);
+  letter-spacing: 0.08em;
+  margin-top: 5px;
+  opacity: 0.55;
+  font-feature-settings: "tnum";
+  pointer-events: none;
+  white-space: nowrap;
 }
+/* Edge ticks anchor to the bar ends so they don't clip out */
+.cx-sun-tick:first-of-type { transform: translateX(0); }
+.cx-sun-tick:last-of-type  { transform: translateX(-100%); }
+
 .cx-sun-cursor {
-  position: absolute; top: -3px; bottom: -3px;
-  width: 1px; background: var(--cx-fg);
-  box-shadow: none;
+  position: absolute; top: -6px; bottom: -3px;
+  width: 1px;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    color-mix(in oklab, var(--cx-fg) 60%, transparent) 40%,
+    color-mix(in oklab, var(--cx-fg) 60%, transparent) 100%);
   transform: translateX(-0.5px);
-  opacity: 0.7;
+  pointer-events: none;
 }
 .cx-sun-cursor-dot {
-  position: absolute; top: -2px; left: -1.5px;
+  position: absolute; bottom: -2px; left: -1.5px;
   width: 4px; height: 4px; border-radius: 50%;
-  background: var(--cx-fg);
-  box-shadow: none;
-  opacity: 0.85;
+  background: var(--cx-accent);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--cx-accent) 50%, transparent);
 }
+/* Tiny sun floating above the cursor, rising in arc with sun height */
+.cx-sun-cursor-sun {
+  position: absolute;
+  left: -6px; bottom: 4px;
+  color: var(--cx-accent-2, var(--cx-accent));
+  filter: drop-shadow(0 0 4px color-mix(in oklab, currentColor 60%, transparent));
+  pointer-events: none;
+  transition: color 400ms ease;
+}
+.cx-sun.is-night .cx-sun-cursor-sun { color: color-mix(in oklab, var(--cx-fg-dim) 60%, var(--cx-accent) 40%); opacity: .35; }
+.cx-sun.is-dawn  .cx-sun-cursor-sun { color: var(--cx-accent-2, #ffc46b); opacity: .85; }
+.cx-sun.is-day   .cx-sun-cursor-sun { color: var(--cx-accent-2, #ffc46b); opacity: 1; }
+.cx-sun.is-dusk  .cx-sun-cursor-sun { color: var(--cx-accent-2, #ffc46b); opacity: .75; }
+
 .cx-sun-meta {
-  display: flex; justify-content: space-between;
-  font-size: 9px;
+  display: flex; align-items: baseline; justify-content: center;
+  gap: 8px;
+  font-size: 9.5px;
   color: var(--cx-fg);
-  letter-spacing: 0.14em;
-  padding: 0 2px; margin-top: 14px;
-  opacity: 0.85;
+  letter-spacing: 0.16em;
+  padding: 0 2px;
+  margin-top: 12px;
   font-family: var(--cx-mono);
   text-transform: lowercase;
-  /* Defensive: ensure no parent background bleed and no inherited
-     filters make text appear washed-out. Previously rendered at
-     opacity 0.55 + color: var(--cx-fg-dim) which in Drift (CRT-green)
-     theme was ~invisible — text only appeared on mouse selection. */
+  font-feature-settings: "tnum";
+  opacity: 0.85;
   position: relative;
   z-index: 1;
 }
@@ -430,6 +471,28 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   background: transparent;
   color: inherit;
   -webkit-text-fill-color: currentColor;
+}
+.cx-sun-meta-phase { color: var(--cx-fg); }
+.cx-sun-meta-sun   { color: var(--cx-fg-dim); }
+.cx-sun-meta-sun i { font-style: normal; opacity: 0.6; margin-left: 1px; }
+.cx-sun-meta-dot   { color: var(--cx-fg-dim); opacity: 0.5; font-weight: 600; }
+
+/* Micro-screens — drop the meta entirely; the gradient + cursor still
+   convey time intuitively in <280px. */
+@media (max-width: 360px) {
+  .cx-sun { gap: 4px; width: clamp(140px, 44vw, 280px); }
+  .cx-sun-bar { margin-top: 10px; }
+  .cx-sun-tick { font-size: 7.5px; opacity: 0.45; }
+}
+@media (max-width: 280px) {
+  .cx-sun-meta { display: none; }
+}
+
+/* Huge displays — let it breathe a little more */
+@media (min-width: 1920px) {
+  .cx-sun { width: clamp(360px, 24vw, 560px); }
+  .cx-sun-tick { font-size: 9.5px; }
+  .cx-sun-meta { font-size: 10.5px; }
 }
 
 /* ── rails ─────────────────────────────────────────────────────────────── */
@@ -14150,4 +14213,28 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
   .cx-tl-search { width: 130px; }
   .cx-tl-track { height: 200px; }
   .cx-tl-detail-title { font-size: 20px; }
+}
+
+/* ===== Bible Dictionary ===== */
+.cx-dict-pane .cx-dict-body p:first-of-type::first-letter {
+  font-family: var(--cx-font-serif, 'Cormorant Garamond', 'Cardo', serif);
+  font-size: 2.6em;
+  float: left;
+  line-height: 0.85;
+  padding: 4px 6px 0 0;
+  color: var(--cx-accent, #7ee0ff);
+}
+.cx-dict-pane .cx-dict-body blockquote {
+  position: relative;
+}
+.cx-dict-pane button:hover {
+  filter: brightness(1.15);
+}
+.cx-dict-pane button:focus-visible {
+  outline: 1px solid var(--cx-accent, #7ee0ff);
+  outline-offset: 1px;
+}
+.cx-dict-pane input[type="search"]:focus {
+  border-color: var(--cx-accent, #7ee0ff);
+  box-shadow: 0 0 0 1px var(--cx-accent, #7ee0ff);
 }

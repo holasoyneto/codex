@@ -14,71 +14,4063 @@
       "title": "Adam",
       "kind": "person",
       "body": "Red earth; the name given to the first man, created by God on the sixth day, formed from the dust of the ground and animated by the breath of God (Gen. 2:7). Placed in the garden of Eden and given dominion over every living thing, he was a federal representative of the race that should descend from him. By his disobedience in eating the forbidden fruit he plunged himself and all his posterity into sin and death (Rom. 5:12-21). His age at death is given as 930 years (Gen. 5:5). In the New Testament Christ is called the 'second Adam' (1 Cor. 15:45-47), the head and pattern of a new humanity restored to communion with God.",
-      "refs": ["gen.1.26", "gen.2.7", "gen.3", "gen.5.5", "rom.5.12", "1co.15.45"],
-      "related": ["eve", "eden", "fall", "sin", "jesus-christ"]
+      "refs": [
+        "gen.1.26",
+        "gen.2.7",
+        "gen.3",
+        "gen.5.5",
+        "rom.5.12",
+        "1co.15.45"
+      ],
+      "related": [
+        "eve",
+        "eden",
+        "fall",
+        "sin",
+        "jesus-christ"
+      ]
     },
     "eve": {
       "title": "Eve",
       "kind": "person",
       "body": "Life; living; the name given by Adam to his wife (Gen. 3:20), because she was the mother of all living. She was formed from one of Adam's ribs while he slept (Gen. 2:21-22), thus signifying the close union of marriage. Tempted by the serpent in the garden of Eden, she ate of the forbidden fruit and gave to her husband; thus sin and death entered the world (Gen. 3:1-6; 1 Tim. 2:13-15). To her the first promise of redemption was made, that her Seed should bruise the serpent's head (Gen. 3:15). She bore Cain, Abel, and Seth, with other sons and daughters.",
-      "refs": ["gen.2.21", "gen.3", "gen.4.1", "2co.11.3", "1ti.2.13"],
-      "related": ["adam", "eden", "fall", "serpent", "cain"]
+      "refs": [
+        "gen.2.21",
+        "gen.3",
+        "gen.4.1",
+        "2co.11.3",
+        "1ti.2.13"
+      ],
+      "related": [
+        "adam",
+        "eden",
+        "fall",
+        "serpent",
+        "cain"
+      ]
     },
     "cain": {
       "title": "Cain",
       "kind": "person",
       "body": "Possession, or acquisition; the firstborn son of Adam and Eve (Gen. 4:1). A tiller of the ground, he brought an offering of the fruit of the ground unto the LORD, but the LORD had not respect unto his offering, while accepting Abel's lamb (Gen. 4:3-5). Filled with wrath, he rose up against his brother and slew him in the field — the first murder. Banished and marked by God as a wanderer, he dwelt in the land of Nod, east of Eden, and built the first city, which he called after the name of his son Enoch. Held up in scripture as the type of unbelief, hatred, and impenitent sin (1 John 3:12; Jude 11).",
-      "refs": ["gen.4", "heb.11.4", "1jn.3.12", "jud.1.11"],
-      "related": ["abel", "adam", "eve", "nod", "murder"]
+      "refs": [
+        "gen.4",
+        "heb.11.4",
+        "1jn.3.12",
+        "jud.1.11"
+      ],
+      "related": [
+        "abel",
+        "adam",
+        "eve",
+        "nod",
+        "murder"
+      ]
     },
     "abel": {
       "title": "Abel",
       "kind": "person",
       "body": "Breath, or vanity; the second son of Adam and Eve, and a keeper of sheep (Gen. 4:2). By faith he offered unto God a more excellent sacrifice than Cain, namely a firstling of his flock, and obtained witness that he was righteous (Heb. 11:4). For this he was slain by his envious brother — the first martyr of the faith. The voice of his blood cried unto God from the ground (Gen. 4:10), and our Lord Himself calls him 'righteous Abel' (Matt. 23:35). His sacrifice prefigured the better blood of Christ (Heb. 12:24).",
-      "refs": ["gen.4.2", "mat.23.35", "heb.11.4", "heb.12.24"],
-      "related": ["cain", "adam", "sacrifice", "faith", "martyrdom"]
+      "refs": [
+        "gen.4.2",
+        "mat.23.35",
+        "heb.11.4",
+        "heb.12.24"
+      ],
+      "related": [
+        "cain",
+        "adam",
+        "sacrifice",
+        "faith",
+        "martyrdom"
+      ]
     },
     "noah": {
       "title": "Noah",
       "kind": "person",
       "body": "Rest; the tenth in descent from Adam through Seth, the son of Lamech (Gen. 5:28-29). In an age of universal corruption Noah alone was found righteous and walked with God. Warned of God of things not seen as yet, he was moved with fear, and prepared an ark for the saving of his house (Heb. 11:7). With his wife, his three sons — Shem, Ham, and Japheth — and their wives, he entered the ark, and through the flood the race was preserved. After the waters abated he built an altar, offered sacrifice, and received the covenant of the rainbow that God would no more destroy the earth by water (Gen. 9). He lived 950 years.",
-      "refs": ["gen.5.28", "gen.6", "gen.7", "gen.8", "gen.9", "heb.11.7", "1pe.3.20"],
-      "related": ["ark", "flood", "covenant", "shem", "ham", "japheth"]
+      "refs": [
+        "gen.5.28",
+        "gen.6",
+        "gen.7",
+        "gen.8",
+        "gen.9",
+        "heb.11.7",
+        "1pe.3.20"
+      ],
+      "related": [
+        "ark",
+        "flood",
+        "covenant",
+        "shem",
+        "ham",
+        "japheth"
+      ]
     },
     "abraham": {
       "title": "Abraham",
       "kind": "person",
       "body": "Father of a multitude; originally Abram, 'high father.' Son of Terah, a descendant of Shem, born in Ur of the Chaldees about 2000 B.C. Called of God to leave his country and kindred and to journey into a land which the LORD would show him (Gen. 12:1). By faith he obeyed, and the covenant was made with him that in his seed should all the families of the earth be blessed. To him were given the promises of an innumerable seed, of the land of Canaan, and of the coming Messiah. His faith was tried in the offering up of Isaac upon Mount Moriah, and it was counted unto him for righteousness (Gen. 15:6; Rom. 4). He is called the Friend of God (James 2:23) and the father of all them that believe.",
-      "refs": ["gen.12", "gen.15", "gen.17", "gen.22", "rom.4", "gal.3", "heb.11.8", "jas.2.23"],
-      "related": ["sarah", "isaac", "ishmael", "covenant", "ur-of-the-chaldees", "canaan"]
+      "refs": [
+        "gen.12",
+        "gen.15",
+        "gen.17",
+        "gen.22",
+        "rom.4",
+        "gal.3",
+        "heb.11.8",
+        "jas.2.23"
+      ],
+      "related": [
+        "sarah",
+        "isaac",
+        "ishmael",
+        "covenant",
+        "ur-of-the-chaldees",
+        "canaan"
+      ]
     },
     "sarah": {
       "title": "Sarah",
       "kind": "person",
       "body": "Princess; originally Sarai, the wife and half-sister of Abraham (Gen. 11:29). Long barren, she received the promise that through her a son should be born to Abraham, the heir of the covenant (Gen. 17:15-16). At the age of ninety she bore Isaac, the child of promise (Gen. 21). The apostle Peter holds her up as an example of holy women of old, who adorned themselves in subjection to their own husbands (1 Pet. 3:5-6). She died at Hebron at the age of 127 and was buried in the cave of Machpelah.",
-      "refs": ["gen.11.29", "gen.17.15", "gen.21", "gen.23", "rom.4.19", "heb.11.11", "1pe.3.6"],
-      "related": ["abraham", "isaac", "hagar", "machpelah"]
+      "refs": [
+        "gen.11.29",
+        "gen.17.15",
+        "gen.21",
+        "gen.23",
+        "rom.4.19",
+        "heb.11.11",
+        "1pe.3.6"
+      ],
+      "related": [
+        "abraham",
+        "isaac",
+        "hagar",
+        "machpelah"
+      ]
     },
     "hagar": {
       "title": "Hagar",
       "kind": "person",
       "body": "Flight; an Egyptian handmaid given by Sarai to Abram. Despising her mistress when she conceived, she fled into the wilderness, where the angel of the LORD found her by a fountain and bade her return (Gen. 16). She bore Ishmael. Years later, after Isaac's weaning, she was sent away with her son and wandered in the wilderness of Beersheba, where God again preserved them. Paul uses her allegorically as the figure of the old covenant of bondage from Mount Sinai (Gal. 4:24-25).",
-      "refs": ["gen.16", "gen.21.9", "gal.4.24"],
-      "related": ["sarah", "ishmael", "abraham", "covenant"]
+      "refs": [
+        "gen.16",
+        "gen.21.9",
+        "gal.4.24"
+      ],
+      "related": [
+        "sarah",
+        "ishmael",
+        "abraham",
+        "covenant"
+      ]
     },
     "isaac": {
       "title": "Isaac",
       "kind": "person",
       "body": "Laughter; the son of promise, born to Abraham when he was a hundred years old and to Sarah at ninety (Gen. 21:1-3). His birth was the fulfilment of the long-promised seed. As a youth he was offered up by his father on Mount Moriah at the command of God, a transaction in which both father and son foreshadowed the offering of the only-begotten Son of God (Gen. 22; Heb. 11:17-19). He married Rebekah and became the father of Esau and Jacob. A meditative and peaceable man, he dwelt much at Beer-lahai-roi and lived 180 years.",
-      "refs": ["gen.21", "gen.22", "gen.24", "gen.25", "gen.27", "heb.11.17"],
-      "related": ["abraham", "sarah", "rebekah", "jacob", "esau", "moriah"]
+      "refs": [
+        "gen.21",
+        "gen.22",
+        "gen.24",
+        "gen.25",
+        "gen.27",
+        "heb.11.17"
+      ],
+      "related": [
+        "abraham",
+        "sarah",
+        "rebekah",
+        "jacob",
+        "esau",
+        "moriah"
+      ]
     },
     "ishmael": {
       "title": "Ishmael",
       "kind": "person",
       "body": "God hears; the son of Abraham by Hagar the Egyptian, born when Abraham was eighty-six (Gen. 16:15). Of him it was foretold that he should be 'a wild man,' his hand against every man and every man's hand against him; and that he should beget twelve princes and become a great nation (Gen. 17:20). After Isaac's birth he was cast out with his mother, and dwelt in the wilderness of Paran, where he became an archer. He is reckoned the ancestor of the Arab peoples.",
-      "refs": ["gen.16", "gen.17.20", "gen.21", "gen.25.12", "gal.4.30"],
-      "related": ["abraham", "hagar", "isaac", "arabia"]
+      "refs": [
+        "gen.16",
+        "gen.17.20",
+        "gen.21",
+        "gen.25.12",
+        "gal.4.30"
+      ],
+      "related": [
+        "abraham",
+        "hagar",
+        "isaac",
+        "arabia"
+      ]
+    },
+    "rebekah": {
+      "title": "Rebekah",
+      "kind": "person",
+      "body": "Captivating; the daughter of Bethuel and sister of Laban, chosen as wife for Isaac by Abraham's servant (Gen. 24). At the well of Nahor she was discerned by her courtesy in drawing water for the camels. She bore the twins Esau and Jacob, and favoured the younger, contriving the stratagem by which Jacob obtained the blessing intended for Esau (Gen. 27). She died and was buried at Machpelah.",
+      "refs": [
+        "gen.24",
+        "gen.25.21",
+        "gen.27",
+        "gen.49.31"
+      ],
+      "related": [
+        "isaac",
+        "jacob",
+        "esau",
+        "laban"
+      ]
+    },
+    "jacob": {
+      "title": "Jacob",
+      "kind": "person",
+      "body": "Supplanter; the younger of the twin sons of Isaac and Rebekah (Gen. 25:26). He purchased the birthright of Esau for a mess of pottage and obtained by guile the patriarchal blessing. Fleeing to Padan-aram, he served his uncle Laban twenty years for Leah and Rachel and his flocks. At Bethel and at Peniel he had remarkable visions of God; at the latter he wrestled till the breaking of the day and his name was changed to Israel — 'a prince with God' (Gen. 32:28). He became the father of the twelve patriarchs from whom the tribes of Israel descend. He died in Egypt aged 147 and was carried back to Machpelah.",
+      "refs": [
+        "gen.25.26",
+        "gen.27",
+        "gen.28",
+        "gen.32",
+        "gen.35",
+        "gen.49"
+      ],
+      "related": [
+        "isaac",
+        "esau",
+        "rachel",
+        "leah",
+        "israel",
+        "bethel"
+      ]
+    },
+    "esau": {
+      "title": "Esau",
+      "kind": "person",
+      "body": "Hairy; the elder twin of Isaac and Rebekah, a cunning hunter and a man of the field (Gen. 25:25-27). He despised his birthright and sold it to Jacob for a single meal — wherefore he is called in scripture a 'profane person' (Heb. 12:16). He became the father of the Edomites, dwelling in the mountains of Seir. Though long alienated, he was reconciled to Jacob upon his return from Padan-aram (Gen. 33).",
+      "refs": [
+        "gen.25.25",
+        "gen.27",
+        "gen.33",
+        "gen.36",
+        "heb.12.16"
+      ],
+      "related": [
+        "jacob",
+        "isaac",
+        "edom",
+        "seir"
+      ]
+    },
+    "rachel": {
+      "title": "Rachel",
+      "kind": "person",
+      "body": "Ewe; the younger daughter of Laban and the beloved wife of Jacob, for whom he served fourteen years (Gen. 29). Long barren, she at length bore Joseph and afterwards Benjamin, dying in childbed near Bethlehem and being buried on the way to Ephrath (Gen. 35:19). Her tomb was long pointed out; Jeremiah hears her weeping for her children (Jer. 31:15) — a passage applied by the evangelist to the slaughter at Bethlehem (Matt. 2:18).",
+      "refs": [
+        "gen.29",
+        "gen.30",
+        "gen.35.16",
+        "jer.31.15",
+        "mat.2.18"
+      ],
+      "related": [
+        "jacob",
+        "leah",
+        "joseph",
+        "benjamin"
+      ]
+    },
+    "leah": {
+      "title": "Leah",
+      "kind": "person",
+      "body": "Weary; the elder daughter of Laban, given by stratagem to Jacob in place of Rachel (Gen. 29:23-25). Tender-eyed and less loved, she yet bore him six sons — Reuben, Simeon, Levi, Judah, Issachar, Zebulun — and a daughter Dinah, and from her descended both the priestly house of Levi and the royal house of Judah, whence Christ came. She was buried in the cave of Machpelah.",
+      "refs": [
+        "gen.29.16",
+        "gen.30",
+        "gen.49.31"
+      ],
+      "related": [
+        "jacob",
+        "rachel",
+        "judah",
+        "levi"
+      ]
+    },
+    "joseph": {
+      "title": "Joseph",
+      "kind": "person",
+      "body": "He shall add; the eleventh son of Jacob and the firstborn of Rachel, his father's favourite (Gen. 30:24; 37:3). Sold by his envious brethren to Ishmaelites and carried into Egypt, he rose, through the providence of God, from the prison to be ruler over all the land of Egypt, second only to Pharaoh. By his wisdom Egypt was preserved through seven years of famine, and in the course of it he was reconciled to his brethren and brought his father's house down into Goshen. He died aged 110, having commanded that his bones be carried up out of Egypt (Gen. 50:25; Heb. 11:22).",
+      "refs": [
+        "gen.37",
+        "gen.39",
+        "gen.41",
+        "gen.45",
+        "gen.50",
+        "heb.11.22"
+      ],
+      "related": [
+        "jacob",
+        "rachel",
+        "benjamin",
+        "egypt",
+        "pharaoh"
+      ]
+    },
+    "benjamin": {
+      "title": "Benjamin",
+      "kind": "person",
+      "body": "Son of the right hand; the youngest son of Jacob and Rachel, born near Bethlehem at the cost of his mother's life, who named him Ben-oni, 'son of my sorrow,' the name changed by his father (Gen. 35:18). Beloved of his father and brother Joseph, he became head of one of the twelve tribes. The apostle Paul was of his lineage (Phil. 3:5).",
+      "refs": [
+        "gen.35.18",
+        "gen.42",
+        "gen.44",
+        "gen.45",
+        "phi.3.5"
+      ],
+      "related": [
+        "jacob",
+        "rachel",
+        "joseph",
+        "tribes-of-israel"
+      ]
+    },
+    "judah": {
+      "title": "Judah",
+      "kind": "person",
+      "body": "Praise; the fourth son of Jacob by Leah (Gen. 29:35), who interposed to save Joseph's life (Gen. 37:26-27). He received from his father the great prophetic blessing, that the sceptre should not depart from him till Shiloh come (Gen. 49:8-12). His tribe became the leading tribe of Israel, occupying the south of Canaan; from it sprang King David and, after the flesh, our Lord Jesus Christ — the Lion of the tribe of Judah (Rev. 5:5).",
+      "refs": [
+        "gen.29.35",
+        "gen.49.8",
+        "mat.1.2",
+        "heb.7.14",
+        "rev.5.5"
+      ],
+      "related": [
+        "jacob",
+        "leah",
+        "david",
+        "jesus-christ",
+        "tribes-of-israel"
+      ]
+    },
+    "levi": {
+      "title": "Levi",
+      "kind": "person",
+      "body": "Joined; the third son of Jacob by Leah (Gen. 29:34). With Simeon he avenged the wrong done to their sister Dinah by the men of Shechem, a deed sternly rebuked by Jacob (Gen. 34; 49:5-7). His descendants formed the priestly tribe, set apart at Sinai to bear the ark and to minister at the sanctuary; they received no inheritance among the tribes, the LORD being their portion (Deut. 18:1-2).",
+      "refs": [
+        "gen.29.34",
+        "gen.34",
+        "exo.32.26",
+        "num.3",
+        "deu.18.1"
+      ],
+      "related": [
+        "jacob",
+        "leah",
+        "priesthood",
+        "tribes-of-israel",
+        "aaron"
+      ]
+    },
+    "dinah": {
+      "title": "Dinah",
+      "kind": "person",
+      "body": "Judged; the daughter of Jacob by Leah (Gen. 30:21), defiled by Shechem the son of Hamor the Hivite. To avenge her dishonour Simeon and Levi slew all the males of Shechem (Gen. 34) — a deed which long rested on Jacob's conscience.",
+      "refs": [
+        "gen.30.21",
+        "gen.34"
+      ],
+      "related": [
+        "jacob",
+        "leah",
+        "levi",
+        "simeon"
+      ]
+    },
+    "simeon": {
+      "title": "Simeon",
+      "kind": "person",
+      "body": "Hearing; the second son of Jacob by Leah (Gen. 29:33). With Levi he slew the men of Shechem. Held by Joseph as hostage in Egypt until the brethren brought Benjamin (Gen. 42:24). His tribe was the smallest at the second census and was largely absorbed into the territory of Judah.",
+      "refs": [
+        "gen.29.33",
+        "gen.34",
+        "gen.42.24",
+        "jos.19.1"
+      ],
+      "related": [
+        "jacob",
+        "leah",
+        "levi",
+        "tribes-of-israel"
+      ]
+    },
+    "reuben": {
+      "title": "Reuben",
+      "kind": "person",
+      "body": "Behold a son; the firstborn of Jacob by Leah (Gen. 29:32). He forfeited the privileges of the firstborn by his sin (Gen. 35:22; 49:3-4). Yet he sought to deliver Joseph from his brethren's malice (Gen. 37:21-22). His tribe settled east of Jordan.",
+      "refs": [
+        "gen.29.32",
+        "gen.35.22",
+        "gen.37.21",
+        "gen.49.3",
+        "num.32"
+      ],
+      "related": [
+        "jacob",
+        "leah",
+        "tribes-of-israel"
+      ]
+    },
+    "terah": {
+      "title": "Terah",
+      "kind": "person",
+      "body": "Wanderer; the father of Abraham, Nahor, and Haran (Gen. 11:26). He set out from Ur of the Chaldees with Abram, Sarai, and Lot, journeying toward Canaan, but settled in Haran, where he died aged 205 (Gen. 11:31-32). He is said to have served other gods beyond the river (Josh. 24:2).",
+      "refs": [
+        "gen.11.26",
+        "jos.24.2"
+      ],
+      "related": [
+        "abraham",
+        "ur-of-the-chaldees",
+        "haran"
+      ]
+    },
+    "lot": {
+      "title": "Lot",
+      "kind": "person",
+      "body": "Covering; the son of Haran and nephew of Abraham, who accompanied him from Ur to Canaan (Gen. 12:5). Choosing the well-watered plain of Jordan, he pitched his tent toward Sodom and at length dwelt in the city. Delivered by angels from its destruction, he fled to the little city of Zoar; his wife, looking back, became a pillar of salt. Peter calls him 'just Lot, vexed with the filthy conversation of the wicked' (2 Pet. 2:7).",
+      "refs": [
+        "gen.13",
+        "gen.14",
+        "gen.19",
+        "2pe.2.7"
+      ],
+      "related": [
+        "abraham",
+        "sodom",
+        "zoar"
+      ]
+    },
+    "moses": {
+      "title": "Moses",
+      "kind": "person",
+      "body": "Drawn out; the great lawgiver and prophet of Israel, son of Amram and Jochebed of the tribe of Levi (Exo. 2; 6:20). Hid three months and laid in an ark of bulrushes upon the Nile, he was drawn out by Pharaoh's daughter and brought up in the Egyptian court. At forty he fled to Midian after slaying an Egyptian, kept the flocks of Jethro forty years, and was called by God at the burning bush to deliver his people. He led Israel out of Egypt, through the Red Sea, and forty years through the wilderness, receiving the law at Sinai. The meekest of men (Num. 12:3), he spake with God face to face. He died on Mount Nebo aged 120, and the LORD buried him in a valley of Moab.",
+      "refs": [
+        "exo.2",
+        "exo.3",
+        "exo.14",
+        "exo.20",
+        "num.12.3",
+        "deu.34",
+        "heb.11.24"
+      ],
+      "related": [
+        "aaron",
+        "miriam",
+        "sinai",
+        "exodus",
+        "law",
+        "pharaoh"
+      ]
+    },
+    "aaron": {
+      "title": "Aaron",
+      "kind": "person",
+      "body": "Lofty; the elder brother of Moses, of the tribe of Levi (Exo. 6:20). Appointed by God to be Moses' spokesman before Pharaoh (Exo. 4:14-16), he afterwards became the first high priest, anointed at the consecration of the tabernacle (Exo. 28; Lev. 8). His sin in making the golden calf (Exo. 32) and his murmuring against Moses (Num. 12) are recorded; yet his priesthood was confirmed by the budding of his rod (Num. 17). He died aged 123 on Mount Hor (Num. 20:23-29).",
+      "refs": [
+        "exo.4.14",
+        "exo.28",
+        "exo.32",
+        "lev.8",
+        "num.17",
+        "num.20.23",
+        "heb.5.4"
+      ],
+      "related": [
+        "moses",
+        "miriam",
+        "priesthood",
+        "tabernacle",
+        "high-priest"
+      ]
+    },
+    "miriam": {
+      "title": "Miriam",
+      "kind": "person",
+      "body": "Bitter; the sister of Moses and Aaron (Exo. 15:20). As a child she watched the ark of bulrushes that hid her infant brother. She led the women of Israel in song and timbrel after the passage of the Red Sea, and is called a prophetess. For murmuring against Moses she was smitten with leprosy, and healed at his intercession (Num. 12). She died at Kadesh.",
+      "refs": [
+        "exo.2.4",
+        "exo.15.20",
+        "num.12",
+        "num.20.1",
+        "mic.6.4"
+      ],
+      "related": [
+        "moses",
+        "aaron",
+        "exodus"
+      ]
+    },
+    "jethro": {
+      "title": "Jethro",
+      "kind": "person",
+      "body": "Excellence; the priest of Midian, father-in-law of Moses, also called Reuel (Exo. 2:18; 3:1). Moses kept his flocks for forty years and married his daughter Zipporah. He counselled Moses to appoint rulers of thousands and hundreds, easing the burden of judgement (Exo. 18).",
+      "refs": [
+        "exo.2.18",
+        "exo.3.1",
+        "exo.18"
+      ],
+      "related": [
+        "moses",
+        "midian",
+        "zipporah"
+      ]
+    },
+    "pharaoh": {
+      "title": "Pharaoh",
+      "kind": "person",
+      "body": "The great house; the standing title of the kings of Egypt. Several pharaohs figure in scripture — the one who exalted Joseph (Gen. 41), the king who knew not Joseph and oppressed Israel (Exo. 1:8), the Pharaoh of the Exodus whose heart was hardened against Moses (Exo. 5-14), Shishak who plundered Solomon's temple (1 Kings 14:25), and Necho who slew Josiah (2 Kings 23:29). Throughout, Pharaoh stands as the scripture's type of the proud earthly power resisting God.",
+      "refs": [
+        "gen.41",
+        "exo.5",
+        "exo.14",
+        "1ki.14.25",
+        "2ki.23.29"
+      ],
+      "related": [
+        "egypt",
+        "moses",
+        "exodus",
+        "joseph"
+      ]
+    },
+    "joshua": {
+      "title": "Joshua",
+      "kind": "person",
+      "body": "Jehovah is salvation; the son of Nun, of the tribe of Ephraim, the minister and successor of Moses (Exo. 24:13; Num. 27:18-23). Originally called Hoshea, his name was changed by Moses. He was one of the twelve spies, and with Caleb brought back a good report. After Moses' death he led Israel across the Jordan, captured Jericho and Ai, defeated the kings of Canaan, and divided the land among the tribes (Josh. 1-22). He died aged 110 and was buried in Timnath-serah. His name is the Hebrew form of Jesus (Heb. 4:8).",
+      "refs": [
+        "num.13",
+        "num.14",
+        "num.27.18",
+        "jos.1",
+        "jos.6",
+        "jos.24",
+        "heb.4.8"
+      ],
+      "related": [
+        "moses",
+        "caleb",
+        "jericho",
+        "canaan",
+        "jesus-christ"
+      ]
+    },
+    "caleb": {
+      "title": "Caleb",
+      "kind": "person",
+      "body": "Bold, or capable; the son of Jephunneh of the tribe of Judah, one of the twelve spies sent into Canaan (Num. 13:6). With Joshua he brought back a report of faith, saying 'Let us go up at once and possess it' (Num. 13:30). Of his generation he and Joshua alone entered the promised land. At eighty-five he asked of Joshua the mountain of Hebron, and drove out the giants (Josh. 14).",
+      "refs": [
+        "num.13.6",
+        "num.14.24",
+        "jos.14",
+        "jos.15.13"
+      ],
+      "related": [
+        "joshua",
+        "hebron",
+        "tribes-of-israel"
+      ]
+    },
+    "samuel": {
+      "title": "Samuel",
+      "kind": "person",
+      "body": "Asked of God; the last of the judges and the first of the great line of prophets (1 Sam. 1-25; Acts 3:24). Son of Elkanah and Hannah, given by his mother to the LORD before his birth, he ministered before Eli at Shiloh. While yet a child he heard the voice of God in the night. He judged Israel many years, and at the people's demand anointed first Saul and then David as king. He died greatly lamented at Ramah.",
+      "refs": [
+        "1sa.1",
+        "1sa.3",
+        "1sa.8",
+        "1sa.10",
+        "1sa.16",
+        "1sa.25.1",
+        "heb.11.32"
+      ],
+      "related": [
+        "eli",
+        "hannah",
+        "saul",
+        "david",
+        "prophet"
+      ]
+    },
+    "eli": {
+      "title": "Eli",
+      "kind": "person",
+      "body": "Ascent; the high priest at Shiloh who brought up Samuel (1 Sam. 1:9; 3). A good man, but slack in restraining his sons Hophni and Phinehas, whose wickedness brought judgement on his house. He died at ninety-eight, breaking his neck when he heard the ark was taken (1 Sam. 4:18).",
+      "refs": [
+        "1sa.1",
+        "1sa.3",
+        "1sa.4"
+      ],
+      "related": [
+        "samuel",
+        "shiloh",
+        "ark"
+      ]
+    },
+    "hannah": {
+      "title": "Hannah",
+      "kind": "person",
+      "body": "Gracious; the mother of Samuel, wife of Elkanah (1 Sam. 1). Long barren, she vowed at Shiloh that if the LORD would give her a son she would lend him unto the LORD all the days of his life. Her song of thanksgiving (1 Sam. 2:1-10) is the model for the Magnificat of Mary.",
+      "refs": [
+        "1sa.1",
+        "1sa.2.1"
+      ],
+      "related": [
+        "samuel",
+        "eli",
+        "mary"
+      ]
+    },
+    "saul": {
+      "title": "Saul",
+      "kind": "person",
+      "body": "Asked; the first king of Israel, of the tribe of Benjamin, son of Kish (1 Sam. 9). Anointed by Samuel, he was a man of striking stature and at first walked humbly, but pride and disobedience — sparing Agag and the spoil of Amalek — caused the kingdom to be rent from him (1 Sam. 15). His latter years were darkened by jealousy of David and by a troubling spirit; he fell on his own sword at Mount Gilboa after the defeat by the Philistines (1 Sam. 31).",
+      "refs": [
+        "1sa.9",
+        "1sa.10",
+        "1sa.15",
+        "1sa.16",
+        "1sa.18",
+        "1sa.31"
+      ],
+      "related": [
+        "samuel",
+        "david",
+        "jonathan",
+        "philistines",
+        "gilboa"
+      ]
+    },
+    "jonathan": {
+      "title": "Jonathan",
+      "kind": "person",
+      "body": "Jehovah has given; the eldest son of Saul, a brave and generous warrior, famed for his exploit at Michmash (1 Sam. 14). His soul was knit with the soul of David, and he loved him as his own (1 Sam. 18:1). He fell with his father at Gilboa, and David's lament over him is among the noblest dirges of scripture (2 Sam. 1:19-27).",
+      "refs": [
+        "1sa.14",
+        "1sa.18.1",
+        "1sa.20",
+        "1sa.31",
+        "2sa.1.19"
+      ],
+      "related": [
+        "saul",
+        "david",
+        "gilboa"
+      ]
+    },
+    "david": {
+      "title": "David",
+      "kind": "person",
+      "body": "Beloved; the second king of Israel, son of Jesse of Bethlehem of the tribe of Judah. Anointed by Samuel while yet a youth keeping his father's sheep (1 Sam. 16), he slew Goliath of Gath and rose in the court of Saul. After long persecution he reigned over Judah seven years at Hebron and over all Israel thirty-three years at Jerusalem. To him were given the great covenant of an everlasting kingdom (2 Sam. 7) and the prophetic foretaste of Messiah, his greater Son. The 'sweet psalmist of Israel,' he wrote a great part of the Psalter. His sin in the matter of Uriah and Bathsheba was sorely chastened, yet he is called 'a man after God's own heart' (Acts 13:22).",
+      "refs": [
+        "1sa.16",
+        "1sa.17",
+        "2sa.5",
+        "2sa.7",
+        "2sa.11",
+        "1ki.2",
+        "psa.51",
+        "mat.1.1"
+      ],
+      "related": [
+        "jesse",
+        "goliath",
+        "saul",
+        "jonathan",
+        "bathsheba",
+        "solomon",
+        "psalms"
+      ]
+    },
+    "goliath": {
+      "title": "Goliath",
+      "kind": "person",
+      "body": "Splendid; a Philistine giant of Gath, six cubits and a span in height, who defied the armies of Israel in the valley of Elah, and was slain by the shepherd David with a sling and a stone (1 Sam. 17).",
+      "refs": [
+        "1sa.17",
+        "1sa.21.9"
+      ],
+      "related": [
+        "david",
+        "philistines",
+        "gath"
+      ]
+    },
+    "bathsheba": {
+      "title": "Bathsheba",
+      "kind": "person",
+      "body": "Daughter of an oath; the wife of Uriah the Hittite, whom David took to himself by an act of grievous sin (2 Sam. 11). Their first child died; she afterwards bore Solomon. Her name is recalled in the genealogy of Christ (Matt. 1:6).",
+      "refs": [
+        "2sa.11",
+        "2sa.12",
+        "1ki.1",
+        "mat.1.6"
+      ],
+      "related": [
+        "david",
+        "solomon",
+        "uriah"
+      ]
+    },
+    "solomon": {
+      "title": "Solomon",
+      "kind": "person",
+      "body": "Peaceful; the son of David and Bathsheba, the third king of Israel, who reigned forty years in unequalled splendour (1 Kings 1-11). At Gibeon he asked of God an understanding heart, and was given wisdom and riches and honour above all the kings of the earth. He built the temple at Jerusalem, organized the kingdom, and traded with Tyre, Ophir, and Sheba. He wrote Proverbs, Ecclesiastes, and the Song of Songs. Yet in his old age his many foreign wives turned away his heart, and the kingdom was rent in twain in his son's day. Christ Himself is the 'greater than Solomon' (Matt. 12:42).",
+      "refs": [
+        "1ki.3",
+        "1ki.6",
+        "1ki.8",
+        "1ki.10",
+        "1ki.11",
+        "pro.1",
+        "ecc.1",
+        "mat.12.42"
+      ],
+      "related": [
+        "david",
+        "bathsheba",
+        "temple",
+        "wisdom",
+        "gibeon"
+      ]
+    },
+    "rehoboam": {
+      "title": "Rehoboam",
+      "kind": "person",
+      "body": "Enlarger of the people; the son of Solomon, in whose hand the kingdom was rent (1 Kings 12). Rejecting the counsel of the old men and following the young, he answered the people roughly, and ten tribes revolted to Jeroboam, leaving him only Judah and Benjamin.",
+      "refs": [
+        "1ki.12",
+        "1ki.14.21",
+        "2ch.10"
+      ],
+      "related": [
+        "solomon",
+        "jeroboam",
+        "judah"
+      ]
+    },
+    "jeroboam": {
+      "title": "Jeroboam",
+      "kind": "person",
+      "body": "The people increase; the first king of the northern kingdom of Israel after the schism (1 Kings 11:26-14:20). To prevent his subjects from going up to Jerusalem he set up the calves of gold at Dan and Bethel — 'the sin wherewith he made Israel to sin,' a refrain of judgement throughout the books of Kings.",
+      "refs": [
+        "1ki.11.26",
+        "1ki.12.25",
+        "1ki.14"
+      ],
+      "related": [
+        "rehoboam",
+        "israel-northern-kingdom",
+        "bethel",
+        "dan"
+      ]
+    },
+    "elijah": {
+      "title": "Elijah",
+      "kind": "person",
+      "body": "My God is Jehovah; the Tishbite, the great prophet of the northern kingdom in the days of Ahab and Jezebel (1 Kings 17-19; 21; 2 Kings 1-2). He shut up heaven that it rained not three years and six months, slew the prophets of Baal at Mount Carmel, fled to Horeb where he heard the still small voice, and at length was carried up by a whirlwind into heaven in a chariot of fire. He appeared with Moses on the Mount of Transfiguration (Matt. 17:3); his coming was to herald the great day of the LORD (Mal. 4:5).",
+      "refs": [
+        "1ki.17",
+        "1ki.18",
+        "1ki.19",
+        "2ki.2",
+        "mal.4.5",
+        "mat.17.3",
+        "jas.5.17"
+      ],
+      "related": [
+        "elisha",
+        "ahab",
+        "jezebel",
+        "carmel",
+        "prophet"
+      ]
+    },
+    "elisha": {
+      "title": "Elisha",
+      "kind": "person",
+      "body": "God is salvation; the disciple and successor of Elijah, called from the plough at Abel-meholah (1 Kings 19:19-21). He received a double portion of Elijah's spirit and ministered some sixty years through the reigns of Joram, Jehu, Jehoahaz, and Joash. His many miracles — the healing of Naaman, the multiplied oil, the raising of the Shunammite's son — make him in many respects a type of Christ.",
+      "refs": [
+        "1ki.19.19",
+        "2ki.2",
+        "2ki.4",
+        "2ki.5",
+        "2ki.13"
+      ],
+      "related": [
+        "elijah",
+        "naaman",
+        "prophet",
+        "shunem"
+      ]
+    },
+    "isaiah": {
+      "title": "Isaiah",
+      "kind": "person",
+      "body": "Salvation of Jehovah; the son of Amoz, prophet in Judah during the reigns of Uzziah, Jotham, Ahaz, and Hezekiah (Isa. 1:1). The greatest of the writing prophets, called in a sublime vision in the year king Uzziah died (Isa. 6). His book contains the clearest Old Testament foretelling of Messiah's birth (Isa. 7:14; 9:6), His sufferings (Isa. 53), and His everlasting kingdom. Tradition says he was sawn asunder under Manasseh (Heb. 11:37).",
+      "refs": [
+        "isa.1.1",
+        "isa.6",
+        "isa.7.14",
+        "isa.9.6",
+        "isa.53",
+        "heb.11.37"
+      ],
+      "related": [
+        "hezekiah",
+        "uzziah",
+        "prophet",
+        "messiah"
+      ]
+    },
+    "jeremiah": {
+      "title": "Jeremiah",
+      "kind": "person",
+      "body": "Whom Jehovah appoints; the weeping prophet, son of Hilkiah of Anathoth, called in the days of Josiah and prophesying through the last reigns of Judah down to the captivity (Jer. 1). He foretold the seventy years' Babylonian exile, suffered persecution, imprisonment, and at last was carried into Egypt by the remnant. To him are ascribed the Book of Jeremiah and Lamentations.",
+      "refs": [
+        "jer.1",
+        "jer.20",
+        "jer.25",
+        "jer.31",
+        "jer.39",
+        "lam.1"
+      ],
+      "related": [
+        "josiah",
+        "babylon",
+        "captivity",
+        "lamentations",
+        "prophet"
+      ]
+    },
+    "ezekiel": {
+      "title": "Ezekiel",
+      "kind": "person",
+      "body": "God will strengthen; a priest carried captive to Babylon with Jehoiachin, who prophesied by the river Chebar to the exiles (Ezek. 1:1-3). His visions of the wheels and the cherubim, of the valley of dry bones, and of the new temple are among the most majestic in scripture. He prophesied for at least twenty-two years.",
+      "refs": [
+        "ezk.1",
+        "ezk.10",
+        "ezk.37",
+        "ezk.40"
+      ],
+      "related": [
+        "captivity",
+        "babylon",
+        "prophet",
+        "cherubim"
+      ]
+    },
+    "daniel": {
+      "title": "Daniel",
+      "kind": "person",
+      "body": "God is my judge; one of the noble youths of Judah carried to Babylon in the third year of Jehoiakim (Dan. 1). He rose through the courts of Nebuchadnezzar, Belshazzar, Darius the Mede, and Cyrus, ever holding fast his religion — refusing the king's meat, surviving the lions' den, interpreting dreams and writings on the wall. His book gives the great prophetic visions of the four world-empires and of the seventy weeks. Our Lord cites 'Daniel the prophet' (Matt. 24:15).",
+      "refs": [
+        "dan.1",
+        "dan.2",
+        "dan.3",
+        "dan.5",
+        "dan.6",
+        "dan.7",
+        "dan.9",
+        "mat.24.15"
+      ],
+      "related": [
+        "nebuchadnezzar",
+        "babylon",
+        "captivity",
+        "prophet"
+      ]
+    },
+    "hosea": {
+      "title": "Hosea",
+      "kind": "person",
+      "body": "Salvation; the son of Beeri, the first of the twelve minor prophets, who prophesied in Israel during the reigns of Jeroboam II of Israel and Uzziah to Hezekiah of Judah. His unhappy marriage with Gomer is made the figure of Jehovah's longsuffering love toward unfaithful Israel.",
+      "refs": [
+        "hos.1",
+        "hos.2",
+        "hos.6",
+        "hos.14"
+      ],
+      "related": [
+        "gomer",
+        "israel-northern-kingdom",
+        "prophet"
+      ]
+    },
+    "joel": {
+      "title": "Joel",
+      "kind": "person",
+      "body": "Jehovah is God; one of the minor prophets, probably of Judah. His book opens with the visitation of a great plague of locusts, made a figure of the coming day of the LORD, and culminates in the promise of the outpouring of the Spirit (Joel 2:28-32) — cited by Peter at Pentecost (Acts 2:16-21).",
+      "refs": [
+        "jol.1",
+        "jol.2.28",
+        "act.2.16"
+      ],
+      "related": [
+        "pentecost",
+        "holy-spirit",
+        "prophet"
+      ]
+    },
+    "amos": {
+      "title": "Amos",
+      "kind": "person",
+      "body": "Burden-bearer; a herdsman of Tekoa, called from following the flock to prophesy against the kingdom of Israel in the days of Jeroboam II (Amos 1:1; 7:14-15). He denounced the luxury and oppression of Samaria and pronounced judgement on the surrounding nations.",
+      "refs": [
+        "amo.1.1",
+        "amo.5",
+        "amo.7.14",
+        "amo.9"
+      ],
+      "related": [
+        "israel-northern-kingdom",
+        "tekoa",
+        "prophet"
+      ]
+    },
+    "jonah": {
+      "title": "Jonah",
+      "kind": "person",
+      "body": "Dove; the son of Amittai, a prophet of Gath-hepher in Galilee (2 Kings 14:25). Sent to preach to Nineveh, he fled toward Tarshish, was cast into the sea, swallowed by a great fish, and after three days delivered. Christ Himself appeals to the sign of Jonah as a type of His own burial and resurrection (Matt. 12:39-41).",
+      "refs": [
+        "jon.1",
+        "jon.2",
+        "jon.3",
+        "jon.4",
+        "mat.12.40"
+      ],
+      "related": [
+        "nineveh",
+        "tarshish",
+        "prophet",
+        "resurrection"
+      ]
+    },
+    "micah": {
+      "title": "Micah",
+      "kind": "person",
+      "body": "Who is like Jehovah?; the Morasthite, a younger contemporary of Isaiah, who prophesied in the reigns of Jotham, Ahaz, and Hezekiah. He foretold the birthplace of Messiah in Bethlehem Ephratah (Micah 5:2).",
+      "refs": [
+        "mic.1.1",
+        "mic.5.2",
+        "mic.6.8",
+        "mat.2.6"
+      ],
+      "related": [
+        "isaiah",
+        "bethlehem",
+        "messiah",
+        "prophet"
+      ]
+    },
+    "zechariah": {
+      "title": "Zechariah",
+      "kind": "person",
+      "body": "Jehovah remembers; the son of Berechiah, a priest and prophet who, with Haggai, encouraged the returned exiles to build the second temple (Ezra 5:1; 6:14). His book is rich in messianic vision — the King coming meek and riding upon an ass (Zech. 9:9), the pierced one (Zech. 12:10), the smitten shepherd (Zech. 13:7).",
+      "refs": [
+        "ezr.5.1",
+        "zec.1",
+        "zec.9.9",
+        "zec.12.10"
+      ],
+      "related": [
+        "haggai",
+        "temple",
+        "messiah",
+        "prophet"
+      ]
+    },
+    "haggai": {
+      "title": "Haggai",
+      "kind": "person",
+      "body": "Festal; the first of the post-exilic prophets, who in 520 B.C. with Zechariah stirred up Zerubbabel and Joshua the high priest to resume the building of the temple (Hag. 1:1; Ezra 5:1).",
+      "refs": [
+        "hag.1",
+        "ezr.5.1"
+      ],
+      "related": [
+        "zechariah",
+        "zerubbabel",
+        "temple"
+      ]
+    },
+    "malachi": {
+      "title": "Malachi",
+      "kind": "person",
+      "body": "My messenger; the last of the Old Testament prophets, probably in the days of Nehemiah. He rebuked the priestly corruption of his time and foretold the coming of the LORD's messenger — fulfilled in John the Baptist (Mal. 3:1; 4:5-6; Matt. 11:10).",
+      "refs": [
+        "mal.1",
+        "mal.3.1",
+        "mal.4.5",
+        "mat.11.10"
+      ],
+      "related": [
+        "john-the-baptist",
+        "prophet",
+        "messiah"
+      ]
+    },
+    "nehemiah": {
+      "title": "Nehemiah",
+      "kind": "person",
+      "body": "Comforted of Jehovah; the cupbearer of king Artaxerxes, who returned to Jerusalem in 445 B.C. and in fifty-two days rebuilt the walls in the face of the opposition of Sanballat and Tobiah (Neh. 2-6). He afterwards governed the people, restoring order and the observance of the law with Ezra.",
+      "refs": [
+        "neh.1",
+        "neh.2",
+        "neh.6",
+        "neh.8"
+      ],
+      "related": [
+        "ezra",
+        "jerusalem",
+        "artaxerxes"
+      ]
+    },
+    "ezra": {
+      "title": "Ezra",
+      "kind": "person",
+      "body": "Help; a priest and 'a ready scribe in the law of Moses,' who led a second company of exiles back from Babylon to Jerusalem under Artaxerxes (Ezra 7). He restored the public reading of the law and the purity of worship.",
+      "refs": [
+        "ezr.7",
+        "ezr.10",
+        "neh.8"
+      ],
+      "related": [
+        "nehemiah",
+        "babylon",
+        "captivity",
+        "law"
+      ]
+    },
+    "esther": {
+      "title": "Esther",
+      "kind": "person",
+      "body": "Star; a Jewish maiden, also called Hadassah, the cousin and ward of Mordecai, who was raised to be the queen of Ahasuerus (Xerxes). Through her courage — 'if I perish, I perish' (Esth. 4:16) — the Jews were delivered from Haman's plot, an event commemorated by the feast of Purim.",
+      "refs": [
+        "est.2",
+        "est.4",
+        "est.7",
+        "est.9"
+      ],
+      "related": [
+        "mordecai",
+        "haman",
+        "purim",
+        "ahasuerus"
+      ]
+    },
+    "mordecai": {
+      "title": "Mordecai",
+      "kind": "person",
+      "body": "Little man; a Benjamite of the captivity, the foster-father of Esther, who refused to bow to Haman and brought about his downfall. He was advanced to be second only to king Ahasuerus (Esth. 10:3).",
+      "refs": [
+        "est.2",
+        "est.3",
+        "est.6",
+        "est.10"
+      ],
+      "related": [
+        "esther",
+        "haman",
+        "purim"
+      ]
+    },
+    "job": {
+      "title": "Job",
+      "kind": "person",
+      "body": "Persecuted; a patriarch of the land of Uz, perfect and upright, who feared God and eschewed evil (Job 1:1). With God's permission Satan stripped him of his wealth, his children, and his health. Through his complaint, the debates with his three friends, and the speeches of Elihu and at last of God Himself from the whirlwind, the book sets forth the mystery of innocent suffering and the sovereignty of God. He was restored to twice his former prosperity (Job 42).",
+      "refs": [
+        "job.1",
+        "job.2",
+        "job.19",
+        "job.38",
+        "job.42",
+        "jas.5.11"
+      ],
+      "related": [
+        "satan",
+        "uz",
+        "suffering"
+      ]
+    },
+    "ruth": {
+      "title": "Ruth",
+      "kind": "person",
+      "body": "Friend; a Moabitess, the wife of Mahlon, who after his death clave to her mother-in-law Naomi and returned with her to Bethlehem, saying 'thy people shall be my people, and thy God my God' (Ruth 1:16). She gleaned in the field of Boaz, who, as kinsman-redeemer, took her to wife; their great-grandson was David. She stands in the genealogy of Christ (Matt. 1:5).",
+      "refs": [
+        "rut.1",
+        "rut.2",
+        "rut.3",
+        "rut.4",
+        "mat.1.5"
+      ],
+      "related": [
+        "boaz",
+        "naomi",
+        "david",
+        "moab",
+        "kinsman-redeemer"
+      ]
+    },
+    "boaz": {
+      "title": "Boaz",
+      "kind": "person",
+      "body": "Strength; a wealthy Bethlehemite, a kinsman of Elimelech, who married Ruth the Moabitess as kinsman-redeemer (Ruth 2-4). His name is given also to one of the two pillars of Solomon's temple (1 Kings 7:21).",
+      "refs": [
+        "rut.2",
+        "rut.4",
+        "mat.1.5",
+        "1ki.7.21"
+      ],
+      "related": [
+        "ruth",
+        "naomi",
+        "kinsman-redeemer",
+        "bethlehem"
+      ]
+    },
+    "naomi": {
+      "title": "Naomi",
+      "kind": "person",
+      "body": "Pleasant; the wife of Elimelech, mother-in-law of Ruth and Orpah (Ruth 1). After the death of her husband and sons in Moab she returned to Bethlehem, saying, 'call me not Naomi, call me Mara,' for the Almighty had dealt bitterly with her. In Ruth's son Obed she became 'nurse' to the grandfather of David.",
+      "refs": [
+        "rut.1",
+        "rut.4.16"
+      ],
+      "related": [
+        "ruth",
+        "boaz",
+        "bethlehem"
+      ]
+    },
+    "jesus-christ": {
+      "title": "Jesus Christ",
+      "kind": "person",
+      "body": "Jehovah is salvation; the only-begotten Son of God, the Word made flesh, born of the Virgin Mary in Bethlehem of Judea in the days of Herod the king. He grew up at Nazareth, was baptized by John in the Jordan, and at thirty entered upon a public ministry of about three and a half years, teaching, healing, and proclaiming the kingdom of God. He was crucified at Jerusalem under Pontius Pilate, rose the third day, ascended into heaven, and sitteth on the right hand of God, whence He shall come again to judge the quick and the dead. 'Jesus' is His personal name; 'Christ' (Messiah, Anointed) is His official title as Prophet, Priest, and King.",
+      "refs": [
+        "mat.1.21",
+        "luk.2",
+        "jhn.1.14",
+        "mat.16.16",
+        "rom.1.4",
+        "phi.2.5",
+        "heb.1",
+        "rev.1"
+      ],
+      "related": [
+        "mary",
+        "joseph",
+        "john-the-baptist",
+        "apostle",
+        "messiah",
+        "crucifixion",
+        "resurrection"
+      ]
+    },
+    "mary": {
+      "title": "Mary",
+      "kind": "person",
+      "body": "Several women of this name appear in the New Testament. (1) Mary the Virgin, the mother of our Lord, of the tribe of Judah and house of David, espoused to Joseph the carpenter of Nazareth, to whom the angel Gabriel announced the conception of Jesus by the Holy Ghost (Luke 1:26-38). Her Magnificat (Luke 1:46-55) is one of the great songs of scripture. (2) Mary Magdalene, out of whom the Lord cast seven devils (Luke 8:2; Mark 16:9), who stood by the cross and was the first to see the risen Lord. (3) Mary of Bethany, sister of Martha and Lazarus, who anointed Jesus' feet. (4) Mary the mother of James and Joses.",
+      "refs": [
+        "luk.1.26",
+        "luk.1.46",
+        "mat.1",
+        "jhn.19.25",
+        "mar.16.9",
+        "jhn.12.3"
+      ],
+      "related": [
+        "jesus-christ",
+        "joseph",
+        "gabriel",
+        "martha",
+        "lazarus"
+      ]
+    },
+    "joseph-of-nazareth": {
+      "title": "Joseph",
+      "kind": "person",
+      "body": "He shall add; the husband of the Virgin Mary, a carpenter of Nazareth of the lineage of David (Matt. 1:16; Luke 3:23). A just man, when he learned of Mary's condition he was minded to put her away privily, until warned by the angel in a dream. He fled with the holy family into Egypt and on his return brought up the child Jesus at Nazareth. He is not mentioned after the visit of the boy Jesus to the temple at twelve.",
+      "refs": [
+        "mat.1.18",
+        "mat.2.13",
+        "luk.2.4",
+        "luk.3.23"
+      ],
+      "related": [
+        "mary",
+        "jesus-christ",
+        "nazareth",
+        "bethlehem"
+      ]
+    },
+    "john-the-baptist": {
+      "title": "John the Baptist",
+      "kind": "person",
+      "body": "The son of the priest Zacharias and Elisabeth, of the course of Abia (Luke 1:5). Born six months before our Lord, he came in the spirit and power of Elias, preaching repentance in the wilderness of Judea and baptizing in the Jordan. He bore witness of Jesus, saying, 'Behold the Lamb of God' (John 1:29). For rebuking the marriage of Herod Antipas with Herodias he was imprisoned and at length beheaded (Matt. 14:1-12). Our Lord said of him, 'Among them that are born of women there hath not risen a greater than John the Baptist' (Matt. 11:11).",
+      "refs": [
+        "luk.1.5",
+        "mat.3",
+        "jhn.1.29",
+        "mat.11.11",
+        "mat.14.1"
+      ],
+      "related": [
+        "jesus-christ",
+        "elijah",
+        "herod-antipas",
+        "baptism",
+        "prophet"
+      ]
+    },
+    "peter": {
+      "title": "Peter",
+      "kind": "person",
+      "body": "A stone; called also Simon Bar-jona and Cephas; brother of Andrew, a fisherman of Bethsaida, brought to Jesus by Andrew and surnamed Cephas (John 1:42). The most prominent of the twelve apostles, foremost in confession ('Thou art the Christ, the Son of the living God,' Matt. 16:16) and in denial. After the resurrection he was restored by the threefold 'Lovest thou me?' (John 21). At Pentecost he preached the inaugural sermon of the Christian church, and afterwards opened the door of the gospel to the Gentiles in the house of Cornelius (Acts 10). Tradition says he was crucified head downwards at Rome under Nero. He wrote two canonical epistles.",
+      "refs": [
+        "mat.16.16",
+        "mat.16.18",
+        "jhn.21",
+        "act.2",
+        "act.10",
+        "1pe.1",
+        "2pe.1"
+      ],
+      "related": [
+        "andrew",
+        "jesus-christ",
+        "apostle",
+        "pentecost",
+        "cornelius",
+        "rome"
+      ]
+    },
+    "andrew": {
+      "title": "Andrew",
+      "kind": "person",
+      "body": "Manly; brother of Simon Peter, a fisherman of Bethsaida; first a disciple of John the Baptist, then of Jesus, to whom he brought his brother (John 1:40-42). He is mentioned at the feeding of the five thousand and at the inquiry of the Greeks (John 12:22).",
+      "refs": [
+        "mat.4.18",
+        "jhn.1.40",
+        "jhn.6.8",
+        "jhn.12.22"
+      ],
+      "related": [
+        "peter",
+        "jesus-christ",
+        "apostle"
+      ]
+    },
+    "james": {
+      "title": "James",
+      "kind": "person",
+      "body": "Several apostles bore this name. (1) James the son of Zebedee, brother of John, one of the inner three, slain by Herod Agrippa (Acts 12:2) — the first apostolic martyr. (2) James the son of Alphaeus, called the Less, also one of the twelve. (3) James 'the Lord's brother,' who, though at first not believing, became after the resurrection a chief pillar of the church at Jerusalem (Gal. 1:19; 2:9), presided at the council of Acts 15, and wrote the General Epistle.",
+      "refs": [
+        "mat.4.21",
+        "act.12.2",
+        "act.15.13",
+        "gal.1.19",
+        "jas.1.1"
+      ],
+      "related": [
+        "john",
+        "jesus-christ",
+        "apostle",
+        "jerusalem"
+      ]
+    },
+    "john": {
+      "title": "John",
+      "kind": "person",
+      "body": "Whom Jehovah loves; the son of Zebedee and brother of James, one of the inner three of the apostles, called 'the disciple whom Jesus loved.' He stood by the cross and received the care of the Lord's mother (John 19:26-27). After Pentecost he laboured at Jerusalem, then long at Ephesus; in the persecution under Domitian he was banished to Patmos, where he received the Revelation. He wrote also the Fourth Gospel and three epistles. He alone of the twelve died a natural death, at a great age.",
+      "refs": [
+        "mat.4.21",
+        "mar.9.2",
+        "jhn.13.23",
+        "jhn.19.26",
+        "jhn.21.20",
+        "rev.1.9"
+      ],
+      "related": [
+        "james",
+        "peter",
+        "jesus-christ",
+        "apostle",
+        "patmos",
+        "ephesus"
+      ]
+    },
+    "philip": {
+      "title": "Philip",
+      "kind": "person",
+      "body": "Lover of horses. (1) Philip the apostle, of Bethsaida, who brought Nathanael to Jesus (John 1:43-46); the inquiring Greeks came to him (John 12:21). (2) Philip the evangelist, one of the seven (Acts 6:5), who preached in Samaria and instructed the Ethiopian eunuch (Acts 8).",
+      "refs": [
+        "jhn.1.43",
+        "jhn.6.5",
+        "jhn.12.21",
+        "act.6.5",
+        "act.8.26"
+      ],
+      "related": [
+        "nathanael",
+        "jesus-christ",
+        "apostle",
+        "ethiopian-eunuch"
+      ]
+    },
+    "thomas": {
+      "title": "Thomas",
+      "kind": "person",
+      "body": "Twin; called Didymus, one of the twelve. Famed for his slowness to believe the resurrection until he had seen and handled the Lord's wounds — wherefore he is called 'doubting Thomas' — and for his great confession, 'My Lord and my God' (John 20:24-28).",
+      "refs": [
+        "jhn.11.16",
+        "jhn.14.5",
+        "jhn.20.24"
+      ],
+      "related": [
+        "jesus-christ",
+        "apostle",
+        "resurrection"
+      ]
+    },
+    "matthew": {
+      "title": "Matthew",
+      "kind": "person",
+      "body": "Gift of Jehovah; called also Levi, the son of Alphaeus, a publican (tax-gatherer) of Capernaum, called by Jesus from the receipt of custom (Matt. 9:9). He is the author of the first Gospel.",
+      "refs": [
+        "mat.9.9",
+        "mar.2.14",
+        "luk.5.27"
+      ],
+      "related": [
+        "jesus-christ",
+        "apostle",
+        "capernaum",
+        "gospels"
+      ]
+    },
+    "judas-iscariot": {
+      "title": "Judas Iscariot",
+      "kind": "person",
+      "body": "Man of Kerioth; the son of Simon, one of the twelve, who kept the bag and was a thief, and who at last betrayed the Lord for thirty pieces of silver (Matt. 26:14-16). He hanged himself, and the field bought with his price was called Aceldama, the field of blood (Acts 1:18-19).",
+      "refs": [
+        "mat.10.4",
+        "jhn.12.6",
+        "mat.26.14",
+        "mat.27.3",
+        "act.1.18"
+      ],
+      "related": [
+        "jesus-christ",
+        "apostle",
+        "betrayal"
+      ]
+    },
+    "paul": {
+      "title": "Paul",
+      "kind": "person",
+      "body": "Little; the Hebrew name Saul, the Roman Paul; born of Hebrew parents at Tarsus in Cilicia, of the tribe of Benjamin, brought up in Jerusalem at the feet of Gamaliel, and trained a Pharisee. A persecutor of the church, on the road to Damascus he saw the risen Lord and was converted (Acts 9). Called to be the apostle of the Gentiles, he made three great missionary journeys, founded many churches, and at last was brought a prisoner to Rome, where, according to tradition, he was beheaded under Nero. He wrote thirteen (or with Hebrews fourteen) of the New Testament epistles.",
+      "refs": [
+        "act.9",
+        "act.13",
+        "act.16",
+        "act.20",
+        "act.28",
+        "rom.1",
+        "gal.1",
+        "2ti.4"
+      ],
+      "related": [
+        "barnabas",
+        "silas",
+        "timothy",
+        "apostle",
+        "damascus",
+        "rome",
+        "gentiles"
+      ]
+    },
+    "barnabas": {
+      "title": "Barnabas",
+      "kind": "person",
+      "body": "Son of consolation; a Levite of Cyprus, originally Joses (Acts 4:36). He introduced the newly converted Saul to the apostles, brought him from Tarsus to Antioch, and was the companion of his first missionary journey. After a contention over Mark, they parted, and Barnabas sailed to Cyprus.",
+      "refs": [
+        "act.4.36",
+        "act.9.27",
+        "act.11.22",
+        "act.13",
+        "act.15.36"
+      ],
+      "related": [
+        "paul",
+        "mark",
+        "antioch",
+        "cyprus"
+      ]
+    },
+    "mark": {
+      "title": "Mark",
+      "kind": "person",
+      "body": "Polite; called John Mark, son of Mary of Jerusalem, cousin of Barnabas (Col. 4:10). After turning back at Perga from the first missionary journey he was for a time refused by Paul, but afterwards proved profitable. He is the writer of the second Gospel, given in substance from the preaching of Peter (1 Pet. 5:13).",
+      "refs": [
+        "act.12.12",
+        "act.13.13",
+        "act.15.37",
+        "col.4.10",
+        "2ti.4.11",
+        "1pe.5.13"
+      ],
+      "related": [
+        "barnabas",
+        "paul",
+        "peter",
+        "gospels"
+      ]
+    },
+    "luke": {
+      "title": "Luke",
+      "kind": "person",
+      "body": "Light-giving; 'the beloved physician' (Col. 4:14), a Gentile companion of Paul, the writer of the third Gospel and of the Acts of the Apostles. He joined Paul at Troas and went with him to Philippi, accompanied him to Jerusalem and to Rome.",
+      "refs": [
+        "col.4.14",
+        "2ti.4.11",
+        "phm.1.24",
+        "act.16.10"
+      ],
+      "related": [
+        "paul",
+        "gospels",
+        "acts"
+      ]
+    },
+    "timothy": {
+      "title": "Timothy",
+      "kind": "person",
+      "body": "Honoured of God; the son of Eunice, a Jewess, and a Greek father, brought up in the scriptures from a child (2 Tim. 1:5; 3:15). Paul took him as a companion at Lystra and called him his 'own son in the faith.' Two pastoral epistles are addressed to him.",
+      "refs": [
+        "act.16.1",
+        "1ti.1.2",
+        "2ti.1.5",
+        "phi.2.19"
+      ],
+      "related": [
+        "paul",
+        "eunice",
+        "ephesus"
+      ]
+    },
+    "titus": {
+      "title": "Titus",
+      "kind": "person",
+      "body": "An uncircumcised Greek (Gal. 2:1-3), the companion of Paul, sent on several delicate missions to Corinth and left in Crete to set in order the things that were wanting (Tit. 1:5). A pastoral epistle is addressed to him.",
+      "refs": [
+        "2co.7.6",
+        "gal.2.1",
+        "tit.1.4"
+      ],
+      "related": [
+        "paul",
+        "crete",
+        "corinth"
+      ]
+    },
+    "silas": {
+      "title": "Silas",
+      "kind": "person",
+      "body": "Woody; called also Silvanus, a chief man among the brethren at Jerusalem and a prophet (Acts 15:22, 32). He accompanied Paul on the second missionary journey, sang with him at midnight in the Philippian prison, and is joined with him in writing the Thessalonian epistles.",
+      "refs": [
+        "act.15.22",
+        "act.16.25",
+        "1th.1.1"
+      ],
+      "related": [
+        "paul",
+        "timothy",
+        "philippi"
+      ]
+    },
+    "stephen": {
+      "title": "Stephen",
+      "kind": "person",
+      "body": "Crown; the first Christian martyr, 'a man full of faith and of the Holy Ghost,' one of the seven deacons (Acts 6:5). For his great defence before the Sanhedrin he was stoned, with Saul of Tarsus consenting unto his death, and as he died he prayed, 'Lord, lay not this sin to their charge' (Acts 7:60).",
+      "refs": [
+        "act.6",
+        "act.7",
+        "act.8.2",
+        "act.22.20"
+      ],
+      "related": [
+        "philip",
+        "paul",
+        "martyrdom",
+        "jerusalem"
+      ]
+    },
+    "apollos": {
+      "title": "Apollos",
+      "kind": "person",
+      "body": "Given by Apollo; a Jew of Alexandria, eloquent and mighty in the scriptures, who came to Ephesus knowing only the baptism of John, and was more perfectly instructed in the way of God by Aquila and Priscilla (Acts 18:24-28). He afterwards laboured at Corinth, watering what Paul had planted (1 Cor. 3:6).",
+      "refs": [
+        "act.18.24",
+        "1co.1.12",
+        "1co.3.6",
+        "tit.3.13"
+      ],
+      "related": [
+        "paul",
+        "aquila",
+        "priscilla",
+        "ephesus",
+        "corinth",
+        "alexandria"
+      ]
+    },
+    "aquila": {
+      "title": "Aquila",
+      "kind": "person",
+      "body": "An eagle; a Jew of Pontus, with his wife Priscilla, tent-makers, expelled from Rome by Claudius, who became fellow-labourers of Paul at Corinth and Ephesus (Acts 18). They taught Apollos more perfectly.",
+      "refs": [
+        "act.18.2",
+        "rom.16.3",
+        "1co.16.19",
+        "2ti.4.19"
+      ],
+      "related": [
+        "priscilla",
+        "paul",
+        "apollos",
+        "corinth",
+        "ephesus"
+      ]
+    },
+    "priscilla": {
+      "title": "Priscilla",
+      "kind": "person",
+      "body": "The diminutive of Prisca; the wife of Aquila, ever named with him, and often before him — perhaps as the more conspicuous in instruction. With her husband she risked her own neck for Paul (Rom. 16:3-4).",
+      "refs": [
+        "act.18.2",
+        "rom.16.3",
+        "1co.16.19",
+        "2ti.4.19"
+      ],
+      "related": [
+        "aquila",
+        "paul",
+        "apollos"
+      ]
+    },
+    "lydia": {
+      "title": "Lydia",
+      "kind": "person",
+      "body": "A seller of purple of the city of Thyatira, a worshipper of God, who was converted at Philippi at a prayer-meeting by the river-side — 'whose heart the Lord opened' (Acts 16:14). Her house became the first Christian home in Europe.",
+      "refs": [
+        "act.16.14",
+        "act.16.40"
+      ],
+      "related": [
+        "paul",
+        "philippi",
+        "thyatira"
+      ]
+    },
+    "cornelius": {
+      "title": "Cornelius",
+      "kind": "person",
+      "body": "Of a horn; a centurion of the Italian band at Caesarea, a devout man who feared God with all his house. Through the vision and ministry of Peter he became the first Gentile convert (Acts 10).",
+      "refs": [
+        "act.10",
+        "act.11.1"
+      ],
+      "related": [
+        "peter",
+        "caesarea",
+        "gentiles"
+      ]
+    },
+    "nicodemus": {
+      "title": "Nicodemus",
+      "kind": "person",
+      "body": "Conqueror of the people; a ruler of the Jews and a Pharisee, who came to Jesus by night (John 3) and heard the great word, 'Ye must be born again.' He afterwards spoke for Jesus before the Sanhedrin (John 7:50-51) and with Joseph of Arimathea buried Him.",
+      "refs": [
+        "jhn.3",
+        "jhn.7.50",
+        "jhn.19.39"
+      ],
+      "related": [
+        "jesus-christ",
+        "joseph-of-arimathea",
+        "pharisees"
+      ]
+    },
+    "joseph-of-arimathea": {
+      "title": "Joseph of Arimathea",
+      "kind": "person",
+      "body": "An honourable counsellor, a rich man, secretly a disciple of Jesus, who went in boldly unto Pilate and craved the body of Jesus and laid it in his own new tomb (Matt. 27:57-60; John 19:38).",
+      "refs": [
+        "mat.27.57",
+        "jhn.19.38",
+        "luk.23.50"
+      ],
+      "related": [
+        "nicodemus",
+        "jesus-christ",
+        "crucifixion"
+      ]
+    },
+    "herod": {
+      "title": "Herod",
+      "kind": "person",
+      "body": "Heroic. Several rulers bore this name: Herod the Great, king of Judea at the birth of Christ, who slew the innocents at Bethlehem; Herod Antipas his son, tetrarch of Galilee, who beheaded John the Baptist and to whom Pilate sent Jesus; Herod Agrippa I, who killed James and imprisoned Peter (Acts 12); and Agrippa II, before whom Paul made his defence (Acts 25-26).",
+      "refs": [
+        "mat.2",
+        "mat.14.1",
+        "luk.23.7",
+        "act.12",
+        "act.25"
+      ],
+      "related": [
+        "john-the-baptist",
+        "jesus-christ",
+        "paul"
+      ]
+    },
+    "pontius-pilate": {
+      "title": "Pontius Pilate",
+      "kind": "person",
+      "body": "Armed with a javelin; the Roman procurator of Judea (A.D. 26-36) who, against his own judgement, delivered Jesus to be crucified, washing his hands in token of his guiltlessness (Matt. 27).",
+      "refs": [
+        "mat.27",
+        "luk.23",
+        "jhn.18.28",
+        "jhn.19",
+        "1ti.6.13"
+      ],
+      "related": [
+        "jesus-christ",
+        "crucifixion",
+        "caesar"
+      ]
+    },
+    "mary-magdalene": {
+      "title": "Mary Magdalene",
+      "kind": "person",
+      "body": "Mary of Magdala, on the Sea of Galilee, out of whom the Lord cast seven devils (Mark 16:9). She ministered to Him of her substance, stood by the cross, watched the burial, came early to the tomb on the resurrection morning, and was the first to see and speak with the risen Lord (John 20:11-18).",
+      "refs": [
+        "luk.8.2",
+        "mar.16.9",
+        "jhn.19.25",
+        "jhn.20.11"
+      ],
+      "related": [
+        "jesus-christ",
+        "resurrection",
+        "mary"
+      ]
+    },
+    "martha": {
+      "title": "Martha",
+      "kind": "person",
+      "body": "Lady; sister of Mary and Lazarus, of Bethany, who received Jesus into her house (Luke 10:38-42). Cumbered about much serving, she was tenderly rebuked for choosing the worse part. At her brother's grave she made the great confession, 'I believe that thou art the Christ, the Son of God' (John 11:27).",
+      "refs": [
+        "luk.10.38",
+        "jhn.11",
+        "jhn.12.2"
+      ],
+      "related": [
+        "mary",
+        "lazarus",
+        "jesus-christ",
+        "bethany"
+      ]
+    },
+    "lazarus": {
+      "title": "Lazarus",
+      "kind": "person",
+      "body": "God is my help. (1) The brother of Martha and Mary of Bethany, whom Jesus loved and whom He raised from the dead after he had lain four days in the grave (John 11). (2) The beggar in our Lord's parable, who was carried by the angels into Abraham's bosom (Luke 16:19-31).",
+      "refs": [
+        "jhn.11",
+        "jhn.12",
+        "luk.16.19"
+      ],
+      "related": [
+        "martha",
+        "mary",
+        "jesus-christ",
+        "bethany",
+        "resurrection"
+      ]
+    },
+    "gabriel": {
+      "title": "Gabriel",
+      "kind": "person",
+      "body": "Man of God; one of the chief angels, mentioned by name in scripture. He stood before Daniel to interpret the visions of the ram and the he-goat (Dan. 8:16; 9:21), announced the birth of John the Baptist to Zacharias (Luke 1:19) and of Jesus to the Virgin Mary (Luke 1:26).",
+      "refs": [
+        "dan.8.16",
+        "dan.9.21",
+        "luk.1.19",
+        "luk.1.26"
+      ],
+      "related": [
+        "michael",
+        "angels",
+        "mary",
+        "john-the-baptist"
+      ]
+    },
+    "michael": {
+      "title": "Michael",
+      "kind": "person",
+      "body": "Who is like God?; the archangel, the prince of the people of Israel (Dan. 10:13, 21; 12:1), who in Jude 9 contends with the devil about the body of Moses, and in Rev. 12:7 leads the angels in the war in heaven.",
+      "refs": [
+        "dan.10.13",
+        "dan.12.1",
+        "jud.1.9",
+        "rev.12.7"
+      ],
+      "related": [
+        "gabriel",
+        "angels",
+        "satan"
+      ]
+    },
+    "satan": {
+      "title": "Satan",
+      "kind": "person",
+      "body": "Adversary; the great enemy of God and man, called also the devil, the dragon, the old serpent, Beelzebub, Belial, and the prince of this world. A fallen angel of high rank (Isa. 14:12-15; Ezek. 28; Luke 10:18), he tempted Eve in Eden, smote Job, tempted our Lord in the wilderness, and goeth about as a roaring lion seeking whom he may devour (1 Pet. 5:8). His final doom is the lake of fire (Rev. 20:10).",
+      "refs": [
+        "job.1",
+        "mat.4.1",
+        "luk.10.18",
+        "1pe.5.8",
+        "rev.12",
+        "rev.20.10"
+      ],
+      "related": [
+        "serpent",
+        "eden",
+        "fall",
+        "angels"
+      ]
+    },
+    "melchizedek": {
+      "title": "Melchizedek",
+      "kind": "person",
+      "body": "King of righteousness; king of Salem and priest of the most high God, who brought forth bread and wine and blessed Abraham returning from the slaughter of the kings (Gen. 14:18-20). The Epistle to the Hebrews argues at length that his priesthood, neither inherited nor transmitted, is a type of the eternal priesthood of Christ (Heb. 5-7; Ps. 110:4).",
+      "refs": [
+        "gen.14.18",
+        "psa.110.4",
+        "heb.5.6",
+        "heb.7"
+      ],
+      "related": [
+        "abraham",
+        "priesthood",
+        "jesus-christ",
+        "salem"
+      ]
+    },
+    "balaam": {
+      "title": "Balaam",
+      "kind": "person",
+      "body": "Lord of the people; the son of Beor, a soothsayer of Pethor on the Euphrates, hired by Balak king of Moab to curse Israel (Num. 22-24). The LORD compelled him to bless. He afterwards counselled Balak to seduce Israel by the daughters of Midian (Num. 31:16), and was slain in the battle that followed. His way and his error are warnings throughout scripture (2 Pet. 2:15; Jude 11; Rev. 2:14).",
+      "refs": [
+        "num.22",
+        "num.23",
+        "num.24",
+        "num.31.16",
+        "2pe.2.15",
+        "rev.2.14"
+      ],
+      "related": [
+        "balak",
+        "moab",
+        "midian"
+      ]
+    },
+    "rahab": {
+      "title": "Rahab",
+      "kind": "person",
+      "body": "Pride. (1) The harlot of Jericho who hid the two spies and was spared with all her father's house when the city fell, and is named in our Lord's genealogy (Josh. 2; Matt. 1:5; Heb. 11:31). (2) A poetic name for Egypt or for the sea-monster (Isa. 51:9; Job 26:12).",
+      "refs": [
+        "jos.2",
+        "jos.6.25",
+        "mat.1.5",
+        "heb.11.31"
+      ],
+      "related": [
+        "jericho",
+        "joshua",
+        "boaz"
+      ]
+    },
+    "samson": {
+      "title": "Samson",
+      "kind": "person",
+      "body": "Sunlike; the last of the great judges, of the tribe of Dan, son of Manoah, a Nazirite from the womb (Judg. 13-16). Endowed by the Spirit with prodigious strength, he smote the Philistines with great slaughter, but was betrayed by Delilah, shorn of his hair, blinded, and at last pulled down the temple of Dagon upon himself and the lords of the Philistines.",
+      "refs": [
+        "jdg.13",
+        "jdg.14",
+        "jdg.16",
+        "heb.11.32"
+      ],
+      "related": [
+        "delilah",
+        "philistines",
+        "nazirite",
+        "dan"
+      ]
+    },
+    "gideon": {
+      "title": "Gideon",
+      "kind": "person",
+      "body": "Hewer; a judge of Israel, called Jerubbaal, of the tribe of Manasseh. With three hundred men, lamps in pitchers and trumpets in their hands, he discomfited the host of Midian (Judg. 6-8). He refused the kingship offered him.",
+      "refs": [
+        "jdg.6",
+        "jdg.7",
+        "jdg.8",
+        "heb.11.32"
+      ],
+      "related": [
+        "midian",
+        "manasseh"
+      ]
+    },
+    "deborah": {
+      "title": "Deborah",
+      "kind": "person",
+      "body": "A bee; a prophetess and judge of Israel, who with Barak overthrew Jabin king of Hazor and Sisera his captain (Judg. 4-5). Her triumphal song is one of the oldest pieces of Hebrew poetry.",
+      "refs": [
+        "jdg.4",
+        "jdg.5"
+      ],
+      "related": [
+        "barak",
+        "jael",
+        "jabin"
+      ]
+    },
+    "jephthah": {
+      "title": "Jephthah",
+      "kind": "person",
+      "body": "An opener; a Gileadite, a mighty man of valour, made captain over Israel against the Ammonites (Judg. 11). Famed for the rash vow concerning his daughter; included among the worthies of faith (Heb. 11:32).",
+      "refs": [
+        "jdg.11",
+        "jdg.12",
+        "heb.11.32"
+      ],
+      "related": [
+        "ammon",
+        "gilead"
+      ]
+    },
+    "zacharias": {
+      "title": "Zacharias",
+      "kind": "person",
+      "body": "Jehovah hath remembered; a priest of the course of Abia, husband of Elisabeth and father of John the Baptist. While ministering at the altar of incense the angel Gabriel announced to him the birth of his son, and for his unbelief he was struck dumb until the child was named (Luke 1).",
+      "refs": [
+        "luk.1.5",
+        "luk.1.59"
+      ],
+      "related": [
+        "john-the-baptist",
+        "gabriel",
+        "elisabeth"
+      ]
+    },
+    "elisabeth": {
+      "title": "Elisabeth",
+      "kind": "person",
+      "body": "God of the oath; of the daughters of Aaron, wife of Zacharias and cousin of the Virgin Mary, mother of John the Baptist (Luke 1:5-57). She greeted Mary as 'the mother of my Lord.'",
+      "refs": [
+        "luk.1.5",
+        "luk.1.39"
+      ],
+      "related": [
+        "zacharias",
+        "john-the-baptist",
+        "mary"
+      ]
+    },
+    "nathanael": {
+      "title": "Nathanael",
+      "kind": "person",
+      "body": "Gift of God; an Israelite indeed, in whom was no guile (John 1:47), of Cana of Galilee, brought to Jesus by Philip. He is generally identified with Bartholomew among the twelve.",
+      "refs": [
+        "jhn.1.45",
+        "jhn.21.2"
+      ],
+      "related": [
+        "philip",
+        "jesus-christ",
+        "apostle",
+        "cana"
+      ]
+    },
+    "zacchaeus": {
+      "title": "Zacchaeus",
+      "kind": "person",
+      "body": "Pure; chief among the publicans of Jericho, a small man who climbed up into a sycomore tree to see Jesus, and to whose house salvation came that day (Luke 19:1-10).",
+      "refs": [
+        "luk.19.1"
+      ],
+      "related": [
+        "jesus-christ",
+        "jericho"
+      ]
+    },
+    "zerubbabel": {
+      "title": "Zerubbabel",
+      "kind": "person",
+      "body": "Born at Babel; a prince of Judah of the lineage of David, who led back the first company of exiles from Babylon, laid the foundation of the second temple, and is named in the genealogy of Christ (Ezra 2-6; Hag. 1-2; Matt. 1:12-13).",
+      "refs": [
+        "ezr.2",
+        "ezr.3",
+        "hag.1",
+        "mat.1.12"
+      ],
+      "related": [
+        "haggai",
+        "zechariah",
+        "temple",
+        "captivity"
+      ]
+    },
+    "eden": {
+      "title": "Eden",
+      "kind": "place",
+      "body": "Delight; the garden planted by God eastward, in which He placed the man whom He had formed (Gen. 2:8). It was watered by a river that parted into four heads — Pison, Gihon, Hiddekel (Tigris), and Euphrates. From it man was driven after the Fall, and a cherubim with a flaming sword kept the way of the tree of life. It stands throughout scripture as the picture of unfallen blessedness.",
+      "refs": [
+        "gen.2.8",
+        "gen.3.23",
+        "ezk.28.13",
+        "rev.2.7"
+      ],
+      "related": [
+        "adam",
+        "eve",
+        "fall",
+        "tree-of-life"
+      ]
+    },
+    "ararat": {
+      "title": "Ararat",
+      "kind": "place",
+      "body": "Sacred land; the mountain region in Armenia upon whose mountains the ark of Noah rested (Gen. 8:4).",
+      "refs": [
+        "gen.8.4",
+        "2ki.19.37",
+        "jer.51.27"
+      ],
+      "related": [
+        "noah",
+        "ark",
+        "flood"
+      ]
+    },
+    "babel": {
+      "title": "Babel",
+      "kind": "place",
+      "body": "Confusion; the city in the plain of Shinar where men, attempting to build a tower whose top should reach unto heaven, were confounded in their speech and scattered (Gen. 11:1-9). The site of the later Babylon.",
+      "refs": [
+        "gen.10.10",
+        "gen.11.1"
+      ],
+      "related": [
+        "babylon",
+        "shinar",
+        "nimrod"
+      ]
+    },
+    "ur-of-the-chaldees": {
+      "title": "Ur of the Chaldees",
+      "kind": "place",
+      "body": "An ancient city of southern Mesopotamia, the original home of Terah and Abraham (Gen. 11:28, 31; 15:7), from which they migrated to Haran.",
+      "refs": [
+        "gen.11.28",
+        "gen.15.7",
+        "neh.9.7"
+      ],
+      "related": [
+        "abraham",
+        "terah",
+        "haran",
+        "chaldea"
+      ]
+    },
+    "haran": {
+      "title": "Haran",
+      "kind": "place",
+      "body": "Mountaineer; a city in north Mesopotamia on the river Belik, where Terah dwelt after leaving Ur, and where Jacob served Laban (Gen. 11:31; 28:10; 29).",
+      "refs": [
+        "gen.11.31",
+        "gen.28.10",
+        "gen.29",
+        "act.7.4"
+      ],
+      "related": [
+        "ur-of-the-chaldees",
+        "abraham",
+        "jacob",
+        "laban"
+      ]
+    },
+    "canaan": {
+      "title": "Canaan",
+      "kind": "place",
+      "body": "Lowland; the country promised by God to Abraham and his seed, lying between the Mediterranean and the Jordan, from the river of Egypt to the entering in of Hamath (Gen. 17:8; Num. 34). Inhabited by seven nations whom Israel was to dispossess.",
+      "refs": [
+        "gen.12.5",
+        "gen.17.8",
+        "num.34",
+        "jos.14"
+      ],
+      "related": [
+        "abraham",
+        "israel",
+        "promised-land",
+        "jericho"
+      ]
+    },
+    "sodom": {
+      "title": "Sodom",
+      "kind": "place",
+      "body": "Burning; a city of the plain of Jordan, exceedingly wicked, destroyed with Gomorrah by fire and brimstone out of heaven (Gen. 19). Held up by our Lord and the prophets as a type of impenitent judgement.",
+      "refs": [
+        "gen.13.13",
+        "gen.19",
+        "mat.10.15",
+        "2pe.2.6",
+        "jud.1.7"
+      ],
+      "related": [
+        "lot",
+        "gomorrah",
+        "abraham"
+      ]
+    },
+    "egypt": {
+      "title": "Egypt",
+      "kind": "place",
+      "body": "The land of Mizraim, lying on both sides of the Nile. The place of Israel's long bondage from which they were delivered by Moses; the refuge of the holy family from Herod (Matt. 2:13-15); throughout scripture often a figure of the worldly power.",
+      "refs": [
+        "gen.46",
+        "exo.1",
+        "exo.12",
+        "mat.2.13"
+      ],
+      "related": [
+        "pharaoh",
+        "moses",
+        "exodus",
+        "nile"
+      ]
+    },
+    "sinai": {
+      "title": "Sinai",
+      "kind": "place",
+      "body": "Bushy; also Horeb; the mountain of God in the peninsula between the two arms of the Red Sea, where God revealed Himself to Moses in the burning bush (Exo. 3), gave the law amid thunder and fire (Exo. 19-20), and afterwards spake to Elijah in the still small voice (1 Kings 19).",
+      "refs": [
+        "exo.3",
+        "exo.19",
+        "exo.20",
+        "1ki.19",
+        "gal.4.24",
+        "heb.12.18"
+      ],
+      "related": [
+        "moses",
+        "horeb",
+        "law",
+        "ten-commandments"
+      ]
+    },
+    "horeb": {
+      "title": "Horeb",
+      "kind": "place",
+      "body": "Desert; another name of Mount Sinai, particularly used in Deuteronomy. The mount of God where Moses kept Jethro's flocks and where Israel received the law.",
+      "refs": [
+        "exo.3.1",
+        "deu.1.6",
+        "1ki.19.8"
+      ],
+      "related": [
+        "sinai",
+        "moses",
+        "elijah",
+        "law"
+      ]
+    },
+    "red-sea": {
+      "title": "Red Sea",
+      "kind": "place",
+      "body": "Called by the Hebrews Yam Suph, 'Sea of Reeds'; the great body of water dividing Egypt from Arabia. Through it the children of Israel passed dry-shod, and in it Pharaoh's host was overthrown (Exo. 14-15).",
+      "refs": [
+        "exo.14",
+        "exo.15",
+        "heb.11.29"
+      ],
+      "related": [
+        "moses",
+        "pharaoh",
+        "exodus"
+      ]
+    },
+    "jordan": {
+      "title": "Jordan",
+      "kind": "place",
+      "body": "The descender; the chief river of Palestine, rising at the foot of Hermon and flowing through the Sea of Galilee into the Dead Sea. Israel crossed it under Joshua, Naaman was healed in it, and our Lord was baptized by John in its waters.",
+      "refs": [
+        "jos.3",
+        "2ki.5",
+        "mat.3.13"
+      ],
+      "related": [
+        "joshua",
+        "john-the-baptist",
+        "jesus-christ",
+        "baptism",
+        "galilee"
+      ]
+    },
+    "jericho": {
+      "title": "Jericho",
+      "kind": "place",
+      "body": "Place of fragrance; the city of palm-trees in the plain of Jordan, the first conquest of Israel west of the river, whose walls fell down flat at the seven days' compass and the trumpet-blast (Josh. 6). Restored by Hiel the Bethelite under the curse of Joshua (1 Kings 16:34). In our Lord's time it was the home of Zacchaeus and the scene of the healing of Bartimaeus.",
+      "refs": [
+        "jos.6",
+        "1ki.16.34",
+        "luk.10.30",
+        "luk.19.1"
+      ],
+      "related": [
+        "joshua",
+        "rahab",
+        "zacchaeus",
+        "bartimaeus"
+      ]
+    },
+    "bethlehem": {
+      "title": "Bethlehem",
+      "kind": "place",
+      "body": "House of bread; a town of Judah about six miles south of Jerusalem, the birthplace of David and, in fulfilment of Micah's prophecy, of our Lord Jesus Christ (Mic. 5:2; Matt. 2:1; Luke 2). Rachel was buried near by (Gen. 35:19).",
+      "refs": [
+        "gen.35.19",
+        "rut.1.19",
+        "mic.5.2",
+        "mat.2.1",
+        "luk.2.4"
+      ],
+      "related": [
+        "david",
+        "jesus-christ",
+        "ruth",
+        "judah"
+      ]
+    },
+    "jerusalem": {
+      "title": "Jerusalem",
+      "kind": "place",
+      "body": "Foundation, or city, of peace; the holy city of the Jews, situated on a tableland in the mountains of Judah. Conquered from the Jebusites by David and made the royal city; Solomon built the temple there. Destroyed by Nebuchadnezzar (586 B.C.), rebuilt under Cyrus, again destroyed by Titus (A.D. 70). The scene of our Lord's passion and resurrection and of the Pentecostal birth of the church. Used also for the heavenly city, the New Jerusalem (Rev. 21).",
+      "refs": [
+        "2sa.5.6",
+        "1ki.8",
+        "2ki.25",
+        "mat.21",
+        "luk.24",
+        "act.2",
+        "rev.21.2"
+      ],
+      "related": [
+        "zion",
+        "temple",
+        "david",
+        "solomon",
+        "jesus-christ"
+      ]
+    },
+    "zion": {
+      "title": "Zion",
+      "kind": "place",
+      "body": "Sunny, or fortress; originally the south-eastern hill of Jerusalem, the stronghold of the Jebusites taken by David and called 'the city of David' (2 Sam. 5:7). The name is afterwards used for the temple mount, for Jerusalem at large, for the people of God, and for the heavenly city (Heb. 12:22).",
+      "refs": [
+        "2sa.5.7",
+        "psa.2.6",
+        "psa.48",
+        "isa.2.3",
+        "heb.12.22"
+      ],
+      "related": [
+        "jerusalem",
+        "david",
+        "temple"
+      ]
+    },
+    "hebron": {
+      "title": "Hebron",
+      "kind": "place",
+      "body": "League; one of the most ancient cities in the world, in the hill-country of Judah, where Abraham dwelt under the oaks of Mamre and where the patriarchs were buried in Machpelah. The first capital of David's kingdom for seven years.",
+      "refs": [
+        "gen.13.18",
+        "gen.23",
+        "jos.14.13",
+        "2sa.2.11"
+      ],
+      "related": [
+        "abraham",
+        "caleb",
+        "david",
+        "machpelah"
+      ]
+    },
+    "nazareth": {
+      "title": "Nazareth",
+      "kind": "place",
+      "body": "Branch; a town of lower Galilee in a basin of the hills, the home of Joseph and Mary and the place of our Lord's upbringing — wherefore He was called a Nazarene (Matt. 2:23). Despised in His day ('Can any good thing come out of Nazareth?' John 1:46), it became forever associated with His name.",
+      "refs": [
+        "mat.2.23",
+        "luk.1.26",
+        "luk.4.16",
+        "jhn.1.46"
+      ],
+      "related": [
+        "jesus-christ",
+        "mary",
+        "joseph-of-nazareth",
+        "galilee"
+      ]
+    },
+    "capernaum": {
+      "title": "Capernaum",
+      "kind": "place",
+      "body": "Village of Nahum; a city on the north-western shore of the Sea of Galilee that became 'his own city' in our Lord's Galilean ministry (Matt. 9:1). Many of His mighty works were done there, and for its unbelief He pronounced its doom (Matt. 11:23).",
+      "refs": [
+        "mat.4.13",
+        "mat.8.5",
+        "mat.9.1",
+        "mat.11.23",
+        "mar.2.1"
+      ],
+      "related": [
+        "jesus-christ",
+        "galilee",
+        "peter"
+      ]
+    },
+    "galilee": {
+      "title": "Galilee",
+      "kind": "place",
+      "body": "Circuit; the northern of the three divisions of Palestine in our Lord's day. Centered on the Sea of Galilee (Tiberias), it was the scene of most of His public ministry and the home of most of the apostles. 'Galilee of the Gentiles' (Isa. 9:1; Matt. 4:15).",
+      "refs": [
+        "isa.9.1",
+        "mat.4.15",
+        "mar.1.14",
+        "jhn.7.41"
+      ],
+      "related": [
+        "jesus-christ",
+        "capernaum",
+        "nazareth"
+      ]
+    },
+    "samaria": {
+      "title": "Samaria",
+      "kind": "place",
+      "body": "Watch-mountain; the capital of the kingdom of the ten tribes, built by Omri (1 Kings 16:24). Used also for the surrounding territory between Judea and Galilee, inhabited in our Lord's time by the mixed race of the Samaritans.",
+      "refs": [
+        "1ki.16.24",
+        "2ki.17",
+        "jhn.4.4",
+        "act.8.5"
+      ],
+      "related": [
+        "samaritans",
+        "israel-northern-kingdom",
+        "ahab"
+      ]
+    },
+    "bethel": {
+      "title": "Bethel",
+      "kind": "place",
+      "body": "House of God; originally Luz, the place where Jacob saw the heavenly ladder in his dream (Gen. 28:10-19) and afterwards where he reared an altar (Gen. 35). One of the two cities where Jeroboam set up the golden calves.",
+      "refs": [
+        "gen.12.8",
+        "gen.28.19",
+        "gen.35.1",
+        "1ki.12.29"
+      ],
+      "related": [
+        "jacob",
+        "jeroboam",
+        "luz"
+      ]
+    },
+    "shiloh": {
+      "title": "Shiloh",
+      "kind": "place",
+      "body": "Place of rest; the chief sanctuary of Israel in the time of the judges, where the tabernacle was set up after the conquest and where Eli ministered (Josh. 18:1; 1 Sam. 1-4). Used also as a mysterious title of the Messiah (Gen. 49:10).",
+      "refs": [
+        "gen.49.10",
+        "jos.18.1",
+        "1sa.1",
+        "jer.7.12"
+      ],
+      "related": [
+        "tabernacle",
+        "eli",
+        "messiah"
+      ]
+    },
+    "dan": {
+      "title": "Dan",
+      "kind": "place",
+      "body": "Judge. Originally Laish, in the extreme north of Palestine, captured by the Danites (Judg. 18). Became, with Bethel, a centre of the calf-worship under Jeroboam. The phrase 'from Dan even to Beer-sheba' marked the length of the land.",
+      "refs": [
+        "jdg.18",
+        "1ki.12.29",
+        "jdg.20.1"
+      ],
+      "related": [
+        "jeroboam",
+        "bethel",
+        "laish"
+      ]
+    },
+    "beersheba": {
+      "title": "Beer-sheba",
+      "kind": "place",
+      "body": "Well of the oath; a town in the south of Judah where Abraham and Isaac sojourned and made covenants. The southern limit of the land — 'from Dan to Beer-sheba.'",
+      "refs": [
+        "gen.21.31",
+        "gen.26.33",
+        "jdg.20.1"
+      ],
+      "related": [
+        "abraham",
+        "isaac",
+        "abimelech"
+      ]
+    },
+    "nineveh": {
+      "title": "Nineveh",
+      "kind": "place",
+      "body": "The great capital of Assyria, on the east bank of the Tigris, founded by Nimrod (Gen. 10:11) — 'an exceeding great city of three days' journey' (Jonah 3:3). To it Jonah was sent to preach; its inhabitants repented at his preaching. It fell to the Medes and Babylonians in 612 B.C., according to the doom of Nahum.",
+      "refs": [
+        "gen.10.11",
+        "jon.1",
+        "jon.3",
+        "nah.1",
+        "mat.12.41"
+      ],
+      "related": [
+        "jonah",
+        "assyria",
+        "nimrod"
+      ]
+    },
+    "babylon": {
+      "title": "Babylon",
+      "kind": "place",
+      "body": "Confusion; the great city on the Euphrates, capital of the Babylonian empire, built up by Nebuchadnezzar to a splendour unrivalled in the ancient world. The place of Judah's captivity (586-538 B.C.). In the Revelation, the great harlot, the type of the world-power in opposition to the church (Rev. 17-18).",
+      "refs": [
+        "2ki.24",
+        "2ki.25",
+        "psa.137",
+        "dan.1",
+        "rev.17",
+        "rev.18"
+      ],
+      "related": [
+        "nebuchadnezzar",
+        "captivity",
+        "daniel",
+        "babel"
+      ]
+    },
+    "damascus": {
+      "title": "Damascus",
+      "kind": "place",
+      "body": "Activity; an exceedingly ancient city of Syria, mentioned in the days of Abraham (Gen. 14:15; 15:2). Long the head of the Syrian kingdoms; in the New Testament the city to which Saul of Tarsus was journeying when he was converted (Acts 9).",
+      "refs": [
+        "gen.14.15",
+        "1ki.11.24",
+        "2ki.5",
+        "act.9"
+      ],
+      "related": [
+        "paul",
+        "syria",
+        "naaman"
+      ]
+    },
+    "tyre": {
+      "title": "Tyre",
+      "kind": "place",
+      "body": "A rock; the great Phoenician seaport and trading city, allied with David and Solomon (Hiram supplied cedar for the temple). The prophets Isaiah and Ezekiel pronounced its doom (Ezek. 26-28). Our Lord visited its borders (Matt. 15:21).",
+      "refs": [
+        "1ki.5",
+        "isa.23",
+        "ezk.26",
+        "mat.15.21"
+      ],
+      "related": [
+        "sidon",
+        "hiram",
+        "phoenicia"
+      ]
+    },
+    "sidon": {
+      "title": "Sidon",
+      "kind": "place",
+      "body": "Fishing; the ancient sister-city of Tyre, often joined with it in scripture. Our Lord went into its coasts and ministered to the Syro-phoenician woman.",
+      "refs": [
+        "gen.10.15",
+        "jos.11.8",
+        "mat.15.21",
+        "act.27.3"
+      ],
+      "related": [
+        "tyre",
+        "phoenicia"
+      ]
+    },
+    "antioch": {
+      "title": "Antioch",
+      "kind": "place",
+      "body": "From Antiochus. (1) Antioch in Syria, on the Orontes — the mother church of the Gentile mission, where the disciples were first called Christians (Acts 11:26), and whence Paul set out on his journeys. (2) Antioch in Pisidia, where Paul preached his great sermon (Acts 13).",
+      "refs": [
+        "act.11.19",
+        "act.11.26",
+        "act.13.14",
+        "gal.2.11"
+      ],
+      "related": [
+        "paul",
+        "barnabas",
+        "gentiles"
+      ]
+    },
+    "athens": {
+      "title": "Athens",
+      "kind": "place",
+      "body": "The famous city of Attica, capital of the philosophic schools, visited by Paul on his second journey, where he preached on Mars' Hill the Unknown God (Acts 17).",
+      "refs": [
+        "act.17.15",
+        "1th.3.1"
+      ],
+      "related": [
+        "paul",
+        "areopagus",
+        "gentiles"
+      ]
+    },
+    "corinth": {
+      "title": "Corinth",
+      "kind": "place",
+      "body": "Ornament; the wealthy, dissolute capital of the Roman province of Achaia, on the isthmus between the two seas. Paul spent eighteen months there founding the church to which two of his epistles are addressed.",
+      "refs": [
+        "act.18",
+        "1co.1",
+        "2co.1"
+      ],
+      "related": [
+        "paul",
+        "aquila",
+        "priscilla",
+        "apollos",
+        "achaia"
+      ]
+    },
+    "ephesus": {
+      "title": "Ephesus",
+      "kind": "place",
+      "body": "The chief city of proconsular Asia, famed for the temple of Diana. Paul laboured there three years (Acts 19). One of the seven churches of the Revelation.",
+      "refs": [
+        "act.18.19",
+        "act.19",
+        "eph.1.1",
+        "rev.2.1"
+      ],
+      "related": [
+        "paul",
+        "john",
+        "diana",
+        "apollos",
+        "aquila"
+      ]
+    },
+    "philippi": {
+      "title": "Philippi",
+      "kind": "place",
+      "body": "A city of Macedonia, the first place in Europe where the gospel was preached, the home of Lydia, the slave-girl, and the jailer (Acts 16). Paul's epistle to the Philippians abounds in affection.",
+      "refs": [
+        "act.16",
+        "phi.1.1",
+        "phi.4.15"
+      ],
+      "related": [
+        "paul",
+        "silas",
+        "lydia",
+        "macedonia"
+      ]
+    },
+    "rome": {
+      "title": "Rome",
+      "kind": "place",
+      "body": "Strength; the imperial capital of the world. Paul, after his long appeal unto Caesar, came to Rome a prisoner (Acts 28) and from his hired house wrote the prison epistles. The end of Peter and of Paul, by tradition, was at Rome. The word is also used apocalyptically as the seven-hilled city of the Revelation.",
+      "refs": [
+        "act.28",
+        "rom.1",
+        "2ti.1.17",
+        "rev.17"
+      ],
+      "related": [
+        "paul",
+        "peter",
+        "caesar",
+        "babylon"
+      ]
+    },
+    "patmos": {
+      "title": "Patmos",
+      "kind": "place",
+      "body": "A small rocky island in the Aegean Sea, off the coast of Asia Minor, to which the apostle John was banished and where he received the Revelation (Rev. 1:9).",
+      "refs": [
+        "rev.1.9"
+      ],
+      "related": [
+        "john",
+        "revelation"
+      ]
+    },
+    "moab": {
+      "title": "Moab",
+      "kind": "place",
+      "body": "From thy father; the land east of the Dead Sea, occupied by the descendants of Lot. Hostile and friendly by turns to Israel; the home of Ruth.",
+      "refs": [
+        "gen.19.37",
+        "num.22",
+        "rut.1",
+        "2ki.3"
+      ],
+      "related": [
+        "lot",
+        "ruth",
+        "balaam"
+      ]
+    },
+    "midian": {
+      "title": "Midian",
+      "kind": "place",
+      "body": "Strife; a region east of the Gulf of Akabah, occupied by the descendants of Midian son of Abraham by Keturah. The land of Moses' forty years' exile and the seat of frequent oppression of Israel in the days of the judges.",
+      "refs": [
+        "gen.25.2",
+        "exo.2.15",
+        "exo.3.1",
+        "jdg.6"
+      ],
+      "related": [
+        "moses",
+        "gideon",
+        "jethro"
+      ]
+    },
+    "gilead": {
+      "title": "Gilead",
+      "kind": "place",
+      "body": "Heap of witness; the mountainous region east of Jordan, famed for its balm, allotted to Reuben, Gad, and half-Manasseh. Home of Jephthah and Elijah.",
+      "refs": [
+        "gen.31.21",
+        "num.32",
+        "jer.8.22"
+      ],
+      "related": [
+        "jephthah",
+        "elijah",
+        "reuben",
+        "balm"
+      ]
+    },
+    "bethany": {
+      "title": "Bethany",
+      "kind": "place",
+      "body": "House of dates; a village on the eastern slope of the Mount of Olives, the home of Lazarus, Martha, and Mary, often visited by our Lord. From near Bethany He ascended into heaven (Luke 24:50-51).",
+      "refs": [
+        "mat.21.17",
+        "jhn.11",
+        "jhn.12",
+        "luk.24.50"
+      ],
+      "related": [
+        "lazarus",
+        "martha",
+        "mary",
+        "jesus-christ",
+        "olives"
+      ]
+    },
+    "olives": {
+      "title": "Mount of Olives",
+      "kind": "place",
+      "body": "The ridge east of Jerusalem, separated from the city by the Kidron valley, much frequented by our Lord. The scene of His agony in Gethsemane, of His Olivet discourse, and of His ascension. Zechariah foretells His feet shall stand upon it in the day of the LORD (Zech. 14:4).",
+      "refs": [
+        "zec.14.4",
+        "mat.21.1",
+        "mat.24.3",
+        "mat.26.30",
+        "luk.19.37",
+        "act.1.12"
+      ],
+      "related": [
+        "gethsemane",
+        "jerusalem",
+        "jesus-christ",
+        "ascension"
+      ]
+    },
+    "gethsemane": {
+      "title": "Gethsemane",
+      "kind": "place",
+      "body": "Oil-press; a garden on the lower slope of the Mount of Olives, beyond the brook Kidron, to which our Lord often resorted with His disciples and where, the night of His betrayal, He prayed in His agony and was taken by Judas (Matt. 26:36; John 18:1).",
+      "refs": [
+        "mat.26.36",
+        "mar.14.32",
+        "luk.22.39",
+        "jhn.18.1"
+      ],
+      "related": [
+        "olives",
+        "jesus-christ",
+        "judas-iscariot"
+      ]
+    },
+    "golgotha": {
+      "title": "Golgotha",
+      "kind": "place",
+      "body": "A skull; the Aramaic name (translated 'Calvary' in Luke 23:33) of the place outside the gate of Jerusalem where our Lord was crucified.",
+      "refs": [
+        "mat.27.33",
+        "mar.15.22",
+        "jhn.19.17"
+      ],
+      "related": [
+        "calvary",
+        "crucifixion",
+        "jesus-christ"
+      ]
+    },
+    "calvary": {
+      "title": "Calvary",
+      "kind": "place",
+      "body": "The Latin equivalent of Golgotha (Luke 23:33). The mount of crucifixion.",
+      "refs": [
+        "luk.23.33"
+      ],
+      "related": [
+        "golgotha",
+        "crucifixion",
+        "jesus-christ"
+      ]
+    },
+    "tarsus": {
+      "title": "Tarsus",
+      "kind": "place",
+      "body": "The chief city of Cilicia in Asia Minor, 'no mean city' (Acts 21:39), the birthplace of the apostle Paul, famed as a seat of learning.",
+      "refs": [
+        "act.9.11",
+        "act.21.39",
+        "act.22.3"
+      ],
+      "related": [
+        "paul",
+        "cilicia"
+      ]
+    },
+    "alexandria": {
+      "title": "Alexandria",
+      "kind": "place",
+      "body": "The great city founded by Alexander the Great at the mouth of the Nile, capital of Hellenistic Egypt, with a large Jewish population. The home of Apollos and the place where the Septuagint was made.",
+      "refs": [
+        "act.6.9",
+        "act.18.24",
+        "act.27.6"
+      ],
+      "related": [
+        "apollos",
+        "egypt",
+        "septuagint"
+      ]
+    },
+    "damascus-road": {
+      "title": "Damascus road",
+      "kind": "place",
+      "body": "The highway from Jerusalem to Damascus, famous as the scene of the conversion of Saul of Tarsus, when at noonday he was smitten down by a light from heaven (Acts 9:3; 22:6; 26:13).",
+      "refs": [
+        "act.9.3",
+        "act.22.6",
+        "act.26.13"
+      ],
+      "related": [
+        "paul",
+        "damascus"
+      ]
+    },
+    "ophir": {
+      "title": "Ophir",
+      "kind": "place",
+      "body": "A region celebrated for fine gold, whither the navy of Solomon, in company with the ships of Hiram, went from Ezion-geber every three years (1 Kings 9:28; 10:11).",
+      "refs": [
+        "1ki.9.28",
+        "1ki.10.11",
+        "job.28.16"
+      ],
+      "related": [
+        "solomon",
+        "hiram",
+        "gold"
+      ]
+    },
+    "sheba": {
+      "title": "Sheba",
+      "kind": "place",
+      "body": "A kingdom in southern Arabia, whose queen came to Solomon to prove him with hard questions and was overwhelmed with his wisdom and splendour (1 Kings 10).",
+      "refs": [
+        "1ki.10",
+        "mat.12.42"
+      ],
+      "related": [
+        "solomon",
+        "arabia"
+      ]
+    },
+    "nile": {
+      "title": "Nile",
+      "kind": "place",
+      "body": "Called in scripture 'the river' of Egypt or Sihor; the great river upon whose banks Israel sojourned and into which Moses was cast in the ark of bulrushes. Turned to blood as the first of the ten plagues.",
+      "refs": [
+        "gen.41",
+        "exo.1.22",
+        "exo.7.20"
+      ],
+      "related": [
+        "egypt",
+        "moses",
+        "plagues"
+      ]
+    },
+    "euphrates": {
+      "title": "Euphrates",
+      "kind": "place",
+      "body": "'The great river' (Gen. 15:18), one of the four rivers of Eden, marking the north-eastern bound of the land promised to Abraham. The river of Babylon by which the captives sat down and wept.",
+      "refs": [
+        "gen.2.14",
+        "gen.15.18",
+        "psa.137.1",
+        "rev.9.14"
+      ],
+      "related": [
+        "eden",
+        "babylon",
+        "tigris"
+      ]
+    },
+    "machpelah": {
+      "title": "Machpelah",
+      "kind": "place",
+      "body": "The double cave at Hebron, bought by Abraham from Ephron the Hittite for a burying-place; the sepulchre of Abraham and Sarah, Isaac and Rebekah, Jacob and Leah (Gen. 23; 49:30-31).",
+      "refs": [
+        "gen.23",
+        "gen.25.9",
+        "gen.49.29"
+      ],
+      "related": [
+        "abraham",
+        "sarah",
+        "isaac",
+        "jacob",
+        "hebron"
+      ]
+    },
+    "hebrews": {
+      "title": "Hebrews",
+      "kind": "people",
+      "body": "The descendants of Eber, especially the chosen line of Abraham, Isaac, and Jacob, called also Israelites and (after the captivity) Jews. The name 'Hebrew' marks the people in their distinction from other races; 'Israel' marks them in covenant relation; 'Jew' as belonging to the kingdom of Judah.",
+      "refs": [
+        "gen.14.13",
+        "exo.2.6",
+        "phi.3.5",
+        "heb.1"
+      ],
+      "related": [
+        "israel",
+        "jews",
+        "abraham"
+      ]
+    },
+    "israel": {
+      "title": "Israel",
+      "kind": "people",
+      "body": "Prince with God; the name given to Jacob after his wrestling at Peniel (Gen. 32:28), and afterwards to his descendants — the twelve tribes. Used also of the northern kingdom of ten tribes after the schism, in distinction from Judah.",
+      "refs": [
+        "gen.32.28",
+        "exo.4.22",
+        "psa.135.4",
+        "rom.9.6"
+      ],
+      "related": [
+        "jacob",
+        "tribes-of-israel",
+        "hebrews"
+      ]
+    },
+    "israel-northern-kingdom": {
+      "title": "Israel (Northern Kingdom)",
+      "kind": "people",
+      "body": "The ten tribes that revolted under Jeroboam after the death of Solomon, retaining the name 'Israel' as distinct from Judah. Lasted some 250 years; uniformly idolatrous, and at last carried captive into Assyria (722 B.C.).",
+      "refs": [
+        "1ki.12",
+        "2ki.17"
+      ],
+      "related": [
+        "jeroboam",
+        "samaria",
+        "assyria"
+      ]
+    },
+    "philistines": {
+      "title": "Philistines",
+      "kind": "people",
+      "body": "Wanderers; a warlike people occupying the south-west coast of Palestine in five great cities — Gaza, Ashkelon, Ashdod, Gath, Ekron. The hereditary foes of Israel from the days of the judges till the time of David, who at length broke their power.",
+      "refs": [
+        "jdg.13",
+        "1sa.4",
+        "1sa.17",
+        "2sa.5"
+      ],
+      "related": [
+        "samson",
+        "saul",
+        "david",
+        "goliath"
+      ]
+    },
+    "edomites": {
+      "title": "Edomites",
+      "kind": "people",
+      "body": "The descendants of Esau, dwelling in the mountains of Seir south of the Dead Sea. Long hostile to their kinsmen Israel; subdued by David, revolted under Joram. The Herodian dynasty was of Idumean (Edomite) origin.",
+      "refs": [
+        "gen.36",
+        "num.20.14",
+        "oba.1",
+        "mal.1.2"
+      ],
+      "related": [
+        "esau",
+        "seir",
+        "herod"
+      ]
+    },
+    "amalekites": {
+      "title": "Amalekites",
+      "kind": "people",
+      "body": "A nomadic people of the south, descended from Esau through Eliphaz. The first to attack Israel after the Exodus (Exo. 17), against whom the LORD swore perpetual war. Almost utterly destroyed under Saul and David.",
+      "refs": [
+        "exo.17.8",
+        "deu.25.17",
+        "1sa.15",
+        "1sa.30"
+      ],
+      "related": [
+        "esau",
+        "saul",
+        "agag"
+      ]
+    },
+    "assyrians": {
+      "title": "Assyrians",
+      "kind": "people",
+      "body": "The inhabitants of Assyria, in the upper Tigris valley, capital Nineveh; the great oppressors of Israel and Judah from the ninth to the seventh century B.C., the rod of God's anger (Isa. 10:5). They carried away the northern kingdom.",
+      "refs": [
+        "2ki.15",
+        "2ki.17",
+        "2ki.18",
+        "isa.10",
+        "nah.1"
+      ],
+      "related": [
+        "nineveh",
+        "sennacherib",
+        "israel-northern-kingdom"
+      ]
+    },
+    "babylonians": {
+      "title": "Babylonians",
+      "kind": "people",
+      "body": "The Chaldean inhabitants of Babylonia. Under Nebuchadnezzar they overthrew Assyria, broke the power of Egypt, captured Jerusalem, and carried Judah into the seventy years' captivity.",
+      "refs": [
+        "2ki.24",
+        "2ki.25",
+        "jer.39",
+        "dan.1"
+      ],
+      "related": [
+        "babylon",
+        "nebuchadnezzar",
+        "chaldea",
+        "captivity"
+      ]
+    },
+    "romans": {
+      "title": "Romans",
+      "kind": "people",
+      "body": "The masters of the world in our Lord's day; the empire under whose tax-decree He was born, whose procurator condemned Him, whose centurion confessed Him at the cross, and whose roads and language carried the gospel of Paul to the ends of the earth.",
+      "refs": [
+        "luk.2.1",
+        "mat.27",
+        "act.16.37",
+        "act.22.25",
+        "rom.1"
+      ],
+      "related": [
+        "rome",
+        "caesar",
+        "pontius-pilate",
+        "paul"
+      ]
+    },
+    "samaritans": {
+      "title": "Samaritans",
+      "kind": "people",
+      "body": "The mixed race occupying the country between Judea and Galilee after the deportation of the ten tribes — descendants of foreign colonists planted by the Assyrian kings, blended with the residue of Israel. They worshipped on Mount Gerizim and held only the Pentateuch. Jews had no dealings with them; yet our Lord made one the hero of His parable (Luke 10:33) and one a thankful leper (Luke 17:16).",
+      "refs": [
+        "2ki.17.24",
+        "jhn.4",
+        "luk.10.33",
+        "luk.17.16",
+        "act.8.5"
+      ],
+      "related": [
+        "samaria",
+        "gerizim"
+      ]
+    },
+    "pharisees": {
+      "title": "Pharisees",
+      "kind": "people",
+      "body": "Separated ones; the strictest sect of the Jews in our Lord's day, scrupulous in keeping the law and the tradition of the elders. Many believed; many opposed Him. Paul was bred a Pharisee.",
+      "refs": [
+        "mat.23",
+        "luk.18.10",
+        "jhn.3.1",
+        "act.23.6",
+        "phi.3.5"
+      ],
+      "related": [
+        "sadducees",
+        "scribes",
+        "paul",
+        "nicodemus"
+      ]
+    },
+    "sadducees": {
+      "title": "Sadducees",
+      "kind": "people",
+      "body": "The wealthy priestly aristocracy of our Lord's day, who denied the resurrection, angels, and spirits, holding only the written law (Matt. 22:23; Acts 23:8). They joined with the Pharisees in opposing Christ and persecuting the apostles.",
+      "refs": [
+        "mat.22.23",
+        "act.4.1",
+        "act.23.8"
+      ],
+      "related": [
+        "pharisees",
+        "priesthood",
+        "resurrection"
+      ]
+    },
+    "gentiles": {
+      "title": "Gentiles",
+      "kind": "people",
+      "body": "The nations; in scripture all peoples other than the Jews. Long held at distance, in the gospel they are made fellow-heirs and of the same body (Eph. 3:6) — the great mystery committed especially to the apostle Paul.",
+      "refs": [
+        "isa.49.6",
+        "luk.2.32",
+        "act.10",
+        "act.13.46",
+        "eph.3.6"
+      ],
+      "related": [
+        "paul",
+        "cornelius",
+        "jews"
+      ]
+    },
+    "covenant": {
+      "title": "Covenant",
+      "kind": "concept",
+      "body": "A solemn compact or agreement, especially between God and man. The principal covenants of scripture are: with Noah (Gen. 9), with Abraham (Gen. 15, 17), at Sinai with Israel (Exo. 19-24), with David (2 Sam. 7), and the New Covenant in the blood of Christ (Jer. 31:31; Luke 22:20; Heb. 8). The whole frame of redemption is covenantal.",
+      "refs": [
+        "gen.9",
+        "gen.15",
+        "gen.17",
+        "exo.24",
+        "jer.31.31",
+        "luk.22.20",
+        "heb.8"
+      ],
+      "related": [
+        "abraham",
+        "moses",
+        "jesus-christ",
+        "blood",
+        "new-covenant"
+      ]
+    },
+    "sabbath": {
+      "title": "Sabbath",
+      "kind": "concept",
+      "body": "Rest; the seventh day, hallowed by God at creation when He rested from all His work (Gen. 2:2-3), enjoined upon Israel in the fourth commandment, and observed by them with great strictness. The Lord of the sabbath (Mark 2:28) declared it made for man, not man for it. The early church kept the first day, the Lord's Day, in commemoration of the resurrection.",
+      "refs": [
+        "gen.2.2",
+        "exo.20.8",
+        "isa.58.13",
+        "mar.2.27",
+        "col.2.16"
+      ],
+      "related": [
+        "creation",
+        "ten-commandments",
+        "lords-day"
+      ]
+    },
+    "passover": {
+      "title": "Passover",
+      "kind": "concept",
+      "body": "The first of the three great annual feasts of Israel, instituted at the going out from Egypt in memory of the angel of death passing over the houses sprinkled with the blood of the lamb (Exo. 12). Kept on the 14th of Nisan, it foreshadowed Christ our passover, sacrificed for us (1 Cor. 5:7), at the season of whose feast He was crucified.",
+      "refs": [
+        "exo.12",
+        "lev.23.5",
+        "mat.26.17",
+        "1co.5.7"
+      ],
+      "related": [
+        "exodus",
+        "unleavened-bread",
+        "jesus-christ",
+        "lamb"
+      ]
+    },
+    "unleavened-bread": {
+      "title": "Unleavened Bread",
+      "kind": "concept",
+      "body": "The feast of seven days following the Passover (Nisan 15-21), during which no leaven was to be found in the house (Exo. 12:15-20). Leaven is throughout scripture a figure of corrupting sin.",
+      "refs": [
+        "exo.12.15",
+        "lev.23.6",
+        "1co.5.7"
+      ],
+      "related": [
+        "passover",
+        "leaven"
+      ]
+    },
+    "pentecost": {
+      "title": "Pentecost",
+      "kind": "concept",
+      "body": "The fiftieth; the feast of weeks, kept fifty days after the Passover sabbath, in celebration of the wheat-harvest (Lev. 23:15-21). On this day the Holy Spirit descended on the assembled disciples and the church was born (Acts 2).",
+      "refs": [
+        "lev.23.15",
+        "act.2",
+        "1co.16.8"
+      ],
+      "related": [
+        "holy-spirit",
+        "peter",
+        "church"
+      ]
+    },
+    "tabernacles": {
+      "title": "Tabernacles",
+      "kind": "concept",
+      "body": "Booths; the third great feast, kept for seven days from the 15th of Tisri, in memorial of Israel's dwelling in booths in the wilderness, and in thanksgiving for the harvest (Lev. 23:33-43; John 7).",
+      "refs": [
+        "lev.23.33",
+        "deu.16.13",
+        "neh.8.14",
+        "jhn.7.2"
+      ],
+      "related": [
+        "exodus",
+        "harvest"
+      ]
+    },
+    "atonement": {
+      "title": "Atonement",
+      "kind": "concept",
+      "body": "At-one-ment; covering or reconciliation. The annual Day of Atonement (Yom Kippur), 10th of Tisri, was the most solemn day of the Jewish year, when the high priest alone entered the holiest with the blood of the sin-offering (Lev. 16). The whole sacrificial system found its fulfilment in the once-for-all atonement made by Christ on the cross (Heb. 9-10).",
+      "refs": [
+        "lev.16",
+        "lev.23.27",
+        "rom.5.11",
+        "heb.9",
+        "heb.10"
+      ],
+      "related": [
+        "sacrifice",
+        "blood",
+        "high-priest",
+        "jesus-christ"
+      ]
+    },
+    "sacrifice": {
+      "title": "Sacrifice",
+      "kind": "concept",
+      "body": "An offering presented to God. Of the Levitical sacrifices the chief were the burnt-offering, the peace-offering, the sin-offering, and the trespass-offering (Lev. 1-7). All pointed forward to the one sacrifice of Christ, who put away sin by the sacrifice of Himself (Heb. 9:26).",
+      "refs": [
+        "gen.4.4",
+        "lev.1",
+        "lev.4",
+        "heb.9.26",
+        "heb.10.12"
+      ],
+      "related": [
+        "atonement",
+        "blood",
+        "altar",
+        "jesus-christ"
+      ]
+    },
+    "blood": {
+      "title": "Blood",
+      "kind": "concept",
+      "body": "The life of the flesh is in the blood (Lev. 17:11). For this reason it was forbidden as food and reserved to make atonement upon the altar. The shedding of blood is necessary for remission (Heb. 9:22), pointing to the precious blood of Christ (1 Pet. 1:19) by which we are redeemed.",
+      "refs": [
+        "lev.17.11",
+        "heb.9.22",
+        "1pe.1.19",
+        "eph.1.7",
+        "1jn.1.7"
+      ],
+      "related": [
+        "sacrifice",
+        "atonement",
+        "jesus-christ"
+      ]
+    },
+    "tabernacle": {
+      "title": "Tabernacle",
+      "kind": "concept",
+      "body": "A dwelling-place; the portable sanctuary made by Moses at Sinai after the pattern showed in the mount (Exo. 25-31; 35-40), in which God dwelt visibly among His people in the Shekinah cloud. It consisted of the outer court with the altar of burnt-offering and laver, the holy place with the table, the candlestick, and the altar of incense, and the holiest of all containing the ark of the covenant.",
+      "refs": [
+        "exo.25",
+        "exo.26",
+        "exo.40",
+        "heb.9",
+        "heb.8.5"
+      ],
+      "related": [
+        "temple",
+        "ark",
+        "shekinah",
+        "priesthood",
+        "moses"
+      ]
+    },
+    "temple": {
+      "title": "Temple",
+      "kind": "concept",
+      "body": "The sanctuary at Jerusalem that replaced the tabernacle. Three temples are distinguished: that of Solomon, destroyed by Nebuchadnezzar in 586 B.C.; the second built by Zerubbabel after the captivity; and the third, the lavish reconstruction of Herod, in which our Lord taught and which was destroyed by Titus A.D. 70. Christ Himself is the true temple (John 2:21), and His people a spiritual house (1 Pet. 2:5).",
+      "refs": [
+        "1ki.6",
+        "ezr.3",
+        "jhn.2.19",
+        "mat.24.1",
+        "1co.3.16",
+        "1pe.2.5"
+      ],
+      "related": [
+        "solomon",
+        "zerubbabel",
+        "herod",
+        "tabernacle",
+        "jesus-christ"
+      ]
+    },
+    "ark": {
+      "title": "Ark",
+      "kind": "concept",
+      "body": "A chest or vessel. (1) The ark of Noah, in which the patriarch and his family with the living creatures were saved through the flood (Gen. 6-8). (2) The ark of bulrushes in which the infant Moses was hid (Exo. 2:3). (3) The ark of the covenant, the chest of acacia wood overlaid with gold, containing the two tables of the law, in the holiest of the tabernacle and afterwards of Solomon's temple (Exo. 25:10-22).",
+      "refs": [
+        "gen.6.14",
+        "exo.2.3",
+        "exo.25.10",
+        "jos.3",
+        "1sa.4",
+        "heb.9.4"
+      ],
+      "related": [
+        "noah",
+        "moses",
+        "covenant",
+        "tabernacle"
+      ]
+    },
+    "priesthood": {
+      "title": "Priesthood",
+      "kind": "concept",
+      "body": "The sacred office of those who, by appointment of God, draw near to Him on behalf of others to offer sacrifice and intercession. In Israel restricted to the family of Aaron of the tribe of Levi, with a high priest at its head. The whole was a type of the perfect priesthood of Christ after the order of Melchizedek (Heb. 7).",
+      "refs": [
+        "exo.28",
+        "num.3",
+        "heb.5",
+        "heb.7",
+        "1pe.2.9"
+      ],
+      "related": [
+        "aaron",
+        "high-priest",
+        "levi",
+        "melchizedek",
+        "jesus-christ"
+      ]
+    },
+    "high-priest": {
+      "title": "High Priest",
+      "kind": "concept",
+      "body": "The chief of the priests, set over the sanctuary and the only one permitted to enter the holiest, and that but once a year on the Day of Atonement. Aaron was the first; the office was hereditary. Christ is our great High Priest who hath passed into the heavens (Heb. 4:14).",
+      "refs": [
+        "exo.28",
+        "lev.16",
+        "heb.4.14",
+        "heb.9.7"
+      ],
+      "related": [
+        "aaron",
+        "priesthood",
+        "atonement",
+        "jesus-christ"
+      ]
+    },
+    "messiah": {
+      "title": "Messiah",
+      "kind": "concept",
+      "body": "The Anointed; the Hebrew title (Greek Christ) of the great Deliverer promised throughout the Old Testament — Prophet, Priest, and King — fulfilled in Jesus of Nazareth. The hope of Israel and the desire of all nations.",
+      "refs": [
+        "dan.9.25",
+        "jhn.1.41",
+        "jhn.4.25",
+        "mat.16.16",
+        "act.2.36"
+      ],
+      "related": [
+        "jesus-christ",
+        "christ",
+        "prophet",
+        "priesthood",
+        "kingdom-of-god"
+      ]
+    },
+    "christ": {
+      "title": "Christ",
+      "kind": "concept",
+      "body": "Anointed; the Greek equivalent of Messiah. The official title of our Lord Jesus, marking His threefold office of Prophet, Priest, and King.",
+      "refs": [
+        "mat.1.16",
+        "mat.16.16",
+        "jhn.1.41",
+        "act.4.26"
+      ],
+      "related": [
+        "messiah",
+        "jesus-christ"
+      ]
+    },
+    "kingdom-of-god": {
+      "title": "Kingdom of God",
+      "kind": "concept",
+      "body": "Called also the kingdom of heaven; the reign of God established and made visible through the person and work of Christ. It is at once present ('within you,' Luke 17:21), advancing through the gospel, and future in its consummated glory at Christ's return.",
+      "refs": [
+        "mat.3.2",
+        "mat.6.10",
+        "mat.13",
+        "mar.1.15",
+        "luk.17.21",
+        "1co.15.24"
+      ],
+      "related": [
+        "jesus-christ",
+        "gospel",
+        "church",
+        "second-coming"
+      ]
+    },
+    "resurrection": {
+      "title": "Resurrection",
+      "kind": "concept",
+      "body": "A rising again. The doctrine of the resurrection of the body is plainly taught in the Old Testament (Job 19:25-27; Dan. 12:2) and made certain in the New by the resurrection of Christ, the firstfruits of them that slept (1 Cor. 15). Believers shall rise unto life, the wicked unto judgement (John 5:28-29).",
+      "refs": [
+        "job.19.25",
+        "dan.12.2",
+        "jhn.5.28",
+        "jhn.11.25",
+        "1co.15"
+      ],
+      "related": [
+        "jesus-christ",
+        "second-coming",
+        "judgement"
+      ]
+    },
+    "baptism": {
+      "title": "Baptism",
+      "kind": "concept",
+      "body": "From the Greek baptizo, to dip or wash. The ordinance instituted by Christ in which the believer is baptized in the name of the Father, and of the Son, and of the Holy Ghost (Matt. 28:19), signifying union with Him in His death and resurrection (Rom. 6:3-5) and the washing of regeneration.",
+      "refs": [
+        "mat.3",
+        "mat.28.19",
+        "act.2.38",
+        "rom.6.3",
+        "1pe.3.21"
+      ],
+      "related": [
+        "john-the-baptist",
+        "jordan",
+        "holy-spirit",
+        "church"
+      ]
+    },
+    "lords-supper": {
+      "title": "Lord's Supper",
+      "kind": "concept",
+      "body": "The sacrament instituted by our Lord on the night in which He was betrayed (Matt. 26:26-29; 1 Cor. 11:23-26), wherein the bread broken and the cup poured out set forth His body given and His blood shed for the remission of sins. Called also the Eucharist, the Breaking of Bread, the Communion.",
+      "refs": [
+        "mat.26.26",
+        "luk.22.19",
+        "1co.10.16",
+        "1co.11.23"
+      ],
+      "related": [
+        "passover",
+        "blood",
+        "jesus-christ",
+        "church"
+      ]
+    },
+    "holy-spirit": {
+      "title": "Holy Spirit",
+      "kind": "concept",
+      "body": "The third Person of the Godhead, called also the Holy Ghost, the Spirit of God, the Comforter (John 14:26). He moved upon the face of the waters at creation, inspired the prophets, descended upon Christ at His baptism, was promised by Him to the disciples, and was poured out at Pentecost. He convinces of sin, regenerates, indwells, sanctifies, and seals believers unto the day of redemption.",
+      "refs": [
+        "gen.1.2",
+        "jhn.14.26",
+        "jhn.16.7",
+        "act.2",
+        "rom.8",
+        "eph.1.13"
+      ],
+      "related": [
+        "pentecost",
+        "trinity",
+        "jesus-christ"
+      ]
+    },
+    "trinity": {
+      "title": "Trinity",
+      "kind": "concept",
+      "body": "The doctrine that in the unity of the Godhead there are three Persons — the Father, the Son, and the Holy Spirit — of one substance, power, and eternity. Though the word is not in scripture, the doctrine pervades it (Matt. 28:19; 2 Cor. 13:14).",
+      "refs": [
+        "mat.3.16",
+        "mat.28.19",
+        "jhn.14.26",
+        "2co.13.14"
+      ],
+      "related": [
+        "holy-spirit",
+        "jesus-christ",
+        "godhead"
+      ]
+    },
+    "apostle": {
+      "title": "Apostle",
+      "kind": "concept",
+      "body": "One sent forth; specially the twelve, and after them Paul and a few others (Barnabas, James the Lord's brother), commissioned by the risen Lord to bear witness of Him and to lay the foundation of the church (Eph. 2:20). Their office, in its inspired and infallible authority, ceased with them.",
+      "refs": [
+        "mat.10.2",
+        "luk.6.13",
+        "act.1.21",
+        "1co.12.28",
+        "eph.2.20"
+      ],
+      "related": [
+        "peter",
+        "paul",
+        "john",
+        "church"
+      ]
+    },
+    "prophet": {
+      "title": "Prophet",
+      "kind": "concept",
+      "body": "One who speaks for another, especially for God. The prophets were not chiefly fore-tellers but forth-tellers — the mouth of the LORD to His people. From Samuel onward they form a continuous order down to Malachi; in the New Testament a special prophetic gift continued for a time, but the office in the foundational sense closed with the apostles.",
+      "refs": [
+        "deu.18.18",
+        "1sa.9.9",
+        "amo.3.7",
+        "heb.1.1",
+        "eph.2.20"
+      ],
+      "related": [
+        "moses",
+        "samuel",
+        "elijah",
+        "isaiah",
+        "jeremiah"
+      ]
+    },
+    "scribes": {
+      "title": "Scribes",
+      "kind": "concept",
+      "body": "The expounders of the law in our Lord's day, also called lawyers and doctors of the law. Originally a useful order (Ezra was a scribe), they had largely degenerated into formalists, and are often joined with the Pharisees in our Lord's denunciations.",
+      "refs": [
+        "ezr.7.6",
+        "mat.23",
+        "mar.12.28",
+        "luk.11.46"
+      ],
+      "related": [
+        "pharisees",
+        "law",
+        "ezra"
+      ]
+    },
+    "levite": {
+      "title": "Levite",
+      "kind": "concept",
+      "body": "A descendant of Levi, set apart for the service of the sanctuary, assisting the priests in carrying the tabernacle, in song, in teaching the law, and in the menial services of the temple. They had no inheritance among the tribes, but received forty-eight cities and the tithes.",
+      "refs": [
+        "num.3",
+        "num.8",
+        "deu.18.1",
+        "2ch.29"
+      ],
+      "related": [
+        "levi",
+        "priesthood",
+        "tribes-of-israel"
+      ]
+    },
+    "nazirite": {
+      "title": "Nazirite",
+      "kind": "concept",
+      "body": "Separated; one bound by a special vow to abstain from wine and strong drink, from cutting the hair, and from contact with the dead (Num. 6). Samson, Samuel, and John the Baptist were lifelong Nazirites; Paul once made a temporary vow (Acts 18:18).",
+      "refs": [
+        "num.6",
+        "jdg.13.5",
+        "1sa.1.11",
+        "luk.1.15",
+        "act.18.18"
+      ],
+      "related": [
+        "samson",
+        "samuel",
+        "john-the-baptist",
+        "vow"
+      ]
+    },
+    "law": {
+      "title": "Law",
+      "kind": "concept",
+      "body": "The body of commandment given by God through Moses at Sinai, comprehending the moral (Ten Commandments), the ceremonial (the sacrifices and feasts), and the civil law of Israel. The whole was 'a schoolmaster to bring us unto Christ' (Gal. 3:24). Christ came not to destroy the law but to fulfil it (Matt. 5:17).",
+      "refs": [
+        "exo.20",
+        "deu.6",
+        "psa.19.7",
+        "mat.5.17",
+        "rom.7",
+        "gal.3.24"
+      ],
+      "related": [
+        "moses",
+        "sinai",
+        "ten-commandments",
+        "gospel"
+      ]
+    },
+    "ten-commandments": {
+      "title": "Ten Commandments",
+      "kind": "concept",
+      "body": "Called also the Decalogue and the Ten Words; the moral law spoken by the voice of God from Sinai and afterwards written by His finger on two tables of stone (Exo. 20; Deut. 5). The first four set forth man's duty to God; the last six his duty to his neighbour.",
+      "refs": [
+        "exo.20",
+        "exo.31.18",
+        "deu.5",
+        "mat.22.37"
+      ],
+      "related": [
+        "law",
+        "sinai",
+        "moses",
+        "covenant"
+      ]
+    },
+    "gospel": {
+      "title": "Gospel",
+      "kind": "concept",
+      "body": "Good news; specifically the glad tidings concerning the kingdom of God and salvation through faith in Jesus Christ. Also used of each of the four canonical narratives of His life — by Matthew, Mark, Luke, and John.",
+      "refs": [
+        "isa.52.7",
+        "mar.1.1",
+        "rom.1.16",
+        "1co.15.1",
+        "gal.1.6"
+      ],
+      "related": [
+        "jesus-christ",
+        "kingdom-of-god",
+        "apostle",
+        "gospels"
+      ]
+    },
+    "gospels": {
+      "title": "Gospels",
+      "kind": "concept",
+      "body": "The four inspired narratives of our Lord's life and ministry — Matthew, Mark, Luke (the Synoptic Gospels), and John. Each presents Christ from a distinct point of view: as King, Servant, Son of man, Son of God.",
+      "refs": [
+        "mat.1",
+        "mar.1",
+        "luk.1",
+        "jhn.1"
+      ],
+      "related": [
+        "matthew",
+        "mark",
+        "luke",
+        "john",
+        "gospel"
+      ]
+    },
+    "faith": {
+      "title": "Faith",
+      "kind": "concept",
+      "body": "The persuasion of the truth of God; in the New Testament, especially trust in the Person and work of Jesus Christ for salvation. By it the just shall live (Rom. 1:17). It is the substance of things hoped for, the evidence of things not seen (Heb. 11:1).",
+      "refs": [
+        "heb.11",
+        "rom.1.17",
+        "rom.5.1",
+        "eph.2.8",
+        "jas.2.17"
+      ],
+      "related": [
+        "grace",
+        "abraham",
+        "justification"
+      ]
+    },
+    "grace": {
+      "title": "Grace",
+      "kind": "concept",
+      "body": "The unmerited favour of God to sinful man, in which all salvation begins, continues, and ends. By grace are ye saved through faith (Eph. 2:8). The doctrine of grace is the centre of the gospel.",
+      "refs": [
+        "jhn.1.16",
+        "rom.3.24",
+        "eph.2.8",
+        "tit.2.11"
+      ],
+      "related": [
+        "faith",
+        "gospel",
+        "salvation",
+        "jesus-christ"
+      ]
+    },
+    "sin": {
+      "title": "Sin",
+      "kind": "concept",
+      "body": "The transgression of the law (1 John 3:4); any want of conformity unto, or transgression of, the law of God. Original sin is the corruption of nature inherited from Adam; actual sin is the breach of God's commandment in thought, word, or deed.",
+      "refs": [
+        "gen.3",
+        "rom.3.23",
+        "rom.5.12",
+        "rom.6.23",
+        "1jn.3.4"
+      ],
+      "related": [
+        "fall",
+        "adam",
+        "death",
+        "salvation"
+      ]
+    },
+    "salvation": {
+      "title": "Salvation",
+      "kind": "concept",
+      "body": "Deliverance — from sin, from its guilt, from its dominion, and at last from its presence; wrought by God in Christ, received through faith. Includes justification, sanctification, and glorification.",
+      "refs": [
+        "psa.27.1",
+        "luk.19.9",
+        "act.4.12",
+        "rom.1.16",
+        "eph.2.8",
+        "heb.5.9"
+      ],
+      "related": [
+        "grace",
+        "faith",
+        "jesus-christ",
+        "gospel"
+      ]
+    },
+    "redemption": {
+      "title": "Redemption",
+      "kind": "concept",
+      "body": "Buying back; deliverance by the payment of a price. In the Old Testament shadowed in the Passover and the kinsman-redeemer; fulfilled in the New, where Christ has redeemed us by His blood from the curse of the law (Gal. 3:13; Eph. 1:7).",
+      "refs": [
+        "lev.25.25",
+        "rut.4",
+        "psa.130.7",
+        "gal.3.13",
+        "eph.1.7",
+        "1pe.1.18"
+      ],
+      "related": [
+        "blood",
+        "passover",
+        "kinsman-redeemer",
+        "jesus-christ"
+      ]
+    },
+    "kinsman-redeemer": {
+      "title": "Kinsman-Redeemer",
+      "kind": "concept",
+      "body": "The goel; the nearest of kin upon whom devolved by Mosaic law the duty of avenging the blood of his slain kinsman, of buying back his forfeited inheritance, and of raising up seed to him (Lev. 25; Deut. 25:5-10; Ruth 3-4). A type of Christ our Redeemer.",
+      "refs": [
+        "lev.25",
+        "deu.25.5",
+        "rut.3",
+        "rut.4",
+        "job.19.25"
+      ],
+      "related": [
+        "boaz",
+        "ruth",
+        "redemption",
+        "jesus-christ"
+      ]
+    },
+    "fall": {
+      "title": "Fall",
+      "kind": "concept",
+      "body": "The first transgression of Adam in Eden, by which sin and death entered the world (Gen. 3; Rom. 5:12). All his posterity inherit a corrupted nature and are by nature children of wrath (Eph. 2:3). The Fall is the dark background against which the gospel of redemption shines.",
+      "refs": [
+        "gen.3",
+        "rom.5.12",
+        "1co.15.22",
+        "eph.2.3"
+      ],
+      "related": [
+        "adam",
+        "eve",
+        "sin",
+        "death",
+        "eden",
+        "serpent"
+      ]
+    },
+    "flood": {
+      "title": "Flood",
+      "kind": "concept",
+      "body": "The universal deluge in the days of Noah, by which God destroyed the corrupt race of men, sparing only Noah and his house in the ark (Gen. 6-8). Held up by our Lord as a warning of the suddenness of judgement (Matt. 24:38-39) and by Peter as a figure of baptism (1 Pet. 3:20-21).",
+      "refs": [
+        "gen.6",
+        "gen.7",
+        "gen.8",
+        "mat.24.38",
+        "1pe.3.20",
+        "2pe.3.6"
+      ],
+      "related": [
+        "noah",
+        "ark",
+        "ararat",
+        "judgement"
+      ]
+    },
+    "serpent": {
+      "title": "Serpent",
+      "kind": "concept",
+      "body": "Used in scripture for the literal animal and figuratively for Satan, who in the form of the serpent tempted Eve in Eden (Gen. 3; 2 Cor. 11:3; Rev. 12:9; 20:2). The brazen serpent of Moses in the wilderness (Num. 21:9) is made by our Lord a type of His own lifting up on the cross (John 3:14).",
+      "refs": [
+        "gen.3",
+        "num.21.9",
+        "jhn.3.14",
+        "2co.11.3",
+        "rev.12.9"
+      ],
+      "related": [
+        "satan",
+        "eve",
+        "eden",
+        "fall"
+      ]
+    },
+    "angels": {
+      "title": "Angels",
+      "kind": "concept",
+      "body": "Messengers; spiritual beings created by God, of great power and intelligence, who behold the face of the Father and are sent forth to minister for them who shall be heirs of salvation (Heb. 1:14). The fallen angels with their prince Satan are reserved unto judgement.",
+      "refs": [
+        "psa.103.20",
+        "mat.18.10",
+        "heb.1.14",
+        "2pe.2.4",
+        "rev.5.11"
+      ],
+      "related": [
+        "gabriel",
+        "michael",
+        "satan",
+        "cherubim"
+      ]
+    },
+    "cherubim": {
+      "title": "Cherubim",
+      "kind": "concept",
+      "body": "An order of celestial beings, first set to keep the way of the tree of life (Gen. 3:24); figures of them overshadowed the mercy-seat upon the ark (Exo. 25:18-22); Ezekiel saw them in his great visions by the river Chebar (Ezek. 1; 10).",
+      "refs": [
+        "gen.3.24",
+        "exo.25.18",
+        "ezk.1",
+        "ezk.10",
+        "heb.9.5"
+      ],
+      "related": [
+        "angels",
+        "ark",
+        "eden",
+        "mercy-seat"
+      ]
+    },
+    "seraphim": {
+      "title": "Seraphim",
+      "kind": "concept",
+      "body": "Burning ones; the celestial beings of six wings whom Isaiah saw standing above the throne, crying 'Holy, holy, holy is the LORD of hosts' (Isa. 6:2-3).",
+      "refs": [
+        "isa.6"
+      ],
+      "related": [
+        "angels",
+        "cherubim",
+        "isaiah"
+      ]
+    },
+    "church": {
+      "title": "Church",
+      "kind": "concept",
+      "body": "From the Greek ekklesia, an assembly called out. The whole company of those redeemed by Christ — invisible in the elect of all ages, visible in particular congregations of professing believers, with the ordinances of word and sacrament. Christ is the Head, the church His body and bride.",
+      "refs": [
+        "mat.16.18",
+        "act.2.47",
+        "eph.1.22",
+        "eph.5.25",
+        "1ti.3.15"
+      ],
+      "related": [
+        "jesus-christ",
+        "apostle",
+        "pentecost",
+        "baptism",
+        "lords-supper"
+      ]
+    },
+    "second-coming": {
+      "title": "Second Coming",
+      "kind": "concept",
+      "body": "Called also the Parousia and the Appearing; the personal, visible, and glorious return of the Lord Jesus Christ at the end of the age to raise the dead, to judge the world, and to consummate His kingdom (Matt. 24-25; Acts 1:11; 1 Thess. 4:13-18; Rev. 22:20).",
+      "refs": [
+        "mat.24",
+        "act.1.11",
+        "1th.4.13",
+        "2pe.3",
+        "rev.22.20"
+      ],
+      "related": [
+        "jesus-christ",
+        "resurrection",
+        "judgement",
+        "kingdom-of-god"
+      ]
+    },
+    "heaven": {
+      "title": "Heaven",
+      "kind": "concept",
+      "body": "The dwelling-place of God and the abode of His glorified saints. Scripture speaks of the heaven of the birds, of the stars, and of God Himself — 'the third heaven' (2 Cor. 12:2). Of the heavenly Jerusalem there shall be no night, no curse, no tears (Rev. 21-22).",
+      "refs": [
+        "psa.115.16",
+        "mat.6.9",
+        "2co.12.2",
+        "heb.11.16",
+        "rev.21"
+      ],
+      "related": [
+        "jerusalem",
+        "resurrection",
+        "glory"
+      ]
+    },
+    "hell": {
+      "title": "Hell",
+      "kind": "concept",
+      "body": "Several Hebrew and Greek words are so rendered. Sheol or Hades, the unseen world of the dead; Gehenna, the place of final punishment, the lake of fire (Mark 9:43-48; Rev. 20:14-15); Tartarus, the abyss of fallen angels (2 Pet. 2:4).",
+      "refs": [
+        "mat.5.22",
+        "mat.10.28",
+        "mar.9.43",
+        "luk.16.23",
+        "rev.20.14"
+      ],
+      "related": [
+        "judgement",
+        "satan",
+        "resurrection"
+      ]
+    },
+    "wisdom": {
+      "title": "Wisdom",
+      "kind": "concept",
+      "body": "The right use of knowledge; the chief excellence of the Hebrew sages, gloriously personified in Proverbs 8. The fear of the LORD is the beginning of wisdom (Prov. 9:10). Christ is made unto us wisdom (1 Cor. 1:30).",
+      "refs": [
+        "job.28",
+        "pro.1.7",
+        "pro.8",
+        "pro.9.10",
+        "1co.1.30",
+        "jas.1.5"
+      ],
+      "related": [
+        "solomon",
+        "proverbs",
+        "jesus-christ"
+      ]
+    },
+    "psalms": {
+      "title": "Psalms",
+      "kind": "concept",
+      "body": "The book of praise, the hymnbook of the second temple, 150 songs of varied authorship (chiefly David), divided into five books. Used by our Lord, who upon the cross prayed in their words, and by the apostles, who saw in them a thousand foreshadowings of His sufferings and glory.",
+      "refs": [
+        "psa.1",
+        "psa.22",
+        "psa.23",
+        "psa.51",
+        "psa.110",
+        "luk.24.44"
+      ],
+      "related": [
+        "david",
+        "worship",
+        "messiah"
+      ]
+    },
+    "proverbs": {
+      "title": "Proverbs",
+      "kind": "concept",
+      "body": "The book of practical wisdom, chiefly the work of Solomon, with appendices by Agur and Lemuel. A handbook of righteous living, fearing God and loving man.",
+      "refs": [
+        "pro.1",
+        "pro.3",
+        "pro.8",
+        "pro.31"
+      ],
+      "related": [
+        "solomon",
+        "wisdom"
+      ]
+    },
+    "manna": {
+      "title": "Manna",
+      "kind": "concept",
+      "body": "'What is it?' — the bread which God rained from heaven upon Israel in the wilderness, six days a week for forty years (Exo. 16). Small, round, like coriander seed, white, sweet. Our Lord declares Himself the true bread from heaven (John 6:31-35).",
+      "refs": [
+        "exo.16",
+        "num.11",
+        "jos.5.12",
+        "jhn.6.31",
+        "heb.9.4"
+      ],
+      "related": [
+        "moses",
+        "wilderness",
+        "jesus-christ",
+        "bread"
+      ]
+    },
+    "ten-plagues": {
+      "title": "Plagues of Egypt",
+      "kind": "concept",
+      "body": "The ten judgements brought upon Egypt by Moses to compel Pharaoh to let Israel go: water turned to blood, frogs, lice, flies, murrain, boils, hail, locusts, darkness, and the death of the firstborn (Exo. 7-12).",
+      "refs": [
+        "exo.7",
+        "exo.8",
+        "exo.9",
+        "exo.10",
+        "exo.11",
+        "exo.12"
+      ],
+      "related": [
+        "moses",
+        "pharaoh",
+        "egypt",
+        "passover",
+        "exodus"
+      ]
+    },
+    "exodus": {
+      "title": "Exodus",
+      "kind": "concept",
+      "body": "A going out; the great deliverance of Israel from Egyptian bondage, the foundational event of Israel's national life and the type of the greater deliverance wrought by Christ (Luke 9:31).",
+      "refs": [
+        "exo.12",
+        "exo.14",
+        "deu.4.34",
+        "psa.105",
+        "luk.9.31",
+        "heb.11.27"
+      ],
+      "related": [
+        "moses",
+        "passover",
+        "red-sea",
+        "pharaoh",
+        "egypt"
+      ]
+    },
+    "captivity": {
+      "title": "Captivity",
+      "kind": "concept",
+      "body": "The deportations of Israel and Judah by their conquerors. The northern kingdom was carried by the Assyrians to Halah and Habor (722 B.C.); Judah by the Babylonians to Babylon in three stages, the chief in 586 B.C. The return began under Cyrus in 538 B.C.",
+      "refs": [
+        "2ki.17",
+        "2ki.24",
+        "2ki.25",
+        "jer.25.11",
+        "dan.9.2",
+        "ezr.1"
+      ],
+      "related": [
+        "babylon",
+        "assyria",
+        "jeremiah",
+        "daniel",
+        "ezra"
+      ]
+    },
+    "tribes-of-israel": {
+      "title": "Tribes of Israel",
+      "kind": "concept",
+      "body": "The twelve tribes descended from the twelve sons of Jacob — Reuben, Simeon, Levi, Judah, Issachar, Zebulun, Joseph (whose tribe was doubled in Ephraim and Manasseh), Benjamin, Dan, Naphtali, Gad, and Asher. Levi being set apart, the land was divided among the other eleven (or twelve, counting Joseph as two).",
+      "refs": [
+        "gen.49",
+        "num.1",
+        "jos.13",
+        "rev.7"
+      ],
+      "related": [
+        "jacob",
+        "israel",
+        "levi",
+        "judah",
+        "ephraim"
+      ]
+    },
+    "idolatry": {
+      "title": "Idolatry",
+      "kind": "concept",
+      "body": "The worship of false gods, expressly forbidden in the first and second commandments. The chronic sin of Israel, drawing upon them the wrath of God and at length the captivities. Paul calls covetousness idolatry (Col. 3:5).",
+      "refs": [
+        "exo.20.3",
+        "deu.4.16",
+        "1ki.18",
+        "isa.44",
+        "rom.1.23",
+        "col.3.5"
+      ],
+      "related": [
+        "ten-commandments",
+        "baal",
+        "golden-calf"
+      ]
+    },
+    "baal": {
+      "title": "Baal",
+      "kind": "concept",
+      "body": "Lord, master; the chief male deity of the Canaanites and Phoenicians, the great rival of the LORD for Israel's allegiance. The contest of Elijah with the prophets of Baal on Mount Carmel (1 Kings 18) is the classic encounter.",
+      "refs": [
+        "jdg.2.13",
+        "1ki.18",
+        "jer.19.5",
+        "hos.2.8",
+        "rom.11.4"
+      ],
+      "related": [
+        "elijah",
+        "carmel",
+        "idolatry",
+        "ashtoreth"
+      ]
+    },
+    "shekinah": {
+      "title": "Shekinah",
+      "kind": "concept",
+      "body": "The dwelling; the visible glory of God between the cherubim of the ark, the cloud by day and the fire by night which led Israel through the wilderness (Exo. 13:21; 40:34-38). It returned in the temple of Solomon and departed before the captivity (Ezek. 10).",
+      "refs": [
+        "exo.13.21",
+        "exo.40.34",
+        "1ki.8.10",
+        "ezk.10"
+      ],
+      "related": [
+        "tabernacle",
+        "temple",
+        "cherubim",
+        "ark"
+      ]
+    },
+    "kingdom-of-heaven": {
+      "title": "Kingdom of Heaven",
+      "kind": "concept",
+      "body": "The phrase peculiar to Matthew, equivalent to 'kingdom of God' in the other Gospels — the reign of the King of heaven established through Christ.",
+      "refs": [
+        "mat.3.2",
+        "mat.13",
+        "mat.25"
+      ],
+      "related": [
+        "kingdom-of-god",
+        "jesus-christ"
+      ]
+    },
+    "gentile-mission": {
+      "title": "Gentile mission",
+      "kind": "concept",
+      "body": "The opening of the gospel to the Gentiles, foreshadowed in the prophets (Isa. 49:6), inaugurated at Cornelius's house (Acts 10), and prosecuted especially by Paul, the apostle of the Gentiles (Rom. 11:13).",
+      "refs": [
+        "isa.49.6",
+        "act.10",
+        "act.13.46",
+        "rom.11.13",
+        "eph.3"
+      ],
+      "related": [
+        "paul",
+        "cornelius",
+        "gentiles"
+      ]
     }
   }
 }

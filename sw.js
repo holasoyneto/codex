@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v174";
+const VERSION = "v175";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -68,6 +68,8 @@ const SHELL_FILES = [
   r("data/modules/alignment-kjv-sample.json"),
   r("reels.jsx"),
   r("data/modules/reels-curated.json"),
+  r("dictionary.jsx"),
+  r("data/modules/easton-sample.json"),
   r("timeline.jsx"),
   r("data/modules/timeline-events.json"),
   r("passage-guide.jsx"),

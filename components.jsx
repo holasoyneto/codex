@@ -316,27 +316,58 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
   );
 }
 
+// Solar clock — fluid 24-hour strip that scales from micro phones to
+// 5K Studio Displays. The night/dawn/day/dusk bands are baked into a
+// single CSS gradient on the bar (one paint, no per-band absolute
+// divs). Tick density adapts to container width via a small
+// ResizeObserver — 12 ticks on a wide rail, 6 on medium, 3 on tiny.
 function SunStrip({ solar }) {
-  // Show a 24h strip with markers for now + day/night bands.
+  const wrapRef = useRef(null);
+  const [tickHours, setTickHours] = useState([0, 6, 12, 18, 24]);
+
+  // Choose tick density based on the strip's rendered width so the
+  // numbers never overlap. ~36px between labels reads comfortably.
+  useEffect(() => {
+    if (!wrapRef.current || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width || 0;
+      // Number of labels we can fit (each ~22px wide + 14px gap)
+      const want = Math.max(3, Math.min(13, Math.floor(w / 38) + 1));
+      // Pick a sane subdivision of 24h that gives us ≤ want labels
+      const candidates = [1, 2, 3, 4, 6, 8, 12, 24];
+      const stepHours = candidates.find(s => (24 / s + 1) <= want) || 24;
+      const out = [];
+      for (let h = 0; h <= 24; h += stepHours) out.push(h);
+      setTickHours(out);
+    });
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const nowPct = solar.t01 * 100;
+  // Sun height for the tiny arc above the cursor (0 at horizon → 1 at noon)
+  const sunNorm = Math.max(0, Math.min(1, solar.sunPct / 100));
+  // Arc y-position (CSS): rises higher as sunNorm increases
+  const sunY = 8 - sunNorm * 6;
+
   return (
-    <div className="cx-sun">
-      <div className="cx-sun-bar">
-        <div className="cx-sun-night" style={{ left: 0, width: `${(5/24)*100}%` }} />
-        <div className="cx-sun-dawn" style={{ left: `${(5/24)*100}%`, width: `${(2/24)*100}%` }} />
-        <div className="cx-sun-day" style={{ left: `${(7/24)*100}%`, width: `${(11/24)*100}%` }} />
-        <div className="cx-sun-dusk" style={{ left: `${(18/24)*100}%`, width: `${(2/24)*100}%` }} />
-        <div className="cx-sun-night" style={{ left: `${(20/24)*100}%`, width: `${(4/24)*100}%` }} />
-        {[0,6,12,18,24].map(h => (
-          <span key={h} className="cx-sun-tick" style={{ left: `${(h/24)*100}%` }}>{pad(h)}</span>
+    <div className={`cx-sun is-${solar.phase}`} ref={wrapRef} title={`${solar.label} · sun ${Math.round(solar.sunPct)}% of zenith`}>
+      <div className="cx-sun-bar" aria-hidden="true">
+        <div className="cx-sun-bar-grad" />
+        {tickHours.map(h => (
+          <span key={h} className="cx-sun-tick" style={{ left: `${(h/24)*100}%` }} data-h={pad(h)}>{pad(h)}</span>
         ))}
         <div className="cx-sun-cursor" style={{ left: `${nowPct}%` }}>
           <span className="cx-sun-cursor-dot" />
+          <svg className="cx-sun-cursor-sun" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+            <circle cx="6" cy={sunY} r="2.2" fill="currentColor" />
+          </svg>
         </div>
       </div>
-      <div className="cx-sun-meta">
-        <span>SOL · {Math.round(solar.sunPct)}%</span>
-        <span>PHASE · {solar.phase.toUpperCase()}</span>
+      <div className="cx-sun-meta" aria-label={`${solar.label} ${Math.round(solar.sunPct)} percent of zenith`}>
+        <span className="cx-sun-meta-phase">{solar.label.toLowerCase()}</span>
+        <span className="cx-sun-meta-dot" aria-hidden="true">·</span>
+        <span className="cx-sun-meta-sun">{Math.round(solar.sunPct)}<i>%</i></span>
       </div>
     </div>
   );
