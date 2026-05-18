@@ -1101,6 +1101,63 @@
         E("span", { className: "bf-badge bf-badge-warn" }, "⚠ ", warnCount),
         E("span", { className: "bf-badge bf-badge-fail" }, "✗ ", failCount)
       ),
+      // ── Project settings strip — change source / target / rigor live.
+      // Source can be swapped at any time; future verses use the new base.
+      // Changing source on an installed translation also bumps Reader cache.
+      E("div", { className: "bf-proj-settings", style: { display: "flex", gap: 10, padding: "10px 12px", borderTop: "1px solid var(--cx-line, #1f2a36)", borderBottom: "1px solid var(--cx-line, #1f2a36)", flexWrap: "wrap", alignItems: "center", fontSize: 11 } },
+        E("label", { style: { display: "flex", flexDirection: "column", gap: 2 } },
+          E("span", { style: { opacity: 0.7, letterSpacing: ".06em", textTransform: "uppercase", fontSize: 10 } }, "Source"),
+          E("select", {
+            className: "bf-in", style: { minWidth: 180, padding: "4px 6px" },
+            value: project.base_translation || "kjv",
+            onChange: (e) => {
+              const next = Object.assign({}, project, { base_translation: e.target.value, modified: Date.now() });
+              onUpdate(next);
+              if (project.installed) {
+                try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: "bf-" + project.id.replace(/^proj-/, "") } })); } catch {}
+              }
+            }
+          },
+            translationList().filter(t => !String(t.id || "").startsWith("bf-")).map(t =>
+              E("option", { key: t.id, value: t.id }, `${t.name} (${t.id})`)
+            )
+          )
+        ),
+        E("label", { style: { display: "flex", flexDirection: "column", gap: 2 } },
+          E("span", { style: { opacity: 0.7, letterSpacing: ".06em", textTransform: "uppercase", fontSize: 10 } }, "Target lang"),
+          E("select", {
+            className: "bf-in", style: { width: 130, padding: "4px 6px" },
+            value: project.target_language || "en",
+            onChange: (e) => onUpdate(Object.assign({}, project, { target_language: e.target.value, modified: Date.now() }))
+          },
+            ((window.CODEX_LANGS || [{id:"en",label:"English"}]).map(l =>
+              E("option", { key: l.id, value: l.id }, l.label)
+            ))
+          )
+        ),
+        E("label", { style: { display: "flex", flexDirection: "column", gap: 2 } },
+          E("span", { style: { opacity: 0.7, letterSpacing: ".06em", textTransform: "uppercase", fontSize: 10 } }, "Rigor"),
+          E("select", {
+            className: "bf-in", style: { width: 120, padding: "4px 6px" },
+            value: project.rigor || "balanced",
+            onChange: (e) => onUpdate(Object.assign({}, project, { rigor: e.target.value, modified: Date.now() }))
+          },
+            ["strict","balanced","loose","free"].map(r => E("option", { key: r, value: r }, r))
+          )
+        ),
+        E("div", { style: { flex: 1 } }),
+        project.installed && E("button", {
+          className: "bf-btn ghost", style: { padding: "4px 10px" },
+          title: "Re-translate every chapter using the new source — leaves locked verses alone",
+          onClick: () => {
+            if (!window.confirm("Wipe non-locked drafts and re-forge with the current source/voice?")) return;
+            const verses = Object.fromEntries(Object.entries(project.verses || {}).filter(([,v]) => v && v.locked));
+            const cleared = Object.assign({}, project, { verses, modified: Date.now() });
+            onUpdate(cleared);
+            setTimeout(() => translateEntireScope({ silent: true }), 50);
+          }
+        }, "↻ Re-forge")
+      ),
       E(VerseEditor, {
         project, ref_,
         onUpdateVerse: updateVerse,
@@ -1194,20 +1251,54 @@
     const [name, setName] = useState("");
     const [sourceTr, setSourceTr] = useState("kjv");
     const [targetLang, setTargetLang] = useState("en");
+    const [sourceTouched, setSourceTouched] = useState(false);
+    const [nameTouched, setNameTouched] = useState(false);
+    // Autosuggest source based on target language. If user hasn't touched
+    // the source picker, swap it to a sensible default for the target.
+    const SOURCE_BY_LANG = {
+      en: "kjv", es: "rv1960", pt: "arc", fr: "lsg", de: "lutherbibel",
+      la: "clementine", he: "wlc", el: "byz", hi: "hin"
+    };
+    useEffect(() => {
+      if (sourceTouched) return;
+      const suggested = SOURCE_BY_LANG[targetLang];
+      if (suggested) {
+        const exists = translationList().some(t => t.id === suggested);
+        if (exists) setSourceTr(suggested);
+      }
+    }, [targetLang, sourceTouched]);
+    const [hasKey, setHasKey] = useState(true);
     useEffect(() => {
       const eng = engine();
       if (eng) eng.loadVoiceTemplates().then(setTemplates);
     }, []);
+    // Detect AI key — check localStorage (Anthropic/Grok), then /api/health
+    // as a fallback (covers .env-based server keys when not in direct mode).
+    useEffect(() => {
+      let stop = false;
+      (async () => {
+        let ok = false;
+        try {
+          const raw = localStorage.getItem("codex.api.keys.v1");
+          const j = raw ? JSON.parse(raw) : null;
+          ok = !!(j && (j.anthropic || j.grok || j.xai || j.openai || j.google));
+        } catch {}
+        if (!ok) {
+          try {
+            const r = await fetch("/api/health");
+            const d = await r.json();
+            ok = !!(d && (d.hasKey || (d.providers && (d.providers.anthropic?.available || d.providers.xai?.available))));
+          } catch {}
+        }
+        if (!stop) setHasKey(ok);
+      })();
+      const refresh = () => setHasKey(prev => prev); // re-run on event
+      window.addEventListener("codex:keys-changed", refresh);
+      return () => { stop = true; window.removeEventListener("codex:keys-changed", refresh); };
+    }, []);
     const tpl = templates.find(t => t.id === voiceId);
     const defaultName = (tpl ? tpl.name : voiceId) + " Bible";
     const trans = translationList().filter(t => !String(t.id || "").startsWith("bf-"));
-    // Detect missing API key so we can warn before the user clicks Forge.
-    let hasKey = true;
-    try {
-      const raw = localStorage.getItem("codex.api.keys.v1");
-      const j = raw ? JSON.parse(raw) : null;
-      hasKey = !!(j && (j.anthropic || j.xai || j.openai || j.google));
-    } catch {}
     const LANGS = (window.CODEX_LANGS || [
       { id: "en", label: "English" }, { id: "es", label: "Español" },
       { id: "pt", label: "Português" }, { id: "fr", label: "Français" },
@@ -1223,15 +1314,21 @@
         ),
         E("div", { className: "bf-step" },
           E("div", { className: "bf-form" },
-            !hasKey && E("div", { style: { padding: "10px 12px", background: "#3a2418", border: "1px solid #6a3a22", borderRadius: 6, color: "#ffc46b", fontSize: 12, marginBottom: 12 } },
-              "⚠ No AI key configured. Add an Anthropic / xAI / OpenAI key in Settings before forging."
+            !hasKey && E("div", { style: { padding: "10px 12px", background: "#3a2418", border: "1px solid #6a3a22", borderRadius: 6, color: "#ffc46b", fontSize: 12, marginBottom: 12, display: "flex", gap: 10, alignItems: "center" } },
+              E("span", null, "⚠ No AI key detected."),
+              E("button", {
+                type: "button",
+                className: "bf-btn",
+                style: { marginLeft: "auto", padding: "4px 10px", fontSize: 11 },
+                onClick: () => { try { window.dispatchEvent(new CustomEvent("codex:open-settings", { detail: { section: "api-keys" } })); } catch {}; onClose && onClose(); }
+              }, "Open Settings →")
             ),
             E("label", null, "Source text (what to translate FROM)"),
-            E("select", { className: "bf-in", value: sourceTr, onChange: e => setSourceTr(e.target.value) },
+            E("select", { className: "bf-in", value: sourceTr, onChange: e => { setSourceTr(e.target.value); setSourceTouched(true); } },
               trans.map(t => E("option", { key: t.id, value: t.id }, `${t.name} (${t.id})`))
             ),
             E("div", { style: { fontSize: 11, opacity: 0.65, marginTop: 4 } },
-              "Pick a literal/formal translation for the most faithful base (KJV, ASV, ESV). For Hebrew/Greek roots, choose a translation in that language."
+              sourceTouched ? "" : "↻ Auto-suggested for your target language. Change anytime."
             ),
             E("label", { style: { marginTop: 12 } }, "Target language"),
             E("select", { className: "bf-in", value: targetLang, onChange: e => setTargetLang(e.target.value) },
@@ -1242,9 +1339,11 @@
               templates, voiceId, setVoiceId, customPrompt, setCustomPrompt,
               onTemplatesChanged: () => { const eng = engine(); if (eng) eng.loadVoiceTemplates().then(setTemplates); }
             }),
-            E("label", { style: { marginTop: 12 } }, "Name (optional)"),
+            E("label", { style: { marginTop: 12 } }, "Name (auto-suggested from voice)"),
             E("input", {
-              className: "bf-in", value: name, onChange: e => setName(e.target.value),
+              className: "bf-in",
+              value: nameTouched ? name : defaultName,
+              onChange: e => { setName(e.target.value); setNameTouched(true); },
               placeholder: defaultName
             })
           )
@@ -1255,7 +1354,7 @@
           E("button", {
             className: "bf-btn primary",
             disabled: !hasKey,
-            onClick: () => onForge({ voiceId, customPrompt, name: name || defaultName, sourceTr, targetLang })
+            onClick: () => onForge({ voiceId, customPrompt, name: (nameTouched && name) ? name : defaultName, sourceTr, targetLang })
           }, hasKey ? "Forge ⚡" : "Add a key first")
         )
       )

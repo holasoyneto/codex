@@ -60,10 +60,11 @@
   function hasAIKey() {
     try {
       // direct-api.js stores the resolved provider key under codex.api.keys.v1
+      // Field names: "anthropic" and "grok" (NOT "xai" — that was a bug).
       const raw = localStorage.getItem("codex.api.keys.v1");
       if (!raw) return false;
       const j = JSON.parse(raw);
-      return !!(j && (j.anthropic || j.xai || j.openai || j.google));
+      return !!(j && (j.anthropic || j.grok || j.xai || j.openai || j.google));
     } catch { return false; }
   }
 
