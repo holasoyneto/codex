@@ -218,24 +218,33 @@
     return jsonResponse(result.body, result.status);
   }
 
+  // Capture the unwrapped fetch BEFORE we install the shim so probeMode
+  // can talk straight to the real Node server without re-entering its
+  // own wrapper (which previously caused recursive shim activation and
+  // wedged the page into direct mode against a working backend).
+  const originalFetch = window.fetch.bind(window);
+
   // Decide whether we're in direct mode. We're conservative: only flip on
   // when the health probe clearly fails or returns non-JSON. On localhost
   // with the Node server, we leave fetch alone.
   let DIRECT_MODE = null;
   async function probeMode() {
     try {
-      const r = await fetch("/api/health", { method: "GET" });
+      const r = await originalFetch("/api/health", { method: "GET" });
       if (!r.ok) return true;
       const ct = r.headers.get("content-type") || "";
       if (!ct.includes("application/json")) return true;
       const d = await r.json();
+      // Direct mode ONLY if the server explicitly says so; otherwise stand
+      // down. Previously checked d.mode === "direct" — but a real server
+      // never includes that field, so the probe was correctly returning
+      // false; the actual recursion bug above was the trigger.
       return !d || d.mode === "direct";
     } catch {
       return true;
     }
   }
 
-  const originalFetch = window.fetch.bind(window);
   window.fetch = async function (input, init) {
     let url = "";
     if (typeof input === "string") url = input;

@@ -802,7 +802,16 @@
             }
           }
         }
-        onUpdate(Object.assign({}, project, { verses: updates, modified: Date.now() }));
+        const next = Object.assign({}, project, { verses: updates, modified: Date.now() });
+        onUpdate(next);
+        try {
+          const raw = localStorage.getItem("codex.babelforge.v1");
+          const st  = raw ? JSON.parse(raw) : { projects: [], activeId: null };
+          const i = (st.projects || []).findIndex(p => p.id === project.id);
+          if (i >= 0) st.projects[i] = next;
+          else st.projects = (st.projects || []).concat([next]);
+          localStorage.setItem("codex.babelforge.v1", JSON.stringify(st));
+        } catch (e) { console.warn("[babelforge] direct-save failed:", e); }
         if (refused) console.warn(`BabelForge: ${refused} verses refused (empty draft)`);
         try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: "bf-" + project.id.replace(/^proj-/, "") } })); } catch {}
       } finally { setBulkBusy(false); }
@@ -916,8 +925,21 @@
               }
             });
             await Promise.all(workers);
-            // Commit per-chapter so progress survives reload.
-            onUpdate(Object.assign({}, project, { verses: updates, modified: Date.now() }));
+            // Commit per-chapter so progress survives reload AND so the
+            // Reader can read translated verses immediately. We write to
+            // localStorage DIRECTLY (read-modify-write) so persistence
+            // survives ProjectEditor / BabelForgePanel unmounts (the user
+            // navigating away from the BABEL tab during a long forge).
+            const next = Object.assign({}, project, { verses: updates, modified: Date.now() });
+            onUpdate(next);
+            try {
+              const raw = localStorage.getItem("codex.babelforge.v1");
+              const st  = raw ? JSON.parse(raw) : { projects: [], activeId: null };
+              const i = (st.projects || []).findIndex(p => p.id === project.id);
+              if (i >= 0) st.projects[i] = next;
+              else st.projects = (st.projects || []).concat([next]);
+              localStorage.setItem("codex.babelforge.v1", JSON.stringify(st));
+            } catch (e) { console.warn("[babelforge] direct-save failed:", e); }
             try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: trId } })); } catch {}
           }
         }
