@@ -1,0 +1,63 @@
+:root {
+  --bg: #06080e;
+  --fg: #e7eef7;
+  --accent: #7ee0ff;
+  --muted: #6c7a8f;
+  --line: #1a2230;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 30%, #0b1220 0%, var(--bg) 70%);
+  color: var(--fg);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  display: grid; place-items: center;
+  min-height: 100vh;
+}
+.stage {
+  width: min(720px, 92vw);
+  text-align: center;
+  padding: 40px 24px;
+}
+.cluster .eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px; letter-spacing: 3px;
+  color: var(--accent); text-transform: uppercase;
+  margin: 0 0 24px;
+}
+#vod-text {
+  font-size: clamp(20px, 3.2vw, 30px);
+  line-height: 1.45;
+  margin: 0 0 16px;
+  font-style: italic;
+  color: var(--fg);
+}
+.ref {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 13px; letter-spacing: 1.5px;
+  color: var(--muted); margin: 0 0 24px;
+}
+.open {
+  display: inline-block; padding: 10px 18px;
+  color: var(--accent); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 999px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px; letter-spacing: 1.5px;
+}
+.open:hover { border-color: var(--accent); }
+.tools {
+  margin-top: 64px;
+}
+.tools input {
+  width: min(420px, 80vw);
+  padding: 10px 14px;
+  background: #0d121b;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  text-align: center;
+  outline: none;
+}
+.tools input:focus { border-color: var(--accent); }

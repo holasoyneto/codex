@@ -1,0 +1,21 @@
+{
+  "_comment": "Variant manifest WITHOUT the new-tab override. Rename to manifest.json before loading if you find the new-tab override invasive. This is the recommended store-submission variant.",
+  "manifest_version": 3,
+  "name": "CODEX — Bible Study Lookup",
+  "version": "1.0.0",
+  "description": "Highlight any scripture reference on the web and look it up instantly in CODEX.",
+  "icons": { "16": "icons/icon.svg", "48": "icons/icon.svg", "128": "icons/icon.svg" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon.svg",
+    "default_title": "CODEX — Bible lookup"
+  },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["contextMenus", "storage", "activeTab"],
+  "host_permissions": ["https://bible-api.com/*", "https://codex.app/*"],
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["ref-parser.js", "content.js"],
+    "run_at": "document_idle"
+  }]
+}

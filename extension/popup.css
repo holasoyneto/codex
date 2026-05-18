@@ -1,0 +1,62 @@
+:root {
+  --bg: #06080e;
+  --fg: #e7eef7;
+  --accent: #7ee0ff;
+  --muted: #8a96a8;
+  --warn: #ffb86b;
+  --line: #1a2230;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  width: 360px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  padding: 12px;
+}
+.hdr {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.hdr .logo { width: 28px; height: 28px; }
+.hdr h1 {
+  font-size: 14px; letter-spacing: 2px; margin: 0;
+  color: var(--accent); font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+form#lookup-form { display: flex; gap: 6px; }
+#ref-input {
+  flex: 1; padding: 8px 10px; background: #0d121b; color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; font-size: 14px;
+  outline: none;
+}
+#ref-input:focus { border-color: var(--accent); }
+#open-btn, #peek-btn {
+  padding: 8px 12px; background: var(--accent); color: #06080e;
+  border: 0; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+#peek-btn { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.preview {
+  margin-top: 10px; padding: 10px; border-radius: 6px;
+  background: #0d121b; border: 1px solid var(--line);
+  font-size: 13px; line-height: 1.45;
+}
+.preview.hidden { display: none; }
+.preview.warn { color: var(--warn); }
+.preview.ok strong { color: var(--accent); }
+.preview small { color: var(--muted); }
+.recents { margin-top: 14px; }
+.recents h2 { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 1.4px; margin: 0 0 6px; }
+.recents ul { list-style: none; padding: 0; margin: 0; }
+.recents li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.recents li:last-child { border-bottom: 0; }
+.recents li.empty { color: var(--muted); font-style: italic; }
+.recents a { color: var(--fg); text-decoration: none; }
+.recents a:hover { color: var(--accent); }
+.ftr {
+  margin-top: 12px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px;
+}
+.ftr a { color: var(--muted); text-decoration: none; }
+.ftr a:hover { color: var(--accent); }

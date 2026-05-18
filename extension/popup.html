@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CODEX Lookup</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="hdr">
+    <img src="icons/icon.svg" alt="" class="logo" />
+    <h1>CODEX</h1>
+  </header>
+
+  <form id="lookup-form" autocomplete="off">
+    <input id="ref-input" type="text" placeholder="Type a passage, e.g. John 3:16" spellcheck="false" />
+    <button type="submit" id="open-btn">Open</button>
+  </form>
+
+  <div id="preview" class="preview hidden" aria-live="polite"></div>
+
+  <section class="recents">
+    <h2>Recent</h2>
+    <ul id="recents-list"></ul>
+  </section>
+
+  <footer class="ftr">
+    <a href="https://codex.app/" target="_blank" rel="noopener">codex.app</a>
+    <button id="peek-btn" type="button" title="Fetch the verse text without leaving this page">Peek verse</button>
+  </footer>
+
+  <script src="ref-parser.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

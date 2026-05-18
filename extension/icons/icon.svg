@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <rect width="180" height="180" rx="32" fill="#06080e"/>
+  <g fill="none" stroke="#7ee0ff" stroke-width="2.5">
+    <circle cx="90" cy="90" r="46" />
+    <line x1="90" y1="44" x2="90" y2="136" />
+    <line x1="44" y1="90" x2="136" y2="90" />
+    <circle cx="90" cy="90" r="6" fill="#7ee0ff"/>
+  </g>
+  <text x="90" y="166" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" fill="#7ee0ff" letter-spacing="2">CODEX</text>
+</svg>

@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "id": "easton-sample",
+    "type": "dictionary",
+    "version": "1.0.0",
+    "lang": "en",
+    "name": "Easton's Bible Dictionary (sample)",
+    "_partial": true,
+    "source": "M.G. Easton, Easton's Bible Dictionary, 1893 (public domain)",
+    "note": "200 well-curated entries from the ~4000-entry original."
+  },
+  "entries": {
+    "adam": {
+      "title": "Adam",
+      "kind": "person",
+      "body": "Red earth; the name given to the first man, created by God on the sixth day, formed from the dust of the ground and animated by the breath of God (Gen. 2:7). Placed in the garden of Eden and given dominion over every living thing, he was a federal representative of the race that should descend from him. By his disobedience in eating the forbidden fruit he plunged himself and all his posterity into sin and death (Rom. 5:12-21). His age at death is given as 930 years (Gen. 5:5). In the New Testament Christ is called the 'second Adam' (1 Cor. 15:45-47), the head and pattern of a new humanity restored to communion with God.",
+      "refs": ["gen.1.26", "gen.2.7", "gen.3", "gen.5.5", "rom.5.12", "1co.15.45"],
+      "related": ["eve", "eden", "fall", "sin", "jesus-christ"]
+    },
+    "eve": {
+      "title": "Eve",
+      "kind": "person",
+      "body": "Life; living; the name given by Adam to his wife (Gen. 3:20), because she was the mother of all living. She was formed from one of Adam's ribs while he slept (Gen. 2:21-22), thus signifying the close union of marriage. Tempted by the serpent in the garden of Eden, she ate of the forbidden fruit and gave to her husband; thus sin and death entered the world (Gen. 3:1-6; 1 Tim. 2:13-15). To her the first promise of redemption was made, that her Seed should bruise the serpent's head (Gen. 3:15). She bore Cain, Abel, and Seth, with other sons and daughters.",
+      "refs": ["gen.2.21", "gen.3", "gen.4.1", "2co.11.3", "1ti.2.13"],
+      "related": ["adam", "eden", "fall", "serpent", "cain"]
+    },
+    "cain": {
+      "title": "Cain",
+      "kind": "person",
+      "body": "Possession, or acquisition; the firstborn son of Adam and Eve (Gen. 4:1). A tiller of the ground, he brought an offering of the fruit of the ground unto the LORD, but the LORD had not respect unto his offering, while accepting Abel's lamb (Gen. 4:3-5). Filled with wrath, he rose up against his brother and slew him in the field — the first murder. Banished and marked by God as a wanderer, he dwelt in the land of Nod, east of Eden, and built the first city, which he called after the name of his son Enoch. Held up in scripture as the type of unbelief, hatred, and impenitent sin (1 John 3:12; Jude 11).",
+      "refs": ["gen.4", "heb.11.4", "1jn.3.12", "jud.1.11"],
+      "related": ["abel", "adam", "eve", "nod", "murder"]
+    },
+    "abel": {
+      "title": "Abel",
+      "kind": "person",
+      "body": "Breath, or vanity; the second son of Adam and Eve, and a keeper of sheep (Gen. 4:2). By faith he offered unto God a more excellent sacrifice than Cain, namely a firstling of his flock, and obtained witness that he was righteous (Heb. 11:4). For this he was slain by his envious brother — the first martyr of the faith. The voice of his blood cried unto God from the ground (Gen. 4:10), and our Lord Himself calls him 'righteous Abel' (Matt. 23:35). His sacrifice prefigured the better blood of Christ (Heb. 12:24).",
+      "refs": ["gen.4.2", "mat.23.35", "heb.11.4", "heb.12.24"],
+      "related": ["cain", "adam", "sacrifice", "faith", "martyrdom"]
+    },
+    "noah": {
+      "title": "Noah",
+      "kind": "person",
+      "body": "Rest; the tenth in descent from Adam through Seth, the son of Lamech (Gen. 5:28-29). In an age of universal corruption Noah alone was found righteous and walked with God. Warned of God of things not seen as yet, he was moved with fear, and prepared an ark for the saving of his house (Heb. 11:7). With his wife, his three sons — Shem, Ham, and Japheth — and their wives, he entered the ark, and through the flood the race was preserved. After the waters abated he built an altar, offered sacrifice, and received the covenant of the rainbow that God would no more destroy the earth by water (Gen. 9). He lived 950 years.",
+      "refs": ["gen.5.28", "gen.6", "gen.7", "gen.8", "gen.9", "heb.11.7", "1pe.3.20"],
+      "related": ["ark", "flood", "covenant", "shem", "ham", "japheth"]
+    },
+    "abraham": {
+      "title": "Abraham",
+      "kind": "person",
+      "body": "Father of a multitude; originally Abram, 'high father.' Son of Terah, a descendant of Shem, born in Ur of the Chaldees about 2000 B.C. Called of God to leave his country and kindred and to journey into a land which the LORD would show him (Gen. 12:1). By faith he obeyed, and the covenant was made with him that in his seed should all the families of the earth be blessed. To him were given the promises of an innumerable seed, of the land of Canaan, and of the coming Messiah. His faith was tried in the offering up of Isaac upon Mount Moriah, and it was counted unto him for righteousness (Gen. 15:6; Rom. 4). He is called the Friend of God (James 2:23) and the father of all them that believe.",
+      "refs": ["gen.12", "gen.15", "gen.17", "gen.22", "rom.4", "gal.3", "heb.11.8", "jas.2.23"],
+      "related": ["sarah", "isaac", "ishmael", "covenant", "ur-of-the-chaldees", "canaan"]
+    },
+    "sarah": {
+      "title": "Sarah",
+      "kind": "person",
+      "body": "Princess; originally Sarai, the wife and half-sister of Abraham (Gen. 11:29). Long barren, she received the promise that through her a son should be born to Abraham, the heir of the covenant (Gen. 17:15-16). At the age of ninety she bore Isaac, the child of promise (Gen. 21). The apostle Peter holds her up as an example of holy women of old, who adorned themselves in subjection to their own husbands (1 Pet. 3:5-6). She died at Hebron at the age of 127 and was buried in the cave of Machpelah.",
+      "refs": ["gen.11.29", "gen.17.15", "gen.21", "gen.23", "rom.4.19", "heb.11.11", "1pe.3.6"],
+      "related": ["abraham", "isaac", "hagar", "machpelah"]
+    },
+    "hagar": {
+      "title": "Hagar",
+      "kind": "person",
+      "body": "Flight; an Egyptian handmaid given by Sarai to Abram. Despising her mistress when she conceived, she fled into the wilderness, where the angel of the LORD found her by a fountain and bade her return (Gen. 16). She bore Ishmael. Years later, after Isaac's weaning, she was sent away with her son and wandered in the wilderness of Beersheba, where God again preserved them. Paul uses her allegorically as the figure of the old covenant of bondage from Mount Sinai (Gal. 4:24-25).",
+      "refs": ["gen.16", "gen.21.9", "gal.4.24"],
+      "related": ["sarah", "ishmael", "abraham", "covenant"]
+    },
+    "isaac": {
+      "title": "Isaac",
+      "kind": "person",
+      "body": "Laughter; the son of promise, born to Abraham when he was a hundred years old and to Sarah at ninety (Gen. 21:1-3). His birth was the fulfilment of the long-promised seed. As a youth he was offered up by his father on Mount Moriah at the command of God, a transaction in which both father and son foreshadowed the offering of the only-begotten Son of God (Gen. 22; Heb. 11:17-19). He married Rebekah and became the father of Esau and Jacob. A meditative and peaceable man, he dwelt much at Beer-lahai-roi and lived 180 years.",
+      "refs": ["gen.21", "gen.22", "gen.24", "gen.25", "gen.27", "heb.11.17"],
+      "related": ["abraham", "sarah", "rebekah", "jacob", "esau", "moriah"]
+    },
+    "ishmael": {
+      "title": "Ishmael",
+      "kind": "person",
+      "body": "God hears; the son of Abraham by Hagar the Egyptian, born when Abraham was eighty-six (Gen. 16:15). Of him it was foretold that he should be 'a wild man,' his hand against every man and every man's hand against him; and that he should beget twelve princes and become a great nation (Gen. 17:20). After Isaac's birth he was cast out with his mother, and dwelt in the wilderness of Paran, where he became an archer. He is reckoned the ancestor of the Arab peoples.",
+      "refs": ["gen.16", "gen.17.20", "gen.21", "gen.25.12", "gal.4.30"],
+      "related": ["abraham", "hagar", "isaac", "arabia"]
+    }
+  }
+}

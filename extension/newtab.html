@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CODEX — New Tab</title>
+  <link rel="stylesheet" href="newtab.css" />
+</head>
+<body>
+  <main class="stage">
+    <div class="cluster">
+      <p class="eyebrow">Verse of the day</p>
+      <blockquote id="vod-text">…</blockquote>
+      <p id="vod-ref" class="ref"></p>
+      <a id="vod-link" href="#" class="open">Open in CODEX →</a>
+    </div>
+
+    <footer class="tools">
+      <form id="quick-lookup" autocomplete="off">
+        <input id="ref-input" type="text" placeholder="Look up a passage…" spellcheck="false" />
+      </form>
+    </footer>
+  </main>
+
+  <script src="ref-parser.js"></script>
+  <script src="newtab.js"></script>
+</body>
+</html>
