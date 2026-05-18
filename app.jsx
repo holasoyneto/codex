@@ -841,36 +841,15 @@ function App() {
   }, []);
 
   // ── Schizo Mode eligibility ─────────────────────────────────────────────
-  // Easter egg: the settings toggle only appears once the user has visited
-  // Revelation 13:18 (the "count the number of the beast" verse). Once seen,
-  // sticky for the session AND persisted across launches in localStorage
-  // (codex.schizo.eligible) — the unlock is permanent. The toggle itself
-  // (tweaks.schizo) is a normal persisted tweak.
+  // The state hook stays here; the useEffect that DEPENDS on `passage` lives
+  // BELOW the passage useState. Otherwise — under Babel-env's const→var
+  // transpile — `passage` is hoisted as `undefined` to the top of App, the
+  // deps array `[passage.bookId, ...]` is evaluated every render, and the
+  // app crashes with "Cannot read properties of undefined (reading 'bookId')"
+  // before anything paints. Found via live-debug error boundary 2026-05-18.
   const [schizoEligible, setSchizoEligible] = useState(() => {
     try { return localStorage.getItem("codex.schizo.eligible") === "1"; } catch { return false; }
   });
-  useEffect(() => {
-    if (schizoEligible) return;
-    if (passage.bookId === "rev" && passage.chapter === 13) {
-      // Trigger when verse 18 is the current cursor OR is present in viewport
-      // (we approximate "in viewport" by simply checking that v18 exists in
-      // the loaded passage — Revelation 13 has v18 and the reader renders
-      // every verse; the user scrolling to that chapter satisfies the spirit
-      // of the trigger). Lock in once observed.
-      const hasV18 = (passage.verses || []).some(v => v.n === 18);
-      if (hasV18 && (currentVerse === 18 || hasV18)) {
-        setSchizoEligible(true);
-        try { localStorage.setItem("codex.schizo.eligible", "1"); } catch {}
-      }
-    }
-  }, [passage.bookId, passage.chapter, passage.verses, currentVerse, schizoEligible]);
-
-  // Apply / remove the is-schizo body class for visual tone.
-  useEffect(() => {
-    const on = !!(schizoEligible && t.schizo);
-    document.body.classList.toggle("is-schizo", on);
-    return () => { document.body.classList.toggle("is-schizo", false); };
-  }, [schizoEligible, t.schizo]);
 
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
@@ -903,6 +882,33 @@ function App() {
     loading: true,
     error: null,
   });
+
+  // Apply / remove the is-schizo body class for visual tone.
+  useEffect(() => {
+    const on = !!(schizoEligible && t.schizo);
+    document.body.classList.toggle("is-schizo", on);
+    return () => { document.body.classList.toggle("is-schizo", false); };
+  }, [schizoEligible, t.schizo]);
+
+  // Schizo Mode eligibility detection — placed here, AFTER `passage` is
+  // defined, because Babel-env transpiles const→var (hoists declarations)
+  // and an earlier deps-array reference to passage.bookId would crash on
+  // first render. See the schizoEligible useState above for the long note.
+  useEffect(() => {
+    if (schizoEligible) return;
+    if (passage.bookId === "rev" && passage.chapter === 13) {
+      // Trigger when verse 18 is the current cursor OR is present in viewport
+      // (we approximate "in viewport" by simply checking that v18 exists in
+      // the loaded passage — Revelation 13 has v18 and the reader renders
+      // every verse; the user scrolling to that chapter satisfies the spirit
+      // of the trigger). Lock in once observed.
+      const hasV18 = (passage.verses || []).some(v => v.n === 18);
+      if (hasV18) {
+        setSchizoEligible(true);
+        try { localStorage.setItem("codex.schizo.eligible", "1"); } catch {}
+      }
+    }
+  }, [passage.bookId, passage.chapter, passage.verses, schizoEligible]);
 
   const loadPanelData = useCallback(async (bookId, chapter, bookName) => {
     const seed = data.seedPanels[`${bookId}.${chapter}`];
@@ -2018,7 +2024,7 @@ function App() {
         ) : null}
         {/* Day-mode palette swatches — apply only when in light/auto mode. */}
         <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7, letterSpacing: '.04em' }}>Day-mode palette</div>
-        <LightThemePicker />
+        {typeof LightThemePicker !== "undefined" ? <LightThemePicker /> : (typeof window !== "undefined" && window.LightThemePicker ? React.createElement(window.LightThemePicker) : null)}
         {/* Scripture face moved to the reader-head View popover (Aa). */}
 
         <TweakSection label={tt("marks")} />
@@ -2725,5 +2731,41 @@ function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCou
   );
 }
 
+// Top-level error boundary — if something inside App throws, render a
+// friendly recovery message instead of leaving the page blank. The
+// boot-splash polls for #root having children, so even an error boundary
+// rendering an error block dismisses the splash gracefully.
+class CodexAppBoundary extends React.Component {
+  constructor(p){ super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err){ return { err }; }
+  componentDidCatch(err, info){
+    console.error("[CODEX] App boundary caught:", err, info && info.componentStack);
+  }
+  render(){
+    if (this.state.err) {
+      return React.createElement("div", {
+        style: { padding: "60px 40px", color: "#c9d6e6", background: "#06080e", height: "100vh", overflow: "auto", fontFamily: "ui-monospace, Menlo, monospace" }
+      },
+        React.createElement("h1", { style: { color: "#7ee0ff", fontFamily: "Cormorant Garamond, serif", fontWeight: 400, fontSize: 28 } }, "CODEX hit a snag."),
+        React.createElement("p", { style: { color: "#6b7c95", fontSize: 13, marginBottom: 24 } }, "The app caught a render error. Try clearing caches and reloading."),
+        React.createElement("button", {
+          style: { background: "transparent", color: "#7ee0ff", border: "1px solid #7ee0ff", padding: "10px 18px", fontFamily: "inherit", fontSize: 12, letterSpacing: ".1em", cursor: "pointer", borderRadius: 4 },
+          onClick: async () => {
+            try {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (const r of regs) await r.unregister();
+              const ks = await caches.keys();
+              for (const k of ks) await caches.delete(k);
+            } catch {}
+            location.reload();
+          }
+        }, "↺ CLEAR CACHE + RELOAD"),
+        React.createElement("pre", { style: { marginTop: 36, color: "#ff8291", fontSize: 11, whiteSpace: "pre-wrap", opacity: 0.85 } },
+          String(this.state.err.message || ""), "\n\n", String(this.state.err.stack || ""))
+      );
+    }
+    return this.props.children;
+  }
+}
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+root.render(<CodexAppBoundary><App /></CodexAppBoundary>);
