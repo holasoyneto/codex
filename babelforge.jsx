@@ -224,15 +224,32 @@
     );
   }
 
+  // Map voice category → cover-art gradient class for "book cover" tiles.
+  function voiceCategoryClass(tpl) {
+    const cat = (tpl.category || "").toLowerCase();
+    const id = (tpl.id || "").toLowerCase();
+    if (cat.includes("ai-generated") || tpl._ai_generated) return "bf-cover-custom";
+    if (id.includes("eliz") || cat.includes("classical")) return "bf-cover-classical";
+    if (id.includes("scholar") || cat.includes("scholar")) return "bf-cover-scholar";
+    if (id.includes("street") || id.includes("hood") || id.includes("punch") || cat.includes("punchy")) return "bf-cover-punchy";
+    if (id.includes("kid") || id.includes("picture") || cat.includes("kids")) return "bf-cover-kids";
+    if (id.includes("poet") || id.includes("lyric")) return "bf-cover-poetic";
+    if (id.includes("pirate") || id.includes("gangster")) return "bf-cover-roguish";
+    return "bf-cover-default";
+  }
   function VoiceCard({ tpl, selected, onPick, onRemove }) {
     const sample = (tpl.samples && tpl.samples[0]) || null;
     const isCustom = tpl._ai_generated || tpl.category === "ai-generated" || (engine() && engine().isCustomVoice && engine().isCustomVoice(tpl.id));
+    const coverClass = voiceCategoryClass(tpl);
     return E("div", { className: "bf-voice-card-wrap" },
       E("button", {
-        className: "bf-voice-card" + (selected ? " selected" : "") + (isCustom ? " is-custom" : ""),
+        className: "bf-voice-card bf-voice-card-v2 " + coverClass + (selected ? " selected" : "") + (isCustom ? " is-custom" : ""),
         onClick: () => onPick(tpl.id),
         type: "button"
       },
+        E("div", { className: "bf-voice-cover" },
+          E("span", { className: "bf-voice-cover-glyph" }, "⌬")
+        ),
         isCustom ? E("span", { className: "bf-voice-badge", title: "AI-generated custom voice" }, "✨ CUSTOM") : null,
         E("div", { className: "bf-voice-name" }, tpl.name),
         E("div", { className: "bf-voice-desc" }, tpl.description),
@@ -686,18 +703,22 @@
         E("span", { className: badgeClass }, badgeText)
       ),
       err && E("div", { className: "bf-err" }, err),
-      E("div", { className: "bf-three-pane" },
+      E("div", { className: "bf-three-pane bf-three-pane-v2" },
         E("div", { className: "bf-pane bf-pane-orig" },
-          E("div", { className: "bf-pane-h" }, "Original / Crib"),
-          E("div", { className: "bf-orig" }, literal || E("em", null, "no Strong's crib available for this verse")),
+          E("div", { className: "bf-pane-corner" }, "①  ORIGINAL  /  CRIB"),
+          E("div", { className: "bf-orig" }, literal || E("em", { className: "bf-pane-empty" }, "— no Strong's crib —")),
           E("div", { className: "bf-pane-meta" }, project.source_language)
         ),
         E("div", { className: "bf-pane bf-pane-base" },
-          E("div", { className: "bf-pane-h" }, "Base · ", project.base_translation),
-          E("div", { className: "bf-base" }, base || E("em", null, "(base text not available offline — start from blank or open online)"))
+          E("div", { className: "bf-pane-corner" }, "②  BASE  ·  ", project.base_translation),
+          E("div", { className: "bf-base" }, base || E("em", { className: "bf-pane-empty" }, "— base text not available offline —"))
         ),
         E("div", { className: "bf-pane bf-pane-draft" },
-          E("div", { className: "bf-pane-h" }, "Your Draft"),
+          E("div", { className: "bf-pane-corner bf-pane-corner-accent" },
+            "③  YOUR  DRAFT",
+            rigorBadge && E("span", { className: "bf-pane-rigor bf-pane-rigor-" + rigorBadge },
+              rigorBadge === "ok" ? "✓" : rigorBadge === "warn" ? "⚠" : "✗", " ", project.rigor)
+          ),
           E("textarea", {
             className: "bf-draft", value: draft,
             onChange: e => setDraft(e.target.value),
@@ -1136,36 +1157,63 @@
     const warnCount = Object.values(project.verses).filter(v => v.badge === "warn").length;
     const failCount = Object.values(project.verses).filter(v => v.badge === "fail").length;
 
-    return E("div", { className: "bf-proj-editor" },
+    const scopeLabel = (() => {
+      const s = normalizeScope(project);
+      if (!s.length) return "no scope";
+      if (s.length === 1) return `${(bookById(s[0].bookId).name || s[0].bookId).toUpperCase()} ${s[0].fromChap}–${s[0].toChap}`;
+      if (s.length === 66) return "WHOLE BIBLE";
+      return `${s.length} BOOKS`;
+    })();
+    // Smart primary label for the forge button
+    const primaryForgeLabel = fullBusy ? "Forging…"
+      : (totalVerses === 0 ? "⚡  Begin forging"
+      : (failCount > 0 ? "⚡  Resume forge"
+      : "⚡  Continue forging"));
+
+    return E("div", { className: "bf-proj-editor bf-fade-in" },
       E("div", { className: "bf-proj-head" },
-        E("button", { className: "bf-btn ghost", onClick: onBack }, "← Projects"),
+        E("button", { className: "bf-back-btn", onClick: onBack, title: "Back to translations" }, "‹  Translations"),
         E("div", { className: "bf-proj-title" },
-          E("div", { className: "bf-proj-name" }, project.name),
-          E("div", { className: "bf-proj-meta" },
-            "voice: ", E("strong", null, project.voice_template), " · ",
-            "rigor: ", E("strong", null, project.rigor), " · ",
-            "scope: ", (() => {
-              const s = normalizeScope(project);
-              if (s.length === 1) return `${s[0].bookId} ${s[0].fromChap}–${s[0].toChap}`;
-              return `${s.length} books`;
-            })()
-          )
+          E("div", { className: "bf-proj-eyebrow" },
+            E("span", { className: "bf-proj-glyph" }, "⌬"),
+            E("span", null, project.voice_template.toUpperCase()),
+            E("span", { className: "bf-proj-eyebrow-sep" }, "·"),
+            E("span", null, scopeLabel),
+            project.installed && E("span", { className: "bf-proj-installed" }, "● INSTALLED")
+          ),
+          E("h2", { className: "bf-proj-name" }, project.name)
         )
       ),
-      E("div", { className: "bf-proj-stats" },
-        E("span", null, totalVerses, " verses drafted"),
-        E("span", { className: "bf-badge bf-badge-ok" }, "✓ ", okCount),
-        E("span", { className: "bf-badge bf-badge-warn" }, "⚠ ", warnCount),
-        E("span", { className: "bf-badge bf-badge-fail" }, "✗ ", failCount)
+      // Stat cards
+      E("div", { className: "bf-stat-cards" },
+        E("div", { className: "bf-stat-card" },
+          E("div", { className: "bf-stat-label" }, "DRAFTED"),
+          E("div", { className: "bf-stat-num" }, totalVerses)
+        ),
+        E("div", { className: "bf-stat-card bf-stat-ok" },
+          E("div", { className: "bf-stat-label" }, "OK"),
+          E("div", { className: "bf-stat-num" }, okCount),
+          E("div", { className: "bf-stat-bar" }, E("div", { className: "bf-stat-fill", style: { width: (totalVerses ? (okCount/totalVerses*100) : 0) + "%" } }))
+        ),
+        E("div", { className: "bf-stat-card bf-stat-warn" },
+          E("div", { className: "bf-stat-label" }, "WARN"),
+          E("div", { className: "bf-stat-num" }, warnCount),
+          E("div", { className: "bf-stat-bar" }, E("div", { className: "bf-stat-fill", style: { width: (totalVerses ? (warnCount/totalVerses*100) : 0) + "%" } }))
+        ),
+        E("div", { className: "bf-stat-card bf-stat-fail" },
+          E("div", { className: "bf-stat-label" }, "FAIL"),
+          E("div", { className: "bf-stat-num" }, failCount),
+          E("div", { className: "bf-stat-bar" }, E("div", { className: "bf-stat-fill", style: { width: (totalVerses ? (failCount/totalVerses*100) : 0) + "%" } }))
+        )
       ),
       // ── Project settings strip — change source / target / rigor live.
       // Source can be swapped at any time; future verses use the new base.
       // Changing source on an installed translation also bumps Reader cache.
-      E("div", { className: "bf-proj-settings", style: { display: "flex", gap: 10, padding: "10px 12px", borderTop: "1px solid var(--cx-line, #1f2a36)", borderBottom: "1px solid var(--cx-line, #1f2a36)", flexWrap: "wrap", alignItems: "center", fontSize: 11 } },
-        E("label", { style: { display: "flex", flexDirection: "column", gap: 2 } },
-          E("span", { style: { opacity: 0.7, letterSpacing: ".06em", textTransform: "uppercase", fontSize: 10 } }, "Source"),
+      E("div", { className: "bf-toolbar" },
+        E("label", { className: "bf-tool" },
+          E("span", { className: "bf-tool-label" }, "⇣  SOURCE"),
           E("select", {
-            className: "bf-in", style: { minWidth: 180, padding: "4px 6px" },
+            className: "bf-in bf-in-terminal", style: { minWidth: 170 },
             value: project.base_translation || "kjv",
             onChange: (e) => {
               const next = Object.assign({}, project, { base_translation: e.target.value, modified: Date.now() });
@@ -1180,10 +1228,10 @@
             )
           )
         ),
-        E("label", { style: { display: "flex", flexDirection: "column", gap: 2 } },
-          E("span", { style: { opacity: 0.7, letterSpacing: ".06em", textTransform: "uppercase", fontSize: 10 } }, "Target lang"),
+        E("label", { className: "bf-tool" },
+          E("span", { className: "bf-tool-label" }, "⇡  TARGET"),
           E("select", {
-            className: "bf-in", style: { width: 130, padding: "4px 6px" },
+            className: "bf-in bf-in-terminal", style: { width: 130 },
             value: project.target_language || "en",
             onChange: (e) => onUpdate(Object.assign({}, project, { target_language: e.target.value, modified: Date.now() }))
           },
@@ -1192,10 +1240,10 @@
             ))
           )
         ),
-        E("label", { style: { display: "flex", flexDirection: "column", gap: 2 } },
-          E("span", { style: { opacity: 0.7, letterSpacing: ".06em", textTransform: "uppercase", fontSize: 10 } }, "Rigor"),
+        E("label", { className: "bf-tool" },
+          E("span", { className: "bf-tool-label" }, "⚖  RIGOR"),
           E("select", {
-            className: "bf-in", style: { width: 120, padding: "4px 6px" },
+            className: "bf-in bf-in-terminal", style: { width: 120 },
             value: project.rigor || "balanced",
             onChange: (e) => onUpdate(Object.assign({}, project, { rigor: e.target.value, modified: Date.now() }))
           },
@@ -1204,7 +1252,7 @@
         ),
         E("div", { style: { flex: 1 } }),
         project.installed && E("button", {
-          className: "bf-btn ghost", style: { padding: "4px 10px" },
+          className: "bf-btn-ghost-sm",
           title: "Re-translate every chapter using the new source — leaves locked verses alone",
           onClick: () => {
             if (!window.confirm("Wipe non-locked drafts and re-forge with the current source/voice?")) return;
@@ -1226,32 +1274,59 @@
         },
         voiceTpl
       }),
-      E("div", { className: "bf-bulk" },
-        E("button", { className: "bf-btn", onClick: () => bulkTranslate(10), disabled: bulkBusy || fullBusy },
-          bulkBusy ? "Translating…" : "Translate next 10 verses ⌬"),
-        E("button", { className: "bf-btn primary", onClick: translateEntireScope, disabled: bulkBusy || fullBusy, title: "Generate the whole scope automatically — usable in the Reader in seconds" },
-          fullBusy ? "Translating ENTIRE scope…" : "⚡ Translate ENTIRE scope"),
-        fullBusy && E("button", { className: "bf-btn ghost", onClick: stopFull }, "Stop"),
-        E("button", { className: "bf-btn ghost", onClick: recheckAll, disabled: fullBusy }, "Re-check rigor on all"),
+      E("div", { className: "bf-actions" },
+        E("button", {
+          className: "bf-cta-primary bf-cta-md",
+          onClick: translateEntireScope,
+          disabled: bulkBusy || fullBusy,
+          title: "Generate the whole scope automatically"
+        },
+          fullBusy ? E("span", { className: "bf-spin" }) : E("span", { className: "bf-cta-glyph" }, "⚡"),
+          E("span", null, primaryForgeLabel),
+          !fullBusy && E("span", { className: "bf-cta-arrow" }, "→")
+        ),
+        fullBusy && E("button", { className: "bf-btn-ghost-sm", onClick: stopFull }, "■  Stop"),
+        !fullBusy && E("button", { className: "bf-btn-ghost-sm", onClick: () => bulkTranslate(10), disabled: bulkBusy },
+          bulkBusy ? "Forging 10…" : "+10 verses"),
         E("div", { style: { flex: 1 } }),
         E("button", {
-          className: "bf-btn " + (project.installed ? "ghost" : "primary"),
+          className: "bf-icon-btn",
           onClick: project.installed ? uninstallFromReader : installInReader,
           disabled: fullBusy,
-          title: project.installed ? "Remove from Reader translation picker" : "Make available in the main Bible reader"
-        }, project.installed ? "✓ Installed in Reader · Remove" : "📖 Install in Reader"),
-        E("button", { className: "bf-btn", onClick: () => setExportOpen(o => !o) }, "Export ▾")
+          title: project.installed ? "Installed in Reader — click to remove" : "Install in Reader"
+        }, project.installed ? "✓ READER" : "📖 INSTALL"),
+        E("button", { className: "bf-icon-btn", onClick: recheckAll, disabled: fullBusy, title: "Re-check rigor on all verses" }, "⚖  RECHECK"),
+        E("button", { className: "bf-icon-btn", onClick: () => setExportOpen(o => !o), title: "Export" }, "⤓  EXPORT")
       ),
-      fullProgress && E("div", { className: "bf-fullprog", style: { padding: "8px 12px", fontFamily: "ui-monospace, monospace", fontSize: "12px", color: "var(--cx-fg-dim, #8a98a8)" } },
-        `${fullProgress.done} / ${fullProgress.total} verses · ${fullProgress.label || ""}`,
-        (fullProgress.skipped || fullProgress.refused || fullProgress.errors) ? E("div", { style: { marginTop: 2, fontSize: 11, color: fullProgress.errors ? "#ff7e7e" : undefined } },
+      fullProgress && E("div", { className: "bf-fullprog-card" },
+        E("div", { className: "bf-fullprog-head" },
+          E("div", { className: "bf-fullprog-radial" },
+            (() => {
+              const pct = fullProgress.total ? Math.min(100, Math.round(fullProgress.done / fullProgress.total * 100)) : 0;
+              const C = 2 * Math.PI * 16;
+              const off = C - (C * pct / 100);
+              return E("svg", { width: 40, height: 40, viewBox: "0 0 40 40" },
+                E("circle", { cx: 20, cy: 20, r: 16, fill: "none", stroke: "rgba(255,255,255,0.06)", strokeWidth: 3 }),
+                E("circle", { cx: 20, cy: 20, r: 16, fill: "none", stroke: "#ffc46b", strokeWidth: 3, strokeLinecap: "round",
+                  strokeDasharray: C, strokeDashoffset: off, transform: "rotate(-90 20 20)",
+                  style: { transition: "stroke-dashoffset 200ms ease" }
+                })
+              );
+            })()
+          ),
+          E("div", { className: "bf-fullprog-meta" },
+            E("div", { className: "bf-fullprog-num" }, fullProgress.done, " / ", fullProgress.total || "…"),
+            E("div", { className: "bf-fullprog-label" }, "FORGING  · ", fullProgress.label || "preparing…")
+          )
+        ),
+        E("div", { className: "bf-fullprog-bar" },
+          E("div", { className: "bf-fullprog-fill", style: { width: ((fullProgress.total ? fullProgress.done / fullProgress.total : 0) * 100) + "%" } })
+        ),
+        (fullProgress.skipped || fullProgress.refused || fullProgress.errors) ? E("div", { className: "bf-fullprog-foot" + (fullProgress.errors ? " bf-fullprog-err" : "") },
           fullProgress.skipped ? `${fullProgress.skipped} skipped (locked) · ` : "",
-          fullProgress.refused ? `${fullProgress.refused} refused (empty draft) · ` : "",
-          fullProgress.errors ? `${fullProgress.errors} FAILED (check API key)` : ""
-        ) : null,
-        E("div", { style: { height: 3, background: "#1f2a36", marginTop: 6, borderRadius: 2, overflow: "hidden" } },
-          E("div", { style: { height: "100%", width: ((fullProgress.total ? fullProgress.done / fullProgress.total : 0) * 100) + "%", background: "#7ee0ff", transition: "width 200ms ease" } })
-        )
+          fullProgress.refused ? `${fullProgress.refused} refused · ` : "",
+          fullProgress.errors ? `${fullProgress.errors} failed (check API key)` : ""
+        ) : null
       ),
       exportOpen && E("div", { className: "bf-export-tray" },
         E("button", { className: "bf-btn", onClick: exportJSON }, "CODEX Translation JSON"),
@@ -1511,11 +1586,20 @@
       { id: "he", label: "עברית" }, { id: "el", label: "Ἑλληνική" },
       { id: "hi", label: "हिन्दी" }
     ]);
+    // Live preview: pull the chosen voice's first sample if it has one.
+    const previewSample = tpl && tpl.samples && tpl.samples[0];
     return E("div", { className: "bf-modal-bg", onClick: e => { if (e.target === e.currentTarget) onClose(); } },
-      E("div", { className: "bf-modal" },
-        E("div", { className: "bf-modal-head" },
-          E("h2", null, "⚡ Forge an Entire Bible"),
+      E("div", { className: "bf-modal bf-modal-v2" },
+        E("div", { className: "bf-modal-head bf-modal-head-v2" },
+          E("div", null,
+            E("div", { className: "bf-modal-eyebrow" }, "⚡  ONE-CLICK"),
+            E("h2", null, "Forge an Entire Bible")
+          ),
           E("button", { className: "bf-x", onClick: onClose }, "×")
+        ),
+        previewSample && E("div", { className: "bf-modal-preview" },
+          E("div", { className: "bf-modal-preview-eyebrow" }, "PREVIEW  ·  ", previewSample.ref || "sample"),
+          E("blockquote", { className: "bf-modal-preview-text" }, "“", previewSample.draft, "”")
         ),
         E("div", { className: "bf-step" },
           E("div", { className: "bf-form" },
@@ -1553,14 +1637,18 @@
             })
           )
         ),
-        E("div", { className: "bf-modal-foot" },
+        E("div", { className: "bf-modal-foot bf-modal-foot-sticky" },
           E("div", { style: { flex: 1 } }),
-          E("button", { className: "bf-btn ghost", onClick: onClose }, "Cancel"),
+          E("button", { className: "bf-btn-ghost-sm", onClick: onClose }, "Cancel"),
           E("button", {
-            className: "bf-btn primary",
+            className: "bf-cta-primary bf-cta-md",
             disabled: !hasKey,
             onClick: () => onForge({ voiceId, customPrompt, name: (nameTouched && name) ? name : defaultName, sourceTr, targetLang })
-          }, hasKey ? "Forge ⚡" : "Add a key first")
+          },
+            E("span", { className: "bf-cta-glyph" }, "⚡"),
+            E("span", null, hasKey ? "Forge" : "Add a key first"),
+            hasKey && E("span", { className: "bf-cta-arrow" }, "→")
+          )
         )
       )
     );
@@ -1753,54 +1841,136 @@
     const active = state.projects.find(p => p.id === state.activeId);
 
     return E("div", { className: "bf-root" },
-      E("div", { className: "bf-header" },
+      E("div", { className: "bf-header bf-header-v2" },
         E("div", { className: "bf-title" },
           E(Glyph, null, "⌬"), " ", "BabelForge ", E("span", { className: "bf-sub" }, "· Translation Lab")
         ),
-        E("div", { className: "bf-tagline" },
-          "Serious scholarship meets playful creativity. Every translation, however playful, preserves what the original actually says."
+        E("div", { className: "bf-tagline bf-tagline-v2" },
+          E("span", { className: "bf-tagline-strong" }, "Serious scholarship"),
+          " meets ",
+          E("span", { className: "bf-tagline-strong" }, "playful creativity."),
+          E("span", { className: "bf-tagline-dim" }, " Every translation, however playful, preserves the original.")
         )
       ),
-      !active && E("div", { className: "bf-list" },
-        E("div", { className: "bf-forge-mega", style: { padding: 14, margin: "8px 0 14px", background: "linear-gradient(135deg,#1a2a3f,#26334a)", border: "1px solid #3a4d6a", borderRadius: 10 } },
-          E("div", { style: { fontSize: 16, fontWeight: 600, color: "#cfe4ff" } }, "⚡ Forge an Entire Bible in one click"),
-          E("div", { style: { fontSize: 12, color: "#8aa6c8", marginTop: 4 } }, "Pick a voice → name it → go. We translate all 66 books in the background."),
-          E("button", {
-            className: "bf-btn primary", style: { marginTop: 10 },
-            onClick: () => setShowForge(true)
-          }, "Forge ⚡")
-        ),
-        forgeStatus && forgeStatus.running && E("div", { style: { padding: "6px 10px", margin: "0 0 12px", background: "#102030", borderRadius: 6, fontSize: 12, color: "#cfe4ff" } },
-          `Forging "${forgeStatus.name}"… ${forgeStatus.done}/${forgeStatus.total} verses`
-        ),
-        E("div", { className: "bf-list-head" },
-          E("h3", null, "Your Translations"),
-          E("button", { className: "bf-btn ghost", onClick: pickImportFile, title: "Import a .codex-translation/2 file" }, "⤒ Import"),
-          E("button", { className: "bf-btn primary", onClick: () => setShowWizard(true) }, "+ New Translation")
-        ),
-        state.projects.length === 0 && E("div", { className: "bf-empty" },
-          E("p", null, "No projects yet. Spin up your first translation — pick a voice from the catalog (Wall Street Tanakh? Picture-Book? Modern Scholar?) or write a custom system prompt. Rigor settings keep the AI honest."),
-          E("button", { className: "bf-btn primary", onClick: () => setShowWizard(true) }, "Start your first ⌬")
-        ),
-        state.projects.map(p => E("div", { key: p.id, className: "bf-proj-row" },
-          E("div", { className: "bf-proj-row-main", onClick: () => openProject(p.id) },
-            E("div", { className: "bf-proj-row-name" }, p.name),
-            E("div", { className: "bf-proj-row-meta" },
-              p.voice_template, " · ", p.rigor, " · ",
-              (() => {
-                const s = normalizeScope(p);
-                if (!s.length) return "(no scope)";
-                if (s.length === 1) return `${s[0].bookId.toUpperCase()} ${s[0].fromChap}–${s[0].toChap}`;
-                return `${s.length} books`;
-              })(),
-              " · ", Object.keys(p.verses || {}).length, " verses"
-            )
+      !active && E("div", { className: "bf-list bf-fade-in" },
+        // ── Hero block ──────────────────────────────────────────────────
+        E("div", { className: "bf-hero" },
+          E("div", { className: "bf-hero-art", "aria-hidden": true },
+            E("div", { className: "bf-hero-grid" }),
+            E("div", { className: "bf-hero-glow" })
           ),
-          E("button", { className: "bf-btn ghost", onClick: () => openProject(p.id) }, "Open"),
-          E("button", { className: "bf-btn ghost", onClick: () => deleteProject(p.id) }, "🗑")
-        )),
+          E("div", { className: "bf-hero-body" },
+            E("div", { className: "bf-hero-eyebrow" }, "⌬  ONE-CLICK  ·  ENTIRE  CANON"),
+            E("h2", { className: "bf-hero-title" }, "Forge an entire Bible."),
+            E("p", { className: "bf-hero-sub" }, "Pick a voice. Name it. Walk away. 66 books translate themselves."),
+            E("button", {
+              className: "bf-cta-primary",
+              onClick: () => setShowForge(true)
+            },
+              E("span", { className: "bf-cta-glyph" }, "⚡"),
+              E("span", null, "Forge a Bible"),
+              E("span", { className: "bf-cta-arrow" }, "→")
+            )
+          )
+        ),
+        forgeStatus && forgeStatus.running && E("div", { className: "bf-forge-status" },
+          E("span", { className: "bf-forge-status-dot" }),
+          E("span", { className: "bf-forge-status-name" }, `Forging "${forgeStatus.name}"`),
+          E("span", { className: "bf-forge-status-meta" }, `${forgeStatus.done} / ${forgeStatus.total || "…"} verses`),
+          E("div", { className: "bf-forge-status-bar" },
+            E("div", { className: "bf-forge-status-fill", style: { width: ((forgeStatus.total ? forgeStatus.done / forgeStatus.total : 0) * 100) + "%" } })
+          )
+        ),
+        // ── Section header ──────────────────────────────────────────────
+        E("div", { className: "bf-section-head" },
+          E("div", { className: "bf-section-title" },
+            E("span", { className: "bf-section-eyebrow" }, "YOUR  TRANSLATIONS"),
+            E("span", { className: "bf-section-count" }, state.projects.length || "0")
+          ),
+          E("div", { className: "bf-section-actions" },
+            E("button", { className: "bf-btn-ghost-sm", onClick: pickImportFile, title: "Import a .codex-translation/2 file" }, "⤒  Import"),
+            E("button", { className: "bf-btn-ghost-sm", onClick: () => setShowWizard(true) }, "+  New")
+          )
+        ),
+        state.projects.length === 0 && E("div", { className: "bf-empty-card" },
+          E("div", { className: "bf-empty-glyph" }, "◆"),
+          E("div", { className: "bf-empty-line" }, "No translations yet — forge your first."),
+          E("button", { className: "bf-cta-primary bf-cta-sm", onClick: () => setShowWizard(true) },
+            E("span", { className: "bf-cta-glyph" }, "⚡"),
+            E("span", null, "Forge"),
+            E("span", { className: "bf-cta-arrow" }, "→")
+          )
+        ),
+        // ── Project tiles ───────────────────────────────────────────────
+        state.projects.length > 0 && E("div", { className: "bf-tile-grid" },
+          state.projects.map(p => {
+            const scope = normalizeScope(p);
+            const verseCount = Object.keys(p.verses || {}).length;
+            // Heuristic scope total: sum of chapter counts × ~28 avg verses
+            let scopeVerses = 0;
+            scope.forEach(s => {
+              const meta = bookById(s.bookId);
+              const chs = Math.max(0, (s.toChap || meta.chapters || 1) - (s.fromChap || 1) + 1);
+              scopeVerses += chs * 28;
+            });
+            const pct = scopeVerses ? Math.min(100, Math.round((verseCount / scopeVerses) * 100)) : 0;
+            const okCount = Object.values(p.verses || {}).filter(v => v.badge === "ok").length;
+            const failCount = Object.values(p.verses || {}).filter(v => v.badge === "fail").length;
+            // sample (first verse with draft)
+            const sampleKey = Object.keys(p.verses || {}).find(k => p.verses[k] && p.verses[k].draft);
+            const sample = sampleKey ? p.verses[sampleKey] : null;
+            const scopeLabel = scope.length === 1
+              ? `${(bookById(scope[0].bookId).name || scope[0].bookId).toUpperCase()} ${scope[0].fromChap}–${scope[0].toChap}`
+              : (scope.length === 66 ? "WHOLE BIBLE" : `${scope.length} BOOKS`);
+            // ring math
+            const C = 2 * Math.PI * 18;
+            const dashOffset = C - (C * pct / 100);
+            return E("div", { key: p.id, className: "bf-tile", onClick: () => openProject(p.id) },
+              E("div", { className: "bf-tile-row" },
+                E("div", { className: "bf-tile-ring" },
+                  E("svg", { width: 44, height: 44, viewBox: "0 0 44 44" },
+                    E("circle", { cx: 22, cy: 22, r: 18, fill: "none", stroke: "rgba(255,255,255,0.06)", strokeWidth: 3 }),
+                    E("circle", {
+                      cx: 22, cy: 22, r: 18, fill: "none",
+                      stroke: pct === 100 ? "#8de8a8" : "#7ee0ff", strokeWidth: 3,
+                      strokeLinecap: "round",
+                      strokeDasharray: C, strokeDashoffset: dashOffset,
+                      transform: "rotate(-90 22 22)",
+                      style: { transition: "stroke-dashoffset 400ms ease" }
+                    })
+                  ),
+                  E("span", { className: "bf-tile-ring-pct" }, pct + "%")
+                ),
+                E("div", { className: "bf-tile-main" },
+                  E("div", { className: "bf-tile-name" }, p.name),
+                  E("div", { className: "bf-tile-meta" },
+                    E("span", { className: "bf-tile-voice" }, "◆  " + p.voice_template),
+                    E("span", { className: "bf-tile-sep" }, "·"),
+                    E("span", null, scopeLabel),
+                    E("span", { className: "bf-tile-sep" }, "·"),
+                    E("span", null, verseCount + " verses")
+                  )
+                ),
+                E("button", {
+                  className: "bf-tile-rm",
+                  onClick: (e) => { e.stopPropagation(); deleteProject(p.id); },
+                  title: "Delete"
+                }, "×")
+              ),
+              sample && E("blockquote", { className: "bf-tile-sample" },
+                "“", String(sample.draft || "").slice(0, 140), (sample.draft && sample.draft.length > 140 ? "…" : ""), "”"
+              ),
+              E("div", { className: "bf-tile-foot" },
+                p.installed && E("span", { className: "bf-tile-chip bf-tile-chip-ok" }, "● installed"),
+                okCount > 0 && E("span", { className: "bf-tile-chip" }, "✓ " + okCount),
+                failCount > 0 && E("span", { className: "bf-tile-chip bf-tile-chip-fail" }, "✗ " + failCount),
+                E("span", { className: "bf-tile-open" }, "Open  →")
+              )
+            );
+          })
+        ),
         E("div", { className: "bf-community" },
-          E("h4", null, "Community Translations"),
+          E("h4", null, "COMMUNITY  TRANSLATIONS"),
           E("p", null, E("em", null, "Coming soon — browse user-created translations shared with the community."))
         )
       ),
