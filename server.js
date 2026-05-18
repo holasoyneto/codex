@@ -272,12 +272,193 @@ function probeOllama() {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Phase 5.4 — Public Data API (v1)
+// Read-only JSON endpoints over the bundled data/modules/* files. These
+// are additive and do not touch the existing /api/chat, /api/key,
+// /api/health routes above. CORS headers are set globally below.
+// ─────────────────────────────────────────────────────────────────────
+
+const MODULE_DIR = path.join(DIR, "data", "modules");
+const MODULE_CACHE = Object.create(null);
+function readModule(filename) {
+  if (MODULE_CACHE[filename]) return MODULE_CACHE[filename];
+  try {
+    const raw = fs.readFileSync(path.join(MODULE_DIR, filename), "utf8");
+    MODULE_CACHE[filename] = JSON.parse(raw);
+    return MODULE_CACHE[filename];
+  } catch (e) {
+    return null;
+  }
+}
+
+// Simple in-memory IP rate limiter: 100 requests / 60s window.
+const RATE = new Map(); // ip -> { count, windowStart }
+const RATE_LIMIT = 100;
+const RATE_WINDOW_MS = 60_000;
+function rateCheck(ip) {
+  const now = Date.now();
+  const entry = RATE.get(ip);
+  if (!entry || now - entry.windowStart > RATE_WINDOW_MS) {
+    RATE.set(ip, { count: 1, windowStart: now });
+    return { ok: true, remaining: RATE_LIMIT - 1 };
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT) return { ok: false, remaining: 0, retryAfter: Math.ceil((RATE_WINDOW_MS - (now - entry.windowStart)) / 1000) };
+  return { ok: true, remaining: RATE_LIMIT - entry.count };
+}
+
+const APP_VERSION = "5.4.0";
+
+function jsonReply(res, status, body) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(body));
+}
+
+// ISO week (1..53) per ISO-8601.
+function isoWeek(d) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+// Returns true if the URL was handled.
+function handleDataApi(req, res, urlObj) {
+  const p = urlObj.pathname;
+  if (!p.startsWith("/api/v1/")) return false;
+
+  // Rate-limit per IP.
+  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown").toString().split(",")[0].trim();
+  const rc = rateCheck(ip);
+  res.setHeader("X-RateLimit-Limit", String(RATE_LIMIT));
+  res.setHeader("X-RateLimit-Remaining", String(rc.remaining));
+  if (!rc.ok) {
+    res.setHeader("Retry-After", String(rc.retryAfter));
+    jsonReply(res, 429, { error: "rate limit exceeded", retryAfter: rc.retryAfter });
+    return true;
+  }
+
+  // /api/v1/health-public — safe for external monitoring.
+  if (p === "/api/v1/health-public") {
+    let count = 0;
+    try { count = fs.readdirSync(MODULE_DIR).filter(f => f.endsWith(".json") && !f.startsWith("_")).length; } catch {}
+    jsonReply(res, 200, { ok: true, version: APP_VERSION, modules_count: count });
+    return true;
+  }
+
+  // /api/v1/modules — list every bundled module's meta block.
+  if (p === "/api/v1/modules") {
+    const out = [];
+    try {
+      for (const file of fs.readdirSync(MODULE_DIR)) {
+        if (!file.endsWith(".json") || file.startsWith("_")) continue;
+        const mod = readModule(file);
+        if (mod && mod.meta) out.push({ file, ...mod.meta });
+      }
+    } catch (e) {
+      return jsonReply(res, 500, { error: "could not enumerate modules" }), true;
+    }
+    jsonReply(res, 200, { modules: out, count: out.length });
+    return true;
+  }
+
+  // /api/v1/strongs/:id — Strong's lexicon lookup.
+  const mStrongs = p.match(/^\/api\/v1\/strongs\/([HG]\d+)$/i);
+  if (mStrongs) {
+    const id = mStrongs[1].toUpperCase();
+    const file = id[0] === "H" ? "strongs-hebrew.json" : "strongs-greek.json";
+    const mod = readModule(file);
+    if (!mod) return jsonReply(res, 500, { error: "lexicon not available", file }), true;
+    const entry = (mod.entries || {})[id];
+    if (!entry) return jsonReply(res, 404, { error: "not found", id }), true;
+    jsonReply(res, 200, { id, ...entry });
+    return true;
+  }
+
+  // /api/v1/crossref/:ref — TSK cross-references for a verse.
+  const mXref = p.match(/^\/api\/v1\/crossref\/(.+)$/);
+  if (mXref) {
+    const ref = decodeURIComponent(mXref[1]).toLowerCase();
+    const mod = readModule("tsk-sample.json");
+    if (!mod) return jsonReply(res, 500, { error: "crossref data not available" }), true;
+    const list = (mod.verses || {})[ref];
+    if (!list) return jsonReply(res, 404, { error: "not found", ref }), true;
+    jsonReply(res, 200, { ref, crossrefs: list, source: mod.meta?.name || "TSK" });
+    return true;
+  }
+
+  // /api/v1/search — stub. Full-text server-side search is future work.
+  if (p === "/api/v1/search") {
+    const q = (urlObj.searchParams.get("q") || "").trim();
+    const translation = urlObj.searchParams.get("translation") || "kjv";
+    const limit = Math.min(parseInt(urlObj.searchParams.get("limit") || "20", 10) || 20, 100);
+    if (!q) return jsonReply(res, 400, { error: "missing q parameter" }), true;
+    jsonReply(res, 200, {
+      q, translation, limit,
+      results: [],
+      note: "Server-side full-text search is not yet implemented. CODEX currently performs keyword search in the client against cached Bible texts. A full server-side index is planned for Phase 5.6.",
+      stub: true,
+    });
+    return true;
+  }
+
+  // /api/v1/timeline — filter timeline events.
+  if (p === "/api/v1/timeline") {
+    const mod = readModule("timeline-events.json");
+    if (!mod) return jsonReply(res, 500, { error: "timeline data not available" }), true;
+    const from = urlObj.searchParams.has("from") ? parseInt(urlObj.searchParams.get("from"), 10) : -Infinity;
+    const to   = urlObj.searchParams.has("to")   ? parseInt(urlObj.searchParams.get("to"),   10) :  Infinity;
+    const category = urlObj.searchParams.get("category");
+    const era      = urlObj.searchParams.get("era");
+    let events = (mod.events || []).filter(e => {
+      if (typeof e.year === "number" && (e.year < from || e.year > to)) return false;
+      if (category && e.category !== category) return false;
+      if (era && e.era !== era) return false;
+      return true;
+    });
+    const limit = parseInt(urlObj.searchParams.get("limit") || "1000", 10) || 1000;
+    if (events.length > limit) events = events.slice(0, limit);
+    jsonReply(res, 200, { count: events.length, from, to, category: category || null, era: era || null, events });
+    return true;
+  }
+
+  // /api/v1/parsha — current or specified ISO week parsha.
+  if (p === "/api/v1/parsha") {
+    const mod = readModule("parsha.json");
+    if (!mod) return jsonReply(res, 500, { error: "parsha data not available" }), true;
+    const list = mod.parashot || [];
+    const weekParam = urlObj.searchParams.get("week");
+    let weekNum;
+    if (!weekParam || weekParam === "current") weekNum = isoWeek(new Date());
+    else weekNum = parseInt(weekParam, 10);
+    if (!Number.isFinite(weekNum) || weekNum < 1) return jsonReply(res, 400, { error: "invalid week", week: weekParam }), true;
+    // Map ISO week (1..53) into the 54-parsha cycle.
+    const idx = ((weekNum - 1) % list.length + list.length) % list.length;
+    const entry = list[idx];
+    if (!entry) return jsonReply(res, 404, { error: "no parsha for week", week: weekNum }), true;
+    jsonReply(res, 200, { week: weekNum, parsha: entry, cycle: mod.cycle || "annual" });
+    return true;
+  }
+
+  // Unknown /api/v1/* route.
+  jsonReply(res, 404, { error: "unknown endpoint", path: p });
+  return true;
+}
+
 const server = http.createServer(async (req, res) => {
   // CORS for localhost dev
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
+
+  // Phase 5.4 public Data API (GET /api/v1/*). Returns true if handled.
+  if (req.method === "GET" && req.url.startsWith("/api/v1/")) {
+    const urlObj = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    if (handleDataApi(req, res, urlObj)) return;
+  }
 
   if (req.url === "/api/health") {
     // Re-probe Ollama opportunistically (rate-limited to once per 10s)

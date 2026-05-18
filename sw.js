@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v175";
+const VERSION = "v179";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -62,6 +62,7 @@ const SHELL_FILES = [
   r("ai-quests.jsx"),
   r("crossref.jsx"),
   r("strongs.jsx"),
+  r("word-study.jsx"),
   r("data/modules/tsk-sample.json"),
   r("data/modules/strongs-hebrew.json"),
   r("data/modules/strongs-greek.json"),
@@ -72,6 +73,10 @@ const SHELL_FILES = [
   r("data/modules/easton-sample.json"),
   r("timeline.jsx"),
   r("data/modules/timeline-events.json"),
+  r("jewish-study.jsx"),
+  r("data/modules/parsha.json"),
+  r("data/modules/hebrew-calendar.json"),
+  r("data/modules/plan-daf-yomi.json"),
   r("passage-guide.jsx"),
   r("builder.jsx"),
   r("plans.jsx"),
@@ -83,6 +88,8 @@ const SHELL_FILES = [
   r("data/modules/plan-daf-yomi.json"),
   r("data/modules/plan-torah-triennial.json"),
   r("data/modules/kabbalah-mappings.json"),
+  r("marketplace.jsx"),
+  r("data/module-index.json"),
   r("app.jsx"),
   // Bundled Bibles (static JSON shipped in the repo). Pre-cached so
   // first cold offline launch can render apocryphal/Enoch content too.

@@ -271,3 +271,87 @@ Timeline scrubbed. Detail: `{ year }`.
 - [`MODULES.md`](./MODULES.md) — module authoring guide
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute code, modules, translations
 - [`ROADMAP.md`](./ROADMAP.md) — what's next
+
+---
+
+## Phase 5.4 — Public Data API (v1)
+
+Read-only JSON endpoints over the bundled `data/modules/*.json` files. All endpoints are `GET`, return `application/json`, are CORS-open (`Access-Control-Allow-Origin: *`), and are rate-limited to **100 requests / minute / IP** (`429` with `Retry-After` on exceed).
+
+Base path: `/api/v1`
+
+### `GET /api/v1/health-public`
+
+Safe-for-monitoring health probe. Reveals no key, usage, or provider info.
+
+```json
+{ "ok": true, "version": "5.4.0", "modules_count": 18 }
+```
+
+### `GET /api/v1/modules`
+
+Lists every bundled module's `meta` block.
+
+```json
+{ "count": 18, "modules": [ { "file": "strongs-hebrew.json", "id": "strongs-hebrew", "type": "lexicon", "name": "...", "version": "1.0.0" }, ... ] }
+```
+
+### `GET /api/v1/strongs/:id`
+
+Strong's lexicon entry. `id` is `H<n>` (Hebrew) or `G<n>` (Greek). 404 if missing.
+
+```
+GET /api/v1/strongs/H1
+→ { "id": "H1", "word": "אָב", "translit": "av", "gloss": "father", "def": "...", "usage": 1215 }
+```
+
+### `GET /api/v1/crossref/:ref`
+
+TSK cross-references for a verse. `ref` uses lowercase `book.chapter.verse` (e.g. `gen.1.1`, `john.3.16`).
+
+```
+GET /api/v1/crossref/gen.1.1
+→ { "ref": "gen.1.1", "crossrefs": [ { "ref": "jhn.1.1", "theme": "..." }, ... ], "source": "TSK ..." }
+```
+
+### `GET /api/v1/search?q=love&translation=kjv&limit=20`
+
+**Stub.** Full-text server-side search is not yet implemented; CODEX currently searches client-side against cached Bible text. The response includes an explanatory `note` and `stub: true`.
+
+```json
+{ "q": "love", "translation": "kjv", "limit": 20, "results": [], "stub": true, "note": "Server-side full-text search is not yet implemented..." }
+```
+
+### `GET /api/v1/timeline?from=-2000&to=2000&category=narrative&era=patriarchs&limit=1000`
+
+Filter the bundled timeline events. All query params optional. `from`/`to` are integer years (negative = BCE).
+
+```json
+{ "count": 12, "from": -2000, "to": 2000, "category": "narrative", "era": null, "events": [ ... ] }
+```
+
+### `GET /api/v1/parsha?week=current` · `?week=42`
+
+Returns the parsha for the given ISO week (1..53), or the current ISO week if `week` is omitted or `current`. The 54-parsha cycle wraps modulo its length.
+
+```json
+{ "week": 20, "parsha": { "n": 20, "name": "...", "translit": "Tetzaveh", "torah": "exo.27.20-30.10", ... }, "cycle": "annual" }
+```
+
+### Rate limiting
+
+Every `/api/v1/*` response sets `X-RateLimit-Limit` and `X-RateLimit-Remaining`. When the limit is exceeded:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 47
+{ "error": "rate limit exceeded", "retryAfter": 47 }
+```
+
+### Error shape
+
+Misses return JSON 404 with a friendly shape:
+
+```json
+{ "error": "not found", "ref": "gen.99.99" }
+```

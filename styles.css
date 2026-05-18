@@ -7278,21 +7278,35 @@ select.twk-field {
 }
 .twk-seg button { color: var(--cx-fg-dim) !important; font-size: 11px !important; }
 .twk-seg button[data-on="1"] { color: var(--cx-accent) !important; text-shadow: 0 0 4px var(--cx-accent-glow); }
+/* CODEX dark-mode toggle — subtle hairline track at rest, faint accent
+   wash + glow when on. The chunky iOS look is gone; this reads as a
+   terminal switch. Tap area stays 44×44 via parent padding (set in
+   tweaks-panel.jsx inline style). */
 .twk-toggle {
-  background: color-mix(in oklab, var(--cx-fg) 12%, transparent) !important;
-  width: 34px !important; height: 18px !important;
-  border: 1px solid color-mix(in oklab, var(--cx-line) 90%, transparent) !important;
+  background: transparent !important;
+  width: 26px !important; height: 12px !important;
+  border: 1px solid color-mix(in oklab, var(--cx-line-strong) 60%, transparent) !important;
+  box-shadow: none !important;
+  opacity: 0.78;
+  transition: background .14s ease, border-color .14s ease, opacity .14s ease, box-shadow .14s ease !important;
 }
+.twk-toggle:hover { opacity: 1; }
 .twk-toggle[data-on="1"] {
-  background: color-mix(in oklab, var(--cx-accent) 22%, transparent) !important;
+  background: color-mix(in oklab, var(--cx-accent) 18%, transparent) !important;
   border-color: var(--cx-accent) !important;
-  box-shadow: 0 0 8px var(--cx-accent-glow);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--cx-accent) 35%, transparent) !important;
+  opacity: 1;
 }
 .twk-toggle i {
-  background: var(--cx-fg) !important;
+  background: color-mix(in oklab, var(--cx-fg-dim) 60%, transparent) !important;
   box-shadow: none !important;
+  width: 8px !important; height: 8px !important;
+  top: 17px !important; left: 11px !important;
 }
-.twk-toggle[data-on="1"] i { background: var(--cx-accent) !important; }
+.twk-toggle[data-on="1"] i {
+  background: var(--cx-accent) !important;
+  box-shadow: 0 0 4px color-mix(in oklab, var(--cx-accent) 60%, transparent) !important;
+}
 .twk-btn {
   background: color-mix(in oklab, var(--cx-accent) 12%, transparent) !important;
   color: var(--cx-accent) !important;
@@ -14238,3 +14252,374 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
   border-color: var(--cx-accent, #7ee0ff);
   box-shadow: 0 0 0 1px var(--cx-accent, #7ee0ff);
 }
+
+/* ===== Jewish Study Tools ===== */
+.cx-js-pane {
+  --cx-js-gold: #d4af5a;
+  --cx-js-gold-soft: rgba(212, 175, 90, 0.18);
+  padding: 12px 14px 16px;
+  color: var(--cx-fg, #c9d4dc);
+  font-family: var(--cx-font-ui, ui-sans-serif, system-ui);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.cx-js-datestrip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--cx-rule, rgba(126, 224, 255, 0.18));
+  text-align: center;
+}
+.cx-js-hebdate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.cx-js-approx {
+  font-size: 11px;
+  opacity: 0.55;
+  letter-spacing: 0.08em;
+}
+.cx-js-hebbig {
+  font-family: "Cardo", "Times New Roman", serif;
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--cx-fg, #e6eef5);
+  direction: rtl;
+}
+.cx-js-hebmonth {
+  font-family: "Cardo", serif;
+}
+.cx-js-translit {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.cx-js-gregdate {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.cx-js-section-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.cx-js-gold {
+  color: var(--cx-js-gold);
+  opacity: 0.95;
+}
+.cx-js-parsha {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--cx-rule, rgba(126, 224, 255, 0.18));
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0));
+  text-align: center;
+}
+.cx-js-parsha-name {
+  font-family: "Cardo", "Times New Roman", serif;
+  font-size: 34px;
+  line-height: 1.15;
+  color: #e6eef5;
+  direction: rtl;
+  margin: 6px 0 2px;
+}
+.cx-js-parsha-translit {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+.cx-js-parsha-meaning {
+  font-style: italic;
+  opacity: 0.75;
+}
+.cx-js-parsha-readings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px dotted rgba(255,255,255,0.08);
+  border-bottom: 1px dotted rgba(255,255,255,0.08);
+  margin-bottom: 10px;
+}
+.cx-js-reading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+.cx-js-reading-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.cx-js-ref {
+  background: transparent;
+  border: 0;
+  color: var(--cx-accent, #7ee0ff);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+.cx-js-ref:hover { text-decoration: underline; }
+.cx-js-ref-lg { font-size: 14px; font-weight: 600; }
+.cx-js-parsha-nav {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.cx-js-pill {
+  background: transparent;
+  border: 1px solid var(--cx-rule, rgba(126, 224, 255, 0.3));
+  color: var(--cx-fg, #c9d4dc);
+  padding: 4px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border-radius: 999px;
+  font-family: inherit;
+}
+.cx-js-pill:hover { border-color: var(--cx-accent, #7ee0ff); }
+.cx-js-pill-today {
+  border-color: var(--cx-js-gold);
+  color: var(--cx-js-gold);
+}
+.cx-js-holiday-card {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--cx-js-gold);
+  border-radius: 6px;
+  background: var(--cx-js-gold-soft);
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(212, 175, 90, 0.08) inset;
+}
+.cx-js-holiday-name {
+  font-family: "Cardo", serif;
+  font-size: 26px;
+  direction: rtl;
+  color: #f3e5b8;
+  margin: 4px 0;
+}
+.cx-js-holiday-translit {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.cx-js-holiday-readings {
+  border-top: 1px dotted rgba(212, 175, 90, 0.3);
+  padding-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.cx-js-reading-refs { font-size: 12px; }
+.cx-js-next-holiday {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  opacity: 0.85;
+  border-left: 2px solid var(--cx-js-gold);
+  background: rgba(212, 175, 90, 0.06);
+  border-radius: 0 3px 3px 0;
+}
+.cx-js-daf {
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 1px dotted var(--cx-rule, rgba(126, 224, 255, 0.2));
+  border-radius: 4px;
+}
+.cx-js-daf-refs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cx-js-daf-ref {
+  font-family: var(--cx-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+.cx-js-collapse {
+  margin-bottom: 8px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.cx-js-collapse-head {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--cx-fg, #c9d4dc);
+  padding: 8px 0;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cx-js-collapse-head:hover { color: var(--cx-accent, #7ee0ff); }
+.cx-js-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.cx-js-table th,
+.cx-js-table td {
+  text-align: left;
+  padding: 4px 6px;
+  border-bottom: 1px dotted rgba(255,255,255,0.06);
+  vertical-align: top;
+}
+.cx-js-table th {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  font-weight: 600;
+}
+.cx-js-heb {
+  font-family: "Cardo", "Times New Roman", serif;
+  font-size: 16px;
+  direction: rtl;
+}
+.cx-js-dim { opacity: 0.65; }
+.cx-js-holiday-list { list-style: none; margin: 0; padding: 0; }
+.cx-js-holiday-li {
+  padding: 8px 0;
+  border-bottom: 1px dotted rgba(255,255,255,0.06);
+}
+.cx-js-holiday-li-head { margin-bottom: 4px; font-size: 13px; }
+.cx-js-status {
+  padding: 12px 4px;
+  opacity: 0.75;
+  font-size: 12px;
+}
+.cx-js-warn { color: var(--cx-warn, #ffc46b); }
+.cx-js-foot {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--cx-rule, rgba(126, 224, 255, 0.12));
+  font-size: 10px;
+  opacity: 0.55;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+/* ===== Word Study ===== */
+.cx-ws-panel { padding: 0.5rem 0.75rem; font-size: 0.92em; }
+.cx-ws-search { display: flex; gap: 0.4rem; margin-bottom: 0.9rem; }
+.cx-ws-input {
+  flex: 1; padding: 0.4rem 0.55rem; font-family: inherit; font-size: 0.92em;
+  background: transparent; border: 1px solid var(--cx-border, #444);
+  color: inherit; border-radius: 3px;
+}
+.cx-ws-go {
+  padding: 0.4rem 0.75rem; font: inherit; font-size: 0.85em;
+  background: transparent; border: 1px solid var(--cx-border, #444);
+  color: inherit; border-radius: 3px; cursor: pointer; letter-spacing: 0.04em;
+}
+.cx-ws-go:hover { border-color: var(--cx-accent, #7ee0ff); color: var(--cx-accent, #7ee0ff); }
+.cx-ws-empty { padding: 0.5rem 0; color: var(--cx-fg-soft, #aaa); font-size: 0.9em; }
+.cx-ws-empty code {
+  background: rgba(128,128,128,0.12); padding: 0.05em 0.35em; border-radius: 3px; font-size: 0.85em;
+}
+.cx-ws-section { margin: 0 0 1.1rem; }
+.cx-ws-h {
+  margin: 0.25rem 0 0.45rem; font-size: 0.78em; text-transform: uppercase;
+  letter-spacing: 0.08em; opacity: 0.65; font-weight: 600;
+}
+.cx-ws-hero {
+  text-align: center; padding: 1rem 0.4rem 1.1rem;
+  border-bottom: 1px solid var(--cx-border-soft, rgba(128,128,128,0.18));
+  margin-bottom: 1.1rem;
+}
+.cx-ws-hero-word {
+  font-family: "Cardo", "Cormorant Garamond", Georgia, serif;
+  font-size: 2.4rem; line-height: 1.1; letter-spacing: 0.01em;
+  color: var(--cx-accent, #7ee0ff);
+}
+.cx-ws-hero-heb, .cx-ws-hero-grk { font-size: 2.8rem; }
+.cx-ws-hero-translit {
+  font-style: italic; opacity: 0.85; margin-top: 0.25rem; font-size: 1.05em;
+}
+.cx-ws-hero-meta { margin-top: 0.55rem; font-size: 0.88em; opacity: 0.8; }
+.cx-ws-strongs {
+  background: rgba(128,128,128,0.14); padding: 0.1em 0.45em; border-radius: 3px;
+  margin-right: 0.55em; font-size: 0.85em;
+}
+.cx-ws-gloss { font-weight: 500; }
+.cx-ws-srange { list-style: disc; padding-left: 1.1rem; margin: 0; line-height: 1.45; }
+.cx-ws-srange li { margin: 0.1em 0; }
+.cx-ws-freq-total { margin: 0 0 0.55rem; font-size: 0.9em; }
+.cx-ws-bars { list-style: none; padding: 0; margin: 0; }
+.cx-ws-bar-row {
+  display: grid; grid-template-columns: 7em 1fr 2.5em; gap: 0.55em;
+  align-items: center; padding: 0.15rem 0; font-size: 0.85em;
+}
+.cx-ws-bar-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
+.cx-ws-bar-track {
+  height: 0.55em; background: rgba(128,128,128,0.13); border-radius: 2px;
+  position: relative; overflow: hidden;
+}
+.cx-ws-bar-fill {
+  display: block; height: 100%;
+  background: var(--cx-accent, #7ee0ff); opacity: 0.78;
+}
+.cx-ws-bar-count { text-align: right; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.cx-ws-occ { list-style: none; padding: 0; margin: 0; }
+.cx-ws-occ-item {
+  padding: 0.5rem 0.55rem; margin-bottom: 0.4rem; cursor: pointer;
+  border: 1px solid var(--cx-border-soft, rgba(128,128,128,0.18)); border-radius: 3px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.cx-ws-occ-item:hover {
+  border-color: var(--cx-accent, #7ee0ff);
+  background: rgba(126, 224, 255, 0.05);
+}
+.cx-ws-occ-ref { font-weight: 600; font-size: 0.82em; opacity: 0.85; margin-bottom: 0.2em; }
+.cx-ws-occ-snip { font-size: 0.88em; line-height: 1.4; opacity: 0.9; }
+.cx-ws-occ-snip mark {
+  background: rgba(126, 224, 255, 0.22); color: inherit; padding: 0 0.1em;
+}
+.cx-ws-related { display: flex; flex-direction: column; gap: 0.65rem; }
+.cx-ws-rel-group {}
+.cx-ws-rel-label {
+  font-size: 0.72em; letter-spacing: 0.07em; text-transform: uppercase;
+  opacity: 0.6; margin-bottom: 0.25rem;
+}
+.cx-ws-rel-list { list-style: none; padding: 0; margin: 0; }
+.cx-ws-rel-item {
+  padding: 0.2rem 0; font-size: 0.88em; line-height: 1.4;
+  display: flex; flex-wrap: wrap; gap: 0.4em; align-items: baseline;
+}
+.cx-ws-rel-word { font-weight: 600; }
+.cx-ws-rel-strongs {
+  font-size: 0.78em; opacity: 0.65;
+  background: rgba(128,128,128,0.12); padding: 0.05em 0.3em; border-radius: 2px;
+}
+.cx-ws-rel-mean { opacity: 0.8; }
+.cx-ws-theology {
+  font-family: "Cardo", "Cormorant Garamond", Georgia, serif;
+  font-size: 1.04em; line-height: 1.55; font-style: italic;
+  margin: 0; padding: 0.65rem 0.9rem;
+  border-left: 3px solid var(--cx-accent, #7ee0ff);
+  background: rgba(126, 224, 255, 0.04);
+}
+.cx-ws-cite-note { font-size: 0.85em; line-height: 1.45; }

@@ -110,13 +110,23 @@ const __TWEAKS_STYLE = `
     border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
     overflow-wrap:anywhere}
 
-  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
-    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;
-    padding:13px 5px;box-sizing:content-box}
-  .twk-toggle[data-on="1"]{background:#34c759}
-  .twk-toggle i{position:absolute;top:15px;left:7px;width:14px;height:14px;border-radius:50%;
-    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
-  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+  /* Subtle, CODEX-aesthetic toggle. Used to be a chunky iOS-green capsule;
+     now a thin track with a hairline border at rest, accent fill when on.
+     The 44×44 hit area is preserved via padding (the user wins the tap;
+     the visible footprint is just the 26×12 track). */
+  .twk-toggle{position:relative;width:26px;height:12px;border:0;border-radius:999px;
+    background:transparent;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);
+    transition:background .14s ease,box-shadow .14s ease,opacity .14s ease;
+    cursor:default;padding:16px 9px;box-sizing:content-box;opacity:.78}
+  .twk-toggle:hover{opacity:1}
+  .twk-toggle[data-on="1"]{background:#34c759;box-shadow:inset 0 0 0 1px #34c759;opacity:1}
+  .twk-toggle i{position:absolute;top:17px;left:10px;width:10px;height:10px;border-radius:50%;
+    background:rgba(0,0,0,.45);
+    box-shadow:none;
+    transition:transform .16s cubic-bezier(.3,.7,.4,1),background .14s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px);background:#fff;
+    box-shadow:0 1px 2px rgba(0,0,0,.15)}
 
   .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:26px;padding:0 0 0 8px;
     border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
