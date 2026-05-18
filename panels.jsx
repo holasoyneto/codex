@@ -130,39 +130,109 @@ function RightRail({
   );
 }
 
-// Host that lets a plugin render either a React element (returned from
-// render()) OR mutate the container DOM directly (for non-React plugins).
-// The container is cleared and re-invoked whenever the relevant ctx changes.
-function PluginPanelHost({ panel, book, bookId, chapter, verse, translation }) {
-  const containerRef = useRef(null);
-  const [reactNode, setReactNode] = useState(null);
+// ── Plugin error boundary ─────────────────────────────────────────────
+// Catches throws from inside a plugin's React tree so one broken plugin
+// can't take down the whole app. Resets via key when panel switches.
+class PluginErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  componentDidCatch(err, info) {
+    console.warn("[CODEX plugin error]", err, info);
+  }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="cx-plugin-error">
+          <b>Plugin crashed</b>
+          <pre>{String(this.state.err.message || this.state.err)}</pre>
+          <small>This crash was caught and contained — the rest of the app keeps working.</small>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
+// DOM-mutation plugin mount — for non-React plugins that paint into a
+// raw container. Has a proper unmount that clears the container so the
+// plugin can clean up listeners on its end via MutationObserver if it
+// cares. React tree never touches this subtree, so there's no
+// reconciliation conflict.
+function DomPluginMount({ panel, book, bookId, chapter, verse, translation }) {
+  const ref = useRef(null);
   useEffect(() => {
-    const el = containerRef.current;
+    const el = ref.current;
     if (!el) return;
-    // Reset between renders — plugins that mutate DOM expect a fresh node.
     el.innerHTML = "";
-    setReactNode(null);
     try {
-      const result = panel.render({
-        book, bookId, chapter, verse, translation, container: el,
-      });
-      // React element returned? Render it into our state slot.
-      if (result && (React.isValidElement(result) || typeof result === "string" || typeof result === "number")) {
-        setReactNode(result);
-      }
+      const r = panel.render({ book, bookId, chapter, verse, translation, container: el });
+      if (typeof r === "string") el.textContent = r;
     } catch (e) {
-      console.warn(`CODEX plugin panel "${panel.pluginId}:${panel.id}" threw:`, e);
+      console.warn(`[CODEX plugin "${panel.pluginId}:${panel.id}" DOM mount threw]`, e);
       el.textContent = `Plugin error: ${e.message || e}`;
     }
+    return () => {
+      // Cleanup on unmount or before next render — plugin's MutationObserver
+      // sees the wipe and can shut down listeners.
+      if (el) el.innerHTML = "";
+    };
   }, [panel, book, bookId, chapter, verse, translation]);
+  return <div ref={ref} className="cx-plugin-mount-dom" />;
+}
+
+// Host that mounts a plugin panel.
+//
+// Two paths:
+//   1. React-element plugins (the common case): render() returns a React
+//      element. We just render it inside an ErrorBoundary. React owns
+//      lifecycle — clean mount/unmount when key changes. No DOM
+//      mutation. This is what Reels, Strong's, Cross-refs, etc. use.
+//   2. DOM-mutation plugins: render() returns nothing useful and mutates
+//      the `container` arg directly. We delegate to DomPluginMount which
+//      keeps React out of that subtree entirely.
+//
+// The previous implementation tried to do both in one effect, calling
+// `el.innerHTML = ""` to reset between renders. That wiped React-managed
+// DOM out from under the reconciler — switching tabs (e.g. Reels →
+// Strong's) crashed the whole app. Fixed by splitting paths and using a
+// stable key so React unmounts the prior plugin tree cleanly.
+function PluginPanelHost({ panel, book, bookId, chapter, verse, translation }) {
+  const ctx = { book, bookId, chapter, verse, translation };
+  // Call render synchronously in the render phase. For most plugins
+  // this returns a fresh React element. Don't wrap in state — the
+  // ErrorBoundary handles failures from inside the returned tree, and
+  // synchronous throws are caught here.
+  let reactEl = null;
+  let renderErr = null;
+  try { reactEl = panel.render(ctx); }
+  catch (e) { renderErr = e; }
+
+  const isReact = reactEl && (
+    React.isValidElement(reactEl) ||
+    typeof reactEl === "string" ||
+    typeof reactEl === "number"
+  );
+  // Stable key per plugin tab — switching tabs forces a full unmount of
+  // the previous plugin's tree (including useEffect cleanups, intervals,
+  // listeners). This is the lifecycle Reels et al. need.
+  const panelKey = `${panel.pluginId || "?"}:${panel.id}`;
 
   return (
     <div className="cx-pane cx-pane-plugin">
       <PaneHead title={panel.label.toUpperCase()} sub={`${book} ${chapter}${verse ? ":" + verse : ""}`} />
-      <div ref={containerRef} className="cx-plugin-mount">
-        {reactNode}
-      </div>
+      {renderErr ? (
+        <div className="cx-plugin-error">
+          <b>Plugin failed to render</b>
+          <pre>{String(renderErr.message || renderErr)}</pre>
+        </div>
+      ) : isReact ? (
+        <PluginErrorBoundary key={panelKey}>
+          <div className="cx-plugin-mount">{reactEl}</div>
+        </PluginErrorBoundary>
+      ) : (
+        <DomPluginMount key={panelKey} panel={panel} book={book} bookId={bookId}
+                        chapter={chapter} verse={verse} translation={translation} />
+      )}
     </div>
   );
 }

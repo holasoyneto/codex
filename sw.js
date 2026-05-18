@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v168";
+const VERSION = "v170";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -67,6 +67,15 @@ const SHELL_FILES = [
   r("data/modules/alignment-kjv-sample.json"),
   r("reels.jsx"),
   r("data/modules/reels-curated.json"),
+  r("passage-guide.jsx"),
+  r("plans.jsx"),
+  r("data/modules/plan-canonical-1y.json"),
+  r("data/modules/plan-chronological-1y.json"),
+  r("data/modules/plan-gospels-90.json"),
+  r("data/modules/plan-psalms-30.json"),
+  r("data/modules/plan-whole-bible-90.json"),
+  r("data/modules/plan-daf-yomi.json"),
+  r("data/modules/plan-torah-triennial.json"),
   r("data/modules/kabbalah-mappings.json"),
   r("app.jsx"),
   // Bundled Bibles (static JSON shipped in the repo). Pre-cached so

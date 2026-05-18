@@ -463,8 +463,164 @@
     } catch {}
   })();
 
+  // ── Semantic (concept) search ─────────────────────────────────────
+  // AI-powered. POSTs the query to /api/chat asking for a JSON array of
+  // relevant passages. Cached per (query, lang) in localStorage so repeats
+  // are instant + work offline.
+  function _hashStr(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function _lang() {
+    try { return (window.codexLangName && window.codexLangName()) || "English"; }
+    catch { return "English"; }
+  }
+  function _tweaks() {
+    try { return JSON.parse(localStorage.getItem("codex.tweaks.v1") || "{}") || {}; }
+    catch { return {}; }
+  }
+  function _conceptCacheKey(query, lang) {
+    return `codex.search.concept.${_hashStr(query.trim().toLowerCase())}.${lang}`;
+  }
+  function _readConceptCache(query, lang) {
+    try {
+      const raw = localStorage.getItem(_conceptCacheKey(query, lang));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.results)) return null;
+      return parsed;
+    } catch { return null; }
+  }
+  function _writeConceptCache(query, lang, results) {
+    try {
+      localStorage.setItem(_conceptCacheKey(query, lang),
+        JSON.stringify({ ts: Date.now(), results }));
+    } catch {}
+  }
+
+  const SEMANTIC_SYSTEM =
+    "You are CODEX SEMANTIC SEARCH. The user is asking for Bible passages " +
+    "relevant to their concept query. Return ONLY a JSON array (no prose) of " +
+    "relevant passages, ranked by relevance. 15 results max. For each: ref " +
+    "(book chapter:verse like \"John 3:16\"), passage_text (the verse text in " +
+    "KJV unless user implies another translation), relevance (one short " +
+    "sentence on why this passage is relevant), score (0.0-1.0). Cast a wide " +
+    "net — include both obvious and surprising matches. Span Old + New " +
+    "Testament + apocrypha where relevant.";
+
+  function _parseSemanticJSON(text) {
+    if (!text) return [];
+    // Strip ```json fences if any
+    let t = String(text).trim();
+    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) t = fence[1].trim();
+    // Try to find the array bounds if there's prose
+    const first = t.indexOf("[");
+    const last  = t.lastIndexOf("]");
+    if (first >= 0 && last > first) t = t.slice(first, last + 1);
+    try {
+      const arr = JSON.parse(t);
+      if (!Array.isArray(arr)) return [];
+      return arr.filter(x => x && typeof x.ref === "string").map(x => ({
+        ref: x.ref,
+        passage_text: typeof x.passage_text === "string" ? x.passage_text : "",
+        relevance: typeof x.relevance === "string" ? x.relevance : "",
+        score: typeof x.score === "number"
+          ? Math.max(0, Math.min(1, x.score))
+          : 0.5,
+      }));
+    } catch { return []; }
+  }
+
+  // Parse "John 3:16" / "1 John 3:16" / "Song of Solomon 2:1" → {bookId, chapter, verse}
+  function _parseHumanRef(ref) {
+    if (!ref || typeof ref !== "string") return null;
+    const m = ref.trim().match(/^(.+?)\s+(\d+):(\d+)/);
+    if (!m) return null;
+    const name = m[1].trim().toLowerCase();
+    const chapter = Number(m[2]);
+    const verse = Number(m[3]);
+    let bookId = null;
+    try {
+      const books = (window.CODEX_DATA && window.CODEX_DATA.books) || [];
+      const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, "");
+      const target = norm(name);
+      let best = books.find(b => norm(b.name) === target || norm(b.id) === target);
+      if (!best) best = books.find(b =>
+        norm(b.name).startsWith(target) || target.startsWith(norm(b.name)));
+      if (!best && Array.isArray(books)) {
+        // aliases like "Ps" → Psalms, "Mt" → Matthew, "1Jn" → 1 John
+        best = books.find(b => {
+          const aliases = b.aliases || [];
+          return aliases.some(a => norm(a) === target);
+        });
+      }
+      if (best) bookId = best.id;
+    } catch {}
+    return { bookId, bookName: m[1].trim(), chapter, verse };
+  }
+
+  async function searchSemantic(query, opts = {}) {
+    const q = String(query || "").trim();
+    if (!q) return { results: [], fromCache: false };
+    const lang = opts.lang || _lang();
+
+    // Cache first
+    const cached = _readConceptCache(q, lang);
+    if (cached && !opts.force) {
+      return { results: cached.results, fromCache: true, ts: cached.ts };
+    }
+
+    const tweaks = _tweaks();
+    const provider = opts.provider || tweaks.provider || "anthropic";
+    const model    = opts.model    || tweaks.model    || null;
+
+    let resp;
+    try {
+      resp = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider, model,
+          system: SEMANTIC_SYSTEM,
+          messages: [{ role: "user", content: q }],
+          max_tokens: 2000,
+        }),
+      });
+    } catch (e) {
+      const err = new Error("network");
+      err.kind = "network";
+      throw err;
+    }
+    let data = null;
+    try { data = await resp.json(); } catch {}
+    if (!resp.ok) {
+      const msg = (data && data.error) || `HTTP ${resp.status}`;
+      const err = new Error(msg);
+      err.kind = /key|auth|401|403/i.test(String(msg)) ? "auth" : "api";
+      throw err;
+    }
+    const items = _parseSemanticJSON(data && data.text);
+    const enriched = items.map(it => {
+      const parsed = _parseHumanRef(it.ref);
+      return {
+        ref: it.ref,
+        bookId: parsed?.bookId || null,
+        chapter: parsed?.chapter || null,
+        verse:   parsed?.verse   || null,
+        text: it.passage_text,
+        relevance: it.relevance,
+        score: it.score,
+      };
+    });
+    _writeConceptCache(q, lang, enriched);
+    return { results: enriched, fromCache: false, ts: Date.now() };
+  }
+
   window.CODEX_SEARCH = {
     index, ingestPassage, search, clear, stats, ready,
+    searchSemantic,
   };
 })();
 
@@ -485,27 +641,51 @@
   function _register() {
     const { useState, useEffect, useRef } = window.React;
 
+    const MODE_KEY = "codex.search.mode";
+    function _readMode() {
+      try {
+        const v = localStorage.getItem(MODE_KEY);
+        return v === "concept" ? "concept" : "text";
+      } catch { return "text"; }
+    }
+    function _writeMode(m) {
+      try { localStorage.setItem(MODE_KEY, m); } catch {}
+    }
+
     function SearchBar({ open, onClose, onNavigate }) {
+      const [mode, setMode] = useState(_readMode());
       const [q, setQ] = useState("");
-      const [results, setResults] = useState([]);
+      const [results, setResults] = useState([]);          // text results
+      const [conceptResults, setConceptResults] = useState([]);
+      const [conceptStatus, setConceptStatus] = useState("idle"); // idle|loading|done|error
+      const [conceptErr, setConceptErr] = useState(null);
+      const [conceptFromCache, setConceptFromCache] = useState(false);
       const [sel, setSel] = useState(0);
       const [stats, setStats] = useState(null);
       const inputRef = useRef(null);
       const listRef = useRef(null);
+      const debounceRef = useRef(null);
 
       useEffect(() => {
         if (!open) return;
-        // Focus input on open
         const id = setTimeout(() => inputRef.current?.focus(), 30);
         setStats(window.CODEX_SEARCH?.stats?.() || null);
         return () => clearTimeout(id);
       }, [open]);
 
       useEffect(() => {
-        if (!open) { setQ(""); setResults([]); setSel(0); }
+        if (!open) {
+          setQ(""); setResults([]); setConceptResults([]);
+          setConceptStatus("idle"); setConceptErr(null); setConceptFromCache(false);
+          setSel(0);
+        }
       }, [open]);
 
+      useEffect(() => { _writeMode(mode); }, [mode]);
+
+      // TEXT mode live search
       useEffect(() => {
+        if (mode !== "text") return;
         let cancelled = false;
         if (!q.trim()) { setResults([]); setSel(0); return; }
         (async () => {
@@ -521,26 +701,124 @@
           }
         })();
         return () => { cancelled = true; };
-      }, [q]);
+      }, [q, mode]);
 
-      function pick(r) {
+      // CONCEPT mode — show cached instantly, debounce live AI fetch
+      useEffect(() => {
+        if (mode !== "concept") return;
+        if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+        const query = q.trim();
+        if (!query) {
+          setConceptResults([]); setConceptStatus("idle");
+          setConceptErr(null); setConceptFromCache(false); setSel(0);
+          return;
+        }
+        // Try cache instantly
+        let hadCache = false;
+        try {
+          const cacheRaw = localStorage.getItem(
+            "codex.search.concept." +
+              ((s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); })(query.toLowerCase()) +
+              "." + ((window.codexLangName && window.codexLangName()) || "English")
+          );
+          if (cacheRaw) {
+            const c = JSON.parse(cacheRaw);
+            if (c && Array.isArray(c.results) && c.results.length) {
+              setConceptResults(c.results);
+              setConceptStatus("done");
+              setConceptFromCache(true);
+              setConceptErr(null);
+              setSel(0);
+              hadCache = true;
+            }
+          }
+        } catch {}
+
+        debounceRef.current = setTimeout(async () => {
+          if (!hadCache) {
+            setConceptStatus("loading");
+            setConceptErr(null);
+          }
+          try {
+            const { results, fromCache } = await window.CODEX_SEARCH.searchSemantic(query);
+            setConceptResults(results || []);
+            setConceptStatus("done");
+            setConceptFromCache(!!fromCache);
+            setSel(0);
+          } catch (e) {
+            if (!hadCache) {
+              setConceptStatus("error");
+              setConceptErr(e);
+            }
+          }
+        }, 600);
+
+        return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+      }, [q, mode]);
+
+      function pickText(r) {
         if (!r) return;
         const p = r.pretty;
         onNavigate?.(p.bookId, p.chapter, p.verse);
         onClose?.();
       }
+      function pickConcept(r) {
+        if (!r) return;
+        const bookId = r.bookId;
+        if (bookId && typeof window.codexJumpToRef === "function") {
+          window.codexJumpToRef(bookId, r.chapter, r.verse);
+        } else if (typeof onNavigate === "function" && bookId) {
+          onNavigate(bookId, r.chapter, r.verse);
+        }
+        onClose?.();
+      }
 
+      function activeList() {
+        return mode === "concept" ? conceptResults : results;
+      }
+      function pickActive(i) {
+        const list = activeList();
+        const r = list[i];
+        if (!r) return;
+        if (mode === "concept") pickConcept(r);
+        else pickText(r);
+      }
       function onKeyDown(e) {
         if (e.key === "Escape") { e.preventDefault(); onClose?.(); return; }
+        const list = activeList();
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          setSel(s => Math.min(results.length - 1, s + 1));
+          setSel(s => Math.min(list.length - 1, s + 1));
         } else if (e.key === "ArrowUp") {
           e.preventDefault();
           setSel(s => Math.max(0, s - 1));
         } else if (e.key === "Enter") {
           e.preventDefault();
-          pick(results[sel]);
+          if (mode === "concept") {
+            // Force immediate fetch (cancel debounce)
+            if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+            if (conceptStatus === "loading" || !q.trim()) return;
+            if (list.length && conceptStatus === "done") {
+              pickActive(sel);
+            } else {
+              // Trigger an immediate semantic fetch
+              (async () => {
+                setConceptStatus("loading"); setConceptErr(null);
+                try {
+                  const { results, fromCache } = await window.CODEX_SEARCH.searchSemantic(q.trim());
+                  setConceptResults(results || []);
+                  setConceptStatus("done");
+                  setConceptFromCache(!!fromCache);
+                  setSel(0);
+                } catch (err) {
+                  setConceptStatus("error");
+                  setConceptErr(err);
+                }
+              })();
+            }
+          } else {
+            pickActive(sel);
+          }
         }
       }
 
@@ -552,79 +830,168 @@
 
       if (!open) return null;
       const React = window.React;
-      return React.createElement(
-        "div",
+      const h = React.createElement;
+
+      function renderModeTabs() {
+        return h("div", { className: "cx-search-modes", role: "tablist" },
+          ["text", "concept"].map(m =>
+            h("button", {
+              key: m,
+              type: "button",
+              role: "tab",
+              "aria-selected": mode === m,
+              className: "cx-search-mode-tab" + (mode === m ? " is-active" : ""),
+              onClick: () => { setMode(m); setSel(0); inputRef.current?.focus(); },
+            }, m === "text" ? "TEXT" : "CONCEPT")
+          )
+        );
+      }
+
+      function renderDots(score) {
+        const filled = Math.max(0, Math.min(5, Math.round((score || 0) * 5)));
+        const arr = [];
+        for (let i = 0; i < 5; i++) {
+          arr.push(h("span", {
+            key: i,
+            className: "cx-search-dot" + (i < filled ? " is-on" : ""),
+          }));
+        }
+        return h("span", { className: "cx-search-dots", "aria-label": `relevance ${filled}/5` }, ...arr);
+      }
+
+      function renderConceptResults() {
+        if (conceptStatus === "loading") {
+          return h("ul", { className: "cx-search-results cx-search-concept-list", "aria-busy": "true" },
+            [0,1,2,3,4].map(i =>
+              h("li", { key: i, className: "cx-search-row cx-search-skel" },
+                h("div", { className: "cx-search-skel-line cx-search-skel-ref" }),
+                h("div", { className: "cx-search-skel-line cx-search-skel-text" }),
+                h("div", { className: "cx-search-skel-line cx-search-skel-why" })
+              )
+            )
+          );
+        }
+        if (conceptStatus === "error") {
+          const kind = conceptErr?.kind;
+          let msg;
+          if (kind === "auth") {
+            msg = "Concept search needs an AI key. Add one in Settings → AI Engines. Switch to TEXT for offline keyword search.";
+          } else if (kind === "network") {
+            msg = "Network error, try again. Switch to TEXT for offline keyword search.";
+          } else {
+            msg = (conceptErr?.message || "Concept search failed.") + " Switch to TEXT for offline keyword search.";
+          }
+          return h("div", { className: "cx-search-empty cx-search-concept-err" }, msg);
+        }
+        if (conceptStatus === "done" && conceptResults.length === 0 && q.trim()) {
+          return h("div", { className: "cx-search-empty" }, "No concept matches. Try rephrasing.");
+        }
+        if (!conceptResults.length) return null;
+        return h("ul",
+          { className: "cx-search-results cx-search-concept-list", ref: listRef, role: "listbox" },
+          conceptResults.map((r, i) =>
+            h("li", {
+              key: r.ref + "|" + i,
+              "data-idx": i,
+              className: "cx-search-row cx-search-concept-row" + (i === sel ? " is-sel" : "")
+                + (r.bookId ? "" : " is-unjumpable"),
+              role: "option",
+              "aria-selected": i === sel,
+              onMouseEnter: () => setSel(i),
+              onClick: () => pickConcept(r),
+              title: r.bookId ? "" : "Reference could not be resolved to a book id",
+            },
+              h("div", { className: "cx-search-concept-head" },
+                h("b", { className: "cx-search-concept-ref" }, r.ref),
+                renderDots(r.score)
+              ),
+              r.text
+                ? h("div", { className: "cx-search-concept-text" }, r.text)
+                : null,
+              r.relevance
+                ? h("div", { className: "cx-search-concept-why" }, r.relevance)
+                : null
+            )
+          )
+        );
+      }
+
+      const placeholder = mode === "concept"
+        ? "Find passages about… (e.g. 'forgiveness', 'shepherd metaphors', 'words of Jesus on prayer')"
+        : "search scripture · \"phrase\" · lov* · @KJV love";
+
+      let footText;
+      if (mode === "concept") {
+        if (conceptStatus === "loading") footText = "asking the engine…";
+        else if (conceptStatus === "done" && conceptFromCache) footText = "concept · cached · offline";
+        else if (conceptStatus === "done") footText = `concept · ${conceptResults.length} result${conceptResults.length === 1 ? "" : "s"}`;
+        else if (conceptStatus === "error") footText = "concept · error";
+        else footText = "concept · powered by AI";
+      } else {
+        footText = stats
+          ? `${stats.verses.toLocaleString()} verses · ${stats.translations} translation${stats.translations === 1 ? "" : "s"} · offline`
+          : "indexing…";
+      }
+
+      return h("div",
         {
           className: "cx-search-backdrop",
           role: "dialog",
           "aria-modal": "true",
-          "aria-label": "Full-text scripture search",
+          "aria-label": "Scripture search",
           onClick: () => onClose?.(),
         },
-        React.createElement(
-          "div",
-          { className: "cx-search-modal", onClick: (e) => e.stopPropagation() },
-          React.createElement(
-            "div",
-            { className: "cx-search-bar" },
-            React.createElement("span", { className: "cx-search-prompt" }, "›"),
-            React.createElement("input", {
+        h("div", { className: "cx-search-modal", onClick: (e) => e.stopPropagation() },
+          renderModeTabs(),
+          h("div", { className: "cx-search-bar" },
+            h("span", { className: "cx-search-prompt" }, mode === "concept" ? "✦" : "›"),
+            h("input", {
               ref: inputRef,
               className: "cx-search-input",
               type: "search",
               autoFocus: true,
               spellCheck: false,
-              placeholder: "search scripture · \"phrase\" · lov* · @KJV love",
+              placeholder,
               value: q,
               onChange: (e) => setQ(e.target.value),
               onKeyDown,
               "data-cx-search": "1",
             }),
-            React.createElement("span", { className: "cx-search-kbd" }, "ESC")
+            h("span", { className: "cx-search-kbd" }, "ESC")
           ),
-          q.trim() && results.length === 0
-            ? React.createElement("div", { className: "cx-search-empty" },
-                "No matches. Try fewer or different words.")
-            : null,
-          results.length
-            ? React.createElement(
-                "ul",
-                { className: "cx-search-results", ref: listRef, role: "listbox" },
-                results.map((r, i) =>
-                  React.createElement(
-                    "li",
-                    {
-                      key: r.ref + "|" + r.translation,
-                      "data-idx": i,
-                      className: "cx-search-row" + (i === sel ? " is-sel" : ""),
-                      role: "option",
-                      "aria-selected": i === sel,
-                      onMouseEnter: () => setSel(i),
-                      onClick: () => pick(r),
-                    },
-                    React.createElement(
-                      "div",
-                      { className: "cx-search-ref" },
-                      React.createElement("span", { className: "cx-search-trans" }, `[${r.translation.toUpperCase()}]`),
-                      " ",
-                      React.createElement("b", null, r.pretty.label)
-                    ),
-                    React.createElement("div", {
-                      className: "cx-search-snippet",
-                      dangerouslySetInnerHTML: { __html: r.snippet },
-                    })
-                  )
-                )
+          mode === "text"
+            ? (q.trim() && results.length === 0
+                ? h("div", { className: "cx-search-empty" }, "No matches. Try fewer or different words.")
+                : results.length
+                  ? h("ul", { className: "cx-search-results", ref: listRef, role: "listbox" },
+                      results.map((r, i) =>
+                        h("li", {
+                          key: r.ref + "|" + r.translation,
+                          "data-idx": i,
+                          className: "cx-search-row" + (i === sel ? " is-sel" : ""),
+                          role: "option",
+                          "aria-selected": i === sel,
+                          onMouseEnter: () => setSel(i),
+                          onClick: () => pickText(r),
+                        },
+                          h("div", { className: "cx-search-ref" },
+                            h("span", { className: "cx-search-trans" }, `[${r.translation.toUpperCase()}]`),
+                            " ",
+                            h("b", null, r.pretty.label)
+                          ),
+                          h("div", {
+                            className: "cx-search-snippet",
+                            dangerouslySetInnerHTML: { __html: r.snippet },
+                          })
+                        )
+                      )
+                    )
+                  : null
               )
-            : null,
-          React.createElement(
-            "div",
-            { className: "cx-search-foot" },
-            stats
-              ? `${stats.verses.toLocaleString()} verses · ${stats.translations} translation${stats.translations === 1 ? "" : "s"} · offline`
-              : "indexing…",
-            React.createElement("span", { className: "cx-search-hint" },
-              "↑↓ navigate · ↵ open · esc close")
+            : renderConceptResults(),
+          h("div", { className: "cx-search-foot" },
+            footText,
+            h("span", { className: "cx-search-hint" }, "↑↓ navigate · ↵ open · esc close")
           )
         )
       );

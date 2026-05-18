@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "id": "synoptic-parallels",
+    "type": "cross-reference",
+    "version": "1.0.0",
+    "lang": "en",
+    "name": "Synoptic Gospel Parallels",
+    "description": "Pericope-level cross-references between Matthew, Mark, and Luke for parallel-passage study. Each entry lists the same event/teaching as it appears in each gospel, with John added where parallel exists. ~80 of the ~250 traditional synoptic pericopes — the most commonly compared.",
+    "_partial": true
+  },
+  "pericopes": [
+    { "id": "genealogy",                "title": "Genealogy of Jesus",                           "matt": "matt.1.1-17",   "mark": null,           "luke": "luke.3.23-38",  "john": null },
+    { "id": "annunciation",             "title": "Annunciation and birth narratives",            "matt": "matt.1.18-25",  "mark": null,           "luke": "luke.1.26-38",  "john": null },
+    { "id": "magi",                     "title": "Visit of the Magi",                            "matt": "matt.2.1-12",   "mark": null,           "luke": null,             "john": null },
+    { "id": "flight-egypt",             "title": "Flight to Egypt",                              "matt": "matt.2.13-23",  "mark": null,           "luke": null,             "john": null },
+    { "id": "shepherds",                "title": "Shepherds and presentation",                   "matt": null,             "mark": null,           "luke": "luke.2.8-39",   "john": null },
+    { "id": "boy-temple",               "title": "Boy Jesus in the temple",                      "matt": null,             "mark": null,           "luke": "luke.2.41-52",  "john": null },
+
+    { "id": "john-baptist",             "title": "John the Baptist's ministry",                  "matt": "matt.3.1-12",   "mark": "mark.1.1-8",   "luke": "luke.3.1-18",   "john": "john.1.19-28" },
+    { "id": "baptism-jesus",            "title": "Baptism of Jesus",                             "matt": "matt.3.13-17",  "mark": "mark.1.9-11",  "luke": "luke.3.21-22",  "john": "john.1.29-34" },
+    { "id": "temptation",               "title": "Temptation in the wilderness",                 "matt": "matt.4.1-11",   "mark": "mark.1.12-13", "luke": "luke.4.1-13",   "john": null },
+
+    { "id": "call-disciples",           "title": "Call of the first disciples",                  "matt": "matt.4.18-22",  "mark": "mark.1.16-20", "luke": "luke.5.1-11",   "john": "john.1.35-51" },
+    { "id": "twelve-chosen",            "title": "Choosing of the Twelve",                       "matt": "matt.10.1-4",   "mark": "mark.3.13-19", "luke": "luke.6.12-16",  "john": null },
+
+    { "id": "sermon-mount",             "title": "Sermon on the Mount / Plain",                  "matt": "matt.5.1-7.29", "mark": null,           "luke": "luke.6.17-49",  "john": null },
+    { "id": "beatitudes",               "title": "Beatitudes",                                   "matt": "matt.5.3-12",   "mark": null,           "luke": "luke.6.20-26",  "john": null },
+    { "id": "lords-prayer",             "title": "The Lord's Prayer",                            "matt": "matt.6.9-13",   "mark": null,           "luke": "luke.11.1-4",   "john": null },
+    { "id": "golden-rule",              "title": "The Golden Rule",                              "matt": "matt.7.12",     "mark": null,           "luke": "luke.6.31",     "john": null },
+
+    { "id": "centurion-servant",        "title": "Healing of the centurion's servant",           "matt": "matt.8.5-13",   "mark": null,           "luke": "luke.7.1-10",   "john": null },
+    { "id": "peters-mother-in-law",     "title": "Healing of Peter's mother-in-law",             "matt": "matt.8.14-17",  "mark": "mark.1.29-34", "luke": "luke.4.38-41",  "john": null },
+    { "id": "calming-storm",            "title": "Calming of the storm",                         "matt": "matt.8.23-27",  "mark": "mark.4.35-41", "luke": "luke.8.22-25",  "john": null },
+    { "id": "gadarene-demoniac",        "title": "Gadarene/Gerasene demoniac",                   "matt": "matt.8.28-34",  "mark": "mark.5.1-20",  "luke": "luke.8.26-39",  "john": null },
+    { "id": "paralytic-roof",           "title": "Healing of the paralytic let down through roof","matt": "matt.9.1-8",    "mark": "mark.2.1-12",  "luke": "luke.5.17-26",  "john": null },
+    { "id": "call-matthew",             "title": "Call of Matthew/Levi",                         "matt": "matt.9.9-13",   "mark": "mark.2.13-17", "luke": "luke.5.27-32",  "john": null },
+    { "id": "fasting-question",         "title": "Question about fasting",                       "matt": "matt.9.14-17",  "mark": "mark.2.18-22", "luke": "luke.5.33-39",  "john": null },
+    { "id": "jairus-daughter",          "title": "Jairus' daughter and woman with hemorrhage",   "matt": "matt.9.18-26",  "mark": "mark.5.21-43", "luke": "luke.8.40-56",  "john": null },
+    { "id": "blind-men-heal",           "title": "Healing of two blind men",                     "matt": "matt.9.27-31",  "mark": null,           "luke": null,             "john": null },
+
+    { "id": "sending-twelve",           "title": "Mission of the Twelve",                        "matt": "matt.10.5-15",  "mark": "mark.6.7-13",  "luke": "luke.9.1-6",    "john": null },
+    { "id": "herod-john",               "title": "Herod beheads John the Baptist",               "matt": "matt.14.1-12",  "mark": "mark.6.14-29", "luke": "luke.9.7-9",    "john": null },
+    { "id": "feeding-5000",             "title": "Feeding of the 5,000",                         "matt": "matt.14.13-21", "mark": "mark.6.30-44", "luke": "luke.9.10-17",  "john": "john.6.1-15" },
+    { "id": "walking-water",            "title": "Jesus walks on water",                         "matt": "matt.14.22-33", "mark": "mark.6.45-52", "luke": null,             "john": "john.6.16-21" },
+    { "id": "feeding-4000",             "title": "Feeding of the 4,000",                         "matt": "matt.15.32-39", "mark": "mark.8.1-10",  "luke": null,             "john": null },
+
+    { "id": "peter-confession",         "title": "Peter's confession at Caesarea Philippi",      "matt": "matt.16.13-20", "mark": "mark.8.27-30", "luke": "luke.9.18-21",  "john": "john.6.66-71" },
+    { "id": "first-passion-prediction", "title": "First prediction of the passion",              "matt": "matt.16.21-28", "mark": "mark.8.31-9.1","luke": "luke.9.22-27",  "john": null },
+    { "id": "transfiguration",          "title": "The Transfiguration",                          "matt": "matt.17.1-13",  "mark": "mark.9.2-13",  "luke": "luke.9.28-36",  "john": null },
+    { "id": "demoniac-boy",             "title": "Healing of the demon-possessed boy",           "matt": "matt.17.14-21", "mark": "mark.9.14-29", "luke": "luke.9.37-43",  "john": null },
+    { "id": "second-passion-prediction","title": "Second prediction of the passion",             "matt": "matt.17.22-23", "mark": "mark.9.30-32", "luke": "luke.9.43-45",  "john": null },
+
+    { "id": "greatest-kingdom",         "title": "Who is the greatest? / receiving children",    "matt": "matt.18.1-5",   "mark": "mark.9.33-37", "luke": "luke.9.46-48",  "john": null },
+    { "id": "millstone",                "title": "Warning against causing little ones to stumble","matt": "matt.18.6-9",   "mark": "mark.9.42-50", "luke": "luke.17.1-2",   "john": null },
+    { "id": "forgive-seventy",          "title": "Forgive seventy times seven",                  "matt": "matt.18.21-35", "mark": null,           "luke": "luke.17.3-4",   "john": null },
+
+    { "id": "divorce-question",         "title": "Question about divorce",                       "matt": "matt.19.1-12",  "mark": "mark.10.1-12", "luke": null,             "john": null },
+    { "id": "children-blessed",         "title": "Blessing of the children",                     "matt": "matt.19.13-15", "mark": "mark.10.13-16","luke": "luke.18.15-17", "john": null },
+    { "id": "rich-young-ruler",         "title": "The rich young ruler",                         "matt": "matt.19.16-30", "mark": "mark.10.17-31","luke": "luke.18.18-30", "john": null },
+    { "id": "third-passion-prediction", "title": "Third prediction of the passion",              "matt": "matt.20.17-19", "mark": "mark.10.32-34","luke": "luke.18.31-34", "john": null },
+    { "id": "james-john-request",       "title": "Request of James and John (mother in Matt)",   "matt": "matt.20.20-28", "mark": "mark.10.35-45","luke": null,             "john": null },
+    { "id": "bartimaeus",               "title": "Healing of blind Bartimaeus",                  "matt": "matt.20.29-34", "mark": "mark.10.46-52","luke": "luke.18.35-43", "john": null },
+
+    { "id": "triumphal-entry",          "title": "Triumphal entry into Jerusalem",               "matt": "matt.21.1-11",  "mark": "mark.11.1-11", "luke": "luke.19.28-44", "john": "john.12.12-19" },
+    { "id": "temple-cleansing",         "title": "Cleansing of the temple",                      "matt": "matt.21.12-17", "mark": "mark.11.15-19","luke": "luke.19.45-48", "john": "john.2.13-22" },
+    { "id": "fig-tree-cursed",          "title": "Cursing of the fig tree",                      "matt": "matt.21.18-22", "mark": "mark.11.12-14","luke": null,             "john": null },
+    { "id": "authority-question",       "title": "Question about authority",                     "matt": "matt.21.23-27", "mark": "mark.11.27-33","luke": "luke.20.1-8",   "john": null },
+    { "id": "wicked-tenants",           "title": "Parable of the wicked tenants",                "matt": "matt.21.33-46", "mark": "mark.12.1-12", "luke": "luke.20.9-19",  "john": null },
+    { "id": "tribute-caesar",           "title": "Question on tribute to Caesar",                "matt": "matt.22.15-22", "mark": "mark.12.13-17","luke": "luke.20.20-26", "john": null },
+    { "id": "resurrection-question",    "title": "Sadducees' question on resurrection",          "matt": "matt.22.23-33", "mark": "mark.12.18-27","luke": "luke.20.27-40", "john": null },
+    { "id": "greatest-commandment",     "title": "The greatest commandment",                     "matt": "matt.22.34-40", "mark": "mark.12.28-34","luke": "luke.10.25-28", "john": null },
+    { "id": "widows-mite",              "title": "The widow's two mites",                        "matt": null,             "mark": "mark.12.41-44","luke": "luke.21.1-4",   "john": null },
+
+    { "id": "olivet-discourse",         "title": "Olivet discourse / signs of the end",          "matt": "matt.24.1-25.46","mark": "mark.13.1-37","luke": "luke.21.5-36",  "john": null },
+
+    { "id": "plot-against",             "title": "Plot of religious leaders",                    "matt": "matt.26.1-5",   "mark": "mark.14.1-2",  "luke": "luke.22.1-2",   "john": "john.11.45-57" },
+    { "id": "anointing-bethany",        "title": "Anointing at Bethany",                         "matt": "matt.26.6-13",  "mark": "mark.14.3-9",  "luke": null,             "john": "john.12.1-8" },
+    { "id": "judas-betrayal-plot",      "title": "Judas agrees to betray",                       "matt": "matt.26.14-16", "mark": "mark.14.10-11","luke": "luke.22.3-6",   "john": null },
+    { "id": "last-supper",              "title": "The Last Supper",                              "matt": "matt.26.17-30", "mark": "mark.14.12-26","luke": "luke.22.7-23",  "john": "john.13.1-30" },
+    { "id": "peter-denial-pred",        "title": "Prediction of Peter's denial",                 "matt": "matt.26.31-35", "mark": "mark.14.27-31","luke": "luke.22.31-34", "john": "john.13.36-38" },
+    { "id": "gethsemane",               "title": "Gethsemane",                                   "matt": "matt.26.36-46", "mark": "mark.14.32-42","luke": "luke.22.39-46", "john": "john.18.1" },
+    { "id": "arrest",                   "title": "Arrest of Jesus",                              "matt": "matt.26.47-56", "mark": "mark.14.43-52","luke": "luke.22.47-53", "john": "john.18.2-12" },
+    { "id": "sanhedrin-trial",          "title": "Trial before the Sanhedrin",                   "matt": "matt.26.57-68", "mark": "mark.14.53-65","luke": "luke.22.54-71", "john": "john.18.13-24" },
+    { "id": "peter-denies",             "title": "Peter denies Jesus",                           "matt": "matt.26.69-75", "mark": "mark.14.66-72","luke": "luke.22.55-62", "john": "john.18.15-27" },
+    { "id": "pilate-trial",             "title": "Trial before Pilate",                          "matt": "matt.27.11-26", "mark": "mark.15.1-15", "luke": "luke.23.1-25",  "john": "john.18.28-19.16" },
+    { "id": "crucifixion",              "title": "The crucifixion",                              "matt": "matt.27.32-44", "mark": "mark.15.21-32","luke": "luke.23.26-43", "john": "john.19.17-27" },
+    { "id": "death-jesus",              "title": "Death of Jesus",                               "matt": "matt.27.45-56", "mark": "mark.15.33-41","luke": "luke.23.44-49", "john": "john.19.28-37" },
+    { "id": "burial",                   "title": "Burial of Jesus",                              "matt": "matt.27.57-66", "mark": "mark.15.42-47","luke": "luke.23.50-56", "john": "john.19.38-42" },
+
+    { "id": "empty-tomb",               "title": "The empty tomb",                               "matt": "matt.28.1-10",  "mark": "mark.16.1-8",  "luke": "luke.24.1-12",  "john": "john.20.1-10" },
+    { "id": "appearances",              "title": "Resurrection appearances",                     "matt": "matt.28.9-20",  "mark": "mark.16.9-20", "luke": "luke.24.13-49", "john": "john.20.11-21.25" },
+    { "id": "great-commission",         "title": "The Great Commission",                         "matt": "matt.28.16-20", "mark": "mark.16.14-18","luke": "luke.24.44-49", "john": "john.20.21-23" },
+
+    { "id": "leper-cleansed",           "title": "Cleansing of a leper",                         "matt": "matt.8.1-4",    "mark": "mark.1.40-45", "luke": "luke.5.12-16",  "john": null },
+    { "id": "sabbath-grain",            "title": "Plucking grain on the Sabbath",                "matt": "matt.12.1-8",   "mark": "mark.2.23-28", "luke": "luke.6.1-5",    "john": null },
+    { "id": "withered-hand",            "title": "Healing the man with the withered hand",       "matt": "matt.12.9-14",  "mark": "mark.3.1-6",   "luke": "luke.6.6-11",   "john": null },
+    { "id": "beelzebul",                "title": "Beelzebul controversy",                        "matt": "matt.12.22-32", "mark": "mark.3.20-30", "luke": "luke.11.14-23", "john": null },
+    { "id": "true-family",              "title": "Jesus' true family",                           "matt": "matt.12.46-50", "mark": "mark.3.31-35", "luke": "luke.8.19-21",  "john": null },
+    { "id": "sower",                    "title": "Parable of the sower",                         "matt": "matt.13.1-23",  "mark": "mark.4.1-20",  "luke": "luke.8.4-15",   "john": null },
+    { "id": "mustard-seed",             "title": "Parable of the mustard seed",                  "matt": "matt.13.31-32", "mark": "mark.4.30-32", "luke": "luke.13.18-19", "john": null },
+    { "id": "nazareth-rejection",       "title": "Rejection at Nazareth",                        "matt": "matt.13.53-58", "mark": "mark.6.1-6",   "luke": "luke.4.16-30",  "john": null },
+    { "id": "tradition-elders",         "title": "Tradition of the elders / clean and unclean",  "matt": "matt.15.1-20",  "mark": "mark.7.1-23",  "luke": null,             "john": null },
+    { "id": "syrophoenician",           "title": "Syrophoenician woman's daughter healed",       "matt": "matt.15.21-28", "mark": "mark.7.24-30", "luke": null,             "john": null }
+  ]
+}

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CODEX · Embeddable Widget</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; padding: 24px; background: #06080e; color: #c9d6e6; }
+  h1 { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 400; }
+  code, pre { font-family: ui-monospace, "JetBrains Mono", monospace; background: rgba(126,224,255,.08); padding: 1px 6px; border-radius: 3px; font-size: 13px; }
+  pre { padding: 14px; overflow-x: auto; line-height: 1.5; }
+  .demo { margin: 24px 0; padding: 18px; border: 1px solid rgba(126,224,255,.18); border-radius: 6px; background: #0a0e18; }
+</style>
+</head>
+<body>
+
+<h1>CODEX Embeddable Widget</h1>
+
+<p>Drop scripture into any HTML page in one line. The <code>&lt;codex-reader&gt;</code> custom element renders a verse or passage with optional commentary, in your site's color scheme.</p>
+
+<h2>Quick start</h2>
+<pre>&lt;script src="https://codex.app/widget.js"&gt;&lt;/script&gt;
+&lt;codex-reader book="john" chapter="3" verse="16"&gt;&lt;/codex-reader&gt;</pre>
+
+<h2>Live demos</h2>
+
+<div class="demo">
+  <p><strong>Single verse</strong></p>
+  <codex-reader book="john" chapter="3" verse="16"></codex-reader>
+</div>
+
+<div class="demo">
+  <p><strong>Verse range</strong></p>
+  <codex-reader book="rom" chapter="8" verse="38-39"></codex-reader>
+</div>
+
+<div class="demo">
+  <p><strong>Whole chapter (collapsed by default)</strong></p>
+  <codex-reader book="ps" chapter="23" collapsed></codex-reader>
+</div>
+
+<div class="demo">
+  <p><strong>Custom translation + theme</strong></p>
+  <codex-reader book="matt" chapter="5" verse="3-12" translation="kjv" theme="light"></codex-reader>
+</div>
+
+<h2>Attributes</h2>
+<ul>
+  <li><code>book</code> — required. Book id (e.g. <code>john</code>, <code>gen</code>, <code>ps</code>, <code>rom</code>, <code>rev</code>).</li>
+  <li><code>chapter</code> — required. Chapter number.</li>
+  <li><code>verse</code> — optional. Single verse, range (<code>5-10</code>), or list (<code>3,7,12</code>). Omit for whole chapter.</li>
+  <li><code>translation</code> — optional. Default <code>web</code>. Any translation id CODEX supports.</li>
+  <li><code>theme</code> — optional. <code>dark</code> (default), <code>light</code>, or <code>auto</code>.</li>
+  <li><code>collapsed</code> — optional. If present, renders a collapsed summary with click-to-expand.</li>
+  <li><code>show-ref</code> — optional. If present, shows the reference label above the text.</li>
+  <li><code>link-to-codex</code> — optional. If present, wraps in a link to the full CODEX app at the passage.</li>
+</ul>
+
+<h2>Theming via CSS variables</h2>
+<pre>codex-reader {
+  --cx-w-bg: #fff;
+  --cx-w-fg: #1a1d28;
+  --cx-w-accent: #0a6884;
+  --cx-w-serif: "EB Garamond", Georgia, serif;
+  --cx-w-mono: "JetBrains Mono", monospace;
+  font-size: 17px;
+}</pre>
+
+<h2>Programmatic API</h2>
+<pre>const el = document.createElement('codex-reader');
+el.setAttribute('book', 'phil');
+el.setAttribute('chapter', '2');
+el.setAttribute('verse', '5-11');
+document.body.appendChild(el);
+
+// Listen to events
+el.addEventListener('codex-loaded', e =&gt; console.log(e.detail));
+el.addEventListener('codex-error',  e =&gt; console.warn(e.detail));</pre>
+
+<script>
+// CODEX <codex-reader> web component.
+// Self-contained: fetches verses from bible-api.com, renders Shadow DOM
+// with scoped styles so the host page's CSS can't break it. ~5 KB.
+
+class CodexReader extends HTMLElement {
+  static get observedAttributes() {
+    return ['book', 'chapter', 'verse', 'translation', 'theme', 'collapsed', 'show-ref', 'link-to-codex'];
+  }
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this._loaded = null;
+  }
+  connectedCallback() { this._render(); }
+  attributeChangedCallback() { this._render(); }
+
+  async _fetch() {
+    const book = this.getAttribute('book');
+    const chapter = this.getAttribute('chapter');
+    const verse = this.getAttribute('verse');
+    const translation = this.getAttribute('translation') || 'web';
+    if (!book || !chapter) return null;
+    const ref = verse ? `${book}+${chapter}:${verse}` : `${book}+${chapter}`;
+    const url = `https://bible-api.com/${ref}?translation=${translation}`;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('fetch failed: ' + r.status);
+      const data = await r.json();
+      this._loaded = data;
+      this.dispatchEvent(new CustomEvent('codex-loaded', { detail: data, bubbles: true }));
+      return data;
+    } catch (e) {
+      this.dispatchEvent(new CustomEvent('codex-error', { detail: { error: String(e) }, bubbles: true }));
+      return null;
+    }
+  }
+
+  async _render() {
+    const theme = this.getAttribute('theme') || 'dark';
+    const collapsed = this.hasAttribute('collapsed');
+    const showRef = this.hasAttribute('show-ref');
+    const linkOut = this.hasAttribute('link-to-codex');
+
+    const palette = {
+      dark:  { bg: '#0a0e18', fg: '#c9d6e6', dim: '#6b7c95', accent: '#7ee0ff', border: 'rgba(126,224,255,.18)' },
+      light: { bg: '#ece4d2', fg: '#1a1d28', dim: '#6b6750', accent: '#0a6884', border: 'rgba(11,28,50,.22)' },
+    }[theme] || (theme === 'auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? { bg: '#0a0e18', fg: '#c9d6e6', dim: '#6b7c95', accent: '#7ee0ff', border: 'rgba(126,224,255,.18)' }
+          : { bg: '#ece4d2', fg: '#1a1d28', dim: '#6b6750', accent: '#0a6884', border: 'rgba(11,28,50,.22)' })
+      : { bg: '#0a0e18', fg: '#c9d6e6', dim: '#6b7c95', accent: '#7ee0ff', border: 'rgba(126,224,255,.18)' });
+
+    // Loading state
+    this.shadowRoot.innerHTML = `<style>
+      :host { display: block; }
+      .w {
+        background: var(--cx-w-bg, ${palette.bg});
+        color:      var(--cx-w-fg, ${palette.fg});
+        border: 1px solid var(--cx-w-border, ${palette.border});
+        border-radius: 6px;
+        padding: 14px 18px;
+        font-family: var(--cx-w-serif, "Cormorant Garamond", "EB Garamond", Georgia, serif);
+        font-size: var(--cx-w-fs, 16px);
+        line-height: 1.55;
+      }
+      .ref {
+        font-family: var(--cx-w-mono, ui-monospace, "JetBrains Mono", monospace);
+        font-size: 10.5px;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        color: var(--cx-w-dim, ${palette.dim});
+        margin-bottom: 10px;
+      }
+      .verse { margin: 4px 0; }
+      .vnum {
+        display: inline-block;
+        font-family: var(--cx-w-mono, ui-monospace, monospace);
+        font-size: 10px;
+        color: var(--cx-w-accent, ${palette.accent});
+        margin-right: 6px;
+        vertical-align: super;
+        opacity: .85;
+      }
+      a { color: var(--cx-w-accent, ${palette.accent}); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .loading {
+        font-family: var(--cx-w-mono, monospace);
+        font-size: 11px;
+        opacity: .55;
+      }
+      details summary {
+        cursor: pointer;
+        font-family: var(--cx-w-mono, monospace);
+        font-size: 11px;
+        color: var(--cx-w-dim, ${palette.dim});
+        margin-bottom: 6px;
+      }
+      .err { color: #ff8291; font-family: var(--cx-w-mono, monospace); font-size: 12px; }
+    </style>
+    <div class="w"><div class="loading">loading scripture…</div></div>`;
+
+    const data = await this._fetch();
+    const root = this.shadowRoot.querySelector('.w');
+    if (!data) {
+      root.innerHTML = `<div class="err">⚠ Could not load passage.</div>`;
+      return;
+    }
+
+    const refStr = data.reference || '';
+    const codexUrl = `https://codex.app/?ref=${encodeURIComponent(refStr)}`;
+    const verses = (data.verses || []).map(v =>
+      `<div class="verse"><span class="vnum">${v.verse}</span>${escapeHtml(v.text.trim())}</div>`
+    ).join('');
+
+    const inner = `
+      ${showRef ? `<div class="ref">${escapeHtml(refStr)}</div>` : ''}
+      ${verses}
+      ${linkOut ? `<div style="margin-top:10px;font-family:monospace;font-size:10px;opacity:.6">
+        <a href="${codexUrl}" target="_blank" rel="noopener">read in CODEX →</a>
+      </div>` : ''}
+    `;
+
+    if (collapsed) {
+      root.innerHTML = `<details>
+        <summary>▾ ${escapeHtml(refStr)}</summary>
+        ${inner}
+      </details>`;
+    } else {
+      root.innerHTML = inner;
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+if (!customElements.get('codex-reader')) {
+  customElements.define('codex-reader', CodexReader);
+}
+</script>
+
+</body>
+</html>
