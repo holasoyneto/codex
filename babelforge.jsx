@@ -156,21 +156,144 @@
     );
   }
 
-  function VoiceCard({ tpl, selected, onPick }) {
+  function VoiceCard({ tpl, selected, onPick, onRemove }) {
     const sample = (tpl.samples && tpl.samples[0]) || null;
-    return E("button", {
-      className: "bf-voice-card" + (selected ? " selected" : ""),
-      onClick: () => onPick(tpl.id),
-      type: "button"
-    },
-      E("div", { className: "bf-voice-name" }, tpl.name),
-      E("div", { className: "bf-voice-desc" }, tpl.description),
-      sample ? E("blockquote", { className: "bf-voice-sample" },
-        E("div", { className: "bf-voice-sample-ref" }, sample.ref),
-        E("div", { className: "bf-voice-sample-text" }, "“" + sample.draft + "”")
+    const isCustom = tpl._ai_generated || tpl.category === "ai-generated" || (engine() && engine().isCustomVoice && engine().isCustomVoice(tpl.id));
+    return E("div", { className: "bf-voice-card-wrap" },
+      E("button", {
+        className: "bf-voice-card" + (selected ? " selected" : "") + (isCustom ? " is-custom" : ""),
+        onClick: () => onPick(tpl.id),
+        type: "button"
+      },
+        isCustom ? E("span", { className: "bf-voice-badge", title: "AI-generated custom voice" }, "✨ CUSTOM") : null,
+        E("div", { className: "bf-voice-name" }, tpl.name),
+        E("div", { className: "bf-voice-desc" }, tpl.description),
+        sample ? E("blockquote", { className: "bf-voice-sample" },
+          E("div", { className: "bf-voice-sample-ref" }, sample.ref),
+          E("div", { className: "bf-voice-sample-text" }, "“" + sample.draft + "”")
+        ) : null,
+        E("div", { className: "bf-voice-tags" },
+          (tpl.tone || []).slice(0, 3).map(t => E("span", { key: t, className: "bf-tag" }, t))
+        )
+      ),
+      isCustom && onRemove ? E("button", {
+        className: "bf-voice-card-rm", type: "button",
+        title: "Delete this custom voice",
+        onClick: (e) => { e.stopPropagation(); if (window.confirm(`Delete the "${tpl.name}" voice?`)) onRemove(tpl.id); }
+      }, "✕") : null
+    );
+  }
+
+  // Voice picker step — built-in + AI-generated custom + "Generate with AI" + free-form custom prompt.
+  // Lets the user describe a vibe ("1920s Chicago gangster slang") and the AI authors a complete
+  // voice template (system prompt + sample verses + tone tags + rigor default), persisted to
+  // localStorage and surfaced everywhere a template is listed.
+  function VoicePicker({ templates, voiceId, setVoiceId, customPrompt, setCustomPrompt, onTemplatesChanged }) {
+    const [aiPrompt, setAiPrompt] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState(null);
+    const [justMade, setJustMade] = useState(null);
+
+    async function doGenerate() {
+      const eng = engine();
+      if (!eng || !eng.generateVoiceFromPrompt) {
+        setErr("Engine not ready — reload."); return;
+      }
+      if (!aiPrompt.trim()) { setErr("Describe the voice you want."); return; }
+      setBusy(true); setErr(null);
+      try {
+        const tpl = await eng.generateVoiceFromPrompt(aiPrompt.trim());
+        setJustMade(tpl.id);
+        setVoiceId(tpl.id);
+        setAiPrompt("");
+        onTemplatesChanged && onTemplatesChanged();
+        // Clear the "just made" indicator after a beat
+        setTimeout(() => setJustMade(null), 2400);
+      } catch (e) {
+        setErr(String(e.message || e));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function doRemove(id) {
+      const eng = engine();
+      if (eng && eng.removeCustomVoice) {
+        eng.removeCustomVoice(id);
+        // If we just removed the selected one, fall back
+        if (voiceId === id) setVoiceId("modern-scholar");
+        onTemplatesChanged && onTemplatesChanged();
+      }
+    }
+
+    // Group: built-in first, then custom, then "Generate with AI" tile, then "Free-form custom".
+    const built = templates.filter(t => !(t._ai_generated || t.category === "ai-generated"));
+    const customs = templates.filter(t => (t._ai_generated || t.category === "ai-generated"));
+
+    return E("div", { className: "bf-form" },
+      E("label", null, "Pick a voice"),
+      E("div", { className: "bf-voice-grid" },
+        built.map(t => E(VoiceCard, {
+          key: t.id, tpl: t, selected: voiceId === t.id, onPick: setVoiceId
+        }))
+      ),
+      customs.length ? E("div", { style: { marginTop: 14 } },
+        E("label", null, "✨ Your AI-generated voices"),
+        E("div", { className: "bf-voice-grid" },
+          customs.map(t => E(VoiceCard, {
+            key: t.id, tpl: t,
+            selected: voiceId === t.id,
+            onPick: setVoiceId,
+            onRemove: doRemove
+          }))
+        )
       ) : null,
-      E("div", { className: "bf-voice-tags" },
-        (tpl.tone || []).slice(0, 3).map(t => E("span", { key: t, className: "bf-tag" }, t))
+      // ── AI-generator tile ──────────────────────────────────────────
+      E("div", { className: "bf-voicegen", style: { marginTop: 16 } },
+        E("div", { className: "bf-voicegen-h" },
+          E("span", { className: "bf-voicegen-icon" }, "✨"),
+          E("b", null, "Generate a new voice with AI"),
+          E("span", { className: "bf-voicegen-sub" }, "describe the vibe → AI authors the template")
+        ),
+        E("div", { className: "bf-voicegen-row" },
+          E("input", {
+            className: "bf-in bf-voicegen-input",
+            value: aiPrompt,
+            onChange: e => setAiPrompt(e.target.value),
+            placeholder: "e.g. '1920s Chicago gangster slang' · 'Bob Ross narrating' · 'corporate HR memo' · 'epic fantasy narrator'",
+            disabled: busy,
+            onKeyDown: (e) => { if (e.key === "Enter" && !busy) doGenerate(); }
+          }),
+          E("button", {
+            className: "bf-btn bf-btn-accent",
+            type: "button",
+            disabled: busy || !aiPrompt.trim(),
+            onClick: doGenerate
+          }, busy ? "Designing…" : "Generate")
+        ),
+        err ? E("div", { className: "bf-voicegen-err" }, "⚠ " + err) : null,
+        justMade ? E("div", { className: "bf-voicegen-ok" }, "✓ Saved — picked for this project") : null,
+        E("div", { className: "bf-voicegen-hint" },
+          "Tip: clearer prompts make better voices. Mention period, vocabulary, attitude, audience."
+        )
+      ),
+      // ── Free-form custom prompt (no AI generation) ─────────────────
+      E("div", { style: { marginTop: 16 } },
+        E("button", {
+          className: "bf-voice-card bf-voice-custom" + (voiceId === "custom" ? " selected" : ""),
+          onClick: () => setVoiceId("custom"), type: "button"
+        },
+          E("div", { className: "bf-voice-name" }, "✶ Free-form custom prompt"),
+          E("div", { className: "bf-voice-desc" }, "Write the system prompt yourself, verbatim. Skip both the AI designer and the built-in templates.")
+        ),
+        voiceId === "custom" && E("div", { style: { marginTop: 12 } },
+          E("label", null, "Custom voice — system prompt"),
+          E("textarea", {
+            className: "bf-ta", value: customPrompt,
+            onChange: e => setCustomPrompt(e.target.value), rows: 6,
+            placeholder: "Describe the voice. e.g. 'Rewrite scripture in the voice of a 1980s synth-wave poet…'"
+          })
+        )
       )
     );
   }
@@ -267,30 +390,13 @@
               placeholder: "en, es, fr…"
             })
           ),
-          step === 3 && E("div", { className: "bf-form" },
-            E("label", null, "Pick a voice"),
-            E("div", { className: "bf-voice-grid" },
-              templates.map(t => E(VoiceCard, {
-                key: t.id, tpl: t, selected: voiceId === t.id,
-                onPick: setVoiceId
-              })),
-              E("button", {
-                className: "bf-voice-card bf-voice-custom" + (voiceId === "custom" ? " selected" : ""),
-                onClick: () => setVoiceId("custom"), type: "button"
-              },
-                E("div", { className: "bf-voice-name" }, "✶ Custom Voice"),
-                E("div", { className: "bf-voice-desc" }, "Write your own system prompt — the AI will follow your spec.")
-              )
-            ),
-            voiceId === "custom" && E("div", { style: { marginTop: 12 } },
-              E("label", null, "Custom voice — system prompt"),
-              E("textarea", {
-                className: "bf-ta", value: customPrompt,
-                onChange: e => setCustomPrompt(e.target.value), rows: 6,
-                placeholder: "Describe the voice. e.g. 'Rewrite scripture in the voice of a 1980s synth-wave poet…'"
-              })
-            )
-          ),
+          step === 3 && E(VoicePicker, {
+            templates, voiceId, setVoiceId, customPrompt, setCustomPrompt,
+            onTemplatesChanged: () => {
+              const eng = engine();
+              if (eng) eng.loadVoiceTemplates().then(setTemplates);
+            }
+          }),
           step === 4 && E("div", { className: "bf-form" },
             E("label", null, "Rigor — how strict are the source-faithful checks?"),
             E(RigorPicker, { value: rigor, onChange: setRigor }),

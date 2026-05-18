@@ -73,24 +73,140 @@
   }
 
   // ── Template cache ────────────────────────────────────────────────
-  let _templates = null;
-  let _templatesPromise = null;
+  // Built-in templates ship in data/modules/voice-templates.json.
+  // Custom templates live in localStorage and are merged in at load time.
+  // AI-generated templates (via generateVoiceFromPrompt) write to the
+  // custom store and become available everywhere a template is listed.
+  const CUSTOM_KEY = "codex.babelforge.customVoices.v1";
+
+  let _builtIns = null;
+  let _builtInsPromise = null;
+  let _customs = null;
+
+  function loadCustomVoices() {
+    if (_customs) return _customs;
+    try {
+      const raw = localStorage.getItem(CUSTOM_KEY);
+      _customs = raw ? (JSON.parse(raw) || []) : [];
+    } catch { _customs = []; }
+    return _customs;
+  }
+  function persistCustomVoices() {
+    try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(_customs || [])); } catch {}
+  }
+  function saveCustomVoice(tpl) {
+    if (!tpl || !tpl.id || !tpl.name || !tpl.system_prompt) {
+      throw new Error("Invalid voice template — needs id + name + system_prompt");
+    }
+    loadCustomVoices();
+    // Replace if id collides, else append
+    const i = _customs.findIndex(t => t.id === tpl.id);
+    if (i >= 0) _customs[i] = tpl; else _customs.push(tpl);
+    persistCustomVoices();
+    return tpl;
+  }
+  function removeCustomVoice(id) {
+    loadCustomVoices();
+    const before = _customs.length;
+    _customs = _customs.filter(t => t.id !== id);
+    persistCustomVoices();
+    return _customs.length < before;
+  }
+  function listCustomVoices() { return loadCustomVoices().slice(); }
+  function isCustomVoice(id) { return loadCustomVoices().some(t => t.id === id); }
+
   function loadVoiceTemplates() {
-    if (_templates) return Promise.resolve(_templates);
-    if (_templatesPromise) return _templatesPromise;
-    _templatesPromise = fetch("data/modules/voice-templates.json")
+    if (_builtIns) return Promise.resolve([..._builtIns, ...loadCustomVoices()]);
+    if (_builtInsPromise) return _builtInsPromise.then(() => [..._builtIns, ...loadCustomVoices()]);
+    _builtInsPromise = fetch("data/modules/voice-templates.json")
       .then(r => r.ok ? r.json() : null)
       .then(j => {
-        _templates = (j && Array.isArray(j.templates)) ? j.templates : [];
-        return _templates;
+        _builtIns = (j && Array.isArray(j.templates)) ? j.templates : [];
+        return _builtIns;
       })
-      .catch(() => { _templates = []; return _templates; });
-    return _templatesPromise;
+      .catch(() => { _builtIns = []; return _builtIns; });
+    return _builtInsPromise.then(() => [..._builtIns, ...loadCustomVoices()]);
   }
-  function listTemplates() { return _templates || []; }
+  function listTemplates() {
+    return [...(_builtIns || []), ...loadCustomVoices()];
+  }
   function getTemplate(id) {
-    if (!_templates) return null;
-    return _templates.find(t => t.id === id) || null;
+    if (_builtIns) {
+      const b = _builtIns.find(t => t.id === id);
+      if (b) return b;
+    }
+    return loadCustomVoices().find(t => t.id === id) || null;
+  }
+
+  // ── AI-generated voice templates ──────────────────────────────────
+  // User describes a vibe ("1920s Chicago gangster slang"). We ask the
+  // AI to author a complete template matching our schema and save it as
+  // a custom voice. Returns the saved template.
+  async function generateVoiceFromPrompt(userPrompt, { provider, model } = {}) {
+    if (!userPrompt || !userPrompt.trim()) {
+      throw new Error("Prompt is empty.");
+    }
+    const tweaks = (window.CODEX_DATA && window.CODEX_DATA.tweaks) || {};
+    const p = provider || tweaks.provider;
+    const m = model    || tweaks.model;
+    const sys = `You are BabelForge Voice Designer. The user describes a translation voice; you author a complete voice template for rewriting scripture in that style. Return ONLY JSON, no prose, no fences:
+
+{
+  "id": "kebab-case-id-derived-from-the-vibe",
+  "name": "Title Case Name",
+  "description": "1 sentence — what reading this Bible would feel like.",
+  "category": "themed",
+  "system_prompt": "A 2-4 sentence directive that will be sent verbatim to the translation AI. MUST say: preserve all proper nouns, preserve the sequence of events, preserve theological meaning even when style is playful. Then describe the voice vividly.",
+  "samples": [
+    { "ref": "gen.1.1", "original": "In the beginning God created the heaven and the earth.", "draft": "<one-sentence sample in the new voice>" },
+    { "ref": "john.3.16", "original": "For God so loved the world, that he gave his only begotten Son...", "draft": "<one-sentence sample in the new voice>" }
+  ],
+  "rigor_default": "balanced",
+  "tone": ["tag1", "tag2", "tag3"]
+}
+
+Rules:
+- Be vivid and specific. A voice template is only as good as its system_prompt.
+- Honor the user's intent. If they ask for "1920s Chicago gangster", don't soften it; if they ask "kid-friendly Christmas-story narrator", don't make it stiff.
+- Reverence-of-content is non-negotiable; voice-of-delivery is the playground.
+- Pick rigor_default by vibe: scholarly/literal voices → "strict"; mainstream/themed → "balanced"; experimental/playful → "loose".
+- tone is 2-5 short tags.`;
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: p, model: m,
+        system: sys,
+        messages: [{ role: "user", content: userPrompt }],
+        max_tokens: 1200,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || `AI returned ${resp.status}`);
+    const text = (data.text || "").trim();
+    // Tolerate fenced code blocks
+    const json = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+    let tpl;
+    try { tpl = JSON.parse(json); } catch (e) {
+      throw new Error("AI didn't return parseable JSON. Try a clearer prompt.");
+    }
+    // Validate + normalize
+    if (!tpl.id)            tpl.id = "custom-" + Math.random().toString(36).slice(2, 8);
+    if (!tpl.id.startsWith("custom-")) tpl.id = "custom-" + tpl.id;
+    if (!tpl.name)          tpl.name = userPrompt.slice(0, 40);
+    if (!tpl.description)   tpl.description = userPrompt;
+    if (!tpl.category)      tpl.category = "ai-generated";
+    if (!tpl.rigor_default) tpl.rigor_default = "balanced";
+    if (!Array.isArray(tpl.tone))    tpl.tone = ["ai-generated"];
+    if (!Array.isArray(tpl.samples)) tpl.samples = [];
+    if (!tpl.system_prompt) {
+      throw new Error("AI didn't produce a system_prompt. Try a clearer prompt.");
+    }
+    tpl._ai_generated = true;
+    tpl._created = Date.now();
+    tpl._source_prompt = userPrompt;
+    saveCustomVoice(tpl);
+    return tpl;
   }
 
   // ── Rigor rule packs ──────────────────────────────────────────────
@@ -318,6 +434,11 @@
     loadVoiceTemplates,
     listTemplates,
     getTemplate,
+    listCustomVoices,
+    saveCustomVoice,
+    removeCustomVoice,
+    isCustomVoice,
+    generateVoiceFromPrompt,
     wordCount
   };
 
