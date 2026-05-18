@@ -412,12 +412,24 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 }
 .cx-sun-meta {
   display: flex; justify-content: space-between;
-  font-size: 8.5px; color: var(--cx-fg-dim);
+  font-size: 9px;
+  color: var(--cx-fg);
   letter-spacing: 0.14em;
   padding: 0 2px; margin-top: 14px;
-  opacity: 0.55;
+  opacity: 0.85;
   font-family: var(--cx-mono);
   text-transform: lowercase;
+  /* Defensive: ensure no parent background bleed and no inherited
+     filters make text appear washed-out. Previously rendered at
+     opacity 0.55 + color: var(--cx-fg-dim) which in Drift (CRT-green)
+     theme was ~invisible — text only appeared on mouse selection. */
+  position: relative;
+  z-index: 1;
+}
+.cx-sun-meta > span {
+  background: transparent;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
 }
 
 /* ── rails ─────────────────────────────────────────────────────────────── */
