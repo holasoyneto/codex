@@ -201,7 +201,29 @@
   // anything inside scripture / code / inputs / data-no-translate trees,
   // cache by text hash per lang, batch them to the AI, then swap.
   const NODE_CACHE_PREFIX = "codex.aiUiNodes.v1."; // per-lang { hash: translated }
-  const SKIP_SEL = "script,style,code,pre,textarea,input,.cx-verse-text,.cx-chap,.cx-verse-num,[data-no-translate],.bf-draft,.cx-note-body,.cx-oracle-bubble,.cx-mark-snippet,.cx-search-snippet,.cx-reel-art-verse,.cx-reel-light-text";
+  // EVERYTHING that's either user content, scripture, or a controlled
+  // app surface that we MUST NOT translate. Casting the net wide is safer
+  // than chasing leaks per-bug. Scripture rendering goes through .cx-reader-*,
+  // .cx-verse*, .cx-col-h, .cx-cols-head — all of those stay verbatim.
+  const SKIP_SEL = [
+    "script", "style", "code", "pre", "textarea", "input",
+    "[data-no-translate]", "[contenteditable]",
+    // Reader / scripture surface — never touch
+    ".cx-reader", ".cx-reader-body", ".cx-reader-titles", ".cx-reader-meta",
+    ".cx-reader-foot", ".cx-cols-head", ".cx-col-h",
+    ".cx-verse", ".cx-verse-side", ".cx-verse-text", ".cx-verse-num",
+    ".cx-chap", ".cx-loading",
+    // Existing surfaces with user / canon text
+    ".bf-draft", ".bf-base", ".bf-orig",
+    ".cx-note-body", ".cx-oracle-bubble", ".cx-mark-snippet", ".cx-search-snippet",
+    ".cx-reel-art-verse", ".cx-reel-light-text", ".cx-reel-symbol-body",
+    ".cx-reel-fact-body", ".cx-reel-parable-body", ".cx-reel-prophecy-text",
+    ".cx-reel-count-body", ".cx-reel-q-text", ".cx-reel-q-answer",
+    ".cx-reel-quest-body", ".cx-reel-name-hebrew", ".cx-reel-name-body",
+    // Panels with AI-generated content (translation already implicit)
+    ".cx-pane-body", ".cx-talmud-quote", ".cx-comm-text", ".cx-gem-text",
+    ".cx-gnosis-text", ".cx-exeg-text"
+  ].join(",");
 
   function _hash(s) {
     let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;

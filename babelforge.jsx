@@ -538,7 +538,7 @@
   }
 
   // ── Verse Editor (three-pane) ──────────────────────────────────────
-  function VerseEditor({ project, ref_, onUpdateVerse, onPrev, onNext, voiceTpl }) {
+  function VerseEditor({ project, ref_, onUpdateVerse, onPrev, onNext, onJump, voiceTpl }) {
     const eng = engine();
     const [base, setBase] = useState("");
     const [draft, setDraft] = useState("");
@@ -639,11 +639,37 @@
                     : "—";
     const badgeClass = "bf-badge bf-badge-" + (rigorBadge || "none");
 
+    const scopeBooks = normalizeScope(project).map(s => s.bookId);
+    const bookOpts = (scopeBooks.length ? scopeBooks : [bookForRef]).map(b => ({ id: b, name: (bookById(b).name || b).toUpperCase(), chapters: bookById(b).chapters || 1 }));
+    const curBookMeta = bookOpts.find(b => b.id === bookForRef) || bookOpts[0];
+    const chapMax = curBookMeta.chapters || 1;
+    // Best-effort verse cap — assume 176 (Ps 119) so the user can jump
+    // even into long chapters. Out-of-range jumps just show blank base.
+    const verseMax = 176;
+
     return E("div", { className: "bf-editor" },
       E("div", { className: "bf-editor-toolbar" },
-        E("button", { className: "bf-btn ghost", onClick: onPrev, title: "Previous verse" }, "‹"),
-        E("div", { className: "bf-ref" }, bookForRef.toUpperCase(), " ", chapter, ":", verse),
-        E("button", { className: "bf-btn ghost", onClick: onNext, title: "Next verse" }, "›"),
+        E("button", { className: "bf-btn ghost", onClick: onPrev, title: "Previous verse (←)" }, "‹"),
+        E("select", {
+          className: "bf-in", style: { padding: "4px 6px", marginRight: 4 },
+          value: bookForRef,
+          onChange: e => onJump && onJump(e.target.value, 1, 1),
+          title: "Jump to book"
+        }, bookOpts.map(b => E("option", { key: b.id, value: b.id }, b.name))),
+        E("input", {
+          className: "bf-in", type: "number", min: 1, max: chapMax, value: chapter,
+          style: { width: 56, padding: "4px 6px", textAlign: "center" },
+          onChange: e => { const n = parseInt(e.target.value, 10); if (!isNaN(n) && n >= 1 && n <= chapMax) onJump && onJump(bookForRef, n, verse); },
+          title: `Chapter (1–${chapMax})`
+        }),
+        E("span", { style: { opacity: 0.55 } }, ":"),
+        E("input", {
+          className: "bf-in", type: "number", min: 1, max: verseMax, value: verse,
+          style: { width: 56, padding: "4px 6px", textAlign: "center" },
+          onChange: e => { const n = parseInt(e.target.value, 10); if (!isNaN(n) && n >= 1 && n <= verseMax) onJump && onJump(bookForRef, chapter, n); },
+          title: "Verse"
+        }),
+        E("button", { className: "bf-btn ghost", onClick: onNext, title: "Next verse (→)" }, "›"),
         E("div", { style: { flex: 1 } }),
         E("button", {
           className: "bf-btn" + (mode === "ai" ? " primary" : ""),
@@ -1193,6 +1219,11 @@
         project, ref_,
         onUpdateVerse: updateVerse,
         onPrev: () => step(-1), onNext: () => step(1),
+        onJump: (b, c, v) => {
+          if (b) setCurrentBook(b);
+          if (typeof c === "number" && !isNaN(c)) setCurrentChap(c);
+          if (typeof v === "number" && !isNaN(v)) setCurrentVerse(v);
+        },
         voiceTpl
       }),
       E("div", { className: "bf-bulk" },
@@ -1274,6 +1305,148 @@
     window.CODEX_BabelForge.forgeStatus = s;
     try { window.dispatchEvent(new CustomEvent("codex:babelforge-forge-status", { detail: s })); } catch {}
   }
+
+  // ── Headless background-forge service ──────────────────────────────
+  // Lets the Reader (or any other code) ask BabelForge to translate a
+  // chapter / book in the background without needing the BABEL panel to
+  // be mounted. Survives unmount because it writes straight to
+  // localStorage["codex.babelforge.v1"] (read-modify-write).
+  //
+  // Public API:
+  //   refreshChapter({translationId, bookId, chapter, force=true}) →
+  //     bool — re-translates every verse in this chapter for the project
+  //     backing translationId. Replaces existing drafts (unless locked).
+  //   ensureChapter({translationId, bookId, chapter}) →
+  //     bool — only translates verses that don't yet have a draft. Used
+  //     by the Reader's "auto-forge on view" hook.
+  //   ensureBook({translationId, bookId}) → fires-and-returns
+  //     queues every chapter in a book for background translation.
+  //
+  // All paths skip if the project isn't installed OR has no AI key.
+  const _bgState = {
+    inflight: new Set(),       // "bf-<id>:gen.1" keys currently translating
+    bookQueues: new Map(),     // bf-id → Set<bookId> queued for whole-book
+  };
+
+  function _hasKeySync() {
+    try {
+      const raw = localStorage.getItem("codex.api.keys.v1");
+      const j = raw ? JSON.parse(raw) : null;
+      if (j && (j.anthropic || j.grok || j.xai)) return true;
+    } catch {}
+    return false;
+  }
+
+  function _projectFor(translationId) {
+    if (!translationId || !translationId.startsWith("bf-")) return null;
+    const projId = "proj-" + translationId.replace(/^bf-/, "");
+    try {
+      const st = JSON.parse(localStorage.getItem("codex.babelforge.v1") || "{}");
+      return (st.projects || []).find(p => p.id === projId) || null;
+    } catch { return null; }
+  }
+  function _saveProject(updated) {
+    try {
+      const st = JSON.parse(localStorage.getItem("codex.babelforge.v1") || "{}");
+      const i = (st.projects || []).findIndex(p => p.id === updated.id);
+      if (i >= 0) st.projects[i] = updated;
+      else st.projects = (st.projects || []).concat([updated]);
+      localStorage.setItem("codex.babelforge.v1", JSON.stringify(st));
+      return true;
+    } catch (e) { console.warn("[babelforge bg] save failed:", e); return false; }
+  }
+
+  async function _translateChapter(translationId, bookId, chapter, { force = false } = {}) {
+    const key = `${translationId}:${bookId}.${chapter}`;
+    if (_bgState.inflight.has(key)) return false;
+    if (!_hasKeySync()) return false;
+    const eng = engine();
+    if (!eng) return false;
+    const project = _projectFor(translationId);
+    if (!project) return false;
+    _bgState.inflight.add(key);
+    try {
+      const base = await fetchBaseVerse.__chapter
+        ? await fetchBaseVerse.__chapter(project.base_translation, bookId, chapter)
+        : await (async () => {
+            if (window.BIBLE && typeof window.BIBLE.loadChapter === "function") {
+              return window.BIBLE.loadChapter(bookId, chapter, project.base_translation);
+            }
+            return [];
+          })();
+      if (!Array.isArray(base) || base.length === 0) return false;
+      const voiceTpl = project.voice_template === "custom"
+        ? project.voice_custom
+        : (eng.getTemplate ? eng.getTemplate(project.voice_template) : null);
+      const sys = eng.buildSystemPrompt(voiceTpl || {}, project.rigor, { target_language: project.target_language });
+      const verses = Object.assign({}, project.verses || {});
+      let touched = 0;
+      const CONCURRENCY = 3;
+      const queue = base.slice();
+      const workers = Array.from({ length: CONCURRENCY }, async () => {
+        while (queue.length) {
+          const v = queue.shift();
+          if (!v) break;
+          const k = `${bookId}.${chapter}.${v.n}`;
+          if (verses[k] && verses[k].locked) continue;
+          if (!force && verses[k] && verses[k].draft && verses[k].draft.trim()) continue;
+          try {
+            const userMsg = eng.buildUserMessage({ ref: k, base: v.text, literal_crib: literalCribFor(bookId, chapter, v.n) });
+            const raw = await callAI(sys, userMsg);
+            const parsed = eng.parseAIDraft(raw);
+            if (parsed.draft && parsed.draft.trim()) {
+              const r = eng.checkRigor(parsed.draft, v.text, "", project.rigor);
+              verses[k] = { base: v.text, draft: parsed.draft, mode: "ai", ai_notes: eng.mergeNotes(parsed.notes, r.notes), badge: r.badge, locked: false };
+              touched++;
+            }
+          } catch (e) { /* swallow, surface via toast below if all failed */ }
+        }
+      });
+      await Promise.all(workers);
+      if (touched > 0) {
+        const next = Object.assign({}, project, { verses, modified: Date.now() });
+        _saveProject(next);
+        try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: translationId, chapter: `${bookId}.${chapter}` } })); } catch {}
+        try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `BabelForge · ${bookId.toUpperCase()} ${chapter} · ${touched} verses ready`, kind: "ok" } })); } catch {}
+      }
+      return touched > 0;
+    } finally {
+      _bgState.inflight.delete(key);
+    }
+  }
+
+  async function refreshChapter({ translationId, bookId, chapter }) {
+    return _translateChapter(translationId, bookId, chapter, { force: true });
+  }
+  async function ensureChapter({ translationId, bookId, chapter }) {
+    const project = _projectFor(translationId);
+    if (!project) return false;
+    // Already fully drafted? Skip.
+    const verses = project.verses || {};
+    const has = Object.keys(verses).some(k => k.startsWith(`${bookId}.${chapter}.`) && verses[k].draft);
+    if (has) return false;
+    return _translateChapter(translationId, bookId, chapter, { force: false });
+  }
+  async function ensureBook({ translationId, bookId }) {
+    const project = _projectFor(translationId);
+    if (!project) return false;
+    const meta = bookById(bookId);
+    const total = meta && meta.chapters ? meta.chapters : 1;
+    let q = _bgState.bookQueues.get(translationId);
+    if (!q) { q = new Set(); _bgState.bookQueues.set(translationId, q); }
+    if (q.has(bookId)) return false;       // already queued
+    q.add(bookId);
+    (async () => {
+      try {
+        for (let c = 1; c <= total; c++) {
+          await ensureChapter({ translationId, bookId, chapter: c });
+        }
+      } finally { q.delete(bookId); }
+    })();
+    return true;
+  }
+
+  Object.assign(window.CODEX_BabelForge, { refreshChapter, ensureChapter, ensureBook });
 
   // 1-step Forge-Entire-Bible modal: voice + source text + name → go.
   function ForgeBibleModal({ onForge, onClose }) {

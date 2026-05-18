@@ -1295,7 +1295,32 @@ function ReaderViewPopover({
   yhwhMode, onToggleYHWH,
   fontScale, onCycleFontSize,
   sideBySide, onToggleSideBySide,
+  primary, passage,
 }) {
+  // Is the user reading a BabelForge translation? If so, surface a
+  // "Refresh translation" row so they can re-translate the current
+  // chapter from scratch in one click.
+  const isBf = typeof primary === "string" && primary.startsWith("bf-");
+  const [refreshing, setRefreshing] = useState(false);
+  async function refreshChapter() {
+    if (!isBf || !passage || refreshing) return;
+    const bookId = passage.bookId; const chapter = passage.chapter;
+    if (!bookId || !chapter) return;
+    setRefreshing(true);
+    try {
+      const fn = window.CODEX_BabelForge && window.CODEX_BabelForge.refreshChapter;
+      if (typeof fn === "function") {
+        const ok = await fn({ translationId: primary, bookId, chapter });
+        try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: ok ? "Chapter refreshed — reload the chapter to see the new draft." : "Refresh failed — see console.", kind: ok ? "ok" : "err" } })); } catch {}
+      } else {
+        try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "BabelForge isn't ready yet.", kind: "warn" } })); } catch {}
+      }
+    } catch (e) {
+      try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Refresh failed: " + (e.message || e), kind: "err" } })); } catch {}
+    } finally {
+      setRefreshing(false);
+    }
+  }
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -1367,6 +1392,21 @@ function ReaderViewPopover({
               aria-label="Side by side mode"
             ><i /></button>
           </div>
+          {isBf ? (
+            <div className="cx-vp-row" style={{ minHeight: 44, borderTop: '1px solid var(--cx-line, #1f2a36)', paddingTop: 8 }}>
+              <span className="cx-vp-lbl" title="Re-translate this chapter via BabelForge and replace the cached draft">↻ Refresh translation</span>
+              <button
+                type="button"
+                className="cx-vp-stepper"
+                onClick={refreshChapter}
+                disabled={refreshing}
+                title="Re-forge this chapter with the current voice + source"
+                style={{ minHeight: 44 }}
+              >
+                <span>{refreshing ? "…working" : "this chapter"}</span>
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </span>
@@ -1441,6 +1481,7 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
               yhwhMode={yhwhMode} onToggleYHWH={onToggleYHWH}
               fontScale={fontScale} onCycleFontSize={onCycleFontSize}
               sideBySide={sideBySide} onToggleSideBySide={onToggleSideBySide}
+              primary={primary} passage={passage}
             />
           </div>
         </div>

@@ -1112,6 +1112,39 @@ function App() {
 
   useEffect(() => { try { localStorage.setItem("codex.passageLoc", JSON.stringify(passageLoc)); } catch {} }, [passageLoc]);
 
+  // Reload the current passage when a translation it shows just gained
+  // a new chapter (BabelForge background pass). Without this, the
+  // newly translated verses sit in localStorage until the user manually
+  // navigates somewhere and back.
+  useEffect(() => {
+    const onChanged = (e) => {
+      try {
+        const id = e && e.detail && e.detail.id;
+        const visible = new Set([primary, ...(compareSet || [])]);
+        if (id && visible.has(id)) {
+          loadPassage(passageLoc.bookId, passageLoc.chapter, passageLoc.verse || currentVerse || 1);
+        }
+      } catch {}
+    };
+    window.addEventListener("codex:translations-changed", onChanged);
+    return () => window.removeEventListener("codex:translations-changed", onChanged);
+    // eslint-disable-next-line
+  }, [primary, JSON.stringify(compareSet), passageLoc.bookId, passageLoc.chapter]);
+
+  // Auto-forge: when the user is reading (or comparing against) a
+  // BabelForge translation, kick off background translation of the
+  // whole book on every navigation so the chapter they jump to next
+  // is already done. Fire-and-forget; no-ops if no key / no project.
+  useEffect(() => {
+    if (!window.CODEX_BabelForge || typeof window.CODEX_BabelForge.ensureBook !== "function") return;
+    const cohort = Array.from(new Set([primary, ...(compareSet || [])])).filter(id => typeof id === "string" && id.startsWith("bf-"));
+    cohort.forEach(translationId => {
+      try { window.CODEX_BabelForge.ensureBook({ translationId, bookId: passageLoc.bookId }); } catch {}
+      // Also ensure the current chapter eagerly (so it's first in line).
+      try { window.CODEX_BabelForge.ensureChapter({ translationId, bookId: passageLoc.bookId, chapter: passageLoc.chapter }); } catch {}
+    });
+  }, [primary, JSON.stringify(compareSet), passageLoc.bookId, passageLoc.chapter]);
+
   // Personal-bible MARKS — unified concept: a mark IS a highlight. One list,
   // one schema, one mental model.
   //   { "jhn.1.14": { color: "amber", ts: 1715500000000, note: "And the Word…" } }
