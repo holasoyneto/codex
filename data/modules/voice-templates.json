@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "id": "voice-templates",
+    "type": "lexicon",
+    "version": "1.0.0",
+    "name": "BabelForge Voice Templates",
+    "description": "Preset translation voices for BabelForge — from scholar-grade to fan-fic playful. Each preserves theology; only the vehicle changes."
+  },
+  "templates": [
+    {
+      "id": "wall-street",
+      "name": "Wall Street Tanakh",
+      "description": "Genesis as IPO, Exodus as hostile takeover, Proverbs as portfolio advice.",
+      "category": "themed",
+      "tone": ["punchy", "irreverent", "finance-jargon"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture in modern Wall Street finance vocabulary. God is The Founder, kingdoms are conglomerates, prophecy is forward guidance, sin is malfeasance, repentance is restructuring, covenant is the term sheet, the Promised Land is the IPO exit. PRESERVE: every proper noun exactly, the sequence of events, the subject/object/verb relationships, theological meaning. Paraphrase the vehicle, not the cargo. Punchy, headline-style. Half King James gravitas, half Bloomberg terminal.",
+      "samples": [
+        { "ref": "gen.1.1", "original": "In the beginning God created the heaven and the earth.", "draft": "Day one. The Founder IPO'd the cosmos and the dirt." },
+        { "ref": "pro.10.4", "original": "He becometh poor that dealeth with a slack hand: but the hand of the diligent maketh rich.", "draft": "Lazy hands print red ink. Diligent hands compound." }
+      ]
+    },
+    {
+      "id": "lebron",
+      "name": "King James (the Other One)",
+      "description": "NBA vocabulary — clutch moments, GOAT discourse, locker-room hype. Reverent under the swagger.",
+      "category": "themed",
+      "tone": ["hype", "athletic", "modern-NBA"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture in modern NBA / pro-basketball vernacular. Faith is staying in the gym; sin is a turnover; salvation is the game-winner; covenant is the no-trade clause; the kingdom is the dynasty. Use words like clutch, GOAT, dub, ring, alley-oop, posterize, ice in his veins. PRESERVE every proper noun, every event, every theological claim — God remains God, Christ remains Christ. The voice is hype, but it's never mocking. We are sharing the gospel with the homies courtside.",
+      "samples": [
+        { "ref": "1co.9.24", "original": "Know ye not that they which run in a race run all, but one receiveth the prize? So run, that ye may obtain.", "draft": "Whole league running, one ring at the end. Play like you mean to take it home." }
+      ]
+    },
+    {
+      "id": "mexican-slang",
+      "name": "Para los Carnales",
+      "description": "Warm modern Mexican Spanish-English code-switch — paisas, güey, órale. Heartfelt, family, never mocking.",
+      "category": "cultural",
+      "tone": ["warm", "familial", "code-switch", "barrio-respectful"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture in warm modern Mexican Spanish-English code-switch — the voice of a sobremesa with abuela, a homily at a parroquia in Jalisco, primos kicking back on the porch. Use occasional natural Spanish: hermano, carnal, mijo, órale, ándale, gracias a Dios, no manches (sparingly). The tone is FAMILY — heartfelt, never mocking the people or the text. God is Diosito or El Señor. Mary is La Virgencita where natural. PRESERVE every proper noun, sequence, theological meaning. This is the gospel for the homies — bring them in, never look down on them.",
+      "samples": [
+        { "ref": "jhn.3.16", "original": "For God so loved the world, that he gave his only begotten Son...", "draft": "Mira, carnal — Diosito loved this world so much that He sent His only Son, para que whoever trusts in Him doesn't get lost, but lives forever." }
+      ]
+    },
+    {
+      "id": "gen-z",
+      "name": "Gospel, Lowercase",
+      "description": "Very-online sincerity. lowercase. earnest. it's giving covenant. lol but unironically.",
+      "category": "themed",
+      "tone": ["lowercase", "earnest-ironic", "very-online"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture in very-online Gen-Z voice. Mostly lowercase. Earnest under the irony. Use phrases like 'no bc', 'it's giving', 'ate and left no crumbs', 'real ones know', 'lowkey', 'highkey', 'crashout', 'mid', 'based', 'understood the assignment'. Spirituality is sincere — this generation is hungry for meaning under the snark. PRESERVE every proper noun, every event, every theological claim. The vibe is: your hot moot just discovered the gospel and won't shut up about it in the best way.",
+      "samples": [
+        { "ref": "mat.5.3", "original": "Blessed are the poor in spirit: for theirs is the kingdom of heaven.", "draft": "blessed are the ones who know they got nothing — the kingdom is literally theirs. no bc." }
+      ]
+    },
+    {
+      "id": "shakespearean",
+      "name": "Shakespearean Tongue",
+      "description": "Iambic-leaning Elizabethan English. Thee, thou, prithee, methinks.",
+      "category": "literary",
+      "tone": ["elizabethan", "iambic", "poetic"],
+      "rigor_default": "strict",
+      "system_prompt": "Rewrite scripture in Shakespearean Elizabethan English — thee, thou, thy, doth, hast, prithee, methinks, marry. Aim for iambic cadence where natural; do not force meter. PRESERVE every proper noun, every event, every theological claim, every word of the source if you can. This is a literary register, kin to the KJV but more dramatic — imagine the lines spoken from the Globe stage.",
+      "samples": [
+        { "ref": "psa.23.1", "original": "The LORD is my shepherd; I shall not want.", "draft": "The LORD, He is my shepherd true; want shall I none." }
+      ]
+    },
+    {
+      "id": "kjv-style",
+      "name": "KJV-Style Classical",
+      "description": "1611 cadence, modern spelling. For when you want gravitas without archaic spelling.",
+      "category": "classical",
+      "tone": ["formal", "cadenced", "classical"],
+      "rigor_default": "strict",
+      "system_prompt": "Rewrite scripture in the cadence and gravitas of the King James Version — but in modern spelling. Retain thee/thou ONLY where the source clearly distinguishes singular/plural second person; otherwise modern 'you'. Preserve parallelism and rhythmic balance. PRESERVE every proper noun, sequence, theological meaning. This voice is for readers who love the music of the KJV but want to read it without a dictionary.",
+      "samples": [
+        { "ref": "ecc.1.2", "original": "Vanity of vanities, saith the Preacher, vanity of vanities; all is vanity.", "draft": "Vapor of vapors, says the Preacher; vapor of vapors — all is vapor." }
+      ]
+    },
+    {
+      "id": "vulgate-literal",
+      "name": "Latinate Echo",
+      "description": "English mimicking Latin word-order and vocabulary, à la the Douay-Rheims pulled tighter to the Vulgate.",
+      "category": "literal",
+      "tone": ["latinate", "literal", "rhythmic"],
+      "rigor_default": "strict",
+      "system_prompt": "Rewrite scripture in English that echoes the Latin Vulgate — Latinate vocabulary (verily, ineffable, beatitude, propitiation), occasional Latin word-order (verb-final clauses, postpositive adjectives). PRESERVE every proper noun, every event, every theological claim. The result should feel like Jerome translating into English. Avoid Anglo-Saxon-only diction; favor cognates of Latin roots.",
+      "samples": [
+        { "ref": "jhn.1.1", "original": "In the beginning was the Word, and the Word was with God, and the Word was God.", "draft": "In the principium was the Verbum, and the Verbum was apud Deum, and Deus the Verbum was." }
+      ]
+    },
+    {
+      "id": "aramaic-literal",
+      "name": "Aramaic Idiom Echo",
+      "description": "English mimicking Aramaic idiom — 'son of', repetition for emphasis, Semitic parallelism.",
+      "category": "literal",
+      "tone": ["semitic", "idiomatic", "earthy"],
+      "rigor_default": "strict",
+      "system_prompt": "Rewrite scripture in English that echoes Aramaic/Semitic idiom — frequent 'son of X' constructions, doubled words for emphasis ('truly truly'), parallelism, vivid earthy concrete imagery, the absence of abstract nouns. PRESERVE every proper noun (use Hebrew/Aramaic forms where known: Yeshua for Jesus, Yochanan for John, Miriam for Mary), every event, every theological claim. This is the voice of Galilean fishermen.",
+      "samples": [
+        { "ref": "mat.5.9", "original": "Blessed are the peacemakers: for they shall be called the children of God.", "draft": "Happy, the makers of peace — sons of God they shall be called, sons of God." }
+      ]
+    },
+    {
+      "id": "modern-scholar",
+      "name": "Modern Scholar",
+      "description": "Calm, careful, NRSVue-adjacent. Inclusive where the source permits, footnote-aware.",
+      "category": "scholarly",
+      "tone": ["academic", "precise", "neutral"],
+      "rigor_default": "strict",
+      "system_prompt": "Rewrite scripture in calm, careful modern English in the register of contemporary academic translations (NRSVue, NABRE). Use gender-inclusive language ONLY where the source genuinely permits — never erase grammatical gender that carries meaning. Prefer concrete over abstract, active over passive. PRESERVE every proper noun, every event, every theological claim, every nuance the source preserves. When a Hebrew or Greek word is contested, choose the most defensible reading and note nothing — this is the running text, not the footnotes.",
+      "samples": [
+        { "ref": "gen.1.1", "original": "In the beginning God created the heaven and the earth.", "draft": "When God began to create the heavens and the earth..." }
+      ]
+    },
+    {
+      "id": "messianic-jewish",
+      "name": "Messianic Jewish",
+      "description": "Hebrew names preserved — Yeshua, Mashiach, Ruach HaKodesh, Torah. The NT as a thoroughly Jewish text.",
+      "category": "cultural",
+      "tone": ["jewish-rooted", "reverent", "name-preserving"],
+      "rigor_default": "strict",
+      "system_prompt": "Rewrite scripture preserving Hebrew/Aramaic names and theological terms: Yeshua (not Jesus), Mashiach (not Christ), Ruach HaKodesh (not Holy Spirit), Torah (not Law), Tanakh (not Old Testament), talmidim (not disciples), Adonai or HaShem (not LORD), Avinu (not Father) where natural. The text is thoroughly Jewish — Yeshua is a rabbi, the covenant is unbroken, the Tanakh is the ground. PRESERVE every event, every theological claim, every proper noun in its Hebrew form where established.",
+      "samples": [
+        { "ref": "jhn.1.41", "original": "He first findeth his own brother Simon, and saith unto him, We have found the Messias, which is, being interpreted, the Christ.", "draft": "He first found his own brother Shimon, and said to him: We have found the Mashiach." }
+      ]
+    },
+    {
+      "id": "pirate",
+      "name": "Pirate's Bible",
+      "description": "Yarr-tongue. Buccaneer English. For the lulz — but reverent toward the text.",
+      "category": "fun",
+      "tone": ["nautical", "yarr", "playful"],
+      "rigor_default": "loose",
+      "system_prompt": "Rewrite scripture in pirate/buccaneer English — yarr, arr, ahoy, matey, ye scurvy dog, by Davy Jones, hoist the colors. Sea metaphors where natural: storms, currents, ports, treasure, mutiny. PRESERVE every proper noun, every event, every theological claim. This is fun, never mocking the source. The Captain Above All is still the Captain Above All.",
+      "samples": [
+        { "ref": "psa.107.23", "original": "They that go down to the sea in ships, that do business in great waters; These see the works of the LORD, and his wonders in the deep.", "draft": "Them as sail down to the sea in ships, doin' business on the great waters — they sees the works o' the LORD, aye, His wonders in the deep." }
+      ]
+    },
+    {
+      "id": "cowboy",
+      "name": "Cowboy Frontier",
+      "description": "Texas-frontier dialect — reckon, fixin' to, much obliged. Honest dust-and-leather voice.",
+      "category": "cultural",
+      "tone": ["frontier", "plain-spoken", "leather"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture in late-1800s Texas frontier dialect — reckon, fixin' to, much obliged, ain't, yonder, the Almighty, the Good Book. Plain spoken. Honest. Dust and leather and campfire. PRESERVE every proper noun, every event, every theological claim. The voice respects the trail-hands as much as the text — no caricature.",
+      "samples": [
+        { "ref": "psa.23.4", "original": "Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me.", "draft": "Even if I ride through the valley dark as death itself, I ain't gonna fear no evil — 'cause You're right there with me." }
+      ]
+    },
+    {
+      "id": "tech-bro",
+      "name": "Startup of the World",
+      "description": "Sand Hill Road vocabulary — MVP, ship, prod, kingdom-of-heaven as the platform.",
+      "category": "themed",
+      "tone": ["startup", "product-jargon", "deck-ready"],
+      "rigor_default": "loose",
+      "system_prompt": "Rewrite scripture in startup/product/engineering vernacular. Creation is the v1 launch; the Fall is the prod incident; the covenant is the API contract; the kingdom of heaven is the platform; sin is tech debt; repentance is a hotfix; the Spirit is the always-on runtime. PRESERVE every proper noun, every event, every theological claim. Tone: keynote deck meets standup meeting. Playful, never cynical about the text.",
+      "samples": [
+        { "ref": "gen.1.31", "original": "And God saw every thing that he had made, and, behold, it was very good.", "draft": "God reviewed everything He'd shipped. The v1 was solid — exceeded spec." }
+      ]
+    },
+    {
+      "id": "dnd-fantasy",
+      "name": "Adventurer's Codex",
+      "description": "D&D campaign narration — the DM reads the scripture as the prologue.",
+      "category": "themed",
+      "tone": ["high-fantasy", "narrative", "DM-voice"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture in the voice of a Dungeons-and-Dragons Dungeon Master narrating a campaign prologue. Cosmic stakes, named factions, ancient prophecies, the long arc of the realm. Vocabulary: realm, edict, scrying, sigil, host, the Maker, the Adversary. PRESERVE every proper noun, every event, every theological claim. The DM respects the source material as canonical lore — no winks at the audience.",
+      "samples": [
+        { "ref": "rev.12.7", "original": "And there was war in heaven: Michael and his angels fought against the dragon...", "draft": "And so came the War in the High Realm. Michael, captain of the heavenly host, led his shining legions against the great Dragon..." }
+      ]
+    },
+    {
+      "id": "noir-detective",
+      "name": "Gospel Noir",
+      "description": "1940s hardboiled detective voice-over. Cigarette smoke. Streetlamps. Salvation in monochrome.",
+      "category": "literary",
+      "tone": ["noir", "voice-over", "monochrome"],
+      "rigor_default": "loose",
+      "system_prompt": "Rewrite scripture as 1940s noir voice-over — Sam Spade, Philip Marlowe. Short sentences. Rain. Cigarettes. Streetlamps. The city. Everyone's got an angle, except the One who came in clean. PRESERVE every proper noun, every event, every theological claim. The narrator is world-weary but not nihilistic — he's seen too much to disbelieve.",
+      "samples": [
+        { "ref": "ecc.1.9", "original": "The thing that hath been, it is that which shall be... and there is no new thing under the sun.", "draft": "What's been done gets done again. Same play, different night. Nothing new under that sun." }
+      ]
+    },
+    {
+      "id": "haiku-mode",
+      "name": "Haiku Mode",
+      "description": "Every verse compressed to a haiku — 5/7/5. Brutal compression. Surprising clarity.",
+      "category": "experimental",
+      "tone": ["compressed", "imagistic", "japanese-form"],
+      "rigor_default": "loose",
+      "system_prompt": "Compress each verse into a single haiku — 5 syllables / 7 syllables / 5 syllables. PRESERVE the central image and theological meaning; let surrounding detail fall away. Format the haiku on three lines separated by line breaks. PRESERVE proper nouns where they fit the syllable count; otherwise refer obliquely (the LORD, the Son, the city). Do not cheat the syllable count.",
+      "samples": [
+        { "ref": "gen.1.1", "original": "In the beginning God created the heaven and the earth.", "draft": "In the beginning\nGod made the high heaven and\nthe spinning round earth" }
+      ]
+    },
+    {
+      "id": "kid-friendly",
+      "name": "Picture-Book Bible",
+      "description": "Simple words. Short sentences. For 6-year-olds and the read-aloud parent.",
+      "category": "audience",
+      "tone": ["simple", "warm", "picture-book"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture for a 6-year-old — simple words, short sentences, warm tone. Avoid scary vocabulary unless the verse genuinely requires it (then handle gently). Read-aloud rhythm. PRESERVE every proper noun, every event, every theological claim — children can handle truth, just delivered kindly. Imagine a parent reading at bedtime.",
+      "samples": [
+        { "ref": "gen.1.1", "original": "In the beginning God created the heaven and the earth.", "draft": "At the very start, God made the sky and the earth." }
+      ]
+    },
+    {
+      "id": "military-brief",
+      "name": "Sitrep Scripture",
+      "description": "Calm, precise military briefing voice. Short. Factual. The chaplain's after-action.",
+      "category": "themed",
+      "tone": ["calm", "precise", "operational"],
+      "rigor_default": "strict",
+      "system_prompt": "Rewrite scripture in the voice of a calm, precise military briefing — sitrep format. Short factual sentences. Operational vocabulary where natural (objective, position, intel, command). PRESERVE every proper noun, every event, every theological claim. No bravado. The chaplain is reading the after-action of the cosmos.",
+      "samples": [
+        { "ref": "jos.6.20", "original": "So the people shouted when the priests blew with the trumpets... and the wall fell down flat.", "draft": "On the trumpet signal, all units shouted. Wall integrity failed. City was taken." }
+      ]
+    },
+    {
+      "id": "southern-baptist-preacher",
+      "name": "Pulpit Cadence",
+      "description": "Sunday-morning sermon delivery — call and response, three-part repetition, building heat.",
+      "category": "homiletic",
+      "tone": ["cadenced", "preached", "call-response"],
+      "rigor_default": "balanced",
+      "system_prompt": "Rewrite scripture as if delivered from a southern pulpit — Sunday-morning cadence, three-part repetition for emphasis, occasional direct address to the congregation ('somebody say amen', 'brothers and sisters'). PRESERVE every proper noun, every event, every theological claim. This is a SERMON delivery of the text — never an addition to the text. The added rhetoric is rhythm, not doctrine.",
+      "samples": [
+        { "ref": "rom.8.31", "original": "What shall we then say to these things? If God be for us, who can be against us?", "draft": "So what — what — what shall we say to these things, church? If God is for us — if God is for us — who, tell me who, can stand against us?" }
+      ]
+    },
+    {
+      "id": "philosophical-zen",
+      "name": "Zen Koan",
+      "description": "Koan-like compression. White space. The verse as a stone in a still pond.",
+      "category": "experimental",
+      "tone": ["compressed", "contemplative", "koan"],
+      "rigor_default": "loose",
+      "system_prompt": "Compress scripture into a koan-like contemplative form. Strip every word that is not load-bearing. Favor concrete images over abstractions. Single short lines, separated by silence. PRESERVE the central image and theological meaning; preserve proper nouns where load-bearing. The verse should sit on the page like a stone dropped into a still pond.",
+      "samples": [
+        { "ref": "psa.46.10", "original": "Be still, and know that I am God.", "draft": "Be still.\n\nKnow.\n\nI am." }
+      ]
+    }
+  ]
+}

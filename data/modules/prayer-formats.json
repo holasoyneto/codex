@@ -1,0 +1,442 @@
+{
+  "meta": {
+    "id": "prayer-formats",
+    "type": "lexicon",
+    "version": "1.0.0",
+    "name": "Prayer Formats — Many Traditions",
+    "description": "A curated, reverent library of prayer forms drawn from Christian, Catholic, Orthodox, Jewish, Muslim (interfaith), Gnostic, Hermetic, Quaker, and contemplative traditions. Each entry includes ordered sections (invocation, petition, declaration, refrain, silence, doxology) so a voice engine can pace the prayer with breath and pause."
+  },
+  "formats": [
+    {
+      "id": "lords-prayer",
+      "name": "The Lord's Prayer",
+      "tradition": "Christian — universal",
+      "badge": "christian",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.85,
+      "summary": "The prayer Jesus gave his disciples — six petitions framed by an invocation and doxology (Matt 6:9-13).",
+      "sections": [
+        { "type": "invocation", "text": "Our Father, who art in heaven, hallowed be thy Name." },
+        { "type": "petition",   "text": "Thy kingdom come. Thy will be done, on earth as it is in heaven." },
+        { "type": "petition",   "text": "Give us this day our daily bread." },
+        { "type": "petition",   "text": "And forgive us our trespasses, as we forgive those who trespass against us." },
+        { "type": "petition",   "text": "And lead us not into temptation, but deliver us from evil." },
+        { "type": "doxology",   "text": "For thine is the kingdom, and the power, and the glory, for ever and ever. Amen." }
+      ]
+    },
+
+    {
+      "id": "lectio-divina",
+      "name": "Lectio Divina",
+      "tradition": "Christian — contemplative",
+      "badge": "christian",
+      "lang_default": "en",
+      "structure": "guided",
+      "pace_rate": 0.78,
+      "summary": "A slow four-movement reading of scripture — read, reflect, respond, rest.",
+      "sections": [
+        { "type": "invocation", "text": "Holy One, open my heart to hear your word. Slow my breath. Quiet my mind." },
+        { "type": "declaration", "text": "Lectio. Read the passage slowly, once. Listen for the word or phrase that shimmers." },
+        { "type": "silence", "text": "(Sit with the word for one minute.)", "duration": 60 },
+        { "type": "declaration", "text": "Meditatio. Read the passage again. Let the word turn in you. What memory, what longing rises?" },
+        { "type": "silence", "text": "(Hold the word for one minute.)", "duration": 60 },
+        { "type": "declaration", "text": "Oratio. Read the passage a third time. Now speak — to God, from this place." },
+        { "type": "silence", "text": "(Pray for one minute.)", "duration": 60 },
+        { "type": "declaration", "text": "Contemplatio. Read the passage a final time. Now simply be — with the word, with the Presence." },
+        { "type": "silence", "text": "(Rest in stillness for two minutes.)", "duration": 120 },
+        { "type": "doxology", "text": "Amen. Carry the word with you into the day." }
+      ]
+    },
+
+    {
+      "id": "examen",
+      "name": "The Examen",
+      "tradition": "Ignatian — Catholic contemplative",
+      "badge": "catholic",
+      "lang_default": "en",
+      "structure": "guided",
+      "pace_rate": 0.80,
+      "summary": "St. Ignatius' five-movement prayerful review of the day.",
+      "sections": [
+        { "type": "invocation", "text": "Loving God, I come into your presence. Be with me as I look at this day." },
+        { "type": "declaration", "text": "First: gratitude. What am I thankful for today? Name three gifts." },
+        { "type": "silence", "text": "(Pause and notice.)", "duration": 45 },
+        { "type": "declaration", "text": "Second: review. Walk through the day, hour by hour. What stands out?" },
+        { "type": "silence", "text": "(Replay the day gently.)", "duration": 60 },
+        { "type": "declaration", "text": "Third: emotions. Where did I feel joy? Where did I feel resistance, fear, or shame?" },
+        { "type": "silence", "text": "(Sit with what surfaces.)", "duration": 45 },
+        { "type": "declaration", "text": "Fourth: confession and forgiveness. What needs to be released? What needs to be received?" },
+        { "type": "silence", "text": "(Speak honestly to God.)", "duration": 45 },
+        { "type": "declaration", "text": "Fifth: tomorrow. What grace do I ask for the day to come?" },
+        { "type": "doxology", "text": "Into your hands I commend my spirit. Amen." }
+      ]
+    },
+
+    {
+      "id": "breath-prayer",
+      "name": "Breath Prayer (Jesus Prayer)",
+      "tradition": "Eastern Orthodox — Hesychast",
+      "badge": "orthodox",
+      "lang_default": "en",
+      "structure": "repetitive",
+      "pace_rate": 0.72,
+      "summary": "Ancient short prayer of the heart, breathed in rhythm. Inhale the name; exhale the petition.",
+      "sections": [
+        { "type": "invocation", "text": "Settle. Soften the shoulders. Find the breath." },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God — have mercy on me, a sinner." },
+        { "type": "silence", "text": "(Breathe. Repeat.)", "duration": 8 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God — have mercy on me, a sinner." },
+        { "type": "silence", "text": "", "duration": 8 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God — have mercy on me, a sinner." },
+        { "type": "silence", "text": "", "duration": 8 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God — have mercy on me, a sinner." },
+        { "type": "silence", "text": "", "duration": 8 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God — have mercy on me, a sinner." },
+        { "type": "silence", "text": "(Continue silently as long as you wish.)", "duration": 30 },
+        { "type": "doxology", "text": "Amen." }
+      ]
+    },
+
+    {
+      "id": "rosary-joyful",
+      "name": "Rosary — Joyful Mysteries",
+      "tradition": "Catholic — Marian devotion",
+      "badge": "catholic",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.82,
+      "summary": "The first set of mysteries, prayed Mondays and Saturdays. Apostles' Creed, Our Fathers, ten Hail Marys per mystery, Glory Be, Fatima Prayer.",
+      "sections": [
+        { "type": "invocation", "text": "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
+        { "type": "declaration", "text": "The Apostles' Creed. I believe in God, the Father almighty, creator of heaven and earth. And in Jesus Christ, his only Son, our Lord — who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died, and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen." },
+        { "type": "petition", "text": "Our Father, who art in heaven, hallowed be thy name; thy kingdom come, thy will be done, on earth as it is in heaven. Give us this day our daily bread, and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen." },
+        { "type": "declaration", "text": "The First Joyful Mystery — The Annunciation. The angel Gabriel announces to Mary that she will conceive the Son of God." },
+        { "type": "refrain", "text": "Hail Mary, full of grace, the Lord is with thee. Blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat ten times.)" },
+        { "type": "doxology", "text": "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen." },
+        { "type": "petition", "text": "O my Jesus, forgive us our sins, save us from the fires of hell, and lead all souls to heaven, especially those most in need of thy mercy." },
+        { "type": "declaration", "text": "The Second Joyful Mystery — The Visitation. Mary visits Elizabeth, and the child in the womb leaps for joy." },
+        { "type": "declaration", "text": "The Third Joyful Mystery — The Nativity. Christ is born in Bethlehem." },
+        { "type": "declaration", "text": "The Fourth Joyful Mystery — The Presentation in the Temple. The child is offered to God; Simeon's heart is pierced with joy." },
+        { "type": "declaration", "text": "The Fifth Joyful Mystery — The Finding in the Temple. After three days, Mary and Joseph find Jesus in his Father's house." },
+        { "type": "doxology", "text": "Hail, Holy Queen, Mother of Mercy. Hail our life, our sweetness, and our hope. Amen." }
+      ]
+    },
+
+    {
+      "id": "compline",
+      "name": "Compline — Night Prayer",
+      "tradition": "Catholic / Anglican — Divine Office",
+      "badge": "catholic",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.78,
+      "summary": "The Church's prayer at the close of day. A brief examination, psalm, and commendation into God's keeping for the night.",
+      "sections": [
+        { "type": "invocation", "text": "The Lord almighty grant us a quiet night and a perfect end. Amen." },
+        { "type": "declaration", "text": "Brothers and sisters, let us examine the day past, that we may sleep in peace." },
+        { "type": "silence", "text": "(Review the day.)", "duration": 30 },
+        { "type": "petition", "text": "Into your hands, O Lord, I commend my spirit. For you have redeemed me, O Lord, O God of truth." },
+        { "type": "declaration", "text": "From Psalm 91: He who dwells in the shelter of the Most High shall abide under the shadow of the Almighty. He shall give his angels charge over you, to keep you in all your ways." },
+        { "type": "petition", "text": "Visit, we beseech you, O Lord, this dwelling, and drive far from it all the snares of the enemy. Let your holy angels dwell here to preserve us in peace, and may your blessing be upon us always." },
+        { "type": "doxology", "text": "Now, Lord, let your servant go in peace; your word has been fulfilled. May the all-powerful Lord grant us a restful night and a peaceful death. Amen." }
+      ]
+    },
+
+    {
+      "id": "trisagion",
+      "name": "Trisagion — Thrice-Holy Hymn",
+      "tradition": "Eastern Orthodox",
+      "badge": "orthodox",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.80,
+      "summary": "The ancient threefold acclamation of God's holiness, sung in every Orthodox service.",
+      "sections": [
+        { "type": "invocation", "text": "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
+        { "type": "refrain", "text": "Holy God, Holy Mighty, Holy Immortal — have mercy on us." },
+        { "type": "refrain", "text": "Holy God, Holy Mighty, Holy Immortal — have mercy on us." },
+        { "type": "refrain", "text": "Holy God, Holy Mighty, Holy Immortal — have mercy on us." },
+        { "type": "doxology", "text": "Glory to the Father, and to the Son, and to the Holy Spirit, now and ever and unto ages of ages. Amen." },
+        { "type": "petition", "text": "All-holy Trinity, have mercy on us. Lord, cleanse us of our sins. Master, pardon our transgressions. Holy One, visit and heal our infirmities, for your name's sake. Lord, have mercy. Lord, have mercy. Lord, have mercy." }
+      ]
+    },
+
+    {
+      "id": "akathist-glory",
+      "name": "Akathist — Glory to God for All Things",
+      "tradition": "Eastern Orthodox",
+      "badge": "orthodox",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.78,
+      "summary": "An excerpt from Metropolitan Tryphon's beloved akathist of thanksgiving, composed in a Soviet prison camp.",
+      "sections": [
+        { "type": "invocation", "text": "O Lord, how lovely it is to be your guest. Breeze full of scents; mountains reaching to the skies; waters like boundless mirrors, reflecting the sun's golden rays and the scudding clouds." },
+        { "type": "declaration", "text": "All nature murmurs mysteriously, breathing depths of tenderness." },
+        { "type": "refrain", "text": "Glory to you for the feast-day of life. Glory to you for the perfume of lilies and roses. Glory to you for each different taste of berry and fruit. Glory to you for the sparkling silver of early morning dew." },
+        { "type": "refrain", "text": "Glory to you for the joy of dawn's awakening. Glory to you for the new life each day brings. Glory to you, O God, from age to age." },
+        { "type": "doxology", "text": "Glory to you, O God, for all things. Amen." }
+      ]
+    },
+
+    {
+      "id": "shema",
+      "name": "Shema Yisrael",
+      "tradition": "Jewish — daily declaration",
+      "badge": "jewish",
+      "lang_default": "he",
+      "structure": "fixed",
+      "pace_rate": 0.78,
+      "summary": "The central declaration of Jewish faith, recited morning and evening (Deut 6:4-9). Hebrew followed by English.",
+      "sections": [
+        { "type": "invocation", "text": "Baruch atah Adonai, Eloheinu, Melech ha'olam — Blessed are you, Lord our God, Sovereign of the universe." },
+        { "type": "declaration", "text": "Shema Yisrael, Adonai Eloheinu, Adonai Echad." },
+        { "type": "declaration", "text": "Hear, O Israel: the Lord our God, the Lord is One." },
+        { "type": "silence", "text": "(Cover the eyes. Hold the unity.)", "duration": 6 },
+        { "type": "declaration", "text": "Baruch shem k'vod malchuto l'olam va'ed — Blessed be the name of his glorious kingdom forever and ever." },
+        { "type": "petition", "text": "V'ahavta et Adonai Elohecha — You shall love the Lord your God with all your heart, with all your soul, and with all your might. And these words which I command you this day shall be upon your heart. You shall teach them diligently to your children, and shall speak of them when you sit in your house, when you walk by the way, when you lie down, and when you rise up." },
+        { "type": "doxology", "text": "Amen. Selah." }
+      ]
+    },
+
+    {
+      "id": "amidah-weekday",
+      "name": "Amidah — Standing Prayer (abbreviated)",
+      "tradition": "Jewish — daily liturgy",
+      "badge": "jewish",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.80,
+      "summary": "The core standing prayer of Jewish worship, in an abbreviated weekday form. Pray facing east, with three steps forward.",
+      "sections": [
+        { "type": "invocation", "text": "Adonai, open my lips, that my mouth may declare your praise." },
+        { "type": "declaration", "text": "Blessed are you, Lord our God and God of our ancestors — God of Abraham, God of Isaac, and God of Jacob; God of Sarah, God of Rebecca, God of Rachel and God of Leah — great, mighty, and awesome God, God most high." },
+        { "type": "petition", "text": "You are mighty forever, Adonai. You give life to the dead, you are powerful to save. You sustain the living in loving kindness, raise the fallen, heal the sick, free the captive, and keep faith with those who sleep in the dust." },
+        { "type": "petition", "text": "Grant us knowledge, understanding, and discernment. Return us, our Maker, to your Torah; bring us near, our Sovereign, to your service. Forgive us, for we have sinned. Heal us, and we shall be healed. Bless this year for good." },
+        { "type": "petition", "text": "Sound the great shofar for our freedom; raise the banner to gather our exiles. Restore justice. Hear our voice. Accept our prayer, for you hear the prayer of every mouth." },
+        { "type": "doxology", "text": "May the words of my mouth and the meditation of my heart be acceptable to you, Adonai, my Rock and my Redeemer. Amen." }
+      ]
+    },
+
+    {
+      "id": "birkat-hamazon-short",
+      "name": "Birkat HaMazon — Grace After Meals (short form)",
+      "tradition": "Jewish — table blessing",
+      "badge": "jewish",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.85,
+      "summary": "The blessing after eating, a short-form alternative for when time is brief.",
+      "sections": [
+        { "type": "invocation", "text": "Blessed are you, Lord our God, Sovereign of the universe — who in goodness, mercy, and compassion gives food to all flesh; for your loving kindness endures forever." },
+        { "type": "petition", "text": "Through your great goodness food has never failed us. May it not fail us forever, for your great name's sake — for you sustain and nourish all, and prepare food for all your creatures whom you have created." },
+        { "type": "doxology", "text": "Baruch atah Adonai, hazan et hakol. Blessed are you, Lord, who sustains all. Amen." }
+      ]
+    },
+
+    {
+      "id": "modeh-ani",
+      "name": "Modeh Ani — Morning Awakening",
+      "tradition": "Jewish — first words of the day",
+      "badge": "jewish",
+      "lang_default": "he",
+      "structure": "fixed",
+      "pace_rate": 0.82,
+      "summary": "The first prayer of the Jewish day, spoken before rising. A brief thanksgiving for the gift of waking.",
+      "sections": [
+        { "type": "invocation", "text": "Modeh ani lefanecha, melech chai v'kayam — I give thanks before you, living and eternal Sovereign." },
+        { "type": "declaration", "text": "She'hechezarta bi nishmati b'chemla — for you have restored my soul within me in compassion." },
+        { "type": "doxology", "text": "Rabbah emunatecha — great is your faithfulness. Amen." }
+      ]
+    },
+
+    {
+      "id": "fatiha",
+      "name": "Al-Fatiha — The Opening",
+      "tradition": "Islamic — for interfaith study",
+      "badge": "muslim",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.82,
+      "summary": "The opening surah of the Qur'an, recited in every cycle of Muslim prayer. Offered here for interfaith study and reverent reading; for ritual salat, consult Arabic recitation.",
+      "sections": [
+        { "type": "invocation", "text": "Bismillah ir-Rahman ir-Rahim. In the name of God, the Most Gracious, the Most Merciful." },
+        { "type": "declaration", "text": "All praise is due to God, Lord of all the worlds — the Most Gracious, the Most Merciful, Master of the Day of Judgment." },
+        { "type": "petition", "text": "You alone do we worship, and from you alone do we seek help." },
+        { "type": "petition", "text": "Guide us on the straight path — the path of those upon whom you have bestowed grace, not of those who have earned your anger, nor of those who go astray." },
+        { "type": "doxology", "text": "Ameen." }
+      ]
+    },
+
+    {
+      "id": "hesychast-rope",
+      "name": "Hesychast Prayer Rope",
+      "tradition": "Eastern Orthodox — repetitive contemplation",
+      "badge": "orthodox",
+      "lang_default": "en",
+      "structure": "repetitive",
+      "pace_rate": 0.68,
+      "summary": "A short cycle modeled on the knotted prayer rope (chotki). One bead, one breath, one prayer.",
+      "sections": [
+        { "type": "invocation", "text": "Through the prayers of our holy fathers, Lord Jesus Christ our God, have mercy on us." },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God, have mercy on me." },
+        { "type": "silence", "text": "", "duration": 5 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God, have mercy on me." },
+        { "type": "silence", "text": "", "duration": 5 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God, have mercy on me." },
+        { "type": "silence", "text": "", "duration": 5 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God, have mercy on me." },
+        { "type": "silence", "text": "", "duration": 5 },
+        { "type": "refrain", "text": "Lord Jesus Christ, Son of God, have mercy on me." },
+        { "type": "silence", "text": "(Continue at your own pace, one bead at a time.)", "duration": 30 },
+        { "type": "doxology", "text": "Glory to the Father, and to the Son, and to the Holy Spirit. Amen." }
+      ]
+    },
+
+    {
+      "id": "petitionary-free",
+      "name": "Free-form Petitionary Prayer",
+      "tradition": "Interfaith — AI-personalized",
+      "badge": "interfaith",
+      "lang_default": "en",
+      "structure": "generated",
+      "pace_rate": 0.85,
+      "summary": "Describe a situation and let CODEX compose a reverent prayer for you in whatever tradition you choose. Use the 'Generate a prayer' box below.",
+      "sections": [
+        { "type": "invocation", "text": "(Compose a prayer using the situation box below.)" }
+      ]
+    },
+
+    {
+      "id": "thomasine-reflection",
+      "name": "Thomasine Reflection",
+      "tradition": "Gnostic — Gospel of Thomas",
+      "badge": "gnostic",
+      "lang_default": "en",
+      "structure": "guided",
+      "pace_rate": 0.74,
+      "summary": "Sit with a saying from the Gospel of Thomas. Let it work on you, as a koan.",
+      "sections": [
+        { "type": "invocation", "text": "These are the hidden words that the living Jesus spoke, and Didymos Judas Thomas wrote them down." },
+        { "type": "declaration", "text": "Saying 70 — Jesus said: If you bring forth what is within you, what you have will save you. If you do not bring it forth, what you do not have will destroy you." },
+        { "type": "silence", "text": "(Let the saying turn in you. Three minutes.)", "duration": 180 },
+        { "type": "petition", "text": "What is within me, asking to be brought forth? What am I afraid to make visible?" },
+        { "type": "silence", "text": "(Sit with the question.)", "duration": 60 },
+        { "type": "doxology", "text": "I have heard. I will bring forth. Amen." }
+      ]
+    },
+
+    {
+      "id": "hermetic-as-above",
+      "name": "As Above, So Below — Hermetic Invocation",
+      "tradition": "Hermetic — contemplative",
+      "badge": "hermetic",
+      "lang_default": "en",
+      "structure": "guided",
+      "pace_rate": 0.74,
+      "summary": "A short contemplative invocation drawing on the Emerald Tablet and the principle of correspondence.",
+      "sections": [
+        { "type": "invocation", "text": "I stand at the center. Above me, the heavens. Below me, the earth. Within me, the One." },
+        { "type": "declaration", "text": "That which is above is like that which is below; and that which is below is like that which is above — to accomplish the miracle of the One Thing." },
+        { "type": "silence", "text": "(Breathe. Above. Below. Within.)", "duration": 45 },
+        { "type": "petition", "text": "May my thought reflect the heavens. May my action ground in the earth. May the two meet in this breath, in this body, in this hour." },
+        { "type": "silence", "text": "(Rest in the correspondence.)", "duration": 60 },
+        { "type": "doxology", "text": "As above, so below. As within, so without. Amen." }
+      ]
+    },
+
+    {
+      "id": "land-acknowledgment",
+      "name": "Land Acknowledgment & Thanksgiving",
+      "tradition": "Interfaith — earth-honoring",
+      "badge": "interfaith",
+      "lang_default": "en",
+      "structure": "guided",
+      "pace_rate": 0.80,
+      "summary": "A reverent moment to acknowledge the land you stand on and the peoples who have tended it before you.",
+      "sections": [
+        { "type": "invocation", "text": "I pause to remember the ground beneath me." },
+        { "type": "declaration", "text": "I acknowledge that I stand on land that has been inhabited, cared for, and held sacred by peoples long before me. I name them, if I know their names; I honor them if I do not." },
+        { "type": "silence", "text": "(Name the place. Name the peoples.)", "duration": 30 },
+        { "type": "petition", "text": "For the rivers and the soil, for the trees and the air, for the unseen creatures and the cycles that sustain me — I give thanks. May my walking here be gentle. May my work here repair what has been broken." },
+        { "type": "doxology", "text": "Aho. Amen. So be it." }
+      ]
+    },
+
+    {
+      "id": "quaker-silence",
+      "name": "Quaker Silence with Invocation",
+      "tradition": "Quaker — Religious Society of Friends",
+      "badge": "quaker",
+      "lang_default": "en",
+      "structure": "guided",
+      "pace_rate": 0.72,
+      "summary": "A single spoken line, then a long shared silence. Wait on the Light.",
+      "sections": [
+        { "type": "invocation", "text": "Friend, we gather in silence to wait on the Light within." },
+        { "type": "silence", "text": "(Sit. Breathe. Listen. Five minutes — or as long as the Spirit moves.)", "duration": 300 },
+        { "type": "doxology", "text": "If any word has risen in thee, speak it now or carry it forth. Amen." }
+      ]
+    },
+
+    {
+      "id": "new-age-light",
+      "name": "Invocation of the Inner Light",
+      "tradition": "New Age — contemplative",
+      "badge": "newage",
+      "lang_default": "en",
+      "structure": "guided",
+      "pace_rate": 0.76,
+      "summary": "A gentle contemplative invocation calling on the light within and around. Universally framed, drawn from contemporary contemplative practice.",
+      "sections": [
+        { "type": "invocation", "text": "I center myself. I breathe in light. I breathe out what is not mine to carry." },
+        { "type": "silence", "text": "(Three slow breaths.)", "duration": 20 },
+        { "type": "declaration", "text": "There is a light that lives in me, older than my name and brighter than my fear." },
+        { "type": "petition", "text": "May that light be kindled now. May it warm what is cold in me, soften what has hardened, illumine what has been hidden — from myself, from others, from the larger life." },
+        { "type": "silence", "text": "(Rest in the light.)", "duration": 60 },
+        { "type": "doxology", "text": "I am held. I am whole. So it is. Amen." }
+      ]
+    },
+
+    {
+      "id": "messianic-shema-yeshua",
+      "name": "Shema with Yeshua",
+      "tradition": "Messianic — Jewish-Christian",
+      "badge": "messianic",
+      "lang_default": "en",
+      "structure": "fixed",
+      "pace_rate": 0.78,
+      "summary": "The Shema followed by a Messianic confession of Yeshua as the promised one — affirming the Oneness of God and the fulfillment in the Messiah.",
+      "sections": [
+        { "type": "invocation", "text": "Baruch atah Adonai, Eloheinu, Melech ha'olam." },
+        { "type": "declaration", "text": "Shema Yisrael, Adonai Eloheinu, Adonai Echad — Hear, O Israel: the Lord our God, the Lord is One." },
+        { "type": "declaration", "text": "Baruch HaShem Yeshua HaMashiach — Blessed is the name of Yeshua the Messiah, in whom the promises of the Father find their yes and amen." },
+        { "type": "petition", "text": "You shall love the Lord your God with all your heart, with all your soul, with all your might. And you shall love your neighbor as yourself. On these two hang all the Torah and the Prophets." },
+        { "type": "doxology", "text": "Baruch HaShem. Amen v'amen." }
+      ]
+    },
+
+    {
+      "id": "sufi-remembrance",
+      "name": "Sufi Dhikr — Remembrance",
+      "tradition": "Sufi — Islamic mystical",
+      "badge": "sufi",
+      "lang_default": "en",
+      "structure": "repetitive",
+      "pace_rate": 0.70,
+      "summary": "A contemplative repetition of the divine name. Breathe in remembrance; breathe out forgetfulness.",
+      "sections": [
+        { "type": "invocation", "text": "In the name of the Beloved, the Most Merciful, the Source of all mercy." },
+        { "type": "declaration", "text": "I turn toward the Friend. I let the world fall away. I remember." },
+        { "type": "refrain", "text": "Allah. (Breathe in.) Hu. (Breathe out.)" },
+        { "type": "silence", "text": "", "duration": 10 },
+        { "type": "refrain", "text": "La ilaha illa Allah — there is no reality but the One." },
+        { "type": "silence", "text": "", "duration": 10 },
+        { "type": "refrain", "text": "La ilaha illa Allah." },
+        { "type": "silence", "text": "(Continue silently. The breath becomes the prayer.)", "duration": 60 },
+        { "type": "doxology", "text": "Subhan Allah. Glory to the One. Ameen." }
+      ]
+    }
+  ]
+}
