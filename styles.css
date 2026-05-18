@@ -16396,3 +16396,177 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   .cx-reader-titles p { font-size: 9px; }
   .cx-reader .cx-frame { padding: 6px 8px 4px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   READER REVISION — three passes for maximum readability
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── PASS 1 ─── Typographic fundamentals.
+   Optical sizing, line-height, measure, micro-spacing. */
+.cx-reader-body {
+  --cx-fs: 21px;
+  --cx-reader-lh: 1.62;          /* generous serif leading */
+  --cx-reader-color: color-mix(in oklab, var(--cx-fg) 92%, white);
+  --cx-reader-measure: 68ch;     /* tightened from 70 — tighter measure
+                                    keeps eye-jump natural at 21px */
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "onum" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.cx-reader-body > *,
+.cx-reader-head { max-width: var(--cx-reader-measure); }
+
+.cx-verse {
+  /* Hanging indent: text wraps under first character, not the verse num.
+     Padding-left big enough for a 2-3 digit number. */
+  padding: 6px 12px 6px 44px;
+  font-size: var(--cx-fs);
+  line-height: var(--cx-reader-lh);
+  color: var(--cx-reader-color);
+  letter-spacing: 0.003em;       /* subtle micro-tracking */
+  word-spacing: 0.015em;         /* serif benefits from a hair more */
+  border-left: 2px solid transparent;
+}
+.font-serif .cx-verse { font-feature-settings: "kern" 1, "liga" 1, "dlig" 1; }
+
+.cx-vnum {
+  position: absolute;
+  left: 6px; top: 11px;
+  width: 32px;
+  text-align: right;
+  font-family: var(--cx-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em;
+  color: color-mix(in oklab, var(--cx-fg-dim) 75%, transparent);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Active verse: replace the heavy accent fill with a quiet left-rule +
+   accent number. Lets the eye find your cursor without yelling. */
+.cx-verse.is-hl {
+  background: transparent;
+  border-left-color: var(--cx-accent);
+}
+.cx-verse.is-hl .cx-vnum { color: var(--cx-accent); }
+.cx-verse:hover { background: transparent; }
+.cx-verse:focus-visible {
+  outline: none;
+  background: color-mix(in oklab, var(--cx-accent) 4%, transparent);
+}
+
+/* ─── PASS 2 ─── Hierarchy + chrome reduction.
+   Strip noise; let the text breathe. */
+.cx-reader .cx-frame { padding: 18px 24px 14px; }
+.cx-reader-head {
+  border-bottom: 1px solid color-mix(in oklab, var(--cx-line) 55%, transparent);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+.cx-reader-titles h1 {
+  font-family: var(--cx-serif);
+  font-weight: 500;              /* serif looks better at 500 */
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+.cx-reader-titles p {
+  font-family: var(--cx-mono);
+  letter-spacing: 0.1em;
+  opacity: 0.45;
+}
+
+/* Verse rhythm: tighter intra-verse, more inter-verse. Verses are
+   discrete units of thought — the page should reflect that. */
+.cx-reader-body .cx-verse + .cx-verse { margin-top: 2px; }
+/* Stronger break every 5 verses (a soft pericope rhythm). */
+.cx-reader-body .cx-verse:nth-of-type(5n+1)::before {
+  content: ""; display: block; height: 6px;
+}
+
+/* Inline accent words (God, LORD, italicized supplied words) — keep
+   typographic emphasis but pull contrast down so they don't out-shout
+   the surrounding text. */
+.cx-vtext em,
+.cx-vtext i {
+  font-style: italic;
+  color: color-mix(in oklab, var(--cx-fg) 80%, transparent);
+}
+
+/* Red-letter mode: cleaner red, italic, no bold. */
+.cx-verse-text .cx-jesus,
+.cx-vtext .cx-jesus {
+  color: #ff8a7a;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Side-by-side columns get a hair lighter measure so 2-3 cols fit. */
+.cx-reader-body.is-cols { --cx-fs: 19px; --cx-reader-lh: 1.55; }
+.cx-reader-body.is-cols > * { max-width: none; }
+
+/* ─── PASS 3 ─── Vertical rhythm + finishing flourishes.
+   Tiny moves that elevate the page from "readable" to "comfortable". */
+
+/* Drop cap on the very first verse of a chapter. Serif initial,
+   accent-tinted, 2 lines tall. Falls back gracefully if not serif. */
+.font-serif .cx-reader-body .cx-verse:first-of-type .cx-vtext::first-letter,
+.font-serif .cx-reader-body .cx-verse:first-of-type .cx-verse-text::first-letter {
+  font-family: var(--cx-serif);
+  font-size: 3.2em;
+  line-height: 0.95;
+  float: left;
+  padding: 4px 8px 0 0;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--cx-accent) 70%, var(--cx-fg));
+  text-shadow: 0 0 18px color-mix(in oklab, var(--cx-accent) 28%, transparent);
+}
+
+/* Smooth focus drift — non-cursor verses gently fade so the eye is
+   drawn to where you are. Subtle: 100% → 88%. Disabled in compare. */
+.cx-reader-body:not(.is-cols) .cx-verse { transition: opacity 280ms ease; }
+.cx-reader-body:not(.is-cols):focus-within .cx-verse { opacity: 0.88; }
+.cx-reader-body:not(.is-cols):focus-within .cx-verse.is-hl,
+.cx-reader-body:not(.is-cols):focus-within .cx-verse:hover { opacity: 1; }
+
+/* Optical scrollbar — disappears entirely until needed. */
+.cx-reader-body::-webkit-scrollbar { width: 3px; }
+.cx-reader-body { scrollbar-width: none; }
+.cx-reader-body:hover { scrollbar-width: thin; }
+
+/* Selection — accent-tinted, soft. */
+.cx-reader-body ::selection {
+  background: color-mix(in oklab, var(--cx-accent) 22%, transparent);
+  color: var(--cx-fg);
+}
+
+/* Reduce motion override. */
+@media (prefers-reduced-motion: reduce) {
+  .cx-verse { transition: none !important; }
+}
+
+/* Mobile — keep the three-pass refinements but compressed. */
+@media (max-width: 640px) {
+  .cx-reader-body {
+    --cx-fs: 18px;
+    --cx-reader-lh: 1.6;
+    --cx-reader-measure: 100%;
+    padding-right: 6px;
+  }
+  .cx-reader .cx-frame { padding: 10px 12px 8px; }
+  .cx-verse {
+    padding: 7px 8px 7px 38px;
+    word-spacing: 0.01em;
+  }
+  .cx-vnum {
+    left: 2px; top: 10px;
+    width: 28px;
+    font-size: 10.5px;
+  }
+  /* Drop cap a bit smaller on phone. */
+  .font-serif .cx-reader-body .cx-verse:first-of-type .cx-vtext::first-letter,
+  .font-serif .cx-reader-body .cx-verse:first-of-type .cx-verse-text::first-letter {
+    font-size: 2.7em;
+    padding: 2px 6px 0 0;
+  }
+}
