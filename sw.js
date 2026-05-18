@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v191";
+const VERSION = "v192";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;

@@ -918,7 +918,16 @@
                   } else {
                     progressRef.current.refused++;
                   }
-                } catch (e) { /* skip on failure */ }
+                } catch (e) {
+                  // Count AI failures separately so the user sees WHY
+                  // verses aren't being written (e.g. 401 from a bad
+                  // .env key). First failure also raises a toast.
+                  progressRef.current.errors = (progressRef.current.errors || 0) + 1;
+                  if (!progressRef.current._toasted) {
+                    progressRef.current._toasted = true;
+                    try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `BabelForge AI call failed: ${String(e.message || e).slice(0, 120)}. Check your API key in Settings.`, kind: "err" } })); } catch {}
+                  }
+                }
                 progressRef.current.done++;
                 progressRef.current.label = `${bookId} ${ch.c}:${v.n}`;
                 scheduleProgressFlush();
@@ -1204,9 +1213,10 @@
       ),
       fullProgress && E("div", { className: "bf-fullprog", style: { padding: "8px 12px", fontFamily: "ui-monospace, monospace", fontSize: "12px", color: "var(--cx-fg-dim, #8a98a8)" } },
         `${fullProgress.done} / ${fullProgress.total} verses · ${fullProgress.label || ""}`,
-        (fullProgress.skipped || fullProgress.refused) ? E("div", { style: { marginTop: 2, fontSize: 11 } },
+        (fullProgress.skipped || fullProgress.refused || fullProgress.errors) ? E("div", { style: { marginTop: 2, fontSize: 11, color: fullProgress.errors ? "#ff7e7e" : undefined } },
           fullProgress.skipped ? `${fullProgress.skipped} skipped (locked) · ` : "",
-          fullProgress.refused ? `${fullProgress.refused} refused (empty draft)` : ""
+          fullProgress.refused ? `${fullProgress.refused} refused (empty draft) · ` : "",
+          fullProgress.errors ? `${fullProgress.errors} FAILED (check API key)` : ""
         ) : null,
         E("div", { style: { height: 3, background: "#1f2a36", marginTop: 6, borderRadius: 2, overflow: "hidden" } },
           E("div", { style: { height: "100%", width: ((fullProgress.total ? fullProgress.done / fullProgress.total : 0) * 100) + "%", background: "#7ee0ff", transition: "width 200ms ease" } })
