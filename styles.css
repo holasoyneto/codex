@@ -15362,3 +15362,61 @@ input.cx-vox-slider::-moz-range-thumb {
   0%, 60% { opacity: 1; }
   100%    { opacity: 0; }
 }
+
+/* ── Toast dock — bottom-right, stacks up to 3 ──────────────────────── */
+.cx-toast-dock {
+  position: fixed; bottom: 64px; right: 18px;
+  z-index: 2147483640;
+  display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+  max-width: min(360px, 90vw);
+}
+.cx-toast {
+  pointer-events: auto;
+  background: rgba(10, 14, 22, 0.96);
+  color: var(--cx-fg, #d8dee5);
+  border: 1px solid var(--cx-line-strong, #2a3340);
+  border-left: 3px solid var(--cx-accent, #7ee0ff);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--cx-sans, system-ui), sans-serif;
+  font-size: 12.5px; line-height: 1.45;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  animation: cx-toast-in .25s ease, cx-toast-out .35s ease 3.85s forwards;
+}
+.cx-toast-ok   { border-left-color: #8de8a8; }
+.cx-toast-warn { border-left-color: #ffc46b; }
+.cx-toast-err  { border-left-color: #ff7e7e; }
+@keyframes cx-toast-in  { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes cx-toast-out { to   { transform: translateY(-4px); opacity: 0; } }
+@media (max-width: 480px) {
+  .cx-toast-dock { right: 10px; left: 10px; max-width: none; bottom: 76px; }
+}
+
+/* ── Forge status pill — global in-flight whole-Bible progress ───────── */
+.cx-forge-pill {
+  position: fixed; top: 12px; right: 64px;
+  z-index: 2147483641;
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, #1a2a3f, #26334a);
+  border: 1px solid #3a4d6a;
+  border-radius: 999px;
+  padding: 6px 14px 6px 12px;
+  color: #cfe4ff; font-family: var(--cx-mono, ui-monospace), monospace;
+  font-size: 11px; letter-spacing: 0.06em;
+  transition: transform .12s, box-shadow .15s;
+  box-shadow: 0 4px 14px rgba(126, 224, 255, 0.18);
+  max-width: min(320px, 60vw);
+}
+.cx-forge-pill:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(126, 224, 255, 0.28); }
+.cx-forge-pill-glyph { font-size: 14px; animation: cx-forge-pulse 1.6s ease-in-out infinite; }
+.cx-forge-pill-meta  { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; min-width: 0; }
+.cx-forge-pill-name  { font-weight: 600; color: #e7f1ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.cx-forge-pill-pct   { opacity: 0.75; font-size: 10px; }
+@keyframes cx-forge-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (max-width: 480px) {
+  .cx-forge-pill { right: 12px; top: auto; bottom: 76px; max-width: 70vw; }
+  .cx-forge-pill-name { max-width: 50vw; }
+}

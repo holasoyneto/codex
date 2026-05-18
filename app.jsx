@@ -663,6 +663,65 @@ function FirebaseSetupBlock() {
   );
 }
 
+// ── ToastDock — listens for `codex:toast` events and shows them briefly.
+// Stack up to 3, auto-dismiss after 4s, fade.
+function ToastDock() {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    const onToast = (e) => {
+      const d = e.detail || {};
+      const msg = String(d.msg || "").slice(0, 220);
+      if (!msg) return;
+      const id = Math.random().toString(36).slice(2);
+      const kind = ["ok", "warn", "err"].includes(d.kind) ? d.kind : "info";
+      setItems(prev => [...prev, { id, msg, kind }].slice(-3));
+      setTimeout(() => setItems(prev => prev.filter(x => x.id !== id)), 4200);
+    };
+    window.addEventListener("codex:toast", onToast);
+    window.__cxToastListener = true;
+    return () => { window.removeEventListener("codex:toast", onToast); window.__cxToastListener = false; };
+  }, []);
+  if (!items.length) return null;
+  return (
+    <div className="cx-toast-dock" aria-live="polite">
+      {items.map(t => (
+        <div key={t.id} className={`cx-toast cx-toast-${t.kind}`}>{t.msg}</div>
+      ))}
+    </div>
+  );
+}
+
+// ── ForgeStatusPill — surfaces BabelForge's in-flight whole-Bible forge as
+// a small pill in the corner so the user can leave the BABEL panel and
+// still see the progress. Clicking it dispatches an event that the panel
+// listens for to jump back into the project.
+function ForgeStatusPill() {
+  const [s, setS] = useState(() => (window.CODEX_BabelForge && window.CODEX_BabelForge.forgeStatus) || null);
+  useEffect(() => {
+    const fn = (e) => setS(e.detail || null);
+    window.addEventListener("codex:babelforge-forge-status", fn);
+    return () => window.removeEventListener("codex:babelforge-forge-status", fn);
+  }, []);
+  if (!s || !s.running) return null;
+  const pct = s.total ? Math.floor((s.done / s.total) * 100) : 0;
+  return (
+    <button
+      type="button"
+      className="cx-forge-pill"
+      onClick={() => {
+        try { window.dispatchEvent(new CustomEvent("codex:open-panel", { detail: { pluginId: "babelforge", panelId: "babel" } })); } catch {}
+      }}
+      title={`Forging "${s.name}" · ${s.done}/${s.total} verses`}
+    >
+      <span className="cx-forge-pill-glyph">⚡</span>
+      <span className="cx-forge-pill-meta">
+        <span className="cx-forge-pill-name">{s.name}</span>
+        <span className="cx-forge-pill-pct">{pct}% · {s.done}/{s.total}</span>
+      </span>
+    </button>
+  );
+}
+
 // ── AutoCacheTick — pill that surfaces auto-cache progress in the footer.
 // Hidden when idle / done. Listens to the events fired by auto-cache.js.
 function AutoCacheTick() {
@@ -1820,6 +1879,11 @@ function App() {
       {(schizoEligible && t.schizo) ? (
         <div className="cx-schizo-sigil" aria-hidden="true" title="Schizo Mode active">⚯</div>
       ) : null}
+
+      <ToastDock />
+
+      <ForgeStatusPill />
+
 
       {searchOpen && window.CODEX_SearchBar ? (
         React.createElement(window.CODEX_SearchBar, {
