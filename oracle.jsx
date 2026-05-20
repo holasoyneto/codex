@@ -1308,37 +1308,69 @@ Suggestion policy: when the current passage materially benefits from a translati
     ];
 
     try {
-      const r = await fetch("/api/chat", {
+      const chatBody = JSON.stringify({
+        // Sonnet for Oracle (anthropic default): prompt caching kicks in
+        // for any system block ≥1024 tokens. Multi-provider override comes
+        // from the AI Model selector in Settings.
+        provider: _provider,
+        model: _model || "claude-sonnet-4-6",
+        system: [
+          { type: "text", text: (driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM) + langDirective, cache_control: { type: "ephemeral" } },
+        ],
+        messages: [
+          // Hoist any memory entries to the front as an assistant note so
+          // the model has compacted context without paying for full history.
+          ...next.filter(m => m.role === "memory").map(m => ({
+            role: "assistant",
+            content: `[CONDENSED MEMORY OF EARLIER TURNS]\n${m.text}`,
+          })),
+          ...next.filter(m => m.role !== "memory").slice(-12).map(m => ({
+            role: m.role === "user" ? "user" : "assistant",
+            content: m.text,
+          })),
+          // Include the live context as a trailing user note so it's the
+          // freshest signal the model sees.
+          { role: "user", content: `[CONTEXT — read silently]\n${context}\n\nReply as Oracle to the prior message.` },
+        ],
+        max_tokens: 1024,
+      });
+      const postChat = () => fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // Sonnet for Oracle (anthropic default): prompt caching kicks in
-          // for any system block ≥1024 tokens. Multi-provider override comes
-          // from the AI Model selector in Settings.
-          provider: _provider,
-          model: _model || "claude-sonnet-4-6",
-          system: [
-            { type: "text", text: (driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM) + langDirective, cache_control: { type: "ephemeral" } },
-          ],
-          messages: [
-            // Hoist any memory entries to the front as an assistant note so
-            // the model has compacted context without paying for full history.
-            ...next.filter(m => m.role === "memory").map(m => ({
-              role: "assistant",
-              content: `[CONDENSED MEMORY OF EARLIER TURNS]\n${m.text}`,
-            })),
-            ...next.filter(m => m.role !== "memory").slice(-12).map(m => ({
-              role: m.role === "user" ? "user" : "assistant",
-              content: m.text,
-            })),
-            // Include the live context as a trailing user note so it's the
-            // freshest signal the model sees.
-            { role: "user", content: `[CONTEXT — read silently]\n${context}\n\nReply as Oracle to the prior message.` },
-          ],
-          max_tokens: 1024,
-        }),
+        body: chatBody,
       });
-      const data = await r.json();
+      let r = await postChat();
+      let data = await r.json();
+      // Self-healing: if the backend rejected the key but we have a sane
+      // one in localStorage, re-assert a trimmed copy via /api/key and
+      // retry the chat exactly once. Covers both direct mode (in-browser
+      // shim) and server mode (Node persists to .env). Without this, a
+      // stray newline in the stored key forced the user to manually open
+      // Settings → API keys → Apply on every page load.
+      if (!r.ok && (r.status === 401 || r.status === 403)) {
+        let stored = null;
+        try { stored = JSON.parse(localStorage.getItem("codex.api.keys.v1") || "null"); } catch {}
+        const active = stored && stored.active === "grok" ? "grok" : "anthropic";
+        const fresh = String((stored && (active === "grok" ? stored.grok : stored.anthropic)) || "").trim();
+        if (fresh) {
+          try {
+            await fetch("/api/key", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ key: fresh, provider: active === "grok" ? "xai" : "anthropic" }),
+            });
+          } catch {}
+          // Persist the trimmed value back so future loads skip the retry.
+          if (stored) {
+            try {
+              const fixed = { ...stored, anthropic: String(stored.anthropic || "").trim(), grok: String(stored.grok || "").trim(), active };
+              localStorage.setItem("codex.api.keys.v1", JSON.stringify(fixed));
+            } catch {}
+          }
+          r = await postChat();
+          data = await r.json();
+        }
+      }
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       const cleaned = (data.text || "").trim();
       const wrote = handleBookmarkDirective(cleaned);

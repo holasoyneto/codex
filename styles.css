@@ -1144,7 +1144,6 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 }
 .cx-talmud-card header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .cx-talmud-idx { font-family: var(--cx-mono); font-size: 9px; color: var(--cx-accent-2); letter-spacing: 0.12em; }
-.cx-talmud-ref { font-family: var(--cx-mono); font-size: 10px; color: var(--cx-fg-dim); }
 .cx-talmud-card h4 {
   margin: 0 0 8px;
   font-family: var(--cx-sans); font-weight: 600; font-size: 13px;
@@ -1195,7 +1194,6 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 }
 
 .cx-xref { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--cx-line); }
-.cx-xref-h { font-family: var(--cx-mono); font-size: 10px; letter-spacing: 0.16em; color: var(--cx-accent); margin-bottom: 8px; }
 .cx-xref ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .cx-xref li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; font-size: 11px; padding: 4px 0; border-bottom: 1px dotted var(--cx-line); }
 .cx-xref li b { font-family: var(--cx-mono); font-size: 10.5px; color: var(--cx-accent); font-weight: 600; letter-spacing: 0.04em; }
@@ -1203,7 +1201,6 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 
 /* Gematria */
 .cx-gem-calc { margin-bottom: 14px; padding: 12px; border: 1px solid var(--cx-accent-2); background: rgba(255,196,107,.06); }
-.cx-gem-calc-lbl { font-family: var(--cx-mono); font-size: 9.5px; letter-spacing: 0.14em; color: var(--cx-accent-2); margin-bottom: 6px; }
 .cx-gem-calc-row { display: grid; grid-template-columns: 1fr 88px; gap: 8px; align-items: stretch; }
 .cx-gem-calc-row input {
   background: var(--cx-bg);
@@ -1248,7 +1245,6 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 .cx-gem-value i { font-style: normal; font-family: var(--cx-mono); font-size: 8px; color: var(--cx-fg-dim); letter-spacing: 0.08em; text-align: right; }
 
 .cx-gem-notes { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--cx-line); }
-.cx-gem-notes-h { font-family: var(--cx-mono); font-size: 10px; letter-spacing: 0.16em; color: var(--cx-accent); margin-bottom: 8px; }
 .cx-gem-notes p { margin: 0 0 6px; font-family: var(--cx-serif); font-size: 13px; line-height: 1.5; color: var(--cx-fg); font-style: italic; }
 .cx-gem-notes p::first-letter { color: var(--cx-accent); font-weight: 700; }
 
@@ -1624,7 +1620,6 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 }
 .cx-foot-toggle:hover { color: var(--cx-fg); border-color: var(--cx-line-strong); }
 .cx-foot-toggle.is-on { color: var(--cx-fg); border-color: var(--cx-accent); background: rgba(126,224,255,.05); }
-.cx-foot-toggle-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .cx-foot-toggle-grid { display: inline-flex; gap: 1px; }
 .cx-foot-toggle-grid i { width: 2px; height: 9px; background: currentColor; display: block; }
 
@@ -7039,7 +7034,6 @@ body.cx-note-dragging * { cursor: grabbing !important; user-select: none !import
    viewport. ESC or the ⤢ button restores. We escape the parent rail's
    stacking + clipping with position:fixed and a soft backdrop fade.
    ═══════════════════════════════════════════════════════════════════════ */
-.cx-oracle-fs-btn { font-size: 12px; line-height: 1; padding: 2px 7px; }
 body.cx-oracle-fs-lock { overflow: hidden; }
 .cx-oracle.is-fullscreen {
   /* Escape the right-rail / parent container so we genuinely fill the
@@ -10207,8 +10201,6 @@ input, textarea, [contenteditable] { caret-color: var(--cx-accent); }
   transition: background .1s;
 }
 .cx-help-back:hover { background: color-mix(in oklab, var(--cx-accent) 12%, transparent); }
-.cx-help-crumb { flex: 1; display: flex; justify-content: flex-end; }
-
 .cx-help-article {
   font-family: var(--cx-sans);
   font-size: 14.5px;
@@ -15105,15 +15097,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 .bf-btn.ghost { background: transparent; border-color: rgba(255,255,255,0.12); }
 .bf-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.bf-list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.bf-list-head h3 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
 .bf-empty { padding: 20px; border: 1px dashed rgba(255,255,255,0.12); border-radius: 8px; text-align: center; color: var(--mute); }
 .bf-empty p { margin: 0 0 14px 0; line-height: 1.55; }
-
-.bf-proj-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin-bottom: 6px; }
-.bf-proj-row-main { flex: 1; cursor: pointer; }
-.bf-proj-row-name { font-weight: 500; font-size: 14px; }
-.bf-proj-row-meta { font-size: 11px; color: var(--mute); margin-top: 2px; letter-spacing: 0.02em; }
 
 .bf-community { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
 .bf-community h4 { margin: 0 0 4px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); }
@@ -15159,8 +15144,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 .bf-proj-head { display: flex; align-items: flex-start; gap: 10px; }
 .bf-proj-title { flex: 1; }
 .bf-proj-name { font-size: 16px; font-weight: 500; }
-.bf-proj-meta { font-size: 11px; color: var(--mute); margin-top: 3px; letter-spacing: 0.02em; }
-.bf-proj-stats { display: flex; gap: 8px; align-items: center; font-size: 11px; color: var(--mute); padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
 
 /* Editor toolbar */
 .bf-editor { display: flex; flex-direction: column; gap: 8px; }
@@ -15172,7 +15155,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 .bf-three-pane { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 1px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; min-height: 220px; }
 @media (max-width: 900px) { .bf-three-pane { grid-template-columns: 1fr; } }
 .bf-pane { background: var(--bg, #14110f); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.bf-pane-h { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mute); }
 .bf-pane-meta { font-size: 10px; color: var(--mute); margin-top: auto; font-style: italic; }
 .bf-orig { font-family: "Cardo", "SBL Hebrew", "SBL Greek", serif; font-size: 14px; line-height: 1.6; direction: ltr; }
 .bf-base { font-family: "Cardo", "Cormorant Garamond", serif; font-size: 14px; line-height: 1.55; color: rgba(255,255,255,0.85); }
@@ -16640,146 +16622,356 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 }
 
 /* ── First-run welcome tour (v2) ───────────────────────────────────────
-   Full-viewport modal overlay shown once for genuinely new users. Four
-   steps: welcome → keys → AI key → begin. Esc / "skip tour" / Begin
-   button all close it and write codex.firstRun.v2. */
+   Full-viewport terminal-style intro. Four steps: hero (CODEX + Logos) →
+   keystrokes → wake the oracle → begin. The content sits directly on a
+   black backdrop with scanlines + vignette — no glassy card. */
 .cx-welcome-backdrop {
   position: fixed; inset: 0;
   z-index: 9999;
-  background: rgba(6, 8, 14, 0.92);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-  animation: cxWelcomeFade 220ms ease both;
+  background: #06080e;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 32px 72px;
+  color: var(--cx-fg);
+  overflow: hidden;
+  animation: cxWelcomeFade 320ms cubic-bezier(.22,1,.36,1) both;
+}
+.cx-welcome-scanlines {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(126, 224, 255, 0.018) 0,
+    rgba(126, 224, 255, 0.018) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: screen;
+  z-index: 1;
+}
+.cx-welcome-vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% 50%, transparent 45%, rgba(0,0,0,0.7) 100%);
+  z-index: 1;
 }
 @keyframes cxWelcomeFade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes cxWelcomeRise {
-  from { opacity: 0; transform: translateY(8px) }
+  from { opacity: 0; transform: translateY(16px) }
   to   { opacity: 1; transform: translateY(0) }
 }
+@keyframes cxWelcomeCaret {
+  0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 }
+}
+
 .cx-welcome-skip {
-  position: absolute; top: 16px; right: 20px;
+  position: absolute; top: 20px; right: 24px;
+  z-index: 10;
   background: transparent; border: 0;
-  color: var(--cx-fg-dim, #888);
+  color: var(--cx-fg-dim, #6b7280);
   font-family: var(--cx-mono);
-  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase;
   cursor: pointer; padding: 6px 10px;
   transition: color .15s ease;
 }
 .cx-welcome-skip:hover { color: var(--cx-fg); }
-.cx-welcome-card {
+
+.cx-welcome-shell {
+  position: relative; z-index: 2;
   width: 100%;
-  max-width: 520px;
-  background: color-mix(in oklab, var(--cx-bg) 70%, transparent);
-  border: 1px solid color-mix(in oklab, var(--cx-accent) 25%, var(--cx-line));
-  border-radius: 6px;
-  padding: 32px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset;
-  color: var(--cx-fg);
-  animation: cxWelcomeRise 220ms ease both;
+  max-width: 640px;
+  padding: 32px 40px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 60vh;
 }
-.cx-welcome-hero {
-  font-family: var(--cx-serif);
-  font-size: 72px; line-height: 1;
-  text-align: center;
-  color: var(--cx-accent);
-  margin-bottom: 16px;
-  text-shadow: 0 0 30px color-mix(in oklab, var(--cx-accent) 35%, transparent);
+
+.cx-welcome-stage {
+  width: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+  gap: 18px;
 }
-.cx-welcome-headline {
-  font-family: var(--cx-serif);
-  font-size: 38px;
-  line-height: 1.1;
-  margin: 0 0 14px 0;
-  letter-spacing: 0.01em;
-  color: var(--cx-fg);
+.cx-welcome-stage > * {
+  opacity: 0;
+  animation: cxWelcomeRise 280ms cubic-bezier(.22,1,.36,1) forwards;
+  animation-delay: calc(var(--cx-w-i, 0) * 80ms);
 }
-.cx-welcome-headline em {
-  font-style: italic;
-  color: var(--cx-fg-dim, #999);
-  font-size: 0.7em;
-}
-.cx-welcome-body {
-  font-family: var(--cx-sans, "Inter Tight", system-ui, sans-serif);
-  font-size: 16px;
-  line-height: 1.55;
-  color: color-mix(in oklab, var(--cx-fg) 85%, transparent);
-  margin: 0 0 20px 0;
-}
-.cx-welcome-keys {
-  list-style: none; padding: 0; margin: 0 0 8px 0;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.cx-welcome-keys li {
-  display: flex; align-items: center; gap: 12px;
-  font-family: var(--cx-sans, system-ui);
-  font-size: 15px;
-  color: color-mix(in oklab, var(--cx-fg) 85%, transparent);
-}
-.cx-welcome-keys kbd {
-  font-family: var(--cx-mono);
-  font-size: 12px;
-  padding: 3px 8px;
-  min-width: 28px; text-align: center;
-  background: color-mix(in oklab, var(--cx-accent) 10%, transparent);
-  border: 1px solid color-mix(in oklab, var(--cx-accent) 40%, var(--cx-line));
-  border-radius: 3px;
-  color: var(--cx-fg);
-}
-.cx-welcome-foot {
-  margin-top: 24px;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap;
-}
-.cx-welcome-step {
+
+.cx-welcome-eyebrow {
+  margin: 0;
   font-family: var(--cx-mono);
   font-size: 10.5px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--cx-fg-dim, #777);
+  color: var(--cx-fg-dim, #6b7280);
 }
-.cx-welcome-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Step 1 — Hero */
+.cx-welcome-stage--hero { gap: 28px; }
+.cx-welcome-wordmark {
+  margin: 0;
+  font-family: var(--cx-serif, "Cormorant Garamond", "Cormorant", Georgia, serif);
+  font-weight: 500;
+  font-size: 96px;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--cx-fg);
+  text-shadow: 0 0 60px color-mix(in oklab, var(--cx-accent) 20%, transparent);
+}
+.cx-welcome-scripture {
+  display: flex; flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.cx-welcome-scripture-greek {
+  margin: 0;
+  font-family: "Cardo", var(--cx-serif), Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.3;
+  color: color-mix(in oklab, var(--cx-accent) 70%, var(--cx-fg));
+  letter-spacing: 0.01em;
+}
+.cx-welcome-scripture-en {
+  margin: 0;
+  font-family: var(--cx-serif, Georgia, serif);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--cx-fg-dim, #9aa3b2);
+}
+.cx-welcome-prompt {
+  margin: 20px 0 0;
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--cx-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cx-fg-dim, #6b7280);
+}
+.cx-welcome-prompt kbd {
+  font-family: var(--cx-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 35%, var(--cx-line, #2a2f3a));
+  border-radius: 3px;
+  color: var(--cx-fg);
+  background: transparent;
+  letter-spacing: 0;
+}
+.cx-welcome-caret {
+  display: inline-block;
+  color: var(--cx-accent);
+  animation: cxWelcomeCaret 1.05s steps(1) infinite;
+  margin-left: 2px;
+}
+
+/* Shared headings for steps 2/3/4 */
+.cx-welcome-headline2 {
+  margin: 0;
+  font-family: var(--cx-serif, Georgia, serif);
+  font-weight: 500;
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--cx-fg);
+}
+.cx-welcome-headline2--lg { font-size: 56px; }
+.cx-welcome-sub {
+  margin: 0;
+  font-family: var(--cx-sans, "Inter Tight", system-ui, sans-serif);
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--cx-fg-dim, #9aa3b2);
+  max-width: 480px;
+}
+.cx-welcome-sub--lg { font-size: 17px; max-width: 540px; }
+
+/* Step 2 — keystrokes grid */
+.cx-welcome-keylist {
+  list-style: none;
+  padding: 0; margin: 8px 0 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 28px;
+  row-gap: 14px;
+  text-align: left;
+}
+.cx-welcome-keylist li {
+  display: contents;
+}
+.cx-welcome-keys-cell {
+  display: inline-flex; gap: 4px; align-items: center;
+  justify-self: end;
+}
+.cx-welcome-keys-cell kbd {
+  font-family: var(--cx-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+  min-width: 26px;
+  padding: 4px 9px;
+  text-align: center;
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--cx-fg) 18%, transparent);
+  border-radius: 3px;
+  color: var(--cx-fg);
+  transition: border-color .18s ease, color .18s ease, background .18s ease;
+}
+.cx-welcome-keylist li:hover .cx-welcome-keys-cell kbd {
+  border-color: color-mix(in oklab, var(--cx-accent) 55%, transparent);
+  background: color-mix(in oklab, var(--cx-accent) 8%, transparent);
+  color: var(--cx-accent);
+}
+.cx-welcome-keys-desc {
+  font-family: var(--cx-serif, Georgia, serif);
+  font-size: 17px;
+  line-height: 1.4;
+  color: color-mix(in oklab, var(--cx-fg) 88%, transparent);
+  align-self: center;
+}
+
+/* Step 3 — locked features list */
+.cx-welcome-locked {
+  list-style: none; padding: 0; margin: 4px 0 8px;
+  display: flex; flex-wrap: wrap; gap: 6px 8px;
+  justify-content: center;
+  max-width: 520px;
+}
+.cx-welcome-locked li {
+  font-family: var(--cx-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in oklab, var(--cx-fg) 14%, transparent);
+  border-radius: 99px;
+  color: var(--cx-fg-dim, #9aa3b2);
+}
+
+/* Buttons */
+.cx-welcome-pair {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px;
+}
+.cx-welcome-pair--center { justify-content: center; }
 .cx-welcome-btn {
   font-family: var(--cx-mono);
   font-size: 11px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  padding: 9px 16px;
+  padding: 11px 20px;
   border-radius: 3px;
   cursor: pointer;
-  transition: background .15s ease, border-color .15s ease, color .15s ease;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
 }
+.cx-welcome-btn--lg { padding: 14px 28px; font-size: 12px; }
 .cx-welcome-btn--primary {
   background: var(--cx-accent);
-  color: var(--cx-bg);
+  color: #06080e;
   border: 1px solid var(--cx-accent);
 }
-.cx-welcome-btn--primary:hover { filter: brightness(1.1); }
-.cx-welcome-btn--secondary {
-  background: transparent;
-  color: var(--cx-fg);
-  border: 1px solid color-mix(in oklab, var(--cx-accent) 50%, var(--cx-line));
-  margin-top: 4px;
-}
-.cx-welcome-btn--secondary:hover {
-  background: color-mix(in oklab, var(--cx-accent) 12%, transparent);
-  border-color: var(--cx-accent);
+.cx-welcome-btn--primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px color-mix(in oklab, var(--cx-accent) 30%, transparent);
 }
 .cx-welcome-btn--ghost {
   background: transparent;
-  color: var(--cx-fg-dim, #999);
-  border: 1px solid transparent;
+  color: var(--cx-fg-dim, #9aa3b2);
+  border: 1px solid color-mix(in oklab, var(--cx-fg) 14%, transparent);
 }
-.cx-welcome-btn--ghost:hover { color: var(--cx-fg); }
-@media (max-width: 480px) {
-  .cx-welcome-card { padding: 24px; }
-  .cx-welcome-headline { font-size: 30px; }
-  .cx-welcome-hero { font-size: 56px; }
-  .cx-welcome-body, .cx-welcome-keys li { font-size: 14.5px; }
+.cx-welcome-btn--ghost:hover {
+  color: var(--cx-fg);
+  border-color: color-mix(in oklab, var(--cx-fg) 28%, transparent);
 }
+
+/* Bottom nav (dots + arrows) */
+.cx-welcome-nav {
+  position: absolute;
+  right: 24px; bottom: 28px;
+  z-index: 3;
+  display: flex; align-items: center; gap: 18px;
+}
+.cx-welcome-dots {
+  display: flex; gap: 8px; align-items: center;
+}
+.cx-welcome-dot {
+  width: 6px; height: 6px; border-radius: 99px;
+  background: color-mix(in oklab, var(--cx-fg) 18%, transparent);
+  transition: background .2s ease, transform .2s ease, width .2s ease;
+}
+.cx-welcome-dot.is-done { background: color-mix(in oklab, var(--cx-accent) 55%, transparent); }
+.cx-welcome-dot.is-active {
+  background: var(--cx-accent);
+  width: 18px;
+}
+.cx-welcome-arrows {
+  display: flex; gap: 4px; align-items: center;
+}
+.cx-welcome-arrow {
+  background: transparent; border: 0;
+  font-family: var(--cx-mono);
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--cx-fg-dim, #6b7280);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: color .15s ease;
+}
+.cx-welcome-arrow:hover { color: var(--cx-fg); }
+.cx-welcome-arrow--next { color: var(--cx-accent); }
+.cx-welcome-arrow--next:hover { color: var(--cx-fg); }
+.cx-welcome-arrow--ghost { visibility: hidden; }
+
+/* Bottom-of-viewport progress line */
+.cx-welcome-progress {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: color-mix(in oklab, var(--cx-fg) 8%, transparent);
+  z-index: 3;
+}
+.cx-welcome-progress-fill {
+  height: 100%;
+  background: var(--cx-accent);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--cx-accent) 60%, transparent);
+  transition: width .35s cubic-bezier(.22,1,.36,1);
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .cx-welcome-backdrop { padding: 24px 20px 64px; }
+  .cx-welcome-shell { padding: 16px 4px; min-height: 55vh; max-width: 100%; }
+  .cx-welcome-wordmark { font-size: 56px; }
+  .cx-welcome-scripture-greek { font-size: 18px; }
+  .cx-welcome-scripture-en { font-size: 15px; }
+  .cx-welcome-headline2 { font-size: 32px; }
+  .cx-welcome-headline2--lg { font-size: 38px; }
+  .cx-welcome-sub { font-size: 14.5px; }
+  .cx-welcome-sub--lg { font-size: 15.5px; }
+  .cx-welcome-keylist {
+    grid-template-columns: 1fr;
+    row-gap: 6px;
+    text-align: center;
+  }
+  .cx-welcome-keylist li { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; border-bottom: 1px solid color-mix(in oklab, var(--cx-fg) 8%, transparent); }
+  .cx-welcome-keys-cell { justify-self: center; }
+  .cx-welcome-keys-desc { font-size: 15px; }
+  .cx-welcome-dot { width: 12px; height: 12px; }
+  .cx-welcome-dot.is-active { width: 24px; }
+  .cx-welcome-nav { right: 50%; transform: translateX(50%); bottom: 18px; gap: 10px; flex-direction: column-reverse; }
+  .cx-welcome-skip { top: 14px; right: 16px; }
+}
+@media (max-width: 380px) {
+  .cx-welcome-wordmark { font-size: 44px; }
+  .cx-welcome-scripture { gap: 4px; }
+  .cx-welcome-headline2 { font-size: 26px; }
+  .cx-welcome-headline2--lg { font-size: 30px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .cx-welcome-backdrop, .cx-welcome-card { animation: none; }
+  .cx-welcome-backdrop,
+  .cx-welcome-stage > *,
+  .cx-welcome-progress-fill,
+  .cx-welcome-caret { animation: none !important; transition: none !important; opacity: 1 !important; }
 }
 
 /* ── Offline pill in footer ─────────────────────────────────────────── */

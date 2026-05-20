@@ -40,17 +40,34 @@
   };
 
   function loadKeys() {
+    let out = { active: "anthropic", anthropic: "", grok: "" };
     try {
       const raw = JSON.parse(localStorage.getItem(KEYS_LS) || "null");
-      if (raw && typeof raw === "object") {
-        return { active: "anthropic", anthropic: "", grok: "", ...raw };
-      }
+      if (raw && typeof raw === "object") out = { ...out, ...raw };
     } catch {}
     // Fallback to the legacy single-key store if a key was set under the
     // old shim before the engine switcher landed.
-    let legacy = "";
-    try { legacy = localStorage.getItem(LEGACY_KEY_LS) || ""; } catch {}
-    return { active: "anthropic", anthropic: legacy, grok: "" };
+    if (!out.anthropic) {
+      try { out.anthropic = localStorage.getItem(LEGACY_KEY_LS) || ""; } catch {}
+    }
+    // Defensive: paste from password managers / mobile keyboards frequently
+    // leaves trailing whitespace or a stray newline. Anthropic rejects such
+    // keys with "invalid x-api-key" — which is exactly the user-reported bug
+    // where the key looked saved but every page load failed until they
+    // re-Applied (the apply path happened to trim via handleKey).
+    out.anthropic = String(out.anthropic || "").trim();
+    out.grok = String(out.grok || "").trim();
+    // Auto-correct `active` if it points at a side with no key but the other
+    // side has one — e.g. user pasted only an xai- key but never tapped the
+    // Grok tab in Settings. Previously activeKey() returned "" and chat 503'd
+    // with "no Anthropic key", forcing a manual fix every session.
+    if (out.active === "grok" && !out.grok && out.anthropic) out.active = "anthropic";
+    if (out.active === "anthropic" && !out.anthropic && out.grok) out.active = "grok";
+    // Infer from prefix if active was never set sanely.
+    if (out.active !== "grok" && out.active !== "anthropic") {
+      out.active = out.grok && !out.anthropic ? "grok" : "anthropic";
+    }
+    return out;
   }
   function activeEngine() { return loadKeys().active === "grok" ? "grok" : "anthropic"; }
   function activeKey() {
@@ -88,14 +105,22 @@
     try {
       const body = JSON.parse(init.body || "{}");
       const key = (body.key || "").trim();
-      if (!key.startsWith("sk-")) {
-        return jsonResponse({ error: "Invalid key — must start with sk-" }, 400);
+      // Infer provider from key prefix (matches server.js behavior) so the
+      // inline "set key" UI can accept either Anthropic or Grok keys.
+      let provider = body.provider;
+      if (!provider) {
+        if (key.startsWith("xai-")) provider = "grok";
+        else if (key.startsWith("sk-")) provider = "anthropic";
+      }
+      if (!key || (provider !== "anthropic" && provider !== "grok")) {
+        return jsonResponse({ error: "Invalid key — expected Anthropic (sk-…) or xAI (xai-…) key" }, 400);
       }
       const cur = loadKeys();
-      const next = { ...cur, anthropic: key, active: "anthropic" };
+      const next = { ...cur };
+      if (provider === "grok") { next.grok = key; next.active = "grok"; }
+      else { next.anthropic = key; next.active = "anthropic"; try { localStorage.setItem(LEGACY_KEY_LS, key); } catch {} }
       try { localStorage.setItem(KEYS_LS, JSON.stringify(next)); } catch {}
-      try { localStorage.setItem(LEGACY_KEY_LS, key); } catch {}
-      return jsonResponse({ ok: true, hasKey: true, engine: "anthropic" });
+      return jsonResponse({ ok: true, hasKey: true, engine: provider });
     } catch (e) {
       return jsonResponse({ error: String(e.message || e) }, 500);
     }
@@ -214,6 +239,33 @@
         : await callAnthropic(payload, key);
     } catch (e) {
       return jsonResponse({ error: "Network error: " + String(e.message || e) }, 500);
+    }
+    // Self-healing: if the provider rejected the key but we still have a
+    // valid-looking one in storage, re-assert a sanitized copy and retry
+    // exactly once. Covers the "I saved my key but every load fails until
+    // I open Settings and click Apply" regression class.
+    if (result.status === 401 || result.status === 403) {
+      try {
+        const raw = JSON.parse(localStorage.getItem(KEYS_LS) || "null") || {};
+        const sanitized = {
+          active: raw.active === "grok" ? "grok" : "anthropic",
+          anthropic: String(raw.anthropic || "").trim(),
+          grok: String(raw.grok || "").trim(),
+        };
+        // If `active` points at an empty side but the other has a key, flip.
+        if (sanitized.active === "anthropic" && !sanitized.anthropic && sanitized.grok) sanitized.active = "grok";
+        if (sanitized.active === "grok" && !sanitized.grok && sanitized.anthropic) sanitized.active = "anthropic";
+        const changed = JSON.stringify(sanitized) !== JSON.stringify({ active: raw.active, anthropic: raw.anthropic, grok: raw.grok });
+        const fresh = sanitized.active === "grok" ? sanitized.grok : sanitized.anthropic;
+        if (changed && fresh && fresh !== key) {
+          try { localStorage.setItem(KEYS_LS, JSON.stringify(sanitized)); } catch {}
+          try { window.dispatchEvent(new CustomEvent("codex:engine-change", { detail: { engine: sanitized.active } })); } catch {}
+          const retry = sanitized.active === "grok"
+            ? await callGrok(payload, fresh)
+            : await callAnthropic(payload, fresh);
+          return jsonResponse(retry.body, retry.status);
+        }
+      } catch {}
     }
     return jsonResponse(result.body, result.status);
   }

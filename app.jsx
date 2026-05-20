@@ -91,8 +91,19 @@ async function _idbSetKeys(v) {
   } catch {}
 })();
 function loadApiKeys() {
-  try { return { active: "anthropic", anthropic: "", grok: "", ...JSON.parse(localStorage.getItem(API_KEYS_STORE) || "null") }; }
-  catch { return { active: "anthropic", anthropic: "", grok: "" }; }
+  let v = { active: "anthropic", anthropic: "", grok: "" };
+  try { v = { ...v, ...JSON.parse(localStorage.getItem(API_KEYS_STORE) || "null") }; } catch {}
+  // Trim — keys with trailing whitespace (common paste artifact) cause
+  // every direct-mode call to fail with "invalid x-api-key" even though
+  // the key reads as "saved" in the panel.
+  v.anthropic = String(v.anthropic || "").trim();
+  v.grok = String(v.grok || "").trim();
+  // Make sure `active` actually points at a side that has a key, otherwise
+  // the very first /api/chat returns 503 "no key" until the user toggles.
+  if (v.active === "anthropic" && !v.anthropic && v.grok) v.active = "grok";
+  if (v.active === "grok" && !v.grok && v.anthropic) v.active = "anthropic";
+  if (v.active !== "anthropic" && v.active !== "grok") v.active = "anthropic";
+  return v;
 }
 // Returns { ok, where } so callers can surface real persistence failures
 // to the user instead of silently swallowing QuotaExceededError.
@@ -118,7 +129,22 @@ function ApiKeysSection() {
   // Persist on every keystroke so the direct-API shim always sees the
   // latest values; Apply re-broadcasts so any open Oracle re-probes.
   const update = (patch) => {
-    const next = { ...keys, ...patch };
+    // Trim on the way in so a pasted key with stray whitespace doesn't
+    // silently fail at Anthropic with "invalid x-api-key" on next load.
+    const cleaned = { ...patch };
+    if (typeof cleaned.anthropic === "string") cleaned.anthropic = cleaned.anthropic.trim();
+    if (typeof cleaned.grok === "string") cleaned.grok = cleaned.grok.trim();
+    const next = { ...keys, ...cleaned };
+    // Auto-detect active provider from the key prefix when the user pastes
+    // a key into either field — saves them the extra step of remembering
+    // to tap the Anthropic/Grok tab. Manual `active` patches still win.
+    if (patch.active === undefined) {
+      if (cleaned.anthropic && cleaned.anthropic.startsWith("sk-")) next.active = "anthropic";
+      else if (cleaned.grok && cleaned.grok.startsWith("xai-")) next.active = "grok";
+      // Re-balance if the currently-active side just got emptied.
+      if (next.active === "anthropic" && !next.anthropic && next.grok) next.active = "grok";
+      if (next.active === "grok" && !next.grok && next.anthropic) next.active = "anthropic";
+    }
     setKeys(next);
     const r = saveApiKeys(next);
     // Surface persistence failures (LS quota / iOS ITP) — silent failure
@@ -171,14 +197,26 @@ function ApiKeysSection() {
 
   // Grok lives entirely in localStorage (no server endpoint). Apply just
   // validates the prefix and pings the engine-change listeners.
-  const applyGrok = () => {
+  const applyGrok = async () => {
     const key = (keys.grok || "").trim();
     if (!key.startsWith("xai-")) { setStatusG("Key must start with xai-"); return; }
     setBusyG(true); setStatusG("");
-    // localStorage write already happened in update(); re-notify and done.
-    try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
-    setStatusG("✓ applied");
-    setBusyG(false);
+    // Push to /api/key so the Node server (when running) also remembers it
+    // and persists to .env. In direct mode the shim accepts xai- keys and
+    // sets active=grok; in static-host mode the network call no-ops cleanly.
+    try {
+      const r = await fetch("/api/key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, provider: "xai" }),
+      });
+      setStatusG(r.ok ? "✓ applied" : "✓ saved locally");
+    } catch {
+      setStatusG("✓ saved locally");
+    } finally {
+      try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
+      setBusyG(false);
+    }
   };
 
   return (
@@ -861,74 +899,108 @@ function WelcomeTour({ onClose }) {
   const renderStep = () => {
     if (step === 0) {
       return (
-        <>
-          <div className="cx-welcome-hero" aria-hidden="true">⌬</div>
-          <h1 className="cx-welcome-headline">CODEX</h1>
-          <p className="cx-welcome-body">
-            A scripture study terminal. 43 translations, offline-first, AI-powered
-            companion panels, and a translation lab. Built for serious study and
-            curious wandering. ⌬
+        <div className="cx-welcome-stage cx-welcome-stage--hero">
+          <p className="cx-welcome-eyebrow" style={{ "--cx-w-i": 0 }}>scripture · study · terminal</p>
+          <h1 className="cx-welcome-wordmark" style={{ "--cx-w-i": 1 }}>CODEX</h1>
+          <div className="cx-welcome-scripture" style={{ "--cx-w-i": 2 }}>
+            <p className="cx-welcome-scripture-greek" lang="grc">Ἐν ἀρχῇ ἦν ὁ Λόγος</p>
+            <p className="cx-welcome-scripture-en">In the beginning was the Word.</p>
+          </div>
+          <p className="cx-welcome-prompt" style={{ "--cx-w-i": 3 }}>
+            <span>press</span>
+            <kbd>↵</kbd>
+            <span>to enter study</span>
+            <span className="cx-welcome-caret" aria-hidden="true">▍</span>
           </p>
-        </>
+        </div>
       );
     }
     if (step === 1) {
+      const pairs = [
+        { keys: ["⌘", "K"], label: "Library · command palette" },
+        { keys: ["/"],       label: "Smart search · jump anywhere" },
+        { keys: ["J", "K"],  label: "Next / previous verse" },
+        { keys: ["←", "→"],  label: "Previous / next chapter · or swipe" },
+        { keys: ["?"],       label: "Every shortcut" },
+      ];
       return (
-        <>
-          <h1 className="cx-welcome-headline">Reach anything fast.</h1>
-          <ul className="cx-welcome-keys">
-            <li><kbd>⌘K</kbd><span>open the library / palette</span></li>
-            <li><kbd>/</kbd><span>focus the smart search</span></li>
-            <li><kbd>J</kbd> <kbd>K</kbd><span>next / previous verse</span></li>
-            <li><kbd>←</kbd> <kbd>→</kbd><span>previous / next chapter, or swipe</span></li>
-            <li><kbd>?</kbd><span>see every shortcut</span></li>
+        <div className="cx-welcome-stage">
+          <p className="cx-welcome-eyebrow" style={{ "--cx-w-i": 0 }}>02 · keystrokes</p>
+          <h2 className="cx-welcome-headline2" style={{ "--cx-w-i": 1 }}>Reach anything, instantly.</h2>
+          <ul className="cx-welcome-keylist" style={{ "--cx-w-i": 2 }}>
+            {pairs.map((p, i) => (
+              <li key={i}>
+                <span className="cx-welcome-keys-cell">
+                  {p.keys.map((k, j) => <kbd key={j}>{k}</kbd>)}
+                </span>
+                <span className="cx-welcome-keys-desc">{p.label}</span>
+              </li>
+            ))}
           </ul>
-        </>
+        </div>
       );
     }
     if (step === 2) {
       return (
-        <>
-          <h1 className="cx-welcome-headline">Wake the Oracle <em>(optional)</em>.</h1>
-          <p className="cx-welcome-body">
-            Commentary, Talmudic parallels, Gnosis overlays, semantic search, and
-            BabelForge — your own AI-generated translations — all need an API key.
-            Paste an Anthropic or Grok key in Settings → API Keys, or skip for now
-            (everything else works without it).
-          </p>
-          <button className="cx-welcome-btn cx-welcome-btn--secondary" onClick={openSettings}>
-            Open Settings → API Keys
-          </button>
-        </>
+        <div className="cx-welcome-stage">
+          <p className="cx-welcome-eyebrow" style={{ "--cx-w-i": 0 }}>03 · the oracle</p>
+          <h2 className="cx-welcome-headline2" style={{ "--cx-w-i": 1 }}>Wake the Oracle.</h2>
+          <p className="cx-welcome-sub" style={{ "--cx-w-i": 2 }}>Optional. Everything else works without it.</p>
+          <ul className="cx-welcome-locked" style={{ "--cx-w-i": 3 }}>
+            <li>Commentary</li>
+            <li>Talmudic parallels</li>
+            <li>Gnosis overlay</li>
+            <li>Semantic search</li>
+            <li>BabelForge translations</li>
+          </ul>
+          <div className="cx-welcome-pair" style={{ "--cx-w-i": 4 }}>
+            <button className="cx-welcome-btn cx-welcome-btn--primary" onClick={openSettings}>Add a key →</button>
+            <button className="cx-welcome-btn cx-welcome-btn--ghost" onClick={next}>Skip for now</button>
+          </div>
+        </div>
       );
     }
     return (
-      <>
-        <h1 className="cx-welcome-headline">Begin reading.</h1>
-        <p className="cx-welcome-body">
-          John 1 is open. Tap any verse number to highlight. Click the title to
-          jump books. Swipe left or right to change chapters. Welcome.
+      <div className="cx-welcome-stage cx-welcome-stage--final">
+        <p className="cx-welcome-eyebrow" style={{ "--cx-w-i": 0 }}>04 · open the book</p>
+        <h2 className="cx-welcome-headline2 cx-welcome-headline2--lg" style={{ "--cx-w-i": 1 }}>Begin reading.</h2>
+        <p className="cx-welcome-sub cx-welcome-sub--lg" style={{ "--cx-w-i": 2 }}>
+          John 1 is open. Tap any verse number to highlight. Click the title to jump books.
+          Swipe left or right for chapters.
         </p>
-      </>
+        <div className="cx-welcome-pair cx-welcome-pair--center" style={{ "--cx-w-i": 3 }}>
+          <button className="cx-welcome-btn cx-welcome-btn--primary cx-welcome-btn--lg" onClick={next}>Begin →</button>
+        </div>
+      </div>
     );
   };
 
+  const pct = ((step + 1) / total) * 100;
   return (
     <div className="cx-welcome-backdrop" role="dialog" aria-modal="true" aria-label="Welcome to CODEX">
-      <button className="cx-welcome-skip" onClick={onClose} aria-label="Skip tour">skip tour</button>
-      <div className="cx-welcome-card" key={step}>
+      <div className="cx-welcome-scanlines" aria-hidden="true" />
+      <div className="cx-welcome-vignette" aria-hidden="true" />
+      <button className="cx-welcome-skip" onClick={onClose} aria-label="Skip tour">skip tour ✕</button>
+      <div className="cx-welcome-shell" key={step}>
         {renderStep()}
-        <div className="cx-welcome-foot">
-          <span className="cx-welcome-step">step {step + 1} of {total}</span>
-          <div className="cx-welcome-actions">
-            {step > 0 ? (
-              <button className="cx-welcome-btn cx-welcome-btn--ghost" onClick={prev}>← Back</button>
-            ) : null}
-            <button className="cx-welcome-btn cx-welcome-btn--primary" onClick={next}>
-              {step === total - 1 ? "Begin reading →" : "Next →"}
-            </button>
-          </div>
+      </div>
+      <div className="cx-welcome-nav" aria-hidden="false">
+        <div className="cx-welcome-dots" role="tablist" aria-label="Tour progress">
+          {Array.from({ length: total }).map((_, i) => (
+            <span key={i} className={"cx-welcome-dot" + (i === step ? " is-active" : "") + (i < step ? " is-done" : "")} />
+          ))}
         </div>
+        <div className="cx-welcome-arrows">
+          {step > 0 ? (
+            <button className="cx-welcome-arrow" onClick={prev} aria-label="Previous step">← back</button>
+          ) : <span className="cx-welcome-arrow cx-welcome-arrow--ghost">&nbsp;</span>}
+          <button className="cx-welcome-arrow cx-welcome-arrow--next" onClick={next} aria-label="Next step">
+            {step === total - 1 ? "begin →" : "next →"}
+          </button>
+        </div>
+      </div>
+      <div className="cx-welcome-progress" aria-hidden="true">
+        <div className="cx-welcome-progress-fill" style={{ width: pct + "%" }} />
       </div>
     </div>
   );
