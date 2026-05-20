@@ -16839,3 +16839,30 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   .cx-lib-suggest-row { padding: 10px 12px; }
   .cx-lib-suggest-lbl { font-size: 14px; }
 }
+
+/* ── Verse number = tap-to-highlight (one-click instead of menu) ──── */
+.cx-vnum {
+  cursor: pointer;
+  /* Bigger invisible tap target — verse text is read-only, the number
+     is the only interaction surface. */
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 4px;
+  transition: background 120ms, color 120ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-vnum:hover,
+.cx-vnum:focus-visible {
+  background: color-mix(in oklab, var(--cx-accent) 14%, transparent);
+  color: var(--cx-accent);
+  outline: none;
+}
+.cx-verse.is-marked .cx-vnum { color: var(--cx-fg); }
+@media (max-width: 640px) {
+  .cx-vnum { padding: 4px 6px; margin: -4px -6px; min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: flex-end; }
+}
+
+/* ── Reader body — swipe nav hint. Subtle horizontal-edge gradient
+   when user is mid-drag (relies on JS toggling .is-swiping on body
+   if we want; for now, just ensure pan-x doesn't fight nested scroll. */
+.cx-reader-body { touch-action: pan-y; overscroll-behavior-x: contain; }

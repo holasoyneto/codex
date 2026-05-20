@@ -1143,7 +1143,16 @@ function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSel
       {...longPress}
     >
       {schizo ? <SchizoMargin text={text} /> : null}
-      <sup className="cx-vnum">{v.n}</sup>
+      <sup
+        className="cx-vnum"
+        role="button"
+        tabIndex={0}
+        title="Tap to highlight (long-press for color)"
+        aria-label={`Verse ${v.n}, tap to highlight`}
+        onClick={(e) => { e.stopPropagation(); onToggleHighlight?.(v.n); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleHighlight?.(v.n); } }}
+        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onOpenVerseMenu?.(v, e.currentTarget.closest(".cx-verse").getBoundingClientRect()); }}
+      >{v.n}</sup>
       <span className="cx-vtext">
         {renderScripture(text, redLetter ? v.red?.[primary] : null, redLetter && v._jesusVerse, yhwhMode)}
       </span>
@@ -1176,7 +1185,14 @@ function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSe
         const isLatin = t.lang === "LA";
         return (
           <p key={t.id} className={`cx-verse cx-verse-col ${i === 0 ? "is-primary-col" : ""} ${isLatin ? "is-latin" : ""}`}>
-            <sup className="cx-vnum">{v.n}</sup>
+            <sup
+              className="cx-vnum"
+              role="button"
+              tabIndex={0}
+              title="Tap to highlight"
+              onClick={(e) => { e.stopPropagation(); onToggleHighlight?.(v.n); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleHighlight?.(v.n); } }}
+            >{v.n}</sup>
             <span className="cx-vtext">
               {renderScripture(text, redLetter ? v.red?.[t.id] : null, redLetter && v._jesusVerse, yhwhMode)}
             </span>
@@ -1448,6 +1464,57 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                   highlights, highlightColor, onToggleHighlight, onOpenVerseMenu,
                   panelData, yhwhMode, onToggleYHWH, schizo }) {
   const bodyRef = useRef(null);
+  // Swipe / horizontal-scroll-to-navigate. Tracks touch + trackpad
+  // wheel deltas; left ≥ threshold = next chapter, right = prev. Suppresses
+  // when an inner carousel (mobile side-by-side) owns horizontal scrolling.
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    let x0 = null, y0 = null, dxAcc = 0, lastWheelAt = 0, dispatched = false;
+    const THRESH = 60;          // px to trigger
+    const Y_LOCKOUT = 50;       // vertical movement that aborts horizontal intent
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; dispatched = false;
+    };
+    const onTouchMove = (e) => {
+      if (x0 == null || dispatched) return;
+      const t = e.touches[0];
+      const dx = t.clientX - x0, dy = t.clientY - y0;
+      if (Math.abs(dy) > Y_LOCKOUT && Math.abs(dy) > Math.abs(dx)) { x0 = null; return; }
+      if (Math.abs(dx) > THRESH) {
+        if (dx < 0) onNextChapter && onNextChapter();
+        else onPrevChapter && onPrevChapter();
+        dispatched = true; x0 = null;
+      }
+    };
+    const onTouchEnd = () => { x0 = null; y0 = null; dispatched = false; };
+    // Trackpad horizontal scroll (deltaX). Coalesce over 220ms so a
+    // single firm swipe = one chapter, not seven.
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;   // vertical wheel
+      const now = Date.now();
+      if (now - lastWheelAt > 220) dxAcc = 0;
+      lastWheelAt = now;
+      dxAcc += e.deltaX;
+      if (Math.abs(dxAcc) > 80) {
+        if (dxAcc > 0) onNextChapter && onNextChapter();
+        else onPrevChapter && onPrevChapter();
+        dxAcc = 0;
+      }
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove",  onTouchMove,  { passive: true });
+    el.addEventListener("touchend",   onTouchEnd,   { passive: true });
+    el.addEventListener("wheel",      onWheel,      { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [onPrevChapter, onNextChapter]);
+
   // When a chapter finishes loading, scroll the saved cursor into view so a
   // relaunch lands you on the exact verse you were reading. Skip when the
   // cursor is verse 1 — already at the top.
