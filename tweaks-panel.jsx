@@ -481,6 +481,45 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   const firstNonEmpty = TABS.find(t => buckets[t.id].length)?.id || "reading";
   const effectiveTab = buckets[activeTab]?.length ? activeTab : firstNonEmpty;
 
+  // Per-tab transient search — substring match against TweakRow labels and
+  // any text in the row. DOM-based so it works regardless of how children
+  // are structured (TweakRow / TweakToggle / TweakSlider / freeform).
+  const [twkQuery, setTwkQuery] = React.useState("");
+  const twkBodyRef = React.useRef(null);
+  React.useEffect(() => {
+    const body = twkBodyRef.current;
+    if (!body) return;
+    const q = twkQuery.trim().toLowerCase();
+    const rows = body.querySelectorAll(".twk-row");
+    if (!q) {
+      rows.forEach(r => r.classList.remove("twk-hidden"));
+      body.querySelectorAll(".twk-sect").forEach(s => s.classList.remove("twk-hidden"));
+      return;
+    }
+    rows.forEach(r => {
+      const text = (r.textContent || "").toLowerCase();
+      const aria = (r.getAttribute("aria-label") || "").toLowerCase();
+      const match = text.includes(q) || aria.includes(q);
+      r.classList.toggle("twk-hidden", !match);
+    });
+    // Hide a section header if every row after it (up to next section) is hidden.
+    const nodes = Array.from(body.children);
+    nodes.forEach((n, i) => {
+      if (!n.classList || !n.classList.contains("twk-sect")) return;
+      let anyVisible = false;
+      for (let j = i + 1; j < nodes.length; j++) {
+        const next = nodes[j];
+        if (next.classList && next.classList.contains("twk-sect")) break;
+        if (next.classList && next.classList.contains("twk-row") && !next.classList.contains("twk-hidden")) {
+          anyVisible = true; break;
+        }
+      }
+      n.classList.toggle("twk-hidden", !anyVisible);
+    });
+  }, [twkQuery, effectiveTab, open]);
+  // Reset query when switching tabs so each tab starts fresh.
+  React.useEffect(() => { setTwkQuery(""); }, [effectiveTab]);
+
   return (
     <>
       <style>{__TWEAKS_STYLE}</style>
@@ -511,7 +550,18 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
               );
             })}
           </nav>
-          <div className="twk-body" role="tabpanel" aria-label={effectiveTab}>
+          <div className="twk-body" role="tabpanel" aria-label={effectiveTab} ref={twkBodyRef}>
+            <div className="twk-filter">
+              <input
+                type="text"
+                value={twkQuery}
+                onChange={e => setTwkQuery(e.target.value)}
+                placeholder="search settings…"
+                aria-label="Search settings"
+                spellCheck={false}
+              />
+              {twkQuery ? <button className="twk-x" style={{position:"static",fontSize:14}} onClick={() => setTwkQuery("")} aria-label="Clear">×</button> : null}
+            </div>
             {buckets[effectiveTab]}
           </div>
         </div>

@@ -90,7 +90,28 @@ function VerseMenu({
   const ref$ = `${passage.book} ${passage.chapter}:${verse?.n ?? "?"}`;
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText(`“${verseText}” — ${ref$}`); } catch {}
+    const payload = `“${verseText}” — ${ref$}`;
+    const toast = (msg, kind = "ok") => {
+      try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg, kind } })); } catch {}
+    };
+    // Prefer Web Share API when available (mobile + supported desktop).
+    // Fall back to clipboard on any error / dismissal that returns rejection.
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: ref$, text: payload });
+        toast("Shared.");
+        onClose();
+        return;
+      } catch (_) {
+        // AbortError when user cancels — fall through to clipboard silently.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(payload);
+      toast("Copied to clipboard.");
+    } catch (e) {
+      toast(`Copy failed: ${e.message || e}`, "err");
+    }
     onClose();
   };
 

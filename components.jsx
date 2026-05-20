@@ -612,7 +612,33 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
         <CornerFrame label={`${tx("marks.tab")} · ${tx("marks")}`} className="cx-rail-flex">
           <div className="cx-bm-head">
             <span>{tx("marks.head")} · {pad(marks.length)}</span>
-            <button className="cx-mini-btn" onClick={onMarkCurrent} title={tx("marks.add")}>{tx("marks.add")}</button>
+            <span style={{display:"inline-flex",gap:6}}>
+              <button
+                className="cx-mini-btn"
+                onClick={async () => {
+                  if (!marks.length) {
+                    window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "No marks to export.", kind: "warn" } }));
+                    return;
+                  }
+                  const lines = marks.map(m => {
+                    const colour = m.color ? ` (${m.color})` : "";
+                    const text = (m.text || "").replace(/\s+/g, " ").trim();
+                    return `${m.ref || m.key || "?"}${colour} — ${text}`;
+                  });
+                  const txt = lines.join("\n");
+                  const json = JSON.stringify(marks, null, 2);
+                  const blob = `${txt}\n\n---\n\n${json}`;
+                  try {
+                    await navigator.clipboard.writeText(blob);
+                    window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `${marks.length} marks copied to clipboard.`, kind: "ok" } }));
+                  } catch (e) {
+                    window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `Copy failed: ${e.message || e}`, kind: "err" } }));
+                  }
+                }}
+                title="Export all marks to clipboard (text + JSON)"
+              >⤓ EXPORT</button>
+              <button className="cx-mini-btn" onClick={onMarkCurrent} title={tx("marks.add")}>{tx("marks.add")}</button>
+            </span>
           </div>
           <div className="cx-search">
             <span className="cx-search-icon">⌕</span>
@@ -1439,6 +1465,35 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
   const compareCols = sideBySide
     ? [primary, ...compareTranslations.filter(t => t !== primary)]
     : [primary];
+  // Mobile compare carousel — when sideBySide is on AND the viewport is
+  // narrow, swap the grid for a horizontal scroll-snap carousel of full-
+  // width columns. Desktop side-by-side is untouched.
+  const [isNarrow, setIsNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia && window.matchMedia("(max-width: 640px)").matches);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const onChange = () => setIsNarrow(mq.matches);
+    if (mq.addEventListener) mq.addEventListener("change", onChange);
+    else mq.addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", onChange);
+      else mq.removeListener(onChange);
+    };
+  }, []);
+  const useCarousel = sideBySide && isNarrow && compareCols.length > 1;
+  const carouselRef = useRef(null);
+  const [carIdx, setCarIdx] = useState(0);
+  useEffect(() => {
+    if (!useCarousel) return;
+    const el = carouselRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+      if (i !== carIdx) setCarIdx(i);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [useCarousel, carIdx, compareCols.length]);
 
   const colsMeta = compareCols.map(id => data.translations.find(t => t.id === id)).filter(Boolean);
   const primaryMeta = data.translations.find(t => t.id === primary) || data.translations[0];
@@ -1500,7 +1555,11 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
           </div>
         ) : null}
 
-        <div ref={bodyRef} className={`cx-reader-body ${sideBySide ? "is-cols" : ""}`} style={{ "--cx-fs": `${fontScale}px` }}>
+        <div
+          ref={(el) => { bodyRef.current = el; if (useCarousel) carouselRef.current = el; else carouselRef.current = null; }}
+          className={`cx-reader-body ${sideBySide ? "is-cols" : ""} ${useCarousel ? "is-carousel" : ""}`}
+          style={{ "--cx-fs": `${fontScale}px` }}
+        >
           {passage.loading ? (
             <div className="cx-loading">
               <span className="cx-loading-orb" />
@@ -1514,6 +1573,33 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
             </div>
           ) : passage.verses.length === 0 ? (
             <div className="cx-loading">— no verses returned —</div>
+          ) : useCarousel ? (
+            colsMeta.map((tMeta) => (
+              <div key={`page-${tMeta.id}`} className="cx-carousel-page">
+                <div className="cx-col-h" style={{padding:"8px 12px",borderBottom:"1px solid var(--cx-line)"}}>
+                  <span className="cx-col-h-glyph">{tMeta.glyph}</span>
+                  <div><b>{tMeta.name}</b> <span style={{opacity:.6}}>· {tMeta.year} · {tMeta.lang}</span></div>
+                </div>
+                {passage.verses.map(v => (
+                  <VerseRow
+                    key={`v${v.n}-${tMeta.id}`}
+                    v={v}
+                    isHl={highlightedVerse === v.n}
+                    isLatin={tMeta.lang === "LA"}
+                    markColor={highlights ? highlights[`${passage.bookId}.${passage.chapter}.${v.n}`]?.color : null}
+                    text={verseText(v, tMeta.id)}
+                    redLetter={redLetter}
+                    primary={tMeta.id}
+                    onSelectVerse={onSelectVerse}
+                    onToggleHighlight={onToggleHighlight}
+                    onOpenVerseMenu={onOpenVerseMenu}
+                    yhwhMode={yhwhMode}
+                    passage={passage}
+                    schizo={schizo}
+                  />
+                ))}
+              </div>
+            ))
           ) : sideBySide && colsMeta.length > 1 ? (
             (() => {
               const gnosisEntries = (gnosisOn && panelData?.gnosis) ? panelData.gnosis : [];
@@ -1575,6 +1661,23 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
             })()
           )}
         </div>
+
+        {useCarousel ? (
+          <div className="cx-carousel-dots" role="tablist" aria-label="Translation pages">
+            {colsMeta.map((tMeta, i) => (
+              <button
+                key={tMeta.id}
+                type="button"
+                className={`cx-carousel-dot ${i === carIdx ? "is-on" : ""}`}
+                aria-label={`Show ${tMeta.name}`}
+                onClick={() => {
+                  const el = carouselRef.current;
+                  if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+                }}
+              />
+            ))}
+          </div>
+        ) : null}
 
         <div className="cx-reader-foot">
           <button className="cx-nav-btn" onClick={onPrevChapter} disabled={!prevLabel} title={prevLabel || "Beginning"} aria-label={`Previous: ${prevLabel || "Beginning"}`}>

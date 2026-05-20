@@ -16634,3 +16634,141 @@ html, body { max-width: 100vw; overflow-x: hidden; }
     touch-action: pan-y;
   }
 }
+
+/* ── First-run onboarding strip ─────────────────────────────────────────
+   Thin chip row above the Reader for first-time visitors. Three quick
+   actions (api key · oracle · shortcuts) + a dismiss × that writes
+   codex.firstRun.v1 to localStorage so it never returns. */
+.cx-first-run {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  min-height: 36px;
+  border-bottom: 1px solid var(--cx-line);
+  background: color-mix(in oklab, var(--cx-accent) 7%, var(--cx-bg));
+  font-family: var(--cx-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  flex-wrap: wrap;
+}
+.cx-first-run-chip {
+  background: transparent;
+  color: var(--cx-fg);
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 45%, transparent);
+  padding: 5px 10px;
+  font-family: inherit; font-size: inherit; letter-spacing: inherit;
+  cursor: pointer; border-radius: 3px;
+  transition: background .15s ease, border-color .15s ease;
+}
+.cx-first-run-chip:hover {
+  background: color-mix(in oklab, var(--cx-accent) 14%, transparent);
+  border-color: var(--cx-accent);
+}
+.cx-first-run-x {
+  margin-left: auto;
+  background: transparent; color: var(--cx-fg-dim);
+  border: 0; cursor: pointer; font-size: 16px; line-height: 1;
+  padding: 4px 8px;
+}
+.cx-first-run-x:hover { color: var(--cx-fg); }
+
+/* ── Offline pill in footer ─────────────────────────────────────────── */
+.cx-offline-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px;
+  font-family: var(--cx-mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: color-mix(in oklab, #ffc46b 14%, transparent);
+  color: #ffc46b;
+  border: 1px solid color-mix(in oklab, #ffc46b 50%, transparent);
+  border-radius: 3px;
+}
+.cx-offline-pill::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: #ffc46b; opacity: 0.85;
+}
+
+/* ── Footer "?" shortcut chip ────────────────────────────────────────── */
+.cx-kbd-chip {
+  background: transparent; color: var(--cx-fg-dim);
+  border: 1px solid var(--cx-line);
+  padding: 2px 8px; min-width: 22px;
+  font-family: var(--cx-mono); font-size: 11px;
+  cursor: pointer; border-radius: 3px;
+  transition: color .15s ease, border-color .15s ease;
+}
+.cx-kbd-chip:hover { color: var(--cx-accent); border-color: var(--cx-accent); }
+
+/* ── Oracle inline "key rejected" recovery card ─────────────────────── */
+.cx-msg-keyfix {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed color-mix(in oklab, var(--cx-accent) 55%, transparent);
+  border-radius: 4px;
+  font-family: var(--cx-mono); font-size: 11px;
+  background: color-mix(in oklab, var(--cx-accent) 6%, transparent);
+}
+.cx-msg-keyfix button {
+  background: transparent; color: var(--cx-accent);
+  border: 1px solid var(--cx-accent);
+  padding: 4px 10px; font-family: inherit; font-size: inherit;
+  cursor: pointer; border-radius: 3px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.cx-msg-keyfix button:hover { background: color-mix(in oklab, var(--cx-accent) 22%, transparent); }
+.cx-msg-retry {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 6px;
+  background: transparent; color: var(--cx-fg-dim);
+  border: 1px solid var(--cx-line);
+  padding: 3px 8px;
+  font-family: var(--cx-mono); font-size: 10.5px; letter-spacing: 0.1em;
+  cursor: pointer; border-radius: 3px;
+}
+.cx-msg-retry:hover { color: var(--cx-accent); border-color: var(--cx-accent); }
+
+/* ── Notes / Tweaks filter input ─────────────────────────────────────── */
+.cx-notes-filter, .twk-filter {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--cx-line);
+  background: var(--cx-bg);
+  font-family: var(--cx-mono);
+}
+.cx-notes-filter input, .twk-filter input {
+  flex: 1; background: transparent; color: var(--cx-fg);
+  border: 1px solid var(--cx-line);
+  padding: 4px 8px;
+  font-family: inherit; font-size: 11px;
+  border-radius: 3px;
+}
+.cx-notes-filter input:focus, .twk-filter input:focus { outline: none; border-color: var(--cx-accent); }
+.twk-filter { position: sticky; top: 0; z-index: 5; }
+.twk-row.twk-hidden, .twk-sect.twk-hidden { display: none !important; }
+
+/* ── Mobile compare carousel ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .cx-reader-body.is-cols.is-carousel {
+    display: flex !important;
+    flex-direction: row;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cx-reader-body.is-cols.is-carousel > .cx-carousel-page {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    min-width: 100%;
+  }
+  .cx-carousel-dots {
+    display: flex; gap: 6px; justify-content: center;
+    padding: 8px 0;
+  }
+  .cx-carousel-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--cx-line);
+    border: 0; padding: 0; cursor: pointer;
+  }
+  .cx-carousel-dot.is-on { background: var(--cx-accent); }
+}

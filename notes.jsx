@@ -87,6 +87,8 @@ function Notes({ passage, currentVerse, onJumpTo, onDisable }) {
   const [listOpen, setListOpen] = useState(() => {
     try { return localStorage.getItem(NOTES_LIST_OP) === "1"; } catch { return false; }
   });
+  // Transient substring filter — not persisted.
+  const [filter, setFilter] = useState("");
 
   const wrapRef = useRef(null);
   const dragRef = useRef({ dragging: false });
@@ -415,10 +417,30 @@ function Notes({ passage, currentVerse, onJumpTo, onDisable }) {
         </button>
 
         {listOpen ? (
-          <ul className="cx-notes-list">
+          <>
+            {notes.length > 0 ? (
+              <div className="cx-notes-filter">
+                <input
+                  type="text"
+                  value={filter}
+                  onChange={e => setFilter(e.target.value)}
+                  placeholder={ntx("notes.filter") || "filter notes…"}
+                  aria-label="Filter notes"
+                  spellCheck={false}
+                />
+                {filter ? <button className="cx-search-x" onClick={() => setFilter("")} aria-label="Clear">×</button> : null}
+              </div>
+            ) : null}
+            <ul className="cx-notes-list">
             {notes.length === 0 ? (
               <li className="cx-notes-empty">{ntx("notes.empty") || "— no notes yet —"}</li>
-            ) : notes.map(n => (
+            ) : (() => {
+              const q = filter.trim().toLowerCase();
+              const filtered = q ? notes.filter(n => (n.text || "").toLowerCase().includes(q) || (n.ref || "").toLowerCase().includes(q)) : notes;
+              if (filtered.length === 0) {
+                return <li className="cx-notes-empty">— no match —</li>;
+              }
+              return filtered.map(n => (
               <li key={n.id} className="cx-notes-item">
                 <div className="cx-notes-item-h">
                   <button
@@ -437,8 +459,10 @@ function Notes({ passage, currentVerse, onJumpTo, onDisable }) {
                 </div>
                 <p className="cx-notes-item-body">{n.text}</p>
               </li>
-            ))}
-          </ul>
+              ));
+            })()}
+            </ul>
+          </>
         ) : null}
       </div>
     </aside>,

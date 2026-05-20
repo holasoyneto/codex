@@ -213,8 +213,62 @@ function RightRail({
   if (tab && !pinned.includes(tab) && byId.get(tab)) {
     pinnedTabs.push(byId.get(tab));
   }
+  // Mobile-only bottom-sheet drag-to-close. Captures touches in the top
+  // 28px of the rail (visual handle area) and translates the sheet down.
+  // Past 120px (or velocity > 0.6 px/ms), fire onClose. Desktop ignored.
+  const railRef = React.useRef(null);
+  React.useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    if (typeof window === "undefined") return;
+    const isMobile = () => window.matchMedia && window.matchMedia("(max-width: 640px)").matches;
+    let startY = 0, lastY = 0, lastT = 0, startT = 0, dragging = false;
+    const onStart = (e) => {
+      if (!isMobile()) return;
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      const rect = el.getBoundingClientRect();
+      if (t.clientY - rect.top > 28) return;   // only top handle region
+      dragging = true;
+      startY = lastY = t.clientY;
+      startT = lastT = performance.now();
+      el.style.transition = "none";
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const t = e.touches && e.touches[0]; if (!t) return;
+      const dy = Math.max(0, t.clientY - startY);  // clamp upward
+      el.style.transform = `translateY(${dy}px)`;
+      lastY = t.clientY; lastT = performance.now();
+    };
+    const onEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      const dy = Math.max(0, lastY - startY);
+      const dt = Math.max(1, lastT - startT);
+      const vel = dy / dt;
+      el.style.transition = "";
+      if (dy > 120 || vel > 0.6) {
+        el.style.transform = "";
+        try { onClose && onClose(); } catch {}
+      } else {
+        el.style.transform = "";
+      }
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [onClose]);
+
   return (
-    <aside className="cx-rail cx-rail-r">
+    <aside ref={railRef} className="cx-rail cx-rail-r">
       <RightRailResizer />
       <button className="cx-rail-close" onClick={onClose} aria-label="Close panels">×</button>
       {onCollapse ? (

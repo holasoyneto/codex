@@ -336,10 +336,14 @@
           </div>
         </div>
 
-        {behind > 0 ? (
+        {behind >= 2 ? (
           <div className="cx-plan-catchup">
             <span>You're <b>{behind}</b> day{behind === 1 ? "" : "s"} behind.</span>
-            <button type="button" className="cx-plan-btn" onClick={catchUp}>Catch up</button>
+            <button type="button" className="cx-plan-btn" onClick={catchUp}>✓ Catch up</button>
+          </div>
+        ) : behind === 1 ? (
+          <div className="cx-plan-catchup">
+            <span>You're <b>1</b> day behind.</span>
           </div>
         ) : null}
 

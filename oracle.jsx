@@ -1350,7 +1350,9 @@ Suggestion policy: when the current passage materially benefits from a translati
       const friendly = msg.includes("ANTHROPIC_API_KEY")
         ? "The oracle needs an API key. Restart the server with: ANTHROPIC_API_KEY=sk-ant-… node server.js"
         : `Oracle could not reach the model: ${msg}`;
-      setMessages(m => [...m, { role: "oracle", text: friendly, error: true }]);
+      const lower = msg.toLowerCase();
+      const isKeyErr = /\bkey\b|401|authentication|unauthor/.test(lower);
+      setMessages(m => [...m, { role: "oracle", text: friendly, error: true, keyErr: isKeyErr, lastUserText: text }]);
     } finally {
       setBusy(false);
       // H7 — restore caret to the composer once the reply lands so the
@@ -1585,6 +1587,37 @@ Suggestion policy: when the current passage materially benefits from a translati
                     title="Save this response to your notes"
                     aria-label="Save to notes"
                   >✎</button>
+                ) : null}
+                {m.role === "oracle" && m.error && m.keyErr ? (
+                  <div className="cx-msg-keyfix">
+                    <span>API key rejected.</span>
+                    <button
+                      onClick={() => {
+                        try { window.postMessage({ type: "__activate_edit_mode" }, "*"); } catch {}
+                        try { window.dispatchEvent(new CustomEvent("codex:open-settings", { detail: { section: "api-keys" } })); } catch {}
+                      }}
+                    >Fix key</button>
+                  </div>
+                ) : null}
+                {m.role === "oracle" && m.error && m.lastUserText ? (
+                  <button
+                    className="cx-msg-retry"
+                    onClick={() => {
+                      // Drop this error bubble + the failed user turn, then resend.
+                      const txt = m.lastUserText;
+                      setMessages(prev => {
+                        // remove this error msg and the preceding user msg if it matches
+                        const out = prev.slice();
+                        if (out[i] === m) out.splice(i, 1);
+                        if (out.length && out[i-1] && out[i-1].role === "user" && out[i-1].text === txt) {
+                          out.splice(i-1, 1);
+                        }
+                        return out;
+                      });
+                      setTimeout(() => send(txt), 30);
+                    }}
+                    title="Resend the last message"
+                  >↻ retry</button>
                 ) : null}
               </div>
               {m.wroteBookmarks ? <span className="cx-msg-flag">✓ {m.wroteBookmarks} BMK SAVED</span> : null}

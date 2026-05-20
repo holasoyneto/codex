@@ -96,6 +96,15 @@
   height: 1px; background: linear-gradient(to right, transparent, #7ee0ff, transparent);
   margin: 4px 0 0; opacity: 0.4;
 }
+.cx-boot-skip {
+  position: absolute; left: 50%; bottom: 18px;
+  transform: translateX(-50%);
+  font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: #6b7785; opacity: 0.85;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.cx-boot-skip b { color: #7ee0ff; font-weight: 600; letter-spacing: 0.2em; }
 @media (prefers-reduced-motion: reduce) {
   .cx-boot-cursor { animation: none; }
 }
@@ -114,6 +123,7 @@
     <div class="cx-boot-bar"></div>
     <div class="cx-boot-prompt" id="cx-boot-prompt">→ ENTER STUDY</div>
   </div>
+  <div class="cx-boot-skip" aria-hidden="true">tap anywhere to skip · <b>ENTER</b></div>
 </div>
 
 <script>
@@ -187,6 +197,9 @@
 
   function showPrompt() {
     prompt.classList.add("is-on");
+    // Natural completion resets the consecutive-skip counter so a couple
+    // of accidental skips earlier don't keep the intro disabled forever.
+    try { localStorage.setItem("codex.bootIntro.skips", "0"); } catch (e) {}
   }
 
   // Dismissal — fade out as soon as the app is actually ready AND the
@@ -205,10 +218,38 @@
     if (verEl && window.CODEX_DATA) verEl.textContent = "v" + ((document.querySelector('script[src*="sw.js"]') ? "" : "") || "133");
     boot.classList.add("cx-boot-fade");
     setTimeout(function(){ if (boot.parentNode) boot.parentNode.removeChild(boot); }, 650);
+    try { window.removeEventListener("keydown", onKeySkip, true); } catch (e) {}
   }
 
-  // Allow the user to dismiss immediately by clicking/tapping anywhere
-  boot.addEventListener("click", function(){ typedDone = true; appDone = true; maybeDismiss(); });
+  // Allow the user to dismiss immediately by clicking/tapping anywhere or
+  // pressing ENTER. After two consecutive skips, auto-disable the boot
+  // intro entirely on subsequent reloads.
+  function recordSkipAndDismiss() {
+    try {
+      var n = parseInt(localStorage.getItem("codex.bootIntro.skips") || "0", 10) || 0;
+      n = n + 1;
+      if (n >= 2) {
+        localStorage.setItem("codex.bootIntro", "0");
+        localStorage.setItem("codex.bootIntro.skips", "0");
+      } else {
+        localStorage.setItem("codex.bootIntro.skips", String(n));
+      }
+    } catch (e) {}
+    typedDone = true; appDone = true; maybeDismiss();
+  }
+  boot.addEventListener("click", recordSkipAndDismiss);
+  function onKeySkip(e){
+    if (e.key === "Enter" || e.keyCode === 13) {
+      e.preventDefault();
+      window.removeEventListener("keydown", onKeySkip, true);
+      recordSkipAndDismiss();
+    }
+  }
+  window.addEventListener("keydown", onKeySkip, true);
+  // If we hit ready without a skip click, reset the consecutive-skip counter
+  // so a normal full watch doesn't escalate later.
+  var origFinishReset = maybeDismiss;
+  // (nothing else — natural finish doesn't increment skips)
 })();
 </script>
 

@@ -92,7 +92,21 @@ function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslati
           className="cx-lib-row"
           data-active={isActive ? "true" : "false"}
           data-open={isOpen ? "true" : "false"}
-          onClick={() => setOpenId(isOpen ? null : b.id)}
+          onClick={() => {
+            // Expand the chapter strip AND, if this isn't already the
+            // active book, jump to the user's remembered last chapter
+            // for it (or chapter 1 the first time).
+            setOpenId(isOpen ? null : b.id);
+            if (!isActive) {
+              let last = 1;
+              try {
+                const raw = localStorage.getItem("codex.lastChapter.v1");
+                const map = raw ? JSON.parse(raw) : {};
+                if (map && Number.isFinite(map[b.id])) last = Math.min(map[b.id], b.chapters);
+              } catch {}
+              onSelectChapter(b.id, last);
+            }
+          }}
         >
           <span className="cx-lib-name">{b.name}</span>
           <span className="cx-lib-meta">

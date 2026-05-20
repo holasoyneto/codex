@@ -17,13 +17,22 @@
   const inflight = new Map();
   const listeners = new Set();
 
-  // Cache key includes the active UI language so panels generated in
-  // Spanish never collide with the English ones — switching language and
-  // re-opening a chapter re-fetches in the new language.
+  // Cache key includes the active UI language AND the AI engine
+  // (provider + model) so switching language OR engine never collides
+  // with previous generations — each combo gets its own cache slot.
+  function engineSuffix() {
+    const e = window.CODEX_PANELS_ENGINE || {};
+    const p = e.provider || (window.CODEX_AI_DEFAULT && window.CODEX_AI_DEFAULT.provider) || "anthropic";
+    const m = e.model || (window.CODEX_AI_DEFAULT && window.CODEX_AI_DEFAULT.model) || "default";
+    // Default-anthropic+default model stays empty for backwards compat
+    // with caches written before this change.
+    if (p === "anthropic" && m === "default") return "";
+    return `.${p}.${String(m).replace(/[^a-z0-9_-]+/gi, "_")}`;
+  }
   function cacheKey(bookId, chapter) {
     const lang = (window.CODEX_LANG || "en");
-    const suffix = lang === "en" ? "" : `.${lang}`;
-    return `${CACHE_PREFIX}${bookId}.${chapter}${suffix}`;
+    const langSuffix = lang === "en" ? "" : `.${lang}`;
+    return `${CACHE_PREFIX}${bookId}.${chapter}${langSuffix}${engineSuffix()}`;
   }
 
   // Cache format v2: { _v: 2, data, fetchedAt }. Old format (bare object)
@@ -260,6 +269,9 @@ Rules:
   }
 
   async function load(bookId, chapter, bookName, opts = {}) {
+    // Pin the engine on the global hint so cacheKey() resolves to the
+    // same slot for reads and writes within this call.
+    window.CODEX_PANELS_ENGINE = { provider: opts.provider || "anthropic", model: opts.model || "default" };
     const key = cacheKey(bookId, chapter);
     const cached = !opts.force && getCached(bookId, chapter);
     if (cached) return cached;
@@ -382,13 +394,13 @@ Scholarly, neutral. Do not invent renderings — use the texts supplied.`;
   function exegesisKey(passageKey) {
     const lang = (window.CODEX_LANG || "en");
     const suffix = lang === "en" ? "" : `.${lang}`;
-    return `${EXEGESIS_PREFIX}${passageKey}${suffix}`;
+    return `${EXEGESIS_PREFIX}${passageKey}${suffix}${engineSuffix()}`;
   }
   function txAnalysisKey(passageKey, translationIds) {
     const lang = (window.CODEX_LANG || "en");
     const suffix = lang === "en" ? "" : `.${lang}`;
     const tids = [...translationIds].sort().join("+");
-    return `${TXANALYSIS_PREFIX}${passageKey}.${tids}${suffix}`;
+    return `${TXANALYSIS_PREFIX}${passageKey}.${tids}${suffix}${engineSuffix()}`;
   }
 
   function readWrapped(key) {
@@ -465,6 +477,7 @@ Scholarly, neutral. Do not invent renderings — use the texts supplied.`;
   }
 
   async function loadExegesis(passageKey, opts = {}) {
+    window.CODEX_PANELS_ENGINE = { provider: opts.provider || "anthropic", model: opts.model || "default" };
     const k = exegesisKey(passageKey);
     if (!opts.force) {
       const cached = getExegesisCached(passageKey);
@@ -506,6 +519,7 @@ Return ONLY the JSON object.`;
   }
 
   async function loadTranslationAnalysis(passageKey, translations, opts = {}) {
+    window.CODEX_PANELS_ENGINE = { provider: opts.provider || "anthropic", model: opts.model || "default" };
     // translations: [{ id, name, year?, philosophy?, text }]
     const ids = translations.map(t => t.id);
     const k = txAnalysisKey(passageKey, ids);

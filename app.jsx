@@ -672,8 +672,13 @@ function ToastDock() {
       const d = e.detail || {};
       const msg = String(d.msg || "").slice(0, 220);
       if (!msg) return;
+      // Suppress AI / fetch error toasts while offline — they'd fail anyway
+      // and the OFFLINE pill already tells the user what's going on.
+      const kindRaw = d.kind;
+      const offline = (typeof navigator !== "undefined" && navigator.onLine === false);
+      if (offline && kindRaw === "err" && /panel|fetch|network|api|model|oracle|generate/i.test(msg)) return;
       const id = Math.random().toString(36).slice(2);
-      const kind = ["ok", "warn", "err"].includes(d.kind) ? d.kind : "info";
+      const kind = ["ok", "warn", "err"].includes(kindRaw) ? kindRaw : "info";
       setItems(prev => [...prev, { id, msg, kind }].slice(-3));
       setTimeout(() => setItems(prev => prev.filter(x => x.id !== id)), 4200);
     };
@@ -1027,6 +1032,14 @@ function App() {
     const book = data.books.find(b => b.id === bookId);
     if (!book) return;
     const chap = Math.max(1, Math.min(chapter, book.chapters));
+    // Per-book last-chapter memory so returning to a book lands you on
+    // the chapter you left off at instead of always chapter 1.
+    try {
+      const raw = localStorage.getItem("codex.lastChapter.v1");
+      const map = raw ? JSON.parse(raw) : {};
+      map[bookId] = chap;
+      localStorage.setItem("codex.lastChapter.v1", JSON.stringify(map));
+    } catch {}
     setPassageLoc({ bookId, chapter: chap, verse });
     _setCurrentVerse(verse);
     setPassage(p => ({
@@ -1490,6 +1503,27 @@ function App() {
   // Phase 1.2 — full-text search modal
   const [searchOpen, setSearchOpen] = useState(false);
 
+  // First-run onboarding strip — appears once over the Reader for new users.
+  // Dismissed by writing codex.firstRun.v1 so it never returns.
+  const [firstRunOpen, setFirstRunOpen] = useState(() => {
+    try { return !localStorage.getItem("codex.firstRun.v1"); } catch { return false; }
+  });
+  const dismissFirstRun = useCallback(() => {
+    try { localStorage.setItem("codex.firstRun.v1", String(Date.now())); } catch {}
+    setFirstRunOpen(false);
+  }, []);
+
+  // Online/offline state for the footer pill. Suppress AI panel error
+  // toasts while offline (panels would fail anyway — no point yelling).
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
+
   // ── Global keyboard navigation (Phase 0.6) ─────────────────────────────
   // Single source of truth for all top-level keybindings. Skips typing
   // contexts so we don't steal keys inside inputs / contenteditable.
@@ -1800,6 +1834,38 @@ function App() {
           }}
         />
 
+        {firstRunOpen ? (
+          <div className="cx-first-run" role="region" aria-label="First run hints">
+            <button
+              className="cx-first-run-chip"
+              onClick={() => {
+                window.postMessage({ type: "__activate_edit_mode" }, "*");
+                try { window.dispatchEvent(new CustomEvent("codex:open-settings", { detail: { section: "api-keys" } })); } catch {}
+              }}
+              title="Open Settings → API Keys"
+            >🔑 Set API key</button>
+            <button
+              className="cx-first-run-chip"
+              onClick={() => {
+                setLeftOpen(true);
+                try { window.dispatchEvent(new CustomEvent("oracle:prefill")); } catch {}
+              }}
+              title="Open the Oracle chat"
+            >✦ Try Oracle</button>
+            <button
+              className="cx-first-run-chip"
+              onClick={() => setShowShortcuts(true)}
+              title="Show keyboard shortcuts"
+            >⌘ Press ? for shortcuts</button>
+            <button
+              className="cx-first-run-x"
+              onClick={dismissFirstRun}
+              aria-label="Dismiss"
+              title="Dismiss"
+            >×</button>
+          </div>
+        ) : null}
+
         <Reader
           schizo={!!(schizoEligible && t.schizo)}
           passage={passage}
@@ -1922,6 +1988,8 @@ function App() {
           setRightOpen(false);
           setRightCollapsed(v => !v);
         }}
+        onShowShortcuts={() => setShowShortcuts(true)}
+        isOnline={isOnline}
       />
 
       {theater ? (
@@ -2842,7 +2910,7 @@ function CachedPanelsBrowser({ onJump, bookLookup }) {
   );
 }
 
-function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, onOpenLeft, onOpenRight, distractionFree, onToggleDistractionFree, theater, onToggleTheater, leftCollapsed, onToggleLeftCollapsed, rightCollapsed, onToggleRightCollapsed }) {
+function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, onOpenLeft, onOpenRight, distractionFree, onToggleDistractionFree, theater, onToggleTheater, leftCollapsed, onToggleLeftCollapsed, rightCollapsed, onToggleRightCollapsed, onShowShortcuts, isOnline = true }) {
   return (
     <footer className="cx-footer">
       <div className="cx-footer-l">
@@ -2888,6 +2956,17 @@ function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCou
       <div className="cx-footer-r">
         {/* Dropped: faux LATENCY + faux NODE pills. They never reflected real
             state and ate ~140px of footer real-estate. */}
+        {!isOnline ? (
+          <span className="cx-offline-pill" title="No network — cached chapters/panels still work">OFFLINE — cached only</span>
+        ) : null}
+        {onShowShortcuts ? (
+          <button
+            className="cx-kbd-chip"
+            onClick={onShowShortcuts}
+            title="Keyboard shortcuts (?)"
+            aria-label="Keyboard shortcuts"
+          >?</button>
+        ) : null}
         <button className="cx-mobile-fab" onClick={onOpenRight} aria-label="Panels">⋮</button>
       </div>
     </footer>
