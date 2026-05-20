@@ -1747,6 +1747,20 @@ function App() {
     return () => window.removeEventListener("codex:jump-ref", onJump);
   }, [jumpToRef]);
 
+  // Click on the reader title opens the Library overlay.
+  useEffect(() => {
+    const onOpen = () => setLeftOpen(true);
+    window.addEventListener("codex:open-library", onOpen);
+    return () => window.removeEventListener("codex:open-library", onOpen);
+  }, []);
+
+  // Quick translation switcher in the reader header → set primary.
+  useEffect(() => {
+    const onSet = (e) => { const id = e && e.detail && e.detail.id; if (id) setPrimary(id); };
+    window.addEventListener("codex:set-primary", onSet);
+    return () => window.removeEventListener("codex:set-primary", onSet);
+  }, []);
+
   const onSelectMark = useCallback((m) => {
     loadPassage(m.bookId, m.chapter, m.verse);
     setLeftOpen(false);

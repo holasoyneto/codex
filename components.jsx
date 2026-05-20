@@ -1458,12 +1458,135 @@ function ReaderViewPopover({
   );
 }
 
+// ── Quick translation switcher ─────────────────────────────────────
+// Repurposes the existing display pills (KJV · EN · 1611) as a single
+// clickable affordance that opens an inline language-grouped picker.
+// No extra controls in the header — same pill, now interactive.
+function QuickTranslationSwitcher({ primary, primaryMeta }) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const t = setTimeout(() => document.addEventListener("mousedown", onDown), 0);
+    document.addEventListener("keydown", onKey);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  const data = window.CODEX_DATA || {};
+  const trans = (data.translations || []);
+  const grouped = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    const filt = needle
+      ? trans.filter(t =>
+          t.name.toLowerCase().includes(needle) ||
+          (t.id || "").toLowerCase().includes(needle) ||
+          (t.lang || "").toLowerCase().includes(needle))
+      : trans;
+    const map = new Map();
+    filt.forEach(t => {
+      const k = t.lang || "??";
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(t);
+    });
+    return [...map.entries()];
+  }, [trans, filter]);
+  const pick = (id) => {
+    try { window.dispatchEvent(new CustomEvent("codex:set-primary", { detail: { id } })); } catch {}
+    setOpen(false);
+    setFilter("");
+  };
+  return (
+    <span className="cx-qts" ref={ref}>
+      <button
+        type="button"
+        className={`cx-qts-trigger ${open ? "is-open" : ""}`}
+        onClick={() => setOpen(o => !o)}
+        title="Switch translation"
+        aria-label="Switch translation"
+        aria-expanded={open}
+      >
+        <span className="cx-qts-glyph">{primaryMeta.glyph}</span>
+        <span className="cx-qts-sub">{primaryMeta.lang} · {primaryMeta.year}</span>
+        <span className="cx-qts-caret">▾</span>
+      </button>
+      {open ? (
+        <div className="cx-qts-pop" role="dialog" aria-label="Pick a translation">
+          <input
+            className="cx-qts-filter"
+            placeholder="Filter…"
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            autoFocus
+            spellCheck={false}
+          />
+          <div className="cx-qts-list">
+            {grouped.map(([lang, items]) => (
+              <React.Fragment key={lang}>
+                <div className="cx-qts-lang">{lang}</div>
+                {items.map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`cx-qts-row ${t.id === primary ? "is-current" : ""}`}
+                    onClick={() => pick(t.id)}
+                  >
+                    <span className="cx-qts-row-glyph">{t.glyph}</span>
+                    <span className="cx-qts-row-name">{t.name}</span>
+                    <span className="cx-qts-row-year">{t.year}</span>
+                  </button>
+                ))}
+              </React.Fragment>
+            ))}
+            {!grouped.length ? <div className="cx-qts-empty">no match</div> : null}
+          </div>
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+// ── Chapter grid popover (used by the pager center "X of Y") ─────────
+function ChapterGridPopover({ bookId, totalChapters, currentChapter, anchorRect, onPick, onClose }) {
+  const popRef = useRef(null);
+  useEffect(() => {
+    const onDown = (e) => { if (!popRef.current?.contains(e.target)) onClose(); };
+    const onKey  = (e) => { if (e.key === "Escape") onClose(); };
+    const t = setTimeout(() => document.addEventListener("mousedown", onDown), 0);
+    document.addEventListener("keydown", onKey);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+  const style = anchorRect ? {
+    position: "fixed",
+    left: Math.max(8, Math.min(window.innerWidth - 320, anchorRect.left + anchorRect.width / 2 - 160)),
+    bottom: Math.max(8, window.innerHeight - anchorRect.top + 8),
+    zIndex: 200,
+  } : { position: "absolute", bottom: "100%", left: "50%", transform: "translateX(-50%)", zIndex: 200 };
+  return (
+    <div ref={popRef} className="cx-pager-grid-pop" style={style} role="dialog" aria-label={`Chapter grid for ${bookId}`}>
+      <div className="cx-pager-grid-h">{bookId.toUpperCase()} · {totalChapters} chapters</div>
+      <div className="cx-pager-grid">
+        {Array.from({ length: totalChapters }, (_, i) => i + 1).map(ch => (
+          <button
+            key={ch}
+            type="button"
+            className={`cx-pager-grid-ch ${ch === currentChapter ? "is-current" : ""}`}
+            onClick={() => { onPick(ch); onClose(); }}
+          >{ch}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, redLetter,
                   fontScale, highlightedVerse, onSelectVerse, onToggleSideBySide,
                   onToggleRedLetter, onCycleFontSize, onPrevChapter, onNextChapter,
                   highlights, highlightColor, onToggleHighlight, onOpenVerseMenu,
                   panelData, yhwhMode, onToggleYHWH, schizo }) {
   const bodyRef = useRef(null);
+  const [chapterGridAnchor, setChapterGridAnchor] = useState(null);
   // Swipe / horizontal-scroll-to-navigate. Tracks touch + trackpad
   // wheel deltas; left ≥ threshold = next chapter, right = prev. Suppresses
   // when an inner carousel (mobile side-by-side) owns horizontal scrolling.
@@ -1594,12 +1717,17 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
       } VV`}>
         <div className="cx-reader-head">
           <div className="cx-reader-titles">
-            <h1>{passage.title || `${passage.book} ${passage.chapter}`}</h1>
+            <h1
+              role="button"
+              tabIndex={0}
+              title="Open the Library"
+              onClick={() => { try { window.dispatchEvent(new CustomEvent("codex:open-library")); } catch {} }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); try { window.dispatchEvent(new CustomEvent("codex:open-library")); } catch {} } }}
+            >{passage.title || `${passage.book} ${passage.chapter}`}</h1>
             {passage.subtitle ? <p>{passage.subtitle}</p> : null}
           </div>
           <div className="cx-reader-meta">
-            <Pill>{primaryMeta.glyph}</Pill>
-            <Pill dim>{primaryMeta.lang} · {primaryMeta.year}</Pill>
+            <QuickTranslationSwitcher primary={primary} primaryMeta={primaryMeta} />
             {gnosisOn ? <Pill accent>⟁</Pill> : null}
             <ReaderViewPopover
               redLetter={redLetter} onToggleRedLetter={onToggleRedLetter}
@@ -1754,12 +1882,30 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
             <span className="cx-nav-arrow" aria-hidden="true">&lsaquo;</span>
             <span className="cx-nav-btn-label">{prevLabel || ""}</span>
           </button>
-          <div className="cx-reader-progress">
+          <button
+            type="button"
+            className="cx-reader-progress"
+            title="Jump to chapter"
+            aria-label={`Jump to chapter in ${passage.book}`}
+            onClick={(e) => setChapterGridAnchor(e.currentTarget.getBoundingClientRect())}
+          >
             <span>{passage.chapter} of {totalChapters}</span>
             <div className="cx-prog">
               <div className="cx-prog-fill" style={{ width: `${(passage.chapter/totalChapters)*100}%` }} />
             </div>
-          </div>
+          </button>
+          {chapterGridAnchor ? (
+            <ChapterGridPopover
+              bookId={passage.bookId}
+              totalChapters={totalChapters}
+              currentChapter={passage.chapter}
+              anchorRect={chapterGridAnchor}
+              onPick={(ch) => {
+                try { window.dispatchEvent(new CustomEvent("codex:jump-ref", { detail: { ref: `${passage.bookId}.${ch}.1` } })); } catch {}
+              }}
+              onClose={() => setChapterGridAnchor(null)}
+            />
+          ) : null}
           <button className="cx-nav-btn" onClick={onNextChapter} disabled={!nextLabel} title={nextLabel || "End"} aria-label={`Next: ${nextLabel || "End"}`}>
             <span className="cx-nav-btn-label">{nextLabel || ""}</span>
             <span className="cx-nav-arrow" aria-hidden="true">&rsaquo;</span>

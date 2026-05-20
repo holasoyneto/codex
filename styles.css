@@ -16866,3 +16866,125 @@ html, body { max-width: 100vw; overflow-x: hidden; }
    when user is mid-drag (relies on JS toggling .is-swiping on body
    if we want; for now, just ensure pan-x doesn't fight nested scroll. */
 .cx-reader-body { touch-action: pan-y; overscroll-behavior-x: contain; }
+
+/* ── Quick translation switcher (clickable pill in reader header) ── */
+.cx-qts { position: relative; display: inline-flex; }
+.cx-qts-trigger {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px;
+  background: color-mix(in oklab, var(--cx-fg-dim) 5%, transparent);
+  border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 15%, transparent);
+  border-radius: 6px;
+  color: var(--cx-fg);
+  font-family: var(--cx-mono);
+  font-size: 10px; letter-spacing: 0.06em;
+  transition: border-color 120ms, background 120ms, color 120ms;
+}
+.cx-qts-trigger:hover,
+.cx-qts-trigger.is-open {
+  border-color: var(--cx-accent);
+  color: var(--cx-accent);
+  background: color-mix(in oklab, var(--cx-accent) 10%, transparent);
+}
+.cx-qts-glyph { font-weight: 700; font-size: 11px; }
+.cx-qts-sub { opacity: 0.7; font-size: 9.5px; }
+.cx-qts-caret { font-size: 8px; opacity: 0.6; }
+.cx-qts-pop {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  z-index: 200;
+  min-width: 260px; max-width: 320px;
+  max-height: 50vh; overflow-y: auto;
+  background: var(--cx-bg);
+  border: 1px solid var(--cx-line-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  padding: 6px;
+}
+.cx-qts-filter {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: color-mix(in oklab, var(--cx-fg-dim) 6%, transparent);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--cx-fg);
+  font-family: var(--cx-mono);
+  font-size: 13px;
+  outline: none;
+}
+.cx-qts-filter:focus { border-color: var(--cx-accent); }
+.cx-qts-list { display: flex; flex-direction: column; gap: 1px; }
+.cx-qts-lang {
+  padding: 6px 8px 2px;
+  font-family: var(--cx-mono);
+  font-size: 8.5px; letter-spacing: 0.18em; font-weight: 600;
+  color: color-mix(in oklab, var(--cx-accent) 70%, transparent);
+  text-transform: uppercase;
+}
+.cx-qts-row {
+  appearance: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: transparent; border: 0;
+  border-radius: 6px;
+  color: var(--cx-fg);
+  font-family: inherit; text-align: left;
+  transition: background 80ms;
+}
+.cx-qts-row:hover { background: color-mix(in oklab, var(--cx-accent) 10%, transparent); }
+.cx-qts-row.is-current { background: color-mix(in oklab, var(--cx-accent) 18%, transparent); color: var(--cx-accent); }
+.cx-qts-row-glyph { font-family: var(--cx-mono); font-size: 10px; font-weight: 700; min-width: 36px; opacity: 0.8; }
+.cx-qts-row-name { flex: 1; font-size: 12px; }
+.cx-qts-row-year { font-family: var(--cx-mono); font-size: 9.5px; opacity: 0.5; }
+.cx-qts-empty { padding: 10px 12px; font-size: 11px; color: var(--cx-fg-dim); font-style: italic; }
+
+/* ── Reader title is now a button (no visible chrome change) ─────── */
+.cx-reader-titles h1[role="button"] { cursor: pointer; }
+.cx-reader-titles h1[role="button"]:hover { color: var(--cx-accent); }
+
+/* ── Pager center → chapter grid popover (button styled like text) ── */
+.cx-reader-progress {
+  appearance: none; cursor: pointer;
+  background: transparent; border: 0;
+  font: inherit; color: inherit;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 120ms, color 120ms;
+}
+.cx-reader-progress:hover { background: color-mix(in oklab, var(--cx-accent) 8%, transparent); color: var(--cx-accent); }
+.cx-pager-grid-pop {
+  background: var(--cx-bg);
+  border: 1px solid var(--cx-line-strong);
+  border-radius: 10px;
+  padding: 10px;
+  width: min(320px, 92vw);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+}
+.cx-pager-grid-h {
+  font-family: var(--cx-mono);
+  font-size: 9.5px; letter-spacing: 0.18em; font-weight: 600;
+  color: color-mix(in oklab, var(--cx-accent) 70%, transparent);
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--cx-line);
+}
+.cx-pager-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 4px;
+}
+.cx-pager-grid-ch {
+  appearance: none; cursor: pointer;
+  min-height: 36px;
+  background: color-mix(in oklab, var(--cx-fg-dim) 5%, transparent);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--cx-fg);
+  font-family: var(--cx-mono);
+  font-size: 11px;
+  transition: background 80ms, border-color 80ms, color 80ms;
+}
+.cx-pager-grid-ch:hover { background: color-mix(in oklab, var(--cx-accent) 12%, transparent); color: var(--cx-accent); border-color: var(--cx-accent); }
+.cx-pager-grid-ch.is-current { background: var(--cx-accent); color: var(--cx-bg); border-color: var(--cx-accent); font-weight: 700; }
