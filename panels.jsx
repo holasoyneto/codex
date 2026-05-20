@@ -495,6 +495,116 @@ const _dlState = new Map();
 const _dlListeners = new Set();
 function _dlNotify() { for (const fn of _dlListeners) try { fn(); } catch {} }
 
+// ── Auto-bundle on first read ──────────────────────────────────────────
+// When the user picks a translation that has zero cached chapters we
+// silently start downloadAll() in the background so the next chapter /
+// book is instant. Throttled to one auto-download at a time so we don't
+// thrash the upstream API.
+const TP_AUTO_BUNDLE_KEY = "codex.tp.autobundle.v1";  // "1" | "0"
+const _autoBundleQueue = [];
+let   _autoBundleActive = null;  // translation id currently bundling
+const _autoBundleTried = new Set();
+
+function _autoBundleEnabled() {
+  try {
+    const v = localStorage.getItem(TP_AUTO_BUNDLE_KEY);
+    return v === null ? true : v === "1";
+  } catch { return true; }
+}
+function _toast(msg, kind = "info") {
+  try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg, kind } })); } catch {}
+}
+function _autoBundleDrain() {
+  if (_autoBundleActive) return;
+  const next = _autoBundleQueue.shift();
+  if (!next) return;
+  const { t, books } = next;
+  // Re-check stats — the user may have already started a manual DL.
+  try {
+    const s = window.BIBLE.cacheStats(t.id, books);
+    if (s && s.fully) { _autoBundleDrain(); return; }
+  } catch {}
+  const existing = _dlState.get(t.id);
+  if (existing && existing.controller && !existing.complete && !existing.aborted) {
+    // A manual download is already running for this translation.
+    _autoBundleDrain();
+    return;
+  }
+  _autoBundleActive = t.id;
+  const total = books.reduce((n, b) => n + (b.chapters || 0), 0);
+  _dlState.set(t.id, { done: 0, total, controller: null, auto: true });
+  _dlNotify();
+  const ctrl = window.BIBLE.downloadAll(t.id, books, (p) => {
+    _dlState.set(t.id, { ...p, controller: ctrl, auto: true });
+    try {
+      window.dispatchEvent(new CustomEvent("codex:autocache-tick", {
+        detail: { translation: t.id, done: p.done || 0, total: p.total || total },
+      }));
+    } catch {}
+    _dlNotify();
+  });
+  _dlState.set(t.id, { done: 0, total, controller: ctrl, auto: true });
+  try {
+    window.dispatchEvent(new CustomEvent("codex:autocache-start", {
+      detail: { translation: t.id, total },
+    }));
+  } catch {}
+  _dlNotify();
+  const finish = () => {
+    try {
+      window.dispatchEvent(new CustomEvent("codex:autocache-done", {
+        detail: { translation: t.id, done: total, total },
+      }));
+    } catch {}
+    _autoBundleActive = null;
+    _autoBundleDrain();
+  };
+  if (ctrl && typeof ctrl.then === "function") {
+    ctrl.then(finish, finish);
+  } else if (ctrl && ctrl.done && typeof ctrl.done.then === "function") {
+    ctrl.done.then(finish, finish);
+  } else {
+    // Poll fallback.
+    const poll = () => {
+      try {
+        const s = window.BIBLE.cacheStats(t.id, books);
+        if (s && s.fully) return finish();
+        const cur = _dlState.get(t.id);
+        if (!cur || cur.aborted || cur.complete) return finish();
+      } catch {}
+      setTimeout(poll, 800);
+    };
+    setTimeout(poll, 800);
+  }
+}
+function maybeAutoBundle(t, books) {
+  if (!t || !books || !_autoBundleEnabled()) return;
+  if (!window.BIBLE || !window.BIBLE.downloadAll || !window.BIBLE.cacheStats) return;
+  // Skip user-forged BabelForge bibles (already stored locally) and bundle-source.
+  if (t.source === "bundle") return;
+  if (_autoBundleTried.has(t.id)) return;
+  let stats;
+  try { stats = window.BIBLE.cacheStats(t.id, books); } catch { return; }
+  if (!stats || stats.cached > 0) {
+    _autoBundleTried.add(t.id);
+    return;
+  }
+  _autoBundleTried.add(t.id);
+  _autoBundleQueue.push({ t, books });
+  _toast(`Bundling ${t.name} for offline use…`, "info");
+  _autoBundleDrain();
+}
+// Expose for app.jsx prefetch + diagnostics.
+try {
+  window.CODEX_TP = Object.assign(window.CODEX_TP || {}, {
+    maybeAutoBundle,
+    autoBundleEnabled: _autoBundleEnabled,
+    setAutoBundle(on) {
+      try { localStorage.setItem(TP_AUTO_BUNDLE_KEY, on ? "1" : "0"); } catch {}
+    },
+  });
+} catch {}
+
 // Display names for the language groupings in the translations panel.
 const LANG_NAMES = {
   EN: "English",   ES: "Español",   DE: "Deutsch",   PT: "Português",
@@ -519,6 +629,24 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
   const primaryText = verse ? (verse[primary] || "—") : "—";
   const [bumpKey, bump] = useState(0);
   const userIds = new Set((window.loadRepos?.() || []).map(r => r.id));
+  const [query, setQuery] = useState("");
+  const [ctxMenu, setCtxMenu] = useState(null); // { t, x, y }
+  const searchRef = useRef(null);
+
+  // Wrap parent callbacks so picking / comparing auto-kicks the bundler.
+  const onPrimaryWrap = (id) => {
+    const t = data.translations.find(x => x.id === id);
+    onPrimary(id);
+    if (t) maybeAutoBundle(t, data.books);
+  };
+  const onToggleCompareWrap = (id) => {
+    const wasOn = compareSet.includes(id);
+    onToggleCompare(id);
+    if (!wasOn) {
+      const t = data.translations.find(x => x.id === id);
+      if (t) maybeAutoBundle(t, data.books);
+    }
+  };
 
   // ── User-defined ordering / collapse state ──
   const [langOrder,   setLangOrder]   = useState(() => tpLoad(TP_LANG_ORDER_KEY, DEFAULT_LANG_ORDER));
@@ -632,32 +760,124 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
     return () => window.removeEventListener("codex:bible:ready", onReady);
   }, []);
 
-  const startDownload = (t) => {
+  const startDownload = (t, { silent } = {}) => {
     if (_dlState.get(t.id)?.controller && !_dlState.get(t.id)?.complete) return;
-    if (!window.confirm(`Download all of ${t.name} for offline reading?\nThis will fetch ~${data.books.reduce((s,b)=>s+b.chapters,0)} chapters and may take a few minutes.`)) return;
+    const total = data.books.reduce((s,b)=>s+b.chapters,0);
     const controller = window.BIBLE.downloadAll(t.id, data.books, (p) => {
       _dlState.set(t.id, { ...p, controller });
       _dlNotify();
     });
-    _dlState.set(t.id, { done: 0, total: data.books.reduce((s,b)=>s+b.chapters,0), controller });
+    _dlState.set(t.id, { done: 0, total, controller });
     _dlNotify();
+    if (!silent) _toast(`Saving ${t.name} offline…`, "info");
   };
   const stopDownload = (t) => {
     const s = _dlState.get(t.id);
     s?.controller?.abort();
+    _toast(`Paused ${t.name} download`, "warn");
   };
-  const clearOffline = (t) => {
-    if (!window.confirm(`Remove offline copy of ${t.name}? Active reading will re-fetch as you go.`)) return;
+  const clearOffline = (t, { skipConfirm } = {}) => {
+    if (!skipConfirm && !window.confirm(`Remove offline copy of ${t.name}? Active reading will re-fetch as you go.`)) return;
     try {
-      const raw = JSON.parse(localStorage.getItem("codex.bible.cache.v2") || "{}");
-      for (const k of Object.keys(raw)) {
-        if (k.endsWith(`.${t.id}`)) delete raw[k];
+      if (typeof window.BIBLE.removeTranslation === "function") {
+        window.BIBLE.removeTranslation(t.id);
+      } else {
+        const raw = JSON.parse(localStorage.getItem("codex.bible.cache.v2") || "{}");
+        for (const k of Object.keys(raw)) if (k.endsWith(`.${t.id}`)) delete raw[k];
+        localStorage.setItem("codex.bible.cache.v2", JSON.stringify(raw));
       }
-      localStorage.setItem("codex.bible.cache.v2", JSON.stringify(raw));
     } catch {}
     _dlState.delete(t.id);
+    _autoBundleTried.delete(t.id);
     _dlNotify();
   };
+
+  // Context menu actions (right-click / long-press).
+  const openCtx = (t, ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    setCtxMenu({ t, x: ev.clientX, y: ev.clientY });
+  };
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); }, { once: true });
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [ctxMenu]);
+
+  // Forge-from: open BabelForge pre-filled with this translation as source.
+  const forgeFrom = (t) => {
+    try {
+      window.dispatchEvent(new CustomEvent("codex:babelforge-forge-from", { detail: { sourceTr: t.id } }));
+    } catch {}
+  };
+
+  // Cmd+F focuses the filter (when panel is mounted/focused).
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+        if (searchRef.current && document.activeElement !== searchRef.current) {
+          e.preventDefault();
+          searchRef.current.focus();
+          searchRef.current.select?.();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const collapseAll = () => persistCollapsed(new Set(groups.map(g => g.lang)));
+  const expandAll   = () => persistCollapsed(new Set());
+
+  // Tap-to-copy + long-press share for the preview blockquote.
+  const previewRef = useRef(null);
+  const copyPreview = () => {
+    if (!verse) return;
+    const ref = `${passage.book} ${passage.chapter}:${verse.n}`;
+    const text = `${primaryText.trim()} — ${ref} (${primaryMeta?.name || primary})`;
+    try {
+      navigator.clipboard?.writeText(text);
+      _toast(`Copied · ${ref}`, "ok");
+    } catch { _toast("Copy failed", "err"); }
+  };
+  const sharePreview = () => {
+    if (!verse || !navigator.share) return copyPreview();
+    const ref = `${passage.book} ${passage.chapter}:${verse.n}`;
+    navigator.share({ title: ref, text: `${primaryText.trim()} — ${ref}` }).catch(() => {});
+  };
+  const onPreviewPointerDown = (e) => {
+    if (!previewRef.current) return;
+    let longPressed = false;
+    const timer = setTimeout(() => { longPressed = true; sharePreview(); }, 550);
+    const up = () => {
+      clearTimeout(timer);
+      previewRef.current?.removeEventListener("pointerup", up);
+      previewRef.current?.removeEventListener("pointercancel", up);
+      previewRef.current?.removeEventListener("pointerleave", up);
+      if (!longPressed) copyPreview();
+    };
+    previewRef.current.addEventListener("pointerup", up);
+    previewRef.current.addEventListener("pointercancel", up);
+    previewRef.current.addEventListener("pointerleave", up);
+  };
+
+  // Filter groups by query (name OR lang OR id).
+  const q = query.trim().toLowerCase();
+  const filteredGroups = !q ? groups : groups.map(g => {
+    const items = g.items.filter(t =>
+      (t.name || "").toLowerCase().includes(q) ||
+      (t.lang || "").toLowerCase().includes(q) ||
+      (t.id   || "").toLowerCase().includes(q) ||
+      (t.year || "").toString().includes(q)
+    );
+    return { ...g, items };
+  }).filter(g => g.items.length);
 
   const removeOne = (t) => {
     if (!userIds.has(t.id)) return;
@@ -672,16 +892,58 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
     <div className="cx-pane cx-tp">
       <PaneHead title="TRANSLATIONS" sub={`${passage.book} ${passage.chapter}:${verse?.n ?? "—"}`} />
 
-      {/* Primary verse preview — quietly anchors the picker to the current verse */}
-      <blockquote className="cx-tp-quote">
-        <span className="cx-tp-quote-glyph">{primaryMeta?.glyph}</span>
+      {/* Primary verse preview — tap copies, long-press shares */}
+      <blockquote
+        ref={previewRef}
+        className="cx-tp-quote is-tappable"
+        onPointerDown={onPreviewPointerDown}
+        title="Tap to copy · long-press to share"
+        style={{ touchAction: "manipulation", userSelect: "none", cursor: "pointer" }}
+      >
+        <span className="cx-tp-quote-glyph" style={{ fontSize: "1.15em" }}>{primaryMeta?.glyph}</span>
         <span className="cx-tp-quote-text">{primaryText}</span>
+        <span className="cx-tp-quote-vn" style={{ fontFeatureSettings: '"tnum"', opacity: 0.55, marginLeft: 6, fontSize: 11 }}>
+          {verse ? `${verse.n}` : ""}
+        </span>
       </blockquote>
+
+      {/* Filter + bulk-collapse controls */}
+      <div className="cx-tp-toolbar" style={{ display: "flex", gap: 6, alignItems: "center", padding: "4px 8px 6px", fontFamily: "var(--cx-mono)", fontSize: 11 }}>
+        <input
+          ref={searchRef}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter translations · name, lang, id"
+          className="cx-tp-filter"
+          aria-label="Filter translations"
+          style={{
+            flex: 1, background: "transparent", color: "var(--cx-fg)",
+            border: "1px solid color-mix(in oklab, var(--cx-accent) 22%, transparent)",
+            borderRadius: 3, padding: "4px 7px", fontFamily: "inherit", fontSize: 11,
+            outline: "none",
+          }}
+        />
+        <button
+          type="button"
+          className="cx-tp-mini-btn"
+          onClick={collapseAll}
+          title="Collapse all language groups"
+          style={{ background: "transparent", border: "1px solid color-mix(in oklab, var(--cx-fg-dim) 35%, transparent)", color: "var(--cx-fg-dim)", borderRadius: 3, padding: "3px 6px", cursor: "pointer", fontSize: 10, letterSpacing: ".08em" }}
+        >⊟</button>
+        <button
+          type="button"
+          className="cx-tp-mini-btn"
+          onClick={expandAll}
+          title="Expand all language groups"
+          style={{ background: "transparent", border: "1px solid color-mix(in oklab, var(--cx-fg-dim) 35%, transparent)", color: "var(--cx-fg-dim)", borderRadius: 3, padding: "3px 6px", cursor: "pointer", fontSize: 10, letterSpacing: ".08em" }}
+        >⊞</button>
+      </div>
 
       {/* Language groups · drag headers to reorder languages, drag rows to
           reorder within. Click a header to fold. */}
       <div className="cx-tp-groups">
-        {groups.map(({ lang, items }) => {
+        {filteredGroups.map(({ lang, items }) => {
           const isFolded = collapsed.has(lang);
           const primaryCount = items.filter(t => t.id === primary).length;
           const compareCount = items.filter(t => compareSet.includes(t.id)).length;
@@ -702,7 +964,7 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
                 onClick={() => toggleLang(lang)}
                 title={isFolded ? "Expand · drag to reorder" : "Collapse · drag to reorder"}
               >
-                <span className="cx-tp-group-grip" aria-hidden>⋮⋮</span>
+                <span className="cx-tp-group-grip" aria-hidden style={{ touchAction: "none" }}>⋮⋮</span>
                 <span className="cx-tp-group-tag">{lang}</span>
                 <span className="cx-tp-group-name">{LANG_NAMES[lang] || lang}</span>
                 <span className="cx-tp-group-meta">
@@ -729,11 +991,17 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
                         onDragEnd={onDragEnd}
                         onDragOver={onDragOver("trans", t.id)}
                         onDrop={onDropTrans(lang, t.id)}
+                        onContextMenu={(e) => openCtx(t, e)}
                       >
-                        <span className="cx-tp-grip" aria-hidden title="Drag to reorder">⋮⋮</span>
+                        <span
+                          className="cx-tp-grip"
+                          aria-hidden
+                          title="Drag to reorder"
+                          style={{ touchAction: "none" }}
+                        >⋮⋮</span>
                         <button
                           className="cx-tp-pick"
-                          onClick={() => onPrimary(t.id)}
+                          onClick={() => onPrimaryWrap(t.id)}
                           title={`Read in ${t.name}`}
                         >
                           <span className="cx-tp-mark" aria-hidden>{isPrimary ? "●" : ""}</span>
@@ -742,7 +1010,7 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
                         </button>
                         <button
                           className={`cx-tp-eye ${isCompare ? "is-on" : ""}`}
-                          onClick={() => onToggleCompare(t.id)}
+                          onClick={() => onToggleCompareWrap(t.id)}
                           title={isCompare ? "Remove from compare" : "Add to compare"}
                           aria-label="Toggle compare"
                           aria-pressed={isCompare}
@@ -755,6 +1023,15 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
                           onStop={() => stopDownload(t)}
                           onClear={() => clearOffline(t)}
                         />
+                        <button
+                          className="cx-tp-forge"
+                          onClick={(e) => { e.stopPropagation(); forgeFrom(t); }}
+                          title={`Forge a custom version from ${t.name} (BabelForge)`}
+                          aria-label="Forge custom version"
+                          style={{ background: "transparent", border: "1px solid transparent", color: "var(--cx-fg-dim)", borderRadius: 3, padding: "2px 5px", cursor: "pointer", fontSize: 11, marginLeft: 2, opacity: 0.55 }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.color = "var(--cx-accent)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.55; e.currentTarget.style.color = "var(--cx-fg-dim)"; }}
+                        >⌬</button>
                         {isUser ? (
                           <button
                             className="cx-tp-rm"
@@ -774,9 +1051,73 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
       </div>
 
       <div className="cx-tp-foot">
-        <span>● primary  ·  ◉ compare  ·  ⋮⋮ drag to reorder</span>
+        <span>● primary  ·  ◉ compare  ·  ⌬ forge  ·  ⋮⋮ drag</span>
       </div>
-      {window.RepoAdd ? <RepoAdd onAdded={() => bump(n => n + 1)} /> : null}
+      {window.RepoAdd ? (
+        <div className="cx-tp-browse" style={{ padding: "6px 8px 10px" }}>
+          <details>
+            <summary
+              style={{
+                cursor: "pointer", listStyle: "none",
+                fontFamily: "var(--cx-mono)", fontSize: 11, letterSpacing: ".1em",
+                color: "var(--cx-accent)", padding: "6px 10px",
+                border: "1px dashed color-mix(in oklab, var(--cx-accent) 45%, transparent)",
+                borderRadius: 3, textAlign: "center", textTransform: "uppercase",
+              }}
+            >＋ Browse community translations</summary>
+            <RepoAdd onAdded={() => bump(n => n + 1)} />
+          </details>
+        </div>
+      ) : null}
+      {ctxMenu ? (
+        <ul
+          className="cx-tp-ctx"
+          role="menu"
+          style={{
+            position: "fixed", left: Math.min(ctxMenu.x, window.innerWidth - 240), top: Math.min(ctxMenu.y, window.innerHeight - 220),
+            zIndex: 9999, minWidth: 220,
+            background: "var(--cx-bg, #0a0e12)",
+            border: "1px solid color-mix(in oklab, var(--cx-accent) 35%, transparent)",
+            borderRadius: 4, padding: 4,
+            fontFamily: "var(--cx-mono)", fontSize: 11, listStyle: "none", margin: 0,
+            boxShadow: "0 6px 30px rgba(0,0,0,.55)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(() => {
+            const t = ctxMenu.t;
+            const isPrim = primary === t.id;
+            const isCmp = compareSet.includes(t.id);
+            const st = stats[t.id];
+            const items = [
+              { label: "Set as primary", on: () => onPrimaryWrap(t.id), disabled: isPrim },
+              { label: isCmp ? "Remove from compare" : "Add to compare", on: () => onToggleCompareWrap(t.id) },
+              { label: "Save offline", on: () => startDownload(t), disabled: st?.fully },
+              { label: "Forge custom version (BabelForge)", on: () => forgeFrom(t) },
+              { label: "Remove offline data", on: () => clearOffline(t), disabled: !st || st.cached === 0 },
+            ];
+            if (userIds.has(t.id)) items.push({ label: "Remove from library", on: () => removeOne(t), danger: true });
+            return items.map((it, i) => (
+              <li key={i} role="menuitem">
+                <button
+                  type="button"
+                  disabled={it.disabled}
+                  onClick={() => { it.on(); setCtxMenu(null); }}
+                  style={{
+                    width: "100%", textAlign: "left",
+                    background: "transparent", border: "none",
+                    color: it.disabled ? "var(--cx-fg-dim)" : (it.danger ? "#ff8291" : "var(--cx-fg)"),
+                    padding: "6px 10px", cursor: it.disabled ? "default" : "pointer",
+                    opacity: it.disabled ? 0.5 : 1, borderRadius: 3,
+                  }}
+                  onMouseEnter={(e) => { if (!it.disabled) e.currentTarget.style.background = "color-mix(in oklab, var(--cx-accent) 12%, transparent)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >{it.label}</button>
+              </li>
+            ));
+          })()}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -814,6 +1155,7 @@ function OfflineDot({ t, stats, dl, onStart, onStop, onClear }) {
   const C = 2 * Math.PI * R;
   const off = C * (1 - ratio);
 
+  const label = fully ? "OFFLINE" : downloading ? pct : (ratio > 0 ? pct : "DL");
   return (
     <button
       className={`cx-tp-offline ${downloading ? "is-dl" : ""} ${fully ? "is-full" : ""} ${ratio > 0 && !fully && !downloading ? "is-partial" : ""}`}
@@ -843,6 +1185,7 @@ function OfflineDot({ t, stats, dl, onStart, onStop, onClear }) {
                 strokeLinecap="round" strokeLinejoin="round" opacity="0.65" />
         ) : null}
       </svg>
+      <span className="cx-tp-off-lbl">{label}</span>
     </button>
   );
 }

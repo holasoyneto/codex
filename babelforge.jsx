@@ -1531,14 +1531,14 @@
   Object.assign(window.CODEX_BabelForge, { refreshChapter, ensureChapter, ensureBook });
 
   // 1-step Forge-Entire-Bible modal: voice + source text + name → go.
-  function ForgeBibleModal({ onForge, onClose }) {
+  function ForgeBibleModal({ onForge, onClose, presetSource }) {
     const [templates, setTemplates] = useState([]);
     const [voiceId, setVoiceId] = useState("modern-scholar");
     const [customPrompt, setCustomPrompt] = useState("");
     const [name, setName] = useState("");
-    const [sourceTr, setSourceTr] = useState("kjv");
+    const [sourceTr, setSourceTr] = useState(presetSource || "kjv");
     const [targetLang, setTargetLang] = useState("en");
-    const [sourceTouched, setSourceTouched] = useState(false);
+    const [sourceTouched, setSourceTouched] = useState(!!presetSource);
     const [nameTouched, setNameTouched] = useState(false);
     // Autosuggest source based on target language. If user hasn't touched
     // the source picker, swap it to a sensible default for the target.
@@ -1691,6 +1691,7 @@
     const [state, setState] = useState(() => loadState());
     const [showWizard, setShowWizard] = useState(false);
     const [showForge, setShowForge] = useState(false);
+    const [forgePresetSource, setForgePresetSource] = useState(null);
     const [sharePayload, setSharePayload] = useState(null);
     const [forgeStatus, setForgeStatusLocal] = useState(window.CODEX_BabelForge.forgeStatus || null);
     const [pendingForgeId, setPendingForgeId] = useState(null);
@@ -1727,6 +1728,17 @@
       window.addEventListener("codex:babelforge-translate", onTranslateVerse);
       return () => window.removeEventListener("codex:babelforge-translate", onTranslateVerse);
     }, [state.activeId]);
+
+    // Translations-panel "forge from this" shortcut.
+    useEffect(() => {
+      function onForgeFrom(e) {
+        const detail = e.detail || {};
+        setForgePresetSource(detail.sourceTr || null);
+        setShowForge(true);
+      }
+      window.addEventListener("codex:babelforge-forge-from", onForgeFrom);
+      return () => window.removeEventListener("codex:babelforge-forge-from", onForgeFrom);
+    }, []);
 
     function createProject(p) {
       const next = {
@@ -1994,7 +2006,8 @@
       }),
       showForge && E(ForgeBibleModal, {
         onForge: doForgeBible,
-        onClose: () => setShowForge(false)
+        onClose: () => { setShowForge(false); setForgePresetSource(null); },
+        presetSource: forgePresetSource
       }),
       sharePayload && E(ImportShareModal, {
         payload: sharePayload,

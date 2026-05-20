@@ -1053,6 +1053,21 @@ function App() {
           bookId, chapter: chap, verses, primary,
         });
       } catch {}
+      // Idle prefetch of the next chapter for the primary translation so
+      // prev/next navigation feels instant. Safe to no-op on failure.
+      try {
+        const nextCh = chap + 1;
+        if (nextCh <= (book.chapters || 0)) {
+          const run = () => {
+            try { window.BIBLE.loadChapter(bookId, nextCh, primary); } catch {}
+          };
+          if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(() => setTimeout(run, 250), { timeout: 4000 });
+          } else {
+            setTimeout(run, 1200);
+          }
+        }
+      } catch {}
     } catch (e) {
       setPassage(p => ({ ...p, loading: false, error: String(e.message || e) }));
     }
@@ -2179,6 +2194,11 @@ function App() {
           onChange={(v) => setTweak("caffeinate", v)} />
         <TweakToggle label={tt("reading.notes")} value={!!t.notesEnabled}
           onChange={(v) => setTweak("notesEnabled", v)} />
+        <TweakToggle
+          label="Auto-bundle translations as I read"
+          value={(window.CODEX_TP?.autoBundleEnabled?.() ?? true)}
+          onChange={(v) => { window.CODEX_TP?.setAutoBundle?.(v); }}
+        />
         <TweakSlider label={tt("reading.oracle.fs")} value={t.oracleFontScale || 14}
           min={11} max={20} unit="px"
           onChange={(v) => setTweak("oracleFontScale", v)} />
