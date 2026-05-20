@@ -84,7 +84,7 @@ Single-page React 18 app loaded via CDN with Babel-standalone — there is no bu
 
 ## License
 
-MIT. Take it, ship it, remix it, sell it. Just don't paywall the public domain.
+BSD-3-Clause. Take it, ship it, remix it, sell it. Just don't paywall the public domain, and don't slap our name on whatever you remix without asking first.
 
 ## Acknowledgements
 
@@ -93,4 +93,5 @@ MIT. Take it, ship it, remix it, sell it. Just don't paywall the public domain.
 - [Nag Hammadi Library](http://gnosis.org/naghamm/nhl.html) for the Coptic texts
 - Fonts: [Cormorant](https://fonts.google.com/specimen/Cormorant) (SIL OFL) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (SIL OFL)
 - Maps via [Leaflet](https://leafletjs.com)
+- Quiet thanks to z. for the late-night sanity checks
 - Built for everyone who has ever stayed up until 3am chasing a footnote

@@ -1530,21 +1530,37 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   display: grid;
   gap: 10px;
   padding-bottom: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 14px;             /* was 6 — too tight, the glyph badge
+                                      visually crowded verse 1 of column */
   border-bottom: 1px solid var(--cx-line);
+  position: relative;
+  z-index: 2;                      /* keep above any sibling that overflows */
+  background: var(--cx-bg);
+  align-items: stretch;
 }
 .cx-col-h {
   display: flex; align-items: center; gap: 8px;
   padding: 4px 0;
+  min-width: 0;                    /* let the name text ellipsis-truncate
+                                      instead of forcing the badge to wrap
+                                      over the next column's content */
+  min-height: 32px;
 }
 .cx-col-h.is-primary { box-shadow: inset 2px 0 0 var(--cx-accent); padding-left: 8px; }
 .cx-col-h-glyph {
   display: grid; place-items: center;
+  flex: 0 0 30px;                  /* hard-pin so it never collapses or
+                                      overflows under sibling text */
   width: 30px; height: 24px;
   font-family: var(--cx-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
   border: 1px solid var(--cx-accent); color: var(--cx-accent);
   background: var(--cx-bg);
+  overflow: hidden;                /* clip long glyph strings to the box */
 }
+/* Name + year stack must contain its content. */
+.cx-col-h > div { min-width: 0; flex: 1 1 auto; }
+.cx-col-h b,
+.cx-col-h span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cx-col-h > div { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
 .cx-col-h b { font-family: var(--cx-sans); font-size: 11px; color: var(--cx-fg); font-weight: 600; }
 .cx-col-h span { font-family: var(--cx-mono); font-size: 8.5px; color: var(--cx-fg-dim); letter-spacing: 0.08em; }
