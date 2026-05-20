@@ -409,6 +409,51 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   // rules-of-hooks require the same hook count every render.
   const [activeTab, setActiveTab] = React.useState("reading");
 
+  // Filter state ALSO must live above the early-return. The previous
+  // location (post-`if (!open) return null`) caused "Rendered more
+  // hooks than during the previous render" the first time the panel
+  // was opened (hook count jumped from 8 → 11).
+  const [twkQuery, setTwkQuery] = React.useState("");
+  const twkBodyRef = React.useRef(null);
+
+  // The two effects that filter the rendered tweak rows and reset
+  // the query on tab change ALSO must be called unconditionally on
+  // every render. They early-bail internally when the panel is closed
+  // or the body isn't mounted yet, but the hook count stays constant.
+  React.useEffect(() => {
+    if (!open) return;
+    const body = twkBodyRef.current;
+    if (!body) return;
+    const q = twkQuery.trim().toLowerCase();
+    const rows = body.querySelectorAll(".twk-row");
+    if (!q) {
+      rows.forEach(r => r.classList.remove("twk-hidden"));
+      body.querySelectorAll(".twk-sect").forEach(s => s.classList.remove("twk-hidden"));
+      return;
+    }
+    rows.forEach(r => {
+      const text = (r.textContent || "").toLowerCase();
+      const aria = (r.getAttribute("aria-label") || "").toLowerCase();
+      const match = text.includes(q) || aria.includes(q);
+      r.classList.toggle("twk-hidden", !match);
+    });
+    const nodes = Array.from(body.children);
+    nodes.forEach((n, i) => {
+      if (!n.classList || !n.classList.contains("twk-sect")) return;
+      let anyVisible = false;
+      for (let j = i + 1; j < nodes.length; j++) {
+        const next = nodes[j];
+        if (next.classList && next.classList.contains("twk-sect")) break;
+        if (next.classList && next.classList.contains("twk-row") && !next.classList.contains("twk-hidden")) {
+          anyVisible = true; break;
+        }
+      }
+      n.classList.toggle("twk-hidden", !anyVisible);
+    });
+  }, [twkQuery, activeTab, open]);
+  // Reset query when switching tabs so each tab starts fresh.
+  React.useEffect(() => { setTwkQuery(""); }, [activeTab]);
+
   if (!open) return null;
 
   // ── Tab grouping ───────────────────────────────────────────────────
@@ -481,44 +526,8 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   const firstNonEmpty = TABS.find(t => buckets[t.id].length)?.id || "reading";
   const effectiveTab = buckets[activeTab]?.length ? activeTab : firstNonEmpty;
 
-  // Per-tab transient search — substring match against TweakRow labels and
-  // any text in the row. DOM-based so it works regardless of how children
-  // are structured (TweakRow / TweakToggle / TweakSlider / freeform).
-  const [twkQuery, setTwkQuery] = React.useState("");
-  const twkBodyRef = React.useRef(null);
-  React.useEffect(() => {
-    const body = twkBodyRef.current;
-    if (!body) return;
-    const q = twkQuery.trim().toLowerCase();
-    const rows = body.querySelectorAll(".twk-row");
-    if (!q) {
-      rows.forEach(r => r.classList.remove("twk-hidden"));
-      body.querySelectorAll(".twk-sect").forEach(s => s.classList.remove("twk-hidden"));
-      return;
-    }
-    rows.forEach(r => {
-      const text = (r.textContent || "").toLowerCase();
-      const aria = (r.getAttribute("aria-label") || "").toLowerCase();
-      const match = text.includes(q) || aria.includes(q);
-      r.classList.toggle("twk-hidden", !match);
-    });
-    // Hide a section header if every row after it (up to next section) is hidden.
-    const nodes = Array.from(body.children);
-    nodes.forEach((n, i) => {
-      if (!n.classList || !n.classList.contains("twk-sect")) return;
-      let anyVisible = false;
-      for (let j = i + 1; j < nodes.length; j++) {
-        const next = nodes[j];
-        if (next.classList && next.classList.contains("twk-sect")) break;
-        if (next.classList && next.classList.contains("twk-row") && !next.classList.contains("twk-hidden")) {
-          anyVisible = true; break;
-        }
-      }
-      n.classList.toggle("twk-hidden", !anyVisible);
-    });
-  }, [twkQuery, effectiveTab, open]);
-  // Reset query when switching tabs so each tab starts fresh.
-  React.useEffect(() => { setTwkQuery(""); }, [effectiveTab]);
+  // (Filter effects live above the early-return so the hook count is
+  // stable across open/closed renders — see comment above.)
 
   return (
     <>
