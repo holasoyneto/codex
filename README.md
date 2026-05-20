@@ -1,6 +1,6 @@
 # CODEX
 
-> A scripture terminal for the curious. Read 43+ translations, chase a word into the Talmud, the Nag Hammadi, and the gematria — then forge your own Bible in your own voice. Works offline. Opens in a tab.
+> **Like Palantir, but for the Bible.** An all-source scripture intelligence terminal. 43+ translation feeds, AI fusion analysts (Talmud · gnosis · gematria · patristic commentary), an Oracle interrogator, and BabelForge — a lab to forge cover-translations of any book in any voice. Air-gap capable. Offline-first PWA. Eyes only.
 
 <p align="center">
   <img src="./icon.svg" width="120" alt="CODEX icon" />
@@ -14,11 +14,11 @@
 
 ## What is this
 
-CODEX is a Bible study app for people who follow footnotes for fun. It looks like a terminal, reads like a manuscript, and treats scripture as a thing worth interrogating from every angle — Hebrew, Greek, Aramaic, Coptic, Latin, English, and 38 more.
+CODEX is what you'd get if a scripture-obsessed analyst sat down to build an intelligence-grade reader. A terminal, not a website. A station, not an app. Every verse is a target. Every corpus is a feed. The job is to follow the thread.
 
-Open a verse. A column of companions wakes up: Talmudic parallels, patristic commentary, gematria, Strong's, cross-references, and — yes — the Gnostic mirror (Nag Hammadi, Pistis Sophia, Thomas). Nothing's hidden behind a paywall and nothing's flattened into devotional pablum. The weird canon is here on purpose.
+Open a verse. A column of analysts wakes up — Talmudic parallels, patristic commentary, gematria, Strong's, cross-references, and the Gnostic mirror (Nag Hammadi, Pistis Sophia, Thomas). All feeds, all the time. No paywall, no devotional pablum, no fenced-off canon. The weird stuff is on purpose — Enoch, Jubilees, Meqabyan, the apocalypses — you don't get to study a canon by reading half of it.
 
-Then there's **BabelForge** — a translation lab where you generate your own AI-translated edition of any book in any voice (1611 King James, beat poet, courtroom transcript, your bubbe). It's your Bible. Make it sound like you.
+Then there's **BabelForge** — a translation lab. Pick a voice (1611 King James, beat poet, courtroom transcript, 1920s gangster, your bubbe), pick a source, hit forge. The model generates your own AI-translated edition of any book and installs it as a Reader translation alongside KJV. It's your cover-Bible. Make it sound like you.
 
 ## Why CODEX
 
