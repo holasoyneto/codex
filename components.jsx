@@ -597,6 +597,9 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
               activeChapter={activeChapter}
               onSelectChapter={onSelectChapter}
               activeTranslation={(oracleProps && oracleProps.primary) || "kjv"}
+              onJumpRef={(ref) => {
+                try { window.dispatchEvent(new CustomEvent("codex:jump-ref", { detail: { ref } })); } catch {}
+              }}
             />
           ) : null}
         </CornerFrame>

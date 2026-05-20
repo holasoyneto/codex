@@ -1739,6 +1739,14 @@ function App() {
   // can pivot the reader to a passage by reference string.
   useEffect(() => { window.codexJumpToRef = jumpToRef; }, [jumpToRef]);
 
+  // Library smart-search dispatches codex:jump-ref for verse-level jumps;
+  // chapter-level jumps go through onSelectChapter directly.
+  useEffect(() => {
+    const onJump = (e) => { const r = e && e.detail && e.detail.ref; if (r) jumpToRef(r); };
+    window.addEventListener("codex:jump-ref", onJump);
+    return () => window.removeEventListener("codex:jump-ref", onJump);
+  }, [jumpToRef]);
+
   const onSelectMark = useCallback((m) => {
     loadPassage(m.bookId, m.chapter, m.verse);
     setLeftOpen(false);

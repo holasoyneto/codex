@@ -16772,3 +16772,70 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   }
   .cx-carousel-dot.is-on { background: var(--cx-accent); }
 }
+
+/* ── Library smart-search dropdown ────────────────────────────────── */
+.cx-lib-search { position: relative; }
+.cx-lib-suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+  z-index: 60;
+  background: var(--cx-bg);
+  border: 1px solid var(--cx-line-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px var(--cx-line);
+  padding: 4px;
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.cx-lib-suggest-h {
+  padding: 6px 10px 2px;
+  font-family: var(--cx-mono);
+  font-size: 9px; letter-spacing: 0.18em; font-weight: 600;
+  color: color-mix(in oklab, var(--cx-accent) 70%, transparent);
+  text-transform: uppercase;
+}
+.cx-lib-suggest-row {
+  appearance: none; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  background: transparent; border: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: left;
+  color: var(--cx-fg);
+  font-family: inherit;
+  transition: background 80ms;
+}
+.cx-lib-suggest-row:hover,
+.cx-lib-suggest-row.is-active {
+  background: color-mix(in oklab, var(--cx-accent) 10%, transparent);
+}
+.cx-lib-suggest-lbl {
+  font-size: 13px; font-weight: 500;
+  color: var(--cx-fg);
+}
+.cx-lib-suggest-row.is-active .cx-lib-suggest-lbl { color: var(--cx-accent); }
+.cx-lib-suggest-sub {
+  font-size: 10.5px;
+  color: var(--cx-fg-dim);
+  font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
+.cx-lib-suggest-empty {
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--cx-fg-dim);
+  font-style: italic;
+}
+.cx-lib-search .cx-lib-count {
+  font-family: var(--cx-mono);
+  font-size: 10px;
+  color: var(--cx-fg-dim);
+  opacity: 0.5;
+  cursor: help;
+}
+@media (max-width: 640px) {
+  .cx-lib-suggest { max-height: 50vh; }
+  .cx-lib-suggest-row { padding: 10px 12px; }
+  .cx-lib-suggest-lbl { font-size: 14px; }
+}
