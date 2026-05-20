@@ -1441,14 +1441,12 @@
     if (!project) return false;
     _bgState.inflight.add(key);
     try {
-      const base = await fetchBaseVerse.__chapter
-        ? await fetchBaseVerse.__chapter(project.base_translation, bookId, chapter)
-        : await (async () => {
-            if (window.BIBLE && typeof window.BIBLE.loadChapter === "function") {
-              return window.BIBLE.loadChapter(bookId, chapter, project.base_translation);
-            }
-            return [];
-          })();
+      let base = [];
+      try {
+        if (window.BIBLE && typeof window.BIBLE.loadChapter === "function") {
+          base = await window.BIBLE.loadChapter(bookId, chapter, project.base_translation);
+        }
+      } catch (e) { /* base load failed — skip silently */ }
       if (!Array.isArray(base) || base.length === 0) return false;
       const voiceTpl = project.voice_template === "custom"
         ? project.voice_custom
@@ -1482,7 +1480,16 @@
         const next = Object.assign({}, project, { verses, modified: Date.now() });
         _saveProject(next);
         try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: translationId, chapter: `${bookId}.${chapter}` } })); } catch {}
-        try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `BabelForge · ${bookId.toUpperCase()} ${chapter} · ${touched} verses ready`, kind: "ok" } })); } catch {}
+        // Toast throttling — emit at most one per book, not one per chapter,
+        // so a whole-Bible forge doesn't fire 1189 toasts. The first chapter
+        // for a (translation, book) tuple toasts; subsequent chapters bump
+        // a counter we surface in the per-chapter completion sense.
+        const tk = `${translationId}:${bookId}`;
+        if (!_bgState.toasted) _bgState.toasted = new Set();
+        if (!_bgState.toasted.has(tk)) {
+          _bgState.toasted.add(tk);
+          try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `BabelForge · forging ${bookId.toUpperCase()} — chapters land as they finish.`, kind: "ok" } })); } catch {}
+        }
       }
       return touched > 0;
     } finally {

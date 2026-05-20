@@ -1135,14 +1135,20 @@ function App() {
   // BabelForge translation, kick off background translation of the
   // whole book on every navigation so the chapter they jump to next
   // is already done. Fire-and-forget; no-ops if no key / no project.
+  // Debounced 600ms so rapid prev/next mashing doesn't queue ten
+  // book-translations in two seconds.
   useEffect(() => {
     if (!window.CODEX_BabelForge || typeof window.CODEX_BabelForge.ensureBook !== "function") return;
     const cohort = Array.from(new Set([primary, ...(compareSet || [])])).filter(id => typeof id === "string" && id.startsWith("bf-"));
-    cohort.forEach(translationId => {
-      try { window.CODEX_BabelForge.ensureBook({ translationId, bookId: passageLoc.bookId }); } catch {}
-      // Also ensure the current chapter eagerly (so it's first in line).
-      try { window.CODEX_BabelForge.ensureChapter({ translationId, bookId: passageLoc.bookId, chapter: passageLoc.chapter }); } catch {}
-    });
+    if (!cohort.length) return;
+    const bookId = passageLoc.bookId, chapter = passageLoc.chapter;
+    const t = setTimeout(() => {
+      cohort.forEach(translationId => {
+        try { window.CODEX_BabelForge.ensureChapter({ translationId, bookId, chapter }); } catch {}
+        try { window.CODEX_BabelForge.ensureBook({ translationId, bookId }); } catch {}
+      });
+    }, 600);
+    return () => clearTimeout(t);
   }, [primary, JSON.stringify(compareSet), passageLoc.bookId, passageLoc.chapter]);
 
   // Personal-bible MARKS — unified concept: a mark IS a highlight. One list,
