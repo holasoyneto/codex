@@ -16577,8 +16577,33 @@ html, body { max-width: 100vw; overflow-x: hidden; }
    all the way down). Lock the chain explicitly. */
 .cx-tab-body { display: flex; flex-direction: column; min-height: 0; }
 .cx-tab-body > .cx-pane { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.cx-pane.cx-tp { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
-.cx-tp-groups { min-height: 0; flex: 1 1 auto; }
+/* TranslationsPanel: the scroll context is .cx-tp-groups, NOT the outer
+   .cx-pane.cx-tp. We previously double-stacked overflow:auto on both
+   (creating nested scroll containers that confused touch gestures and
+   left the user "scrolling" the outer with no effect). The outer pane
+   stays a flex column; the inner groups list is the single scroller. */
+.cx-pane.cx-tp { overflow: hidden !important; }
+.cx-tp-groups {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Allow vertical pan to win the gesture race over the row drag
+     handlers so touch-scroll actually works on mobile. */
+  touch-action: pan-y;
+}
+/* Make the scrollbar actually visible — 4px was invisible. */
+.cx-tp-groups::-webkit-scrollbar { width: 8px !important; }
+.cx-tp-groups::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--cx-fg-dim) 45%, transparent) !important;
+  border-radius: 4px !important;
+}
+.cx-tp-groups { scrollbar-width: auto; }
+/* Row drag handles take pointer events; the rest of the row stays
+   pan-able. */
+.cx-tp-list, .cx-tp-row { touch-action: pan-y; }
+.cx-tp-grip, .cx-tp-group-grip { touch-action: none; cursor: grab; }
 
 @media (max-width: 640px) {
   .cx-rail-r {
@@ -16594,10 +16619,18 @@ html, body { max-width: 100vw; overflow-x: hidden; }
     flex-direction: column;
   }
   .cx-rail-r .cx-tab-body { flex: 1 1 auto; min-height: 0; }
-  .cx-rail-r .cx-pane,
-  .cx-rail-r .cx-pane.cx-tp {
+  .cx-rail-r .cx-pane {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+  /* Translations panel: outer is a column, inner .cx-tp-groups is the
+     single scroller (touch + visible scrollbar). */
+  .cx-rail-r .cx-pane.cx-tp { overflow: hidden !important; }
+  .cx-rail-r .cx-tp-groups {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
   }
 }
