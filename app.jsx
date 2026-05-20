@@ -830,6 +830,110 @@ function parseRef(ref, books) {
 // itself if the global i18n module hasn't loaded (defensive).
 function tt(k) { return (window.t && window.t(k)) || k; }
 
+// ── First-run welcome tour ─────────────────────────────────────────────
+// Four-step modal overlay. Shown once for genuinely new users (no
+// codex.firstRun.v2 and no v1 either). Esc / "skip tour" / "Begin" all
+// close it. Arrow keys + Enter navigate. Reduced-motion friendly.
+function WelcomeTour({ onClose }) {
+  const [step, setStep] = React.useState(0);
+  const total = 4;
+  const next = React.useCallback(() => {
+    setStep(s => (s >= total - 1 ? (onClose(), s) : s + 1));
+  }, [onClose]);
+  const prev = React.useCallback(() => setStep(s => Math.max(0, s - 1)), []);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+      else if (e.key === "Enter") { e.preventDefault(); next(); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+      else if (e.key === "ArrowLeft")  { e.preventDefault(); prev(); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [next, prev, onClose]);
+
+  const openSettings = () => {
+    try { window.dispatchEvent(new CustomEvent("codex:open-settings", { detail: { section: "api-keys" } })); } catch {}
+    next();
+  };
+
+  const renderStep = () => {
+    if (step === 0) {
+      return (
+        <>
+          <div className="cx-welcome-hero" aria-hidden="true">⌬</div>
+          <h1 className="cx-welcome-headline">CODEX</h1>
+          <p className="cx-welcome-body">
+            A scripture study terminal. 43 translations, offline-first, AI-powered
+            companion panels, and a translation lab. Built for serious study and
+            curious wandering. ⌬
+          </p>
+        </>
+      );
+    }
+    if (step === 1) {
+      return (
+        <>
+          <h1 className="cx-welcome-headline">Reach anything fast.</h1>
+          <ul className="cx-welcome-keys">
+            <li><kbd>⌘K</kbd><span>open the library / palette</span></li>
+            <li><kbd>/</kbd><span>focus the smart search</span></li>
+            <li><kbd>J</kbd> <kbd>K</kbd><span>next / previous verse</span></li>
+            <li><kbd>←</kbd> <kbd>→</kbd><span>previous / next chapter, or swipe</span></li>
+            <li><kbd>?</kbd><span>see every shortcut</span></li>
+          </ul>
+        </>
+      );
+    }
+    if (step === 2) {
+      return (
+        <>
+          <h1 className="cx-welcome-headline">Wake the Oracle <em>(optional)</em>.</h1>
+          <p className="cx-welcome-body">
+            Commentary, Talmudic parallels, Gnosis overlays, semantic search, and
+            BabelForge — your own AI-generated translations — all need an API key.
+            Paste an Anthropic or Grok key in Settings → API Keys, or skip for now
+            (everything else works without it).
+          </p>
+          <button className="cx-welcome-btn cx-welcome-btn--secondary" onClick={openSettings}>
+            Open Settings → API Keys
+          </button>
+        </>
+      );
+    }
+    return (
+      <>
+        <h1 className="cx-welcome-headline">Begin reading.</h1>
+        <p className="cx-welcome-body">
+          John 1 is open. Tap any verse number to highlight. Click the title to
+          jump books. Swipe left or right to change chapters. Welcome.
+        </p>
+      </>
+    );
+  };
+
+  return (
+    <div className="cx-welcome-backdrop" role="dialog" aria-modal="true" aria-label="Welcome to CODEX">
+      <button className="cx-welcome-skip" onClick={onClose} aria-label="Skip tour">skip tour</button>
+      <div className="cx-welcome-card" key={step}>
+        {renderStep()}
+        <div className="cx-welcome-foot">
+          <span className="cx-welcome-step">step {step + 1} of {total}</span>
+          <div className="cx-welcome-actions">
+            {step > 0 ? (
+              <button className="cx-welcome-btn cx-welcome-btn--ghost" onClick={prev}>← Back</button>
+            ) : null}
+            <button className="cx-welcome-btn cx-welcome-btn--primary" onClick={next}>
+              {step === total - 1 ? "Begin reading →" : "Next →"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   // Push the persisted language into the global i18n module so window.t()
@@ -1503,14 +1607,23 @@ function App() {
   // Phase 1.2 — full-text search modal
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // First-run onboarding strip — appears once over the Reader for new users.
-  // Dismissed by writing codex.firstRun.v1 so it never returns.
-  const [firstRunOpen, setFirstRunOpen] = useState(() => {
-    try { return !localStorage.getItem("codex.firstRun.v1"); } catch { return false; }
+  // First-run welcome tour (v2). A 4-step modal overlay. Replaces the old
+  // v1 chip strip. Migration: if v1 is set (existing user), treat v2 as
+  // already complete — never show. Only fires for genuinely new users.
+  const [tourOpen, setTourOpen] = useState(() => {
+    try {
+      if (localStorage.getItem("codex.firstRun.v2")) return false;
+      if (localStorage.getItem("codex.firstRun.v1")) {
+        // Migrate: mark v2 done so the new tour never appears for them.
+        try { localStorage.setItem("codex.firstRun.v2", JSON.stringify({ completed: Date.now(), migrated: true })); } catch {}
+        return false;
+      }
+      return true;
+    } catch { return false; }
   });
-  const dismissFirstRun = useCallback(() => {
-    try { localStorage.setItem("codex.firstRun.v1", String(Date.now())); } catch {}
-    setFirstRunOpen(false);
+  const closeTour = useCallback(() => {
+    try { localStorage.setItem("codex.firstRun.v2", JSON.stringify({ completed: Date.now() })); } catch {}
+    setTourOpen(false);
   }, []);
 
   // Online/offline state for the footer pill. Suppress AI panel error
@@ -1856,37 +1969,7 @@ function App() {
           }}
         />
 
-        {firstRunOpen ? (
-          <div className="cx-first-run" role="region" aria-label="First run hints">
-            <button
-              className="cx-first-run-chip"
-              onClick={() => {
-                window.postMessage({ type: "__activate_edit_mode" }, "*");
-                try { window.dispatchEvent(new CustomEvent("codex:open-settings", { detail: { section: "api-keys" } })); } catch {}
-              }}
-              title="Open Settings → API Keys"
-            >🔑 Set API key</button>
-            <button
-              className="cx-first-run-chip"
-              onClick={() => {
-                setLeftOpen(true);
-                try { window.dispatchEvent(new CustomEvent("oracle:prefill")); } catch {}
-              }}
-              title="Open the Oracle chat"
-            >✦ Try Oracle</button>
-            <button
-              className="cx-first-run-chip"
-              onClick={() => setShowShortcuts(true)}
-              title="Show keyboard shortcuts"
-            >⌘ Press ? for shortcuts</button>
-            <button
-              className="cx-first-run-x"
-              onClick={dismissFirstRun}
-              aria-label="Dismiss"
-              title="Dismiss"
-            >×</button>
-          </div>
-        ) : null}
+        {tourOpen ? <WelcomeTour onClose={closeTour} /> : null}
 
         <Reader
           schizo={!!(schizoEligible && t.schizo)}

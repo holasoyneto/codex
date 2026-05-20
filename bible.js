@@ -768,6 +768,13 @@ window.BIBLE = (function () {
     // If chapter starts mid-discourse, mark verse 1 too — but only if it
     // looks like teaching content (avoid the rare narrative opener case).
     let pendingContinuation = !!continuesFromPrev;
+    // Cap on consecutive verses inherited via `inJesus` without a fresh
+    // attribution. Beyond this, force-reset to prevent runaway false
+    // positives in narrative-heavy chapters where a single bad heuristic
+    // hit (e.g. "And he said unto them," attributed to a disciple) would
+    // otherwise mark every subsequent verse red.
+    const MAX_CONTINUATION = 3;
+    let continuationRun = continuesFromPrev ? 1 : 0;
 
     for (const v of verses) {
       const text = v[tId];
@@ -791,17 +798,24 @@ window.BIBLE = (function () {
         if (after) reds.push(after);
         inJesus = true;
         pendingContinuation = false;
+        continuationRun = 0; // fresh attribution resets the run
       } else if (JESUS_SIGNATURE_RE.test(text.trim())) {
         // Verse opens with Jesus's signature phrase — discourse continuing.
         reds.push(text.trim());
         inJesus = true;
         pendingContinuation = false;
+        continuationRun = 0; // signature phrase = fresh confirmation
       } else if (pendingContinuation && isJesusContinuing(text)) {
         // Cross-chapter continuation: previous chapter ended with Jesus
         // speaking and this verse doesn't introduce a competing narrator.
         reds.push(text.trim());
         inJesus = true;
         pendingContinuation = false;
+        continuationRun = 1;
+      } else if (inJesus && continuationRun >= MAX_CONTINUATION) {
+        // Cap reached — force-reset to break runaway false positives.
+        inJesus = false;
+        continuationRun = 0;
       } else if (inJesus) {
         // The prior verse ended with Jesus speaking. But this verse may also
         // contain a NEW narrator setup ("...and said unto them, X") before
@@ -821,16 +835,21 @@ window.BIBLE = (function () {
           const after = text.slice(midAttr.index + midAttr[0].length).trim();
           if (nonJesusSpeaker) {
             inJesus = false;             // a different speaker just took the floor
+            continuationRun = 0;
           } else if (after) {
             reds.push(after);
             inJesus = isJesusContinuing(after);
+            continuationRun = 0; // mid-verse attribution = fresh signal
           } else {
             inJesus = false;
+            continuationRun = 0;
           }
         } else if (isJesusContinuing(text)) {
           reds.push(text.trim());
+          continuationRun += 1; // inherited continuation, count it
         } else {
           inJesus = false;
+          continuationRun = 0;
         }
       }
       pendingContinuation = false;
@@ -841,7 +860,10 @@ window.BIBLE = (function () {
   }
 
   // Translations known to use quotation marks for direct speech.
-  const QUOTED_TRANSLATIONS = new Set(["web", "webbe", "bbe", "asv", "bsb", "ylt", "darby", "drb", "oeb-cw"]);
+  // DRB removed: Douay-Rheims uses em-dashes for direct speech in many
+  // editions rather than smart quotes, so quoteTrackedReds was unreliable.
+  // commaSplitReds is now safer under the new continuation cap.
+  const QUOTED_TRANSLATIONS = new Set(["web", "webbe", "bbe", "asv", "bsb", "ylt", "darby", "oeb-cw"]);
   // Translations our heuristic understands well (used to populate the cross-
   // translation Jesus-verses database). KJV is the most reliable source.
   const DETECTION_TRANSLATIONS = ["kjv", "web"];
@@ -853,7 +875,13 @@ window.BIBLE = (function () {
   // letter highlighting.
   // v2 — bumped after fixing the Thomas/Philip/disciples false-positive in
   // commaSplitReds. Old v1 entries marked entire chapters red; let them die.
-  const RL_DB_KEY = "codex.redletter.verses.v3";
+  // v4 — bumped after restricting RL_DB writes to curated truth only.
+  // Heuristic guesses no longer populate this cache, so old v3 entries
+  // (which contained poisoned cross-verse runaways from commaSplitReds)
+  // must be discarded on first load.
+  const RL_DB_KEY = "codex.redletter.verses.v4";
+  // One-shot migration: wipe the v3 poisoned cache even if v4 is empty.
+  try { localStorage.removeItem("codex.redletter.verses.v3"); } catch {}
   let RL_DB = (() => {
     try {
       const raw = JSON.parse(localStorage.getItem(RL_DB_KEY) || "{}");
@@ -1004,30 +1032,15 @@ window.BIBLE = (function () {
     }
     const detected = annotateRedLetter(out, bookId, translations, chapter) || new Set();
 
-    // Update the cross-translation database from this chapter's detection.
-    if (detected.size && RED_LETTER_BOOKS.has(bookId)) {
-      rlMerge(bookId, chapter, detected);
-    }
-
-    // If the chapter is a red-letter book but we didn't find any reds via the
-    // user's chosen translations (e.g. they're only viewing Latin), fall back
-    // to KJV in the background so the DB grows for next time.
-    if (RED_LETTER_BOOKS.has(bookId) && !detected.size && !rlGet(bookId, chapter)) {
-      const probe = translations.includes("kjv") ? null : "kjv";
-      if (probe) {
-        try {
-          const kjvVerses = await loadChapter(bookId, chapter, probe);
-          // Reconstruct a parallel array indexed by verse number for detection.
-          const kjvVerseObjs = kjvVerses.map(v => ({ n: v.n, kjv: v.text }));
-          const kjvReds = commaSplitReds(kjvVerseObjs, "kjv", priorChapterEndedInJesus(bookId, chapter));
-          if (kjvReds.size) {
-            rlMerge(bookId, chapter, kjvReds.keys());
-          }
-        } catch (e) {
-          console.warn("BIBLE red-letter probe failed", e);
-        }
-      }
-    }
+    // NOTE: heuristic detection results are NO LONGER merged into RL_DB.
+    // Only curated truth (data/red-letter.json, applied inside
+    // annotateRedLetter's truth-path) is authoritative for cross-translation
+    // painting. Allowing heuristic guesses into RL_DB previously poisoned
+    // every translation (Geneva, Douay, Vulgate, …) with runaway false
+    // positives from commaSplitReds — one bad chapter painted forever.
+    // Per-translation v.red[tId] still gets set by the heuristic in-memory,
+    // so the visible translation paints correctly; we just don't cross-
+    // contaminate other translations.
 
     applyJesusVerseFlags(out, bookId, chapter);
     return out;

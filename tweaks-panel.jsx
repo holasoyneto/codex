@@ -216,23 +216,36 @@ const __TWEAKS_STYLE = `
   .twk-tab-label{flex:1;font-size:12.5px}
   .twk-fullscreen .twk-body{padding:18px 22px 22px;gap:12px}
 
-  /* Mobile: top-row scrolling tabs instead of sidebar; near-fullscreen */
+  /* Mobile: top-row wrapping tabs instead of sidebar; true fullscreen.
+     Wraps to 2 rows on phones so System / Help don't hide off-screen
+     behind a horizontal scroll the user never thinks to swipe. */
   @media (max-width: 700px){
     .twk-fullscreen{
       width:100vw !important;height:100dvh !important;
+      max-width:100vw !important;
       max-height:100dvh !important;
+      min-height:100dvh !important;
       border-radius:0 !important;
-      top:0 !important;left:0 !important;
+      top:0 !important;left:0 !important;right:auto !important;bottom:auto !important;
       transform:none !important;
+      padding-bottom:env(safe-area-inset-bottom,0) !important;
     }
-    .twk-shell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-    .twk-tabs{flex-direction:row;border-right:0;
+    .twk-shell{grid-template-columns:1fr;grid-template-rows:auto 1fr;min-height:0}
+    .twk-tabs{flex-direction:row;flex-wrap:wrap;border-right:0;
       border-bottom:.5px solid rgba(0,0,0,.08);
-      padding:8px;gap:4px;overflow-x:auto;overflow-y:hidden;
+      padding:8px;gap:4px;overflow-x:visible;overflow-y:visible;
       scrollbar-width:none}
     .twk-tabs::-webkit-scrollbar{display:none}
-    .twk-tab{flex-shrink:0;padding:7px 12px;min-height:44px}
-    .twk-fullscreen .twk-body{padding:14px 16px env(safe-area-inset-bottom,16px)}
+    .twk-tab{flex:1 1 auto;flex-shrink:0;padding:7px 10px;min-height:44px;
+      justify-content:center;min-width:64px}
+    .twk-tab-label{font-size:12px;flex:0 1 auto}
+    .twk-fullscreen .twk-body{padding:14px 16px calc(env(safe-area-inset-bottom,16px) + 16px);
+      overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
+  }
+  @media (max-width: 380px){
+    .twk-tab{padding:7px 8px;min-width:56px}
+    .twk-tab-label{font-size:11px}
+    .twk-tab-icon{width:14px;font-size:12px}
   }
 `;
 
@@ -469,14 +482,40 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
     "First impression":  "reading",
     // AI & engines
     "AI Engines":        "ai",
+    "AI Model":          "ai",
     "Advanced inference":"ai",
     // Cross-device sync + data
     "Cross-device sync": "sync",
     "Offline · Bibles":  "sync",
     "Cache":             "sync",
+    "Data · portable":   "sync",
+    // System / app-level
+    "Language":          "system",
+    "Idioma":            "system",
+    "Langue":            "system",
+    "Sprache":           "system",
+    "Install":           "system",
+    "Instalar":          "system",
+    "Installer":         "system",
+    "Installation":      "system",
+    "Modules":           "system",
+    "Keyboard":          "system",
+    "Danger zone":       "system",
     // i18n strings (Spanish/etc translations of canonical labels)
     "Look · Apariencia": "reading",
     "AI · Motores":      "ai",
+    "Lectura":           "reading",
+    "Leitura":           "reading",
+    "Lecture":           "reading",
+    "Lesen":             "reading",
+    "Marcas":            "reading",
+    "Marques":           "reading",
+    "Markierungen":      "reading",
+    "Caché":             "sync",
+    "Datos · portátiles":"sync",
+    "Dados · portáteis": "sync",
+    "Données · portables":"sync",
+    "Daten · portabel":  "sync",
   };
   // Catch-all unmapped labels fall into "system" so nothing disappears.
   function tabFor(label) {
@@ -486,6 +525,7 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
     if (/look|reading|marks|first|fuente|tipograf|marcas|lectura|apari|aparê|erschein|apparen|aspect|markier|marque|notae|lesen|leitur|lectur|impres|מראה|रूप|glamour/.test(lc)) return "reading";
     if (/ai|engine|drift|infer|motor/.test(lc)) return "ai";
     if (/sync|sincron|cache|caché|offline|export|import|bibles|biblias|portab|dados|daten|données/.test(lc)) return "sync";
+    if (/language|idioma|langue|sprache|install|instalar|installation|module|keyboard|teclado|tastatur|clavier|danger|peligro|gefahr|zone/.test(lc)) return "system";
     return "system";
   }
 
