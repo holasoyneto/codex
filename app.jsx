@@ -1105,6 +1105,12 @@ function App() {
   // Meta about the current chapter's panels — surfaces to the user as a
   // "CACHED · Nd ago" badge so they can SEE that revisits never re-pull.
   const [panelMeta, setPanelMeta] = useState({ fromCache: false, fetchedAt: 0 });
+  // DISARM — companion panel surfacing weaponized misreadings of verses
+  // in this chapter, plus the textual rebuttal. Loaded in parallel with
+  // the main panel set; own cache slot via CODEX_PANELS.loadDisarm.
+  const [disarmData, setDisarmData] = useState(null);
+  const [disarmStatus, setDisarmStatus] = useState({ loading: false, error: null });
+  const [disarmMeta, setDisarmMeta] = useState({ fromCache: false, fetchedAt: 0 });
 
   // ── dynamic passage state ─────────────────────────────────────────────
   // passageLoc now persists the verse cursor too so a relaunch lands you
@@ -1160,7 +1166,37 @@ function App() {
     });
   }, [passage.bookId, passage.chapter, currentVerse]);
 
+  // Kick off the Disarm panel for the current chapter — parallel to the
+  // main panel set, own cache, own error state. Seeded entries (if the
+  // chapter has a hand-crafted seed in data.seedPanels) take precedence.
+  const loadDisarmData = useCallback((bookId, chapter, bookName) => {
+    const seed = data.seedPanels[`${bookId}.${chapter}`];
+    if (seed && seed.disarm) {
+      setDisarmData(seed.disarm);
+      setDisarmStatus({ loading: false, error: null });
+      setDisarmMeta({ fromCache: true, fetchedAt: 0, seed: true });
+      return;
+    }
+    if (!window.CODEX_PANELS?.loadDisarm) return;
+    const cached = window.CODEX_PANELS.getDisarmCached(bookId, chapter);
+    if (cached) {
+      const meta = window.CODEX_PANELS.getDisarmMeta(bookId, chapter);
+      setDisarmData(cached);
+      setDisarmStatus({ loading: false, error: null });
+      setDisarmMeta({ fromCache: true, fetchedAt: meta?.fetchedAt || 0 });
+      return;
+    }
+    setDisarmData(null);
+    setDisarmStatus({ loading: false, error: null });
+    setDisarmMeta({ fromCache: false, fetchedAt: 0 });
+    // Lazy — don't auto-fire the network call until the user opens the tab
+    // (the DRAFT button triggers regenerateDisarm). This keeps the AI bill
+    // bounded and avoids hammering the API on every chapter change.
+  }, []);
+
   const loadPanelData = useCallback(async (bookId, chapter, bookName) => {
+    // Always kick the Disarm loader alongside the main panel set.
+    loadDisarmData(bookId, chapter, bookName);
     const seed = data.seedPanels[`${bookId}.${chapter}`];
     if (seed) {
       setPanelData(seed);
@@ -1187,7 +1223,26 @@ function App() {
     } catch (e) {
       setPanelStatus({ loading: false, error: String(e.message || e) });
     }
-  }, []);
+  }, [loadDisarmData]);
+
+  const regenerateDisarm = useCallback(async () => {
+    if (!window.CODEX_PANELS?.loadDisarm) return;
+    try { window.CODEX_PANELS.purgeDisarm(passage.bookId, passage.chapter); } catch {}
+    setDisarmData(null);
+    setDisarmStatus({ loading: true, error: null });
+    setDisarmMeta({ fromCache: false, fetchedAt: 0 });
+    try {
+      const generated = await window.CODEX_PANELS.loadDisarm({
+        passage, currentVerse,
+        provider: t.provider, model: t.model, force: true,
+      });
+      setDisarmData(generated);
+      setDisarmStatus({ loading: false, error: null });
+      setDisarmMeta({ fromCache: false, fetchedAt: Date.now(), fresh: true });
+    } catch (e) {
+      setDisarmStatus({ loading: false, error: String(e.message || e) });
+    }
+  }, [passage, currentVerse, t.provider, t.model]);
 
   const regeneratePanels = useCallback(async () => {
     window.CODEX_PANELS.purge(passage.bookId, passage.chapter);
@@ -2124,6 +2179,10 @@ function App() {
           panelStatus={panelStatus}
           panelMeta={panelMeta}
           onRegeneratePanels={regeneratePanels}
+          disarmData={disarmData}
+          disarmStatus={disarmStatus}
+          disarmMeta={disarmMeta}
+          onRegenerateDisarm={regenerateDisarm}
           onClose={() => setRightOpen(false)}
           onJumpRef={jumpToRef}
           pluginVersion={pluginVersion}

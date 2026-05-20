@@ -297,6 +297,33 @@ window.CODEX_DATA = {
         { ref:"1 John 1:1–4", note:"‘That which was from the beginning…’" },
         { ref:"Rev 19:13",    note:"‘His name is called The Word of God.’" },
       ],
+      // DISARM — seeded examples of historical misuse of John 1 and the
+      // textual rebuttals. Kept short and cross-spectrum.
+      disarm: {
+        entries: [
+          {
+            verse: "1:11",
+            weaponization: "Christian anti-Semitism · ‘his own received him not’ used to justify deicide charge and pogroms",
+            quote: "paraphrase: ‘The Jews are a people rejected by God, having denied the Word that came unto them.’",
+            source: "Pseudo-Chrysostom and medieval Adversus Judaeos homilies, 4th–12th c.",
+            rebuttal: "‘His own’ (τὰ ἴδια) names the cosmos in v.10 and Israel in v.11 — but vv.12–13 immediately open reception to ‘as many as received him,’ Jew first. John himself, the evangelist, and every named disciple in the Gospel are Jews. The verse describes a remnant pattern within Israel (cf. Rom 9–11), not a collective indictment."
+          },
+          {
+            verse: "1:5",
+            weaponization: "Colonial ‘benighted heathen’ rhetoric — used by missionary-imperial alliances to frame conquest as bringing ‘light to darkness’",
+            quote: "commonly attributed to 19th-c. missionary-society circulars: ‘the light shineth in darkness, and we are sent to carry it.’",
+            source: "Anglo-American missionary literature, c.1820–1900 (e.g. CMS, ABCFM tracts)",
+            rebuttal: "The Greek φαίνει is present tense — the light is already shining in every place before any missionary arrives (v.9, ‘lighteth every man that cometh into the world’). The verse undercuts, rather than authorises, the conquest-as-evangelism frame: the darkness is theological, not ethnographic."
+          },
+          {
+            verse: "1:14",
+            weaponization: "Prosperity gospel · ‘full of grace and truth’ rebranded as material abundance owed to the faithful",
+            quote: "paraphrase: ‘He came that you might receive the fullness — health, wealth, and favour — that is your covenant right.’",
+            source: "Word-of-Faith broadcast preaching, late 20th–21st c.",
+            rebuttal: "πλήρης χάριτος καὶ ἀληθείας echoes Exod 34:6 (חֶסֶד וֶאֱמֶת) — covenant loyalty and faithfulness, not material plenty. v.14 frames the incarnation as ἐσκήνωσεν (‘tented among us’) — divine condescension to share human poverty, the opposite trajectory of prosperity teaching."
+          },
+        ],
+      },
     },
   },
 };

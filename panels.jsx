@@ -13,6 +13,7 @@ function railTabs() {
     { id: "comm",   label: t("panel.commentary"),   glyph: "§"   },
     { id: "gem",    label: t("panel.gematria"),     glyph: "Σn"  },
     { id: "gnosis", label: t("panel.gnosis"),       glyph: "⟁"   },
+    { id: "disarm", label: (t("panel.disarm") === "panel.disarm" ? "DISARM" : t("panel.disarm")), glyph: "⚔" },
     { id: "exeg",   label: t("panel.exegesis"), glyph: "✎" },
     { id: "txan",   label: t("panel.txanalysis"), glyph: "⟷" },
   ];
@@ -40,7 +41,7 @@ if (typeof window !== "undefined") window.railTabs = railTabs;
 // plus the palette button — much calmer at 280px and beyond.
 const PALETTE_SECTIONS = [
   { id: "reading",   label: "READING",   ids: ["trans"] },
-  { id: "study",     label: "STUDY",     ids: ["comm", "talmud", "exeg", "txan", "gem", "gnosis"] },
+  { id: "study",     label: "STUDY",     ids: ["comm", "talmud", "exeg", "txan", "gem", "gnosis", "disarm"] },
   { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs:crossrefs", "plugin:word-study:word", "plugin:dictionary:dictionary", "plugin:passage-guide:guide"] },
   { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:timeline:timeline", "plugin:jewish-study:torah", "plugin:plans:plans", "plugin:ai-quests:quests", "plugin:builder:builder"] },
   { id: "forge",     label: "FORGE",     ids: ["plugin:babelforge:babel", "plugin:marketplace:market"] },
@@ -53,6 +54,7 @@ const PALETTE_DESCRIPTIONS = {
   txan: "Word-by-word translation analysis",
   gem: "Gematria and numeric resonance",
   gnosis: "Esoteric / mystical reading layer",
+  disarm: "How power twists this verse — and the rebuttals",
   "plugin:strongs-concordance:strongs": "Strong's concordance lookups",
   "plugin:crossrefs:crossrefs": "Cross-references for the verse",
   "plugin:word-study:word": "Deep word studies",
@@ -171,6 +173,7 @@ function RightRail({
   primary, onPrimary, compareSet, onToggleCompare,
   passage, currentVerse,
   panelData, panelStatus, panelMeta, onRegeneratePanels, onClose, onJumpRef,
+  disarmData, disarmStatus, disarmMeta, onRegenerateDisarm,
   isCollapsed, onCollapse,
   pluginVersion, translation,
 }) {
@@ -353,6 +356,10 @@ function RightRail({
           <GnosisPanel panelData={panelData} status={panelStatus} meta={panelMeta} passage={passage}
                        gnosisOn={gnosisOn} onToggleGnosis={onToggleGnosis}
                        onRegenerate={onRegeneratePanels} />
+        )}
+        {tab === "disarm" && (
+          <DisarmPanel panelData={disarmData} status={disarmStatus} meta={disarmMeta} passage={passage}
+                       currentVerse={currentVerse} onRegenerate={onRegenerateDisarm} />
         )}
         {tab === "exeg" && (
           <ExegesisPanel passage={passage} currentVerse={currentVerse} />
@@ -1389,6 +1396,77 @@ function TalmudPanel({ panelData, status, meta, passage, onRegenerate }) {
           </Collapsible>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── DISARM ──────────────────────────────────────────────────────────────
+// "Weaponized readings" — surfaces how power has historically twisted a
+// verse to mislead, paired with the textual / contextual rebuttal so the
+// reader can navigate around the misuse. Cross-spectrum, cross-century.
+function DisarmPanel({ panelData, status, meta, passage, currentVerse, onRegenerate }) {
+  const headTitle = (window.t && window.t("panel.disarm.head"));
+  const title = (headTitle && headTitle !== "panel.disarm.head") ? headTitle : "DISARM · WEAPONIZED READINGS";
+  const emptyMsg = (window.t && window.t("panel.disarm.empty"));
+  const emptyText = (emptyMsg && emptyMsg !== "panel.disarm.empty")
+    ? emptyMsg
+    : "No weaponizations on record for this verse.";
+  if (!panelData) {
+    return (
+      <div className="cx-pane">
+        <PaneHead title={title} sub={`${passage.book} ${passage.chapter}`} />
+        <PanelStatus status={status || { loading: false, error: null }} passage={passage} onRegenerate={onRegenerate} kind="disarm" />
+      </div>
+    );
+  }
+  const entries = Array.isArray(panelData.entries) ? panelData.entries : [];
+  return (
+    <div className="cx-pane">
+      <PaneHead title={title}
+        sub={`${passage.book} ${passage.chapter} · ${entries.length} entr${entries.length === 1 ? "y" : "ies"}`}
+        meta={meta}
+        action={
+          <span className="cx-pane-actions">
+            <RegenBtn onClick={onRegenerate} />
+          </span>
+        } />
+      {entries.length === 0 ? (
+        <div className="cx-disarm-empty">
+          <span className="cx-disarm-empty-glyph" aria-hidden>⚔</span>
+          <p>{emptyText}</p>
+        </div>
+      ) : (
+        <div className="cx-disarm-list">
+          {entries.map((e, i) => (
+            <article key={i} className="cx-disarm-card">
+              <header className="cx-disarm-h">
+                <span className="cx-disarm-idx">DISARM · {pad(i+1)}</span>
+                {e.verse ? <span className="cx-disarm-verse">v. {e.verse}</span> : null}
+              </header>
+              <h4 className="cx-disarm-eyebrow">{e.weaponization}</h4>
+              {e.quote ? (
+                <blockquote className="cx-disarm-quote">
+                  <span className="cx-disarm-quote-bar" aria-hidden />
+                  <span className="cx-disarm-quote-text">{e.quote}</span>
+                </blockquote>
+              ) : null}
+              {e.source ? <div className="cx-disarm-source">{e.source}</div> : null}
+              <hr className="cx-disarm-sep" />
+              <div className="cx-disarm-rebut">
+                <span className="cx-disarm-rebut-lbl">REBUTTAL</span>
+                <p className="cx-disarm-rebut-body"><LinkifyRefs text={e.rebuttal} /></p>
+              </div>
+              <footer className="cx-disarm-foot">
+                <PanelMarkBtn onClick={() => savePanelEntryToNotes({
+                  kind: "Disarm", ref: e.source, heading: e.weaponization,
+                  body: `${e.quote ? `“${e.quote}” — ${e.source || "unknown"}\n\n` : ""}REBUTTAL: ${e.rebuttal}`,
+                  passage,
+                })} />
+              </footer>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

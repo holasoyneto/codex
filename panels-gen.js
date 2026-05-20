@@ -572,9 +572,128 @@ Return ONLY the JSON object as specified.`;
     return p;
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // DISARM PANEL — "weaponized readings" companion
+  // For any chapter, surfaces how power (politicians, monarchs,
+  // slaveholders, colonizers, propagandists, prosperity preachers,
+  // theocrats, demagogues) has historically twisted verses in the
+  // passage to mislead — paired with the textual / contextual rebuttal.
+  // Cross-spectrum, cross-century. Empty array when no notable misuses.
+  // ─────────────────────────────────────────────────────────────────────
+  const DISARM_PREFIX = "cx-disarm:";
+
+  const PROMPT_DISARM = `You are CODEX DISARM — a sober archivist of how political and religious power has historically twisted scripture to harm people, paired with the textual rebuttal that disarms the misuse.
+
+Return ONLY a single JSON object, no prose, no fences:
+
+{
+  "entries": [
+    {
+      "verse": "chapter:verse or range, e.g. '1:27' or '3:5-7' (optional)",
+      "weaponization": "who / when / what they were trying to justify (short)",
+      "quote": "actual or paraphrased citation, <=120 chars; if not verbatim prefix with 'paraphrase:' or 'commonly attributed to'",
+      "source": "speech, document, year — e.g. 'Thornwell, Slavery and the Religious Duty (1850)'",
+      "rebuttal": "textual / contextual / original-language reading that disarms the misuse, 1-3 sentences"
+    }
+  ]
+}
+
+HARD RULES:
+- BALANCE: cover the full political spectrum and many centuries. Do NOT lean left or right. Include historical misuse (slavery, divine right of kings, Manifest Destiny, apartheid, Inquisition, anti-Semitism / deicide charge, Doctrine of Discovery, Crusades, anti-LGBTQ violence) AND contemporary misuse across BOTH American left and right (Christian nationalism, prosperity gospel, anti-immigrant Romans-13 arguments, but also progressive moral-claim cherry-picking).
+- NEVER fabricate a quote. If you are not confident in the wording, write 'paraphrase: ...' or 'commonly attributed to X (c.YEAR)'. If you cannot source it at all, omit the entry.
+- The rebuttal is the centerpiece — anchor it in the surrounding pericope, the original Hebrew/Greek, the broader canon, or documented scholarship.
+- Cap 3-5 entries. If the passage has no notable historical weaponizations, return {"entries": []} — do NOT invent filler.
+- Sober, factual, citation-anchored. No editorializing beyond the textual rebuttal.
+- Return ONLY the JSON. Stay compact.`;
+
+  function disarmKey(bookId, chapter) {
+    const lang = (window.CODEX_LANG || "en");
+    const langSuffix = lang === "en" ? "" : `.${lang}`;
+    return `${DISARM_PREFIX}${bookId}.${chapter}${langSuffix}${engineSuffix()}`;
+  }
+
+  function getDisarmCached(bookId, chapter) {
+    const w = readWrapped(disarmKey(bookId, chapter));
+    return w ? w.data : null;
+  }
+  function getDisarmMeta(bookId, chapter) {
+    const w = readWrapped(disarmKey(bookId, chapter));
+    return w ? { fetchedAt: w.fetchedAt } : null;
+  }
+  function purgeDisarm(bookId, chapter) {
+    try { localStorage.removeItem(disarmKey(bookId, chapter)); } catch {}
+  }
+
+  function validateDisarm(obj) {
+    if (!obj || typeof obj !== "object") throw new Error("not an object");
+    obj.entries = Array.isArray(obj.entries) ? obj.entries.slice(0, 5) : [];
+    obj.entries = obj.entries.filter(e => e && e.weaponization && e.rebuttal);
+    obj.entries.forEach(e => {
+      e.verse = e.verse || "";
+      e.weaponization = String(e.weaponization || "");
+      e.quote = String(e.quote || "");
+      e.source = String(e.source || "");
+      e.rebuttal = String(e.rebuttal || "");
+    });
+    return obj;
+  }
+
+  const disarmInflight = new Map();
+
+  async function loadDisarm({ passage, currentVerse, lang, engine, model, force, provider } = {}) {
+    const bookId = passage?.bookId;
+    const chapter = passage?.chapter;
+    const bookName = passage?.book || bookId;
+    if (!bookId || !chapter) throw new Error("loadDisarm: missing passage");
+    const eng = engine || {};
+    window.CODEX_PANELS_ENGINE = {
+      provider: provider || eng.provider || "anthropic",
+      model: model || eng.model || "default",
+    };
+    const k = disarmKey(bookId, chapter);
+    if (!force) {
+      const cached = getDisarmCached(bookId, chapter);
+      if (cached) return cached;
+    }
+    if (disarmInflight.has(k)) return disarmInflight.get(k);
+
+    const langName = (window.codexLangName && window.codexLangName()) || "English";
+    const langDirective = langName === "English"
+      ? ""
+      : `\n\nLANGUAGE: All human-readable strings (weaponization, rebuttal, source labels) MUST be written in ${langName}. Keep historical quotes in their original language when verbatim; otherwise paraphrase in ${langName}.`;
+
+    const userMsg = `Draft the DISARM weaponized-readings list for: ${bookName} ${chapter}${currentVerse ? ` (current verse ${currentVerse})` : ""}.
+Cover the most historically significant misuses of any verse in this chapter, balanced across the political spectrum and across centuries. Return ONLY the JSON object.`;
+
+    const p = (async () => {
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: PROMPT_DISARM + langDirective,
+          messages: [{ role: "user", content: userMsg }],
+          max_tokens: 2200,
+          provider: provider || eng.provider,
+          model: model || eng.model,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `disarm HTTP ${r.status}`);
+      const parsed = validateDisarm(extractJSON(data.text || ""));
+      parsed._provider = data.provider || provider || eng.provider || "anthropic";
+      parsed._model = data.model || model || eng.model || null;
+      writeWrapped(k, parsed);
+      return parsed;
+    })().finally(() => { disarmInflight.delete(k); });
+
+    disarmInflight.set(k, p);
+    return p;
+  }
+
   window.CODEX_PANELS = {
     cacheKey, getCached, getCachedMeta, putCached, purge, load, subscribe, cacheStats,
     loadExegesis, getExegesisCached, getExegesisMeta, purgeExegesis,
     loadTranslationAnalysis, getTxAnalysisCached, getTxAnalysisMeta, purgeTxAnalysis,
+    loadDisarm, getDisarmCached, getDisarmMeta, purgeDisarm,
   };
 })();
