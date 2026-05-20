@@ -480,13 +480,23 @@ window.BIBLE = (function () {
     throw lastErr || new Error(`All sources failed for ${translation} ${bookId} ${chapter}`);
   }
 
-  // ── Red-letter detection ───────────────────────────────────────────────────
-  // Marks Jesus's spoken words in red. Two strategies:
-  //   1. Modern translations (smart quotes): track quote pairs across verses,
-  //      decide if the opener was attributed to Jesus.
-  //   2. KJV-style (no quotes): match "Jesus said,"-type patterns and mark
-  //      from after the comma to the end of the speech (next narrative break).
-
+  // ── Red-letter system (simple, realistic) ──────────────────────────────────
+  // One source of truth: data/red-letter.json. Hand-curated map of
+  // {bookId.chapter → verse numbers where Jesus speaks}, cross-checked
+  // against Cambridge Annotated KJV, ESV red-letter, and NA28. Covers
+  // every chapter of Matthew, Mark, Luke, John, and Revelation.
+  //
+  // For every verse in the truth set we mark the WHOLE verse red across
+  // every loaded translation (KJV, Geneva, Vulgate, Reina-Valera, etc.).
+  // No heuristics, no per-string painting, no carry-forward state, no
+  // cross-translation cache, no localStorage, no rules that drift.
+  //
+  // We previously had ~600 lines of heuristic detection (commaSplitReds,
+  // quoteTrackedReds, OTHER_SPEAKER_RE, JESUS_*_RE, ENDSTATE, RL_DB,
+  // NON_JESUS_RANGES mask) that produced false positives like "the
+  // disciples answered, …" painting subsequent verses red, then leaking
+  // those false positives across every translation via RL_DB. The
+  // curated dataset eliminates the entire failure class.
   const RED_LETTER_BOOKS = new Set(["mat", "mrk", "luk", "jhn", "rev"]);
 
   // ── Authoritative red-letter ground truth ─────────────────────────────
@@ -545,458 +555,46 @@ window.BIBLE = (function () {
     return RED_LETTER_TRUTH[`${bookId}.${chapter}`];
   }
 
-  // ── Red-letter NEGATIVE MASK ──────────────────────────────────────────
-  // The cross-translation heuristic has high recall but poor precision —
-  // it can't reliably tell Jesus from John the Baptist, Mary, Zacharias,
-  // the angel of the Apocalypse, etc. This is a hand-curated list of
-  // ranges where Jesus does NOT speak in canonical reading. Any verse the
-  // heuristic flags inside one of these ranges is suppressed before the
-  // result is persisted/displayed.
-  //
-  // Sources cross-checked: Cambridge Annotated KJV, NA28 quotation marks,
-  // ESV red-letter edition. When a range partially contains Jesus speech
-  // (e.g. Rev 1:7-8 — only v8 is Jesus), the mask carves around it.
-  const NON_JESUS_RANGES = {
-    // Matthew — infancy, baptism narrative, post-resurrection narration
-    "mat.1": [[1, 25]],                 // genealogy + Joseph + angel; Jesus not yet speaking
-    "mat.2": [[1, 23]],                 // Magi, Herod, angel, prophets — no Jesus speech
-    "mat.3": [[1, 12], [16, 17]],       // John the Baptist + Father's voice ("This is my beloved Son")
-    // Mark — opening John-the-Baptist + transfiguration voice
-    "mrk.1": [[1, 8], [27, 27]],        // JB's preaching + crowd's "What new doctrine"
-    "mrk.9": [[7, 7]],                  // Father's voice at Transfiguration
-    // Luke — entire infancy (Mary, Elisabeth, Zacharias, Simeon, angel)
-    "luk.1": [[1, 80]],                 // Magnificat + Benedictus + Gabriel + Elisabeth
-    "luk.2": [[1, 48], [50, 52]],       // Only Lk 2:49 is Jesus ("about my Father's business")
-    "luk.3": [[1, 22]],                 // John the Baptist + Father's voice at baptism
-    // John — prologue + every John-the-Baptist witness section + theological commentary
-    // Jesus speaks only at: 38, 39, 42, 43, 47, 48b, 50, 51.
-    // Mask everything else in chapter 1 by carving around those.
-    "jhn.1": [[1, 14], [15, 37], [40, 41], [44, 46], [49, 49]],
-    "jhn.3": [[27, 36]],                // John the Baptist's final witness + commentary
-    "jhn.12": [[28, 30], [37, 50]],     // Father's voice; v44-50 is Johannine commentary
-    // Acts — Stephen's vision in 7:55-60 is Stephen, not Jesus. We don't
-    // process Acts for red-letter (not in RED_LETTER_BOOKS), so nothing
-    // needed here, but listed for clarity.
-    // Revelation — John's vision narrative, the elder, angels, four
-    // living creatures, the great multitude all speak. Jesus's actual
-    // direct speech in Rev is limited to: 1:8, 1:11, 1:17b-3:22 (letters
-    // to the seven churches), 16:15, 22:7, 22:12-16, 22:20a.
-    "rev.1":  [[1, 7], [9, 10], [12, 16], [20, 20]],
-    "rev.4":  [[1, 11]],
-    "rev.5":  [[1, 14]],
-    "rev.6":  [[1, 17]],
-    "rev.7":  [[1, 17]],
-    "rev.8":  [[1, 13]],
-    "rev.9":  [[1, 21]],
-    "rev.10": [[1, 11]],
-    "rev.11": [[1, 19]],
-    "rev.12": [[1, 17]],
-    "rev.13": [[1, 18]],
-    "rev.14": [[1, 20]],
-    "rev.15": [[1, 8]],
-    "rev.17": [[1, 18]],
-    "rev.18": [[1, 24]],
-    "rev.19": [[1, 21]],
-    "rev.20": [[1, 15]],
-    "rev.21": [[1, 4], [9, 27]],        // 21:5-8 is "He that sat upon the throne" — God speaking
-    "rev.22": [[1, 6], [8, 11], [17, 19], [21, 21]],  // Jesus: 7, 12-16, 20a
-  };
-  function isVerseInNonJesusMask(bookId, chapter, verseNum) {
-    const ranges = NON_JESUS_RANGES[`${bookId}.${chapter}`];
-    if (!ranges) return false;
-    for (const [a, b] of ranges) if (verseNum >= a && verseNum <= b) return true;
-    return false;
-  }
-  function applyNonJesusMask(set, bookId, chapter) {
-    if (!set || !set.size) return set;
-    for (const n of Array.from(set)) {
-      if (isVerseInNonJesusMask(bookId, chapter, n)) set.delete(n);
-    }
-    return set;
-  }
-
-  // Speaker phrases that indicate Jesus is about to speak. The trailing
-  // verb captures things like "said", "saith", "answered", "spake", etc.
-  const JESUS_SAID_RE = /\b(?:Jesus|the\s+Lord|the\s+Master|Christ|the\s+Son\s+of\s+Man|Yeshua)\b[^.!?\n]{0,40}\b(?:said|saith|sayeth|answered|answereth|spoke|spake|replied|cried|told|asked|teacheth|crieth|exclaimed|declared|saying|teaching|preaching)\b/i;
-  const SAID_JESUS_RE = /\b(?:said|saith|spake|answered)\b[^.!?\n]{0,20}\b(?:Jesus|the\s+Lord|the\s+Master|Christ|the\s+Son\s+of\s+Man)\b/i;
-  const HE_SAID_RE   = /\b(?:He|And\s+he|he)\b[^.!?\n]{0,30}\b(?:said|saith|answered|answereth|spake|replied|told|cried|saying|teaching|taught)\b/i;
-  // A bare "saying," / "said," at the very tail of the prefix — common when
-  // the speech cue is in the verse before the opened quote. Very reliable in
-  // Gospel context since narrator interjections rarely end with "saying,".
-  const TRAILING_SPEECH_CUE_RE = /\b(?:saying|said|saith|answered|spake|cried|teaching|taught|asked)\s*[,:]?\s*$/i;
-
-  // Curly + straight quote pairs we recognise as speech delimiters.
-  const OPENERS = new Set(['"', '“', '‘', "«"]);
-  const CLOSERS = new Set(['"', '”', '’', "»"]);
-  const PAIR    = { '“':'”', '‘':'’', '"':'"', "«":"»" };
-
-  // Phrases distinctive of Jesus's voice when they open a quote — covers
-  // the mid-discourse case (John 14–17, the Bread of Life chapter, the
-  // Sermon on the Mount continuation, etc.).
-  const JESUS_QUOTE_OPENER_RE = /^(?:Most\s+certainly,?\s+I\s+tell|Truly,?\s+I\s+tell|Truly,?\s+truly,?\s+I\s+tell|Verily,?\s+verily,?\s+I\s+say|Verily\s+I\s+say|Amen,?\s+amen,?\s+I\s+say|I\s+am\s+(?:the|he\b)|I\s+have\s+come|I\s+came\s+(?:not|to)|I\s+tell\s+you|My\s+(?:Father|sheep|peace|kingdom|commandment)|Father,?\s+(?:I|the)|Let\s+not\s+your\s+heart|Peace\s+I\s+leave|If\s+ye\s+(?:love|abide|keep)\s+me|Ye\s+(?:are|have\s+heard|believe)\s+(?:my|in\s+(?:me|God))|Behold,?\s+I\s+come|Whosoever\s+(?:liveth|believeth|drinketh|eateth))\b/i;
-
-  function speakerIsJesus(prefix, lastWasJesus, content, atVerseStart, atChapterStart) {
-    // Look at the chunk of text immediately before the opening quote.
-    const tail = prefix.slice(-220);
-    if (JESUS_SAID_RE.test(tail) || SAID_JESUS_RE.test(tail)) return true;
-    // "He said" with no other named speaker close by — in a Gospel/Revelation
-    // chapter (the only contexts where this fn runs), unattributed third-
-    // person speech overwhelmingly belongs to Jesus.
-    if (HE_SAID_RE.test(tail)) return true;
-    // Bare trailing speech cue ("…saying,") with no competing speaker named
-    // in the prefix → Jesus.
-    if (TRAILING_SPEECH_CUE_RE.test(tail)) return true;
-    // Or check if the quote content itself begins with a signature Jesus phrase.
-    if (content && JESUS_QUOTE_OPENER_RE.test(content.trim())) return true;
-    // Chapter opens with an unattributed quote — almost always Jesus continuing
-    // a discourse from the previous chapter (true throughout John, Matthew 5-7,
-    // the Olivet Discourse, etc.). Narrators do not start chapters with bare
-    // unattributed quotes.
-    if (atChapterStart && !prefix.trim()) return true;
-    return false;
-  }
-
-  // For modern translations: walk the joined chapter text, tracking quote
-  // depth. When we cross an opener, decide if Jesus is the speaker. Returns
-  // a Map<verseNumber, string[]> of literal substrings to highlight.
-  function quoteTrackedReds(verses, tId, continuesFromPrev) {
-    const result = new Map();
-    let inJesus = false;
-    let openerChar = null;
-    let lastWasJesus = !!continuesFromPrev;
-    let isFirstVerse = true;
-    // Concatenated tail of the previous verse(s) so a quote that opens at the
-    // start of a verse can still see the "saying," cue from the verse before.
-    let trailingPrefix = "";
-
+  // ── Red-letter painter ─────────────────────────────────────────────────
+  // Sole entry point. For every verse in the curated truth set, mark the
+  // whole verse red across every loaded translation. Per-translation
+  // .red[tId] gets the full verse text — the renderer paints the entire
+  // verse. _jesusVerse flag is set too so translations without per-string
+  // markup (Vulgate / Hebrew / etc.) still highlight.
+  function applyRedLetter(verses, bookId, chapter, translations) {
+    if (!RED_LETTER_BOOKS.has(bookId)) return new Set();
+    const truth = truthFor(bookId, chapter);
+    if (!truth || !truth.size) return new Set();
+    const detected = new Set();
     for (const v of verses) {
-      const text = v[tId];
-      if (!text) continue;
-
-      const reds = [];
-      let segStart = inJesus ? 0 : -1; // start of current Jesus segment in this verse
-      let i = 0;
-      const verseStart = isFirstVerse;
-
-      while (i < text.length) {
-        const c = text[i];
-
-        if (!inJesus && OPENERS.has(c)) {
-          // Speaker decision sees both the prior verse's tail (if the quote
-          // opens at the very start of this verse) and the in-verse prefix.
-          const inVersePrefix = text.slice(0, i);
-          const prefix = inVersePrefix.trim() ? inVersePrefix : (trailingPrefix + inVersePrefix);
-          const content = text.slice(i + 1, i + 200);
-          const atChapterStart = verseStart && !prefix.trim();
-          if (speakerIsJesus(prefix, lastWasJesus, content, true, atChapterStart)) {
-            inJesus = true;
-            openerChar = c;
-            segStart = i + 1;
-          }
-        } else if (inJesus && CLOSERS.has(c)) {
-          // Match if it pairs with the opener (or accept any closer for ambiguous straight quotes).
-          const pairsWithOpener = (PAIR[openerChar] === c) || (openerChar === '"' && c === '"');
-          if (pairsWithOpener) {
-            const seg = text.slice(segStart, i).trim();
-            if (seg) reds.push(seg);
-            inJesus = false;
-            openerChar = null;
-            segStart = -1;
-            lastWasJesus = true;
-          }
-        }
-        i++;
+      if (!truth.has(v.n)) continue;
+      v._jesusVerse = true;
+      v.red = v.red || {};
+      for (const tId of translations) {
+        if (v[tId]) v.red[tId] = [v[tId]];
       }
-
-      // If still inside a Jesus quote at end of verse, capture remainder.
-      if (inJesus && segStart >= 0) {
-        const seg = text.slice(segStart).trim();
-        if (seg) reds.push(seg);
-        segStart = 0; // next verse continues from start
-      }
-
-      // Heuristic: if the verse contains narration like "Jesus spoke this parable"
-      // or sentence-ending punctuation in narration, allow lastWasJesus to decay
-      // when we see clearly non-Jesus speech (handled implicitly by speaker check).
-      if (reds.length) result.set(v.n, reds);
-      isFirstVerse = false;
-      // Carry the tail of this verse forward so quote-openings that land at the
-      // start of the next verse can still see the speech cue.
-      trailingPrefix = text.slice(-180);
+      detected.add(v.n);
     }
-    return result;
+    return detected;
   }
 
-  // KJV-style detection: no quotation marks. Mark from after a Jesus-said
-  // attribution comma to the end of the verse, then continue marking whole
-  // subsequent verses until we hit a narrative break.
-  //
-  // Continuation breakers (each indicates Jesus has stopped speaking):
-  //   • Verse contains another speech attribution with a non-Jesus subject:
-  //     "Then said the Pharisees", "answered the disciples", "Peter said", etc.
-  //   • Verse refers to Jesus in third person: "Jesus saw…", "And Jesus…"
-  //     (Jesus would not narrate Himself.)
-  //   • Verse opens with a clear narrative scene-change: "Then there arose…",
-  //     "After these things…", "And there was…", "Now…"
-  const JESUS_SAID_INLINE_RE = /\b(?:Jesus|the\s+Lord|the\s+Master|Christ|the\s+Son\s+of\s+Man)\b[^,.!?\n]{0,40}\b(?:said|saith|answered|answereth|spake|replied|cried|saying)\b/i;
-  const SAID_JESUS_INLINE_RE = /\b(?:said|saith|spake|answered)\b[^,.!?\n]{0,20}\b(?:Jesus|the\s+Lord|the\s+Master|Christ|the\s+Son\s+of\s+Man)\b/i;
-  const OTHER_SPEAKER_RE = /\b(?:said|saith|answered|spake|cried|replied|asked|saying)\b[^.,]{0,30}\b(?:the\s+Pharisees|the\s+disciples|the\s+Jews|the\s+multitude|the\s+people|Peter|John|Pilate|Mary|Martha|Nicodemus|the\s+chief\s+priests|Simon|Thomas|Philip|Judas|the\s+scribes|his\s+disciples|the\s+father|the\s+blind\s+man|the\s+man|the\s+servants|the\s+officers)\b/i;
-  const OTHER_SPEAKER_RE_2 = /\b(?:the\s+Pharisees|the\s+disciples|the\s+Jews|the\s+multitude|the\s+people|Peter|Pilate|Mary|Martha|Nicodemus|Simon|Thomas|Philip|Judas|the\s+scribes|his\s+disciples|the\s+chief\s+priests|the\s+blind\s+man|the\s+father|the\s+servants|the\s+officers)\b[^.,]{0,30}\b(?:said|saith|answered|spake|cried|replied|asked|saying)\b/i;
-  const JESUS_THIRD_PERSON_RE = /\b(?:And\s+)?Jesus\s+(?:saw|beheld|went|came|departed|stood|sat|wept|rose|walked|entered|cometh|goeth|seeing|knew|knowing|himself|therefore|then|loved|wept|saith\s+unto|said\s+unto)\b/i;
-  // Narrative scene-change openers — must be concrete enough that they can't
-  // plausibly be inside a parable. "And when" alone is too generic (Jesus
-  // says "And when ye pray…"), so we require the named subject too.
-  const NARRATIVE_OPENER_RE = /^(?:After\s+these\s+things|Then\s+there|And\s+there|Now\s+there|And\s+it\s+came\s+to\s+pass|There\s+was\s+(?:a|the)|There\s+came\s+(?:a|the)|And\s+(?:when|after)\s+(?:Jesus|he\s+had|they\s+had|the\s+Pharisees|the\s+disciples|the\s+Jews|the\s+multitude)|Now\s+(?:when|after)\s+(?:Jesus|he\s+had|they\s+had|the\s+Pharisees|the\s+disciples|the\s+Jews|the\s+multitude))\b/i;
-
-  function isJesusContinuing(text) {
-    // Returns true if Jesus is still the speaker in this verse.
-    if (NARRATIVE_OPENER_RE.test(text)) return false;
-    if (JESUS_THIRD_PERSON_RE.test(text)) return false;
-    if (OTHER_SPEAKER_RE.test(text) || OTHER_SPEAKER_RE_2.test(text)) return false;
-    return true;
-  }
-
-  // Signature Jesus openers — phrases unique enough to His voice that, when a
-  // verse begins with one, we can assume He's speaking even without an
-  // in-chapter "Jesus said" attribution (e.g. when discourse continues from
-  // the previous chapter, as John 10 continues John 9).
-  const JESUS_SIGNATURE_RE = /^(?:Verily,?\s+verily,?\s+I\s+say|Verily\s+I\s+say|Most\s+certainly,?\s+I\s+tell|Truly,?\s+I\s+tell|Truly,?\s+truly,?\s+I\s+tell|Amen,?\s+amen,?\s+I\s+say|I\s+am\s+(?:the|he\b)|Let\s+not\s+your\s+heart|Peace\s+I\s+leave\s+with\s+you|If\s+ye\s+(?:love|abide|keep)\s+me|These\s+things\s+have\s+I\s+spoken\s+unto\s+you|Father,?\s+the\s+hour|Behold,?\s+I\s+come\s+(?:quickly|as))\b/i;
-
-  function commaSplitReds(verses, tId, continuesFromPrev) {
-    const result = new Map();
-    let inJesus = !!continuesFromPrev;
-    // If chapter starts mid-discourse, mark verse 1 too — but only if it
-    // looks like teaching content (avoid the rare narrative opener case).
-    let pendingContinuation = !!continuesFromPrev;
-    // Cap on consecutive verses inherited via `inJesus` without a fresh
-    // attribution. Beyond this, force-reset to prevent runaway false
-    // positives in narrative-heavy chapters where a single bad heuristic
-    // hit (e.g. "And he said unto them," attributed to a disciple) would
-    // otherwise mark every subsequent verse red.
-    const MAX_CONTINUATION = 3;
-    let continuationRun = continuesFromPrev ? 1 : 0;
-
-    for (const v of verses) {
-      const text = v[tId];
-      if (!text) continue;
-
-      const reds = [];
-
-      // Patterns that open speech, in order of confidence:
-      //   1. "Jesus said," / "the Lord answered,"
-      //   2. "He said,"/"And he said,"/"And he spake unto them, saying," —
-      //      bare third-person speech, attributed to Jesus only when no
-      //      competing named speaker appears in the same verse.
-      const namedJesus = text.match(/^(.*?\b(?:Jesus|the\s+Lord|the\s+Master|Christ|the\s+Son\s+of\s+Man)\b[^,.!?]*?\b(?:said|saith|answered|spake|replied|cried|saying|teaching|taught)\b[^,]*,)\s*/i)
-                     || text.match(/^(.*?\b(?:said|saith|answered|spake)\b[^,]*?\b(?:Jesus|the\s+Lord|the\s+Master|Christ|the\s+Son\s+of\s+Man)\b[^,]*,)\s*/i);
-      const bareHe = !namedJesus && text.match(/^((?:Then\s+|And\s+|Now\s+)?(?:he|He)\s+(?:answered\s+and\s+said|spake\s+(?:this\s+parable\s+)?unto\s+them[^,]*?saying|said\s+(?:also\s+|again\s+)?(?:unto\s+them|unto\s+him|unto\s+her)?[^,]*?|saith\s+(?:unto\s+them|unto\s+him|unto\s+her)?[^,]*?|cried\s+[^,]*?|answered[^,]*?|taught\s+them[^,]*?saying)[^,]*,)\s*/i);
-
-      const m = namedJesus || (bareHe && !OTHER_SPEAKER_RE.test(text) && !OTHER_SPEAKER_RE_2.test(text) ? bareHe : null);
-
-      if (m) {
-        const after = text.slice(m[0].length).trim();
-        if (after) reds.push(after);
-        inJesus = true;
-        pendingContinuation = false;
-        continuationRun = 0; // fresh attribution resets the run
-      } else if (JESUS_SIGNATURE_RE.test(text.trim())) {
-        // Verse opens with Jesus's signature phrase — discourse continuing.
-        reds.push(text.trim());
-        inJesus = true;
-        pendingContinuation = false;
-        continuationRun = 0; // signature phrase = fresh confirmation
-      } else if (pendingContinuation && isJesusContinuing(text)) {
-        // Cross-chapter continuation: previous chapter ended with Jesus
-        // speaking and this verse doesn't introduce a competing narrator.
-        reds.push(text.trim());
-        inJesus = true;
-        pendingContinuation = false;
-        continuationRun = 1;
-      } else if (inJesus && continuationRun >= MAX_CONTINUATION) {
-        // Cap reached — force-reset to break runaway false positives.
-        inJesus = false;
-        continuationRun = 0;
-      } else if (inJesus) {
-        // The prior verse ended with Jesus speaking. But this verse may also
-        // contain a NEW narrator setup ("...and said unto them, X") before
-        // launching a fresh quote. If we can find that attribution, the
-        // narrator owns the prefix and only the trailing clause is red. This
-        // prevents marking entire verses ("So when they continued asking
-        // him, he lifted up himself, and said unto them, He that is without
-        // sin…") where most of the words are NOT Jesus's.
-        const midAttr = text.match(/\b(?:said|saith|answered|spake|cried|replied)\s+(?:also\s+|again\s+)?(?:unto\s+(?:them|him|her|me|you|the\s+\w+)(?:\s+\w+){0,3}\s*)?,\s+/i);
-        if (midAttr) {
-          const prefix = text.slice(0, midAttr.index + midAttr[0].length);
-          // CRITICAL: if the attribution names a non-Jesus speaker
-          // ("Thomas saith unto him,", "Philip saith unto him,",
-          // "the disciples answered, …"), this verse's quote belongs to
-          // them — NOT to Jesus. Suppress the red and exit the Jesus run.
-          const nonJesusSpeaker = OTHER_SPEAKER_RE.test(prefix) || OTHER_SPEAKER_RE_2.test(prefix);
-          const after = text.slice(midAttr.index + midAttr[0].length).trim();
-          if (nonJesusSpeaker) {
-            inJesus = false;             // a different speaker just took the floor
-            continuationRun = 0;
-          } else if (after) {
-            reds.push(after);
-            inJesus = isJesusContinuing(after);
-            continuationRun = 0; // mid-verse attribution = fresh signal
-          } else {
-            inJesus = false;
-            continuationRun = 0;
-          }
-        } else if (isJesusContinuing(text)) {
-          reds.push(text.trim());
-          continuationRun += 1; // inherited continuation, count it
-        } else {
-          inJesus = false;
-          continuationRun = 0;
-        }
-      }
-      pendingContinuation = false;
-
-      if (reds.length) result.set(v.n, reds);
-    }
-    return result;
-  }
-
-  // Translations known to use quotation marks for direct speech.
-  // DRB removed: Douay-Rheims uses em-dashes for direct speech in many
-  // editions rather than smart quotes, so quoteTrackedReds was unreliable.
-  // commaSplitReds is now safer under the new continuation cap.
-  const QUOTED_TRANSLATIONS = new Set(["web", "webbe", "bbe", "asv", "bsb", "ylt", "darby", "oeb-cw"]);
-  // Translations our heuristic understands well (used to populate the cross-
-  // translation Jesus-verses database). KJV is the most reliable source.
-  const DETECTION_TRANSLATIONS = ["kjv", "web"];
-
-  // ── Cross-translation Jesus-verses database ────────────────────────────────
-  // Map of `${bookId}.${chapter}` → Set<verseNumber>. Built up as the user
-  // browses chapters that include a detection-friendly translation, persisted
-  // to localStorage so cold loads of a Latin-only translation still get red
-  // letter highlighting.
-  // v2 — bumped after fixing the Thomas/Philip/disciples false-positive in
-  // commaSplitReds. Old v1 entries marked entire chapters red; let them die.
-  // v4 — bumped after restricting RL_DB writes to curated truth only.
-  // Heuristic guesses no longer populate this cache, so old v3 entries
-  // (which contained poisoned cross-verse runaways from commaSplitReds)
-  // must be discarded on first load.
-  const RL_DB_KEY = "codex.redletter.verses.v4";
-  // One-shot migration: wipe the v3 poisoned cache even if v4 is empty.
-  try { localStorage.removeItem("codex.redletter.verses.v3"); } catch {}
-  let RL_DB = (() => {
-    try {
-      const raw = JSON.parse(localStorage.getItem(RL_DB_KEY) || "{}");
-      const out = {};
-      for (const k of Object.keys(raw)) out[k] = new Set(raw[k]);
-      return out;
-    } catch { return {}; }
-  })();
-  function persistRLDB() {
-    try {
-      const flat = {};
-      for (const k of Object.keys(RL_DB)) flat[k] = Array.from(RL_DB[k]).sort((a,b) => a-b);
-      localStorage.setItem(RL_DB_KEY, JSON.stringify(flat));
-    } catch {}
-  }
-  function rlKey(bookId, chapter) { return `${bookId}.${chapter}`; }
+  // Backwards-compat shims for the previous public API. Kept so any
+  // external caller (or memory of the old shape) still works.
   function rlGet(bookId, chapter) {
-    // Truth dataset wins. It's hand-curated and authoritative — no mask,
-    // no heuristic, just the right verses.
     const truth = truthFor(bookId, chapter);
-    if (truth) return new Set(truth);
-    // Otherwise: heuristic DB filtered through the negative mask so stale
-    // entries from a pre-mask app version self-heal the moment they're
-    // touched.
-    const set = RL_DB[rlKey(bookId, chapter)];
-    return set ? applyNonJesusMask(set, bookId, chapter) : set;
+    return truth ? new Set(truth) : undefined;
   }
-  function rlMerge(bookId, chapter, verseNumbers) {
-    const k = rlKey(bookId, chapter);
-    const prev = RL_DB[k] || new Set();
-    let changed = false;
-    for (const n of verseNumbers) {
-      if (isVerseInNonJesusMask(bookId, chapter, n)) continue; // hard-suppress
-      if (!prev.has(n)) { prev.add(n); changed = true; }
-    }
-    if (changed) { RL_DB[k] = prev; persistRLDB(); }
-  }
-
-  // Cross-chapter speech-state. When chapter N ends mid-discourse, chapter
-  // N+1 should open already inside Jesus speech (Sermon on the Mount spans
-  // Mat 5–7, Last Supper spans John 13–17, Olivet Discourse spans Mat 24–25,
-  // etc.). Stored per (book, chapter) so opening a chapter in any order works
-  // once neighbours have been visited at least once.
-  const ENDSTATE_KEY = "codex.redletter.endstate.v1";
-  let ENDSTATE = (() => { try { return JSON.parse(localStorage.getItem(ENDSTATE_KEY) || "{}"); } catch { return {}; } })();
-  function persistEndstate() { try { localStorage.setItem(ENDSTATE_KEY, JSON.stringify(ENDSTATE)); } catch {} }
-  function setChapterEndstate(bookId, chapter, endsInJesus) {
-    const k = `${bookId}.${chapter}`;
-    if (ENDSTATE[k] === endsInJesus) return;
-    ENDSTATE[k] = endsInJesus;
-    persistEndstate();
-  }
-  function priorChapterEndedInJesus(bookId, chapter) {
-    if (chapter <= 1) return false;
-    return !!ENDSTATE[`${bookId}.${chapter - 1}`];
-  }
-
+  function rlMerge() { /* deprecated — truth is the only source now */ }
   function annotateRedLetter(verses, bookId, translations, chapter) {
-    if (!RED_LETTER_BOOKS.has(bookId)) return;
-    // If we have authoritative truth, paint EXACTLY those verses and skip
-    // the heuristic entirely. Per-translation .red gets the whole verse
-    // text (paint the full verse rather than try to slice substrings —
-    // far less fragile when the truth dataset only says "this verse").
-    const truth = truthFor(bookId, chapter);
-    if (truth) {
-      const detected = new Set();
-      for (const v of verses) {
-        if (!truth.has(v.n)) continue;
-        v.red = v.red || {};
-        for (const tId of translations) {
-          if (v[tId]) v.red[tId] = [v[tId]];
-        }
-        detected.add(v.n);
-      }
-      return detected;
-    }
-    const detectedVerses = new Set();
-    const continuesFromPrev = priorChapterEndedInJesus(bookId, chapter);
-    let endsInJesus = false;
-
-    for (const tId of translations) {
-      const reds = QUOTED_TRANSLATIONS.has(tId)
-        ? quoteTrackedReds(verses, tId, continuesFromPrev)
-        : commaSplitReds(verses, tId, continuesFromPrev);
-      if (!reds.size) continue;
-      for (const v of verses) {
-        const arr = reds.get(v.n);
-        if (!arr || !arr.length) continue;
-        // Hard-suppress verses inside the curated non-Jesus mask
-        // (Magnificat, Benedictus, John the Baptist witness, etc.)
-        if (isVerseInNonJesusMask(bookId, chapter, v.n)) continue;
-        v.red = v.red || {};
-        v.red[tId] = arr;
-        detectedVerses.add(v.n);
-      }
-      // A chapter ends in Jesus speech if the last verse with text was marked.
-      const lastVerse = verses[verses.length - 1];
-      if (lastVerse && reds.get(lastVerse.n)?.length) endsInJesus = true;
-    }
-    setChapterEndstate(bookId, chapter, endsInJesus);
-    return detectedVerses;
+    return applyRedLetter(verses, bookId, chapter, translations);
   }
 
-  // After loadMulti, attach `_jesusVerse: true` to every verse known to
-  // contain Jesus's words (per the cross-translation DB) so the renderer
-  // can paint the whole verse red even for translations without per-string
-  // markup (e.g. Latin Vulgata, Geneva, Cherokee).
-  function applyJesusVerseFlags(verses, bookId, chapter) {
-    const set = rlGet(bookId, chapter);
-    if (!set || !set.size) return;
-    for (const v of verses) {
-      if (isVerseInNonJesusMask(bookId, chapter, v.n)) { v._jesusVerse = false; continue; }
-      if (set.has(v.n)) v._jesusVerse = true;
-    }
-  }
+  // One-shot cleanup of legacy localStorage keys from the heuristic era.
+  try { localStorage.removeItem("codex.redletter.verses.v1"); } catch {}
+  try { localStorage.removeItem("codex.redletter.verses.v2"); } catch {}
+  try { localStorage.removeItem("codex.redletter.verses.v3"); } catch {}
+  try { localStorage.removeItem("codex.redletter.verses.v4"); } catch {}
+  try { localStorage.removeItem("codex.redletter.endstate.v1"); } catch {}
 
   // Fetch many translations of one chapter in parallel and return a unified
   // verse array: [{ n, kjv, web, bbe, … }, …].
@@ -1025,24 +623,11 @@ window.BIBLE = (function () {
     // Truth dataset is async — make sure it's loaded before annotation so
     // the static positive-list overrides the heuristic deterministically.
     if (RED_LETTER_BOOKS.has(bookId)) {
-      // Always await — dedupe inside _loadRedLetterTruth makes this cheap
-      // and removes the cold-start race that left v.red empty on the
-      // very first chapter view.
+      // Truth dataset loads async at module init; await its dedupe-cached
+      // promise so the first chapter view doesn't paint stale.
       await _loadRedLetterTruth();
+      applyRedLetter(out, bookId, chapter, translations);
     }
-    const detected = annotateRedLetter(out, bookId, translations, chapter) || new Set();
-
-    // NOTE: heuristic detection results are NO LONGER merged into RL_DB.
-    // Only curated truth (data/red-letter.json, applied inside
-    // annotateRedLetter's truth-path) is authoritative for cross-translation
-    // painting. Allowing heuristic guesses into RL_DB previously poisoned
-    // every translation (Geneva, Douay, Vulgate, …) with runaway false
-    // positives from commaSplitReds — one bad chapter painted forever.
-    // Per-translation v.red[tId] still gets set by the heuristic in-memory,
-    // so the visible translation paints correctly; we just don't cross-
-    // contaminate other translations.
-
-    applyJesusVerseFlags(out, bookId, chapter);
     return out;
   }
 
