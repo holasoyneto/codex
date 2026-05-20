@@ -16570,3 +16570,34 @@ html, body { max-width: 100vw; overflow-x: hidden; }
     padding: 2px 6px 0 0;
   }
 }
+
+/* ── v200 scroll fix — translations panel was non-scrollable when the
+   list overflowed the rail height (especially in the mobile bottom-sheet
+   where the 82vh container's flex chain wasn't propagating min-height:0
+   all the way down). Lock the chain explicitly. */
+.cx-tab-body { display: flex; flex-direction: column; min-height: 0; }
+.cx-tab-body > .cx-pane { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.cx-pane.cx-tp { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+.cx-tp-groups { min-height: 0; flex: 1 1 auto; }
+
+@media (max-width: 640px) {
+  .cx-rail-r {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+  .cx-rail-r > .cx-frame,
+  .cx-rail-r .cx-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .cx-rail-r .cx-tab-body { flex: 1 1 auto; min-height: 0; }
+  .cx-rail-r .cx-pane,
+  .cx-rail-r .cx-pane.cx-tp {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
