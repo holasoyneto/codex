@@ -1046,7 +1046,8 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
                     return (
                       <li
                         key={t.id}
-                        className={`cx-tp-row ${isPrimary ? "is-primary" : ""} ${isCompare ? "is-compare" : ""} ${isUser ? "is-user" : ""} ${isRowDragOver ? "is-drop" : ""} ${isDragging ? "is-dragging" : ""}`}
+                        title={t.placeholder ? `${t.name} — not yet bundled in CODEX (registry placeholder)` : t.name}
+                        className={`cx-tp-row ${isPrimary ? "is-primary" : ""} ${isCompare ? "is-compare" : ""} ${isUser ? "is-user" : ""} ${isRowDragOver ? "is-drop" : ""} ${isDragging ? "is-dragging" : ""} ${t.placeholder ? "is-placeholder" : ""}`}
                         draggable
                         onDragStart={onDragStart("trans", t.id, lang)}
                         onDragEnd={onDragEnd}
@@ -1066,7 +1067,7 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
                           title={`Read in ${t.name}`}
                         >
                           <span className="cx-tp-mark" aria-hidden>{isPrimary ? "●" : ""}</span>
-                          <span className="cx-tp-name">{t.name}</span>
+                          <span className="cx-tp-name">{t.name}{t.placeholder ? <em className="cx-tp-coming"> · coming soon</em> : null}</span>
                           <span className="cx-tp-year">{t.year}</span>
                         </button>
                         <button
