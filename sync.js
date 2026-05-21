@@ -37,9 +37,11 @@
     "codex.lang",
   ];
   const NEVER_SYNC = [
-    "codex.api.keys",
-    "codex.sync.",
-    "codex.session.",
+    "codex.api.keys",       // AI provider API keys
+    "codex.anthropic.key",  // legacy Anthropic key
+    "codex.sync.",          // sync config (tokens, gist IDs)
+    "codex.session.",       // ephemeral session state
+    "codex.btc.token",      // donation pool bearer token
   ];
   function isSyncable(key) {
     if (!key || typeof key !== "string") return false;

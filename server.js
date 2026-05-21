@@ -135,7 +135,12 @@ function serveStatic(req, res) {
     res.writeHead(404); res.end("not found"); return;
   }
   const ext = path.extname(filePath).toLowerCase();
-  const headers = { "Content-Type": MIME[ext] || "text/plain" };
+  const headers = {
+    "Content-Type": MIME[ext] || "text/plain",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+  };
 
   // gzip text/json responses — saves ~80% on module JSON, ~60% on JS/CSS.
   const accept = req.headers["accept-encoding"] || "";
@@ -760,8 +765,21 @@ function estimateTokens(payload, respText, usage) {
 }
 
 const server = http.createServer(async (req, res) => {
-  // CORS for localhost dev
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // CORS — allow the same origin and common localhost ports.
+  // A wildcard "*" would let any website use this server as an API proxy,
+  // leaking API keys to third-party origins. Restrict to known safe origins.
+  const origin = req.headers.origin || "";
+  const SAFE_ORIGINS = [
+    `http://localhost:${PORT}`,
+    `http://127.0.0.1:${PORT}`,
+    `http://[::1]:${PORT}`,
+  ];
+  // Also allow any localhost:* for dev convenience, but NOT arbitrary origins.
+  const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin);
+  if (isLocalhost || SAFE_ORIGINS.includes(origin) || !origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }

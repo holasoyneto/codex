@@ -1852,11 +1852,23 @@ function App() {
   // key plus a small header. Lets users migrate marks, oracle history, cached
   // chapters, panels, settings to another browser, device, or compatible app.
   // No proprietary fields — everything is plain JSON the user can inspect.
+  // Keys that contain secrets — NEVER exported, NEVER overwritten by import.
+  const SENSITIVE_PREFIXES = [
+    "codex.api.keys",          // AI provider API keys
+    "codex.anthropic.key",     // legacy Anthropic key
+    "codex.sync.github.token", // GitHub PAT for gist sync
+    "codex.sync.firebase",     // Firebase config / tokens
+    "codex.btc.token",         // donation pool bearer token
+    "codex.session.",          // ephemeral session state
+  ];
+  const isSensitive = (k) => SENSITIVE_PREFIXES.some(p => k.startsWith(p));
+
   const exportAll = useCallback(() => {
     const dataMap = {};
-    let marksCount = 0, panelsCount = 0, biblesCount = 0;
+    let marksCount = 0, panelsCount = 0, biblesCount = 0, skippedSecrets = 0;
     for (const k of Object.keys(localStorage)) {
       if (!k.startsWith("codex.")) continue;
+      if (isSensitive(k)) { skippedSecrets++; continue; }
       const raw = localStorage.getItem(k);
       try { dataMap[k] = JSON.parse(raw); }
       catch { dataMap[k] = raw; }
@@ -1898,14 +1910,16 @@ function App() {
           window.alert("This isn't a CODEX export file (missing format/data).");
           return;
         }
-        const incoming = Object.keys(obj.data).filter(k => k.startsWith("codex."));
+        // Filter out any secrets that might be in a stale export file
+        const incoming = Object.keys(obj.data).filter(k => k.startsWith("codex.") && !isSensitive(k));
         if (!incoming.length) { window.alert("Export contains no codex.* data."); return; }
         const summary = obj.summary
           ? `Marks: ${obj.summary.marks ?? "?"}\nPanels: ${obj.summary.panels ?? "?"}\nKeys: ${obj.summary.keys ?? incoming.length}`
           : `Keys: ${incoming.length}`;
         if (!window.confirm(`Import will REPLACE all current CODEX data:\n\n${summary}\n\nFrom: ${obj.exportedAt || "(unknown date)"}\n\nContinue?`)) return;
         for (const k of Object.keys(localStorage)) {
-          if (k.startsWith("codex.")) localStorage.removeItem(k);
+          // Preserve secrets and sync config during import
+          if (k.startsWith("codex.") && !isSensitive(k)) localStorage.removeItem(k);
         }
         for (const k of incoming) {
           const v = obj.data[k];

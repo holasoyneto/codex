@@ -357,7 +357,11 @@
                   first5.map(function (h, i) {
                     var p = parseRef(h.ref || "");
                     var label = bookName(p.bookId) + " " + p.chapter + ":" + p.verse;
-                    var snippet = h.snippet || h.text || "";
+                    // snippet comes from search.js _snippet() which HTML-escapes
+                    // text before wrapping matches in <mark>. As a safety net,
+                    // strip any tags that aren't <mark>.
+                    var rawSnip = h.snippet || h.text || "";
+                    var snippet = rawSnip.replace(/<(?!\/?mark\b)[^>]+>/gi, "");
                     return React.createElement("li", { key: i, className: "cx-ws-occ-item",
                       onClick: function () { navigate(p.bookId, p.chapter, p.verse); }
                     },

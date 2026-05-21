@@ -115,7 +115,12 @@
     });
     s = escapeHtml(s);
     s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,
-      (_, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`);
+      (_, t, u) => {
+        // Block javascript: and data: URIs — prevent XSS via markdown links
+        const lc = u.toLowerCase().replace(/[\s\x00-\x1f]/g, "");
+        if (/^(javascript|data|vbscript):/i.test(lc)) return t;
+        return `<a href="${escapeHtml(u)}" target="_blank" rel="noopener noreferrer">${t}</a>`;
+      });
     s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
     s = s.replace(/ C(\d+) /g, (_, i) => `<code>${escapeHtml(codes[+i])}</code>`);
