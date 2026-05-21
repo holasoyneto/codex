@@ -1136,13 +1136,21 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
 
   const submitKey = async () => {
     const key = keyInput.trim();
-    if (!key.startsWith("sk-")) { setKeyErr("Key must start with sk-"); return; }
+    if (!key) { setKeyErr("Paste an API key"); return; }
+    // Auto-detect provider from prefix — accept any supported engine.
+    let provider = null;
+    if (key.startsWith("sk-"))   provider = "anthropic";
+    else if (key.startsWith("xai-"))  provider = "grok";
+    else if (key.startsWith("gsk_"))  provider = "groq";
+    else if (key.startsWith("AIza"))  provider = "gemini";
+    else if (/^[A-Za-z0-9_-]{20,}$/.test(key)) provider = "gemini"; // Gemini keys vary
+    if (!provider) { setKeyErr("Unrecognised key format. Supported: Anthropic (sk-…), xAI (xai-…), Groq (gsk_…), Gemini."); return; }
     setKeyBusy(true); setKeyErr("");
     try {
       const r = await fetch("/api/key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key }),
+        body: JSON.stringify({ key, provider }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
@@ -1380,8 +1388,8 @@ Suggestion policy: when the current passage materially benefits from a translati
       setMessages(m => [...m, { role: "oracle", text: display, wroteBookmarks: wrote }]);
     } catch (e) {
       const msg = String(e.message || e);
-      const friendly = msg.includes("ANTHROPIC_API_KEY")
-        ? "The oracle needs an API key. Restart the server with: ANTHROPIC_API_KEY=sk-ant-… node server.js"
+      const friendly = msg.includes("API_KEY") || msg.includes("api_key")
+        ? "Oracle needs an API key. Add one in Settings → API keys, or paste one below."
         : `Oracle could not reach the model: ${msg}`;
       const lower = msg.toLowerCase();
       const isKeyErr = /\bkey\b|401|authentication|unauthor/.test(lower);
@@ -1717,8 +1725,7 @@ Suggestion policy: when the current passage materially benefits from a translati
       ) : (
         <div className="cx-oracle-key">
           <p className="cx-oracle-key-msg">
-            Oracle needs an Anthropic API key to speak.
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">get one ↗</a>
+            Oracle needs an API key to speak. Paste any supported key below.
           </p>
           <div className="cx-oracle-key-row">
             <input
@@ -1726,7 +1733,7 @@ Suggestion policy: when the current passage materially benefits from a translati
               value={keyInput}
               onChange={e => setKeyInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") submitKey(); }}
-              placeholder="sk-ant-…"
+              placeholder="paste any API key…"
               disabled={keyBusy}
               autoComplete="off"
               spellCheck={false}
@@ -1737,7 +1744,9 @@ Suggestion policy: when the current passage materially benefits from a translati
           </div>
           {keyErr ? <p className="cx-oracle-key-err">{keyErr}</p> : null}
           <p className="cx-oracle-key-hint">
-            Stored locally in <code>.env</code>. Never sent to anyone but Anthropic.
+            Free: <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer">Groq</a> (gsk_…) · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Gemini</a><br/>
+            Paid: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Anthropic</a> (sk-…) · <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer">xAI</a> (xai-…)<br/>
+            <span className="cx-oracle-key-local">Keys stay in your browser. Never sent anywhere except the provider.</span>
           </p>
         </div>
       )}

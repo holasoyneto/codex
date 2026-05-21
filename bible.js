@@ -369,7 +369,9 @@ window.BIBLE = (function () {
                 || (data && data[bookId] && data[bookId][chapter]);
         if (!Array.isArray(ch)) {
           if (t?.placeholder) return placeholderVerse();
-          throw new Error(`bundle ${translation}: ${flatKey} not in bundle`);
+          // Partial bundle — chapter not included yet. Show a gentle fallback
+          // instead of erroring so users can still browse available chapters.
+          return [{ n: 1, text: `[${t?.name || translation}] · This chapter is not yet included in the offline bundle. Try a different chapter or switch translations.` }];
         }
         return ch.map(v => ({ n: v.n || v.verse, text: String(v.text || "").replace(/\s+/g, " ").trim() }));
       } catch (e) {

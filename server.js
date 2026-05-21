@@ -760,7 +760,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       ok: true,
-      hasKey: !!API_KEY,
+      hasKey: !!(API_KEY || XAI_KEY || GROQ_KEY || GEMINI_KEY || OLLAMA_STATUS.ok),
       model: MODEL,
       usage: USAGE,
       providers: {
