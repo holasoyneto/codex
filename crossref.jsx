@@ -136,15 +136,11 @@
       return sameChapter.length === 1 ? mod.verses[sameChapter[0]] : [];
     }, [mod, currentKey]);
 
-    // Group by theme.
-    const grouped = useMemo(() => {
-      const buckets = new Map();
-      for (const r of refs) {
-        const theme = r.theme || "Related";
-        if (!buckets.has(theme)) buckets.set(theme, []);
-        buckets.get(theme).push(r);
-      }
-      return [...buckets.entries()].map(([theme, items]) => ({ theme, items }));
+    // Normalise each ref to { ref: string }.
+    // The full TSK module stores plain strings; the earlier sample stored
+    // objects with { ref, theme }. Support both formats.
+    const normRefs = useMemo(() => {
+      return refs.map((r) => (typeof r === "string" ? { ref: r } : r));
     }, [refs]);
 
     const onJump = useCallback((targetKey, chain) => {
@@ -191,9 +187,9 @@
           </div>
           <div style={subStyle}>
             Treasury of Scripture Knowledge
-            {mod && mod.meta && mod.meta._partial ? (
-              <span style={partialPillStyle} title="Only ~50 well-known verses seeded in this build. Full ~340K-entry module coming.">
-                SAMPLE · full module coming
+            {mod && mod.meta && mod.meta.totalRefs ? (
+              <span style={{ fontSize: 10, opacity: 0.6 }}>
+                {Number(mod.meta.totalRefs).toLocaleString()} cross-references
               </span>
             ) : null}
           </div>
@@ -205,44 +201,35 @@
           <div style={{ ...statusStyle, color: "var(--cx-warn, #ffc46b)" }}>
             Couldn't load cross-references: {err}
           </div>
-        ) : refs.length === 0 ? (
+        ) : normRefs.length === 0 ? (
           <div style={statusStyle}>
-            No cross-references for <b>{formatRef(currentKey)}</b> in this sample module.
-            <div style={{ marginTop: 8, opacity: 0.7, fontSize: "0.85em" }}>
-              The sample seeds ~50 well-known verses (John 3:16, Gen 1:1, Ps 23:1, Rom 8:28, …).
-              Try opening one of those to see chain navigation in action.
-            </div>
+            No cross-references for <b>{formatRef(currentKey)}</b>.
           </div>
         ) : (
           <div>
-            {grouped.map((g) => (
-              <section key={g.theme} style={themeBlockStyle}>
-                <h4 style={themeHStyle}>{g.theme}</h4>
-                <ul style={listStyle}>
-                  {g.items.map((r, i) => {
-                    const snip = snippetFor(r.ref, translation);
-                    return (
-                      <li key={i} style={rowStyle}>
-                        <button
-                          style={refBtnStyle}
-                          onClick={() => onJump(r.ref, false)}
-                          title={`Open ${formatRef(r.ref)} in reader`}
-                        >
-                          <span style={refTagStyle}>{formatRef(r.ref)}</span>
-                          {snip ? <span style={snipStyle}> — {snip.length > 160 ? snip.slice(0, 157) + "…" : snip}</span> : null}
-                        </button>
-                        <button
-                          style={chainBtnStyle}
-                          onClick={() => onJump(r.ref, true)}
-                          title="Chain — load this verse's cross-refs"
-                          aria-label="Chain into this reference"
-                        >⇢ chain</button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
+            <ul style={listStyle}>
+              {normRefs.map((r, i) => {
+                const snip = snippetFor(r.ref, translation);
+                return (
+                  <li key={i} style={rowStyle}>
+                    <button
+                      style={refBtnStyle}
+                      onClick={() => onJump(r.ref, false)}
+                      title={`Open ${formatRef(r.ref)} in reader`}
+                    >
+                      <span style={refTagStyle}>{formatRef(r.ref)}</span>
+                      {snip ? <span style={snipStyle}> — {snip.length > 160 ? snip.slice(0, 157) + "…" : snip}</span> : null}
+                    </button>
+                    <button
+                      style={chainBtnStyle}
+                      onClick={() => onJump(r.ref, true)}
+                      title="Chain — load this verse's cross-refs"
+                      aria-label="Chain into this reference"
+                    >⇢ chain</button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 
@@ -277,14 +264,6 @@
     gap: 8,
     flexWrap: "wrap",
   };
-  const partialPillStyle = {
-    fontSize: 10,
-    padding: "2px 6px",
-    border: "1px solid var(--cx-warn, #ffc46b)",
-    color: "var(--cx-warn, #ffc46b)",
-    borderRadius: 3,
-    letterSpacing: "0.08em",
-  };
   const crumbsStyle = { fontSize: 13, lineHeight: 1.4 };
   const backBtnStyle = {
     background: "transparent",
@@ -297,15 +276,6 @@
     letterSpacing: "0.05em",
   };
   const statusStyle = { padding: "16px 4px", opacity: 0.8 };
-  const themeBlockStyle = { marginBottom: 14 };
-  const themeHStyle = {
-    margin: "0 0 6px",
-    fontSize: 11,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    opacity: 0.75,
-    fontWeight: 600,
-  };
   const listStyle = { listStyle: "none", margin: 0, padding: 0 };
   const rowStyle = {
     display: "flex",

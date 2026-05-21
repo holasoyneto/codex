@@ -2179,8 +2179,15 @@ function App() {
         }
         case "m": case "M":
           e.preventDefault();
+          if (verseMap) {
+            closeVerseMap();
+          } else {
+            const cv = currentVerse || 1;
+            const bookName = (CODEX_DATA.books.find(b => b.id === book) || {}).name || book;
+            const refStr = `${bookName} ${chapter}:${cv}`;
+            openVerseMap(cv, refStr, "");
+          }
           dispatchShortcut("toggle-map");
-          console.log("[codex] M: verse-map toggle dispatched (handler TODO)");
           return;
         case "t": case "T":
           e.preventDefault();
