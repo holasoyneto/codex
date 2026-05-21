@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v223";
+const VERSION = "v224";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -23,14 +23,24 @@ const ALL = [SHELL, DATA, PANELS];
 const SCOPE = self.registration ? self.registration.scope : self.location.origin + "/";
 const r = (p) => new URL(p, SCOPE).toString();
 
-// Files we want available offline immediately. Anything fetched later is
-// added on-the-fly by the runtime handler below.
+// ── Pre-cached shell ──────────────────────────────────────────────────
+// Files downloaded on install so the app boots offline. Keep this LEAN —
+// only the code + tiny config modules needed for first render.
+//
+// Heavy study data (Strong's ≈3.7 MB, TSK ≈5 MB, Easton ≈4.2 MB,
+// Daf Yomi ≈241 KB, timeline ≈62 KB) is NOT pre-cached. The module
+// loader (modules.js) fetches them on first use, IndexedDB caches them,
+// and the SW runtime handler (stale-while-revalidate) adds them to the
+// SHELL cache on first fetch — so they work offline after one access.
+// Same for bundled Bible JSONs (charles, zohrab) — they cache on demand.
 const SHELL_FILES = [
+  // ── Core app shell ───────────────────────────────────────────────
   r("./"),
   r("index.html"),
   r("styles.css"),
   r("manifest.json"),
   r("icon.svg"),
+  // ── JS engine / data layer ───────────────────────────────────────
   r("direct-api.js"),
   r("i18n.js"),
   r("ai-translate-ui.js"),
@@ -45,65 +55,67 @@ const SHELL_FILES = [
   r("panels-gen.js"),
   r("mark-search.js"),
   r("search.js"),
-  r("tweaks-panel.jsx"),
-  r("help.jsx"),
-  r("data/help/articles.json"),
+  r("translate-engine.js"),
+  // ── UI components ────────────────────────────────────────────────
+  r("app.jsx"),
   r("components.jsx"),
   r("panels.jsx"),
   r("oracle.jsx"),
   r("library.jsx"),
+  r("tweaks-panel.jsx"),
   r("verse-menu.jsx"),
   r("verse-map.jsx"),
   r("verse-art.jsx"),
   r("verse-compare.jsx"),
   r("verse-mirror.jsx"),
-  r("repo-add.jsx"),
   r("notes.jsx"),
-  r("quest-messiah.jsx"),
-  r("ai-quests.jsx"),
+  r("help.jsx"),
+  r("repo-add.jsx"),
   r("crossref.jsx"),
   r("strongs.jsx"),
   r("word-study.jsx"),
-  r("data/modules/tsk-sample.json"),
-  r("data/modules/strongs-hebrew.json"),
-  r("data/modules/strongs-greek.json"),
-  r("data/modules/alignment-kjv-sample.json"),
-  r("reels.jsx"),
-  r("data/modules/reels-curated.json"),
   r("dictionary.jsx"),
-  r("data/modules/easton-sample.json"),
+  r("reels.jsx"),
   r("timeline.jsx"),
-  r("data/modules/timeline-events.json"),
   r("jewish-study.jsx"),
   r("babelforge.jsx"),
-  r("translate-engine.js"),
-  r("data/modules/voice-templates.json"),
-  r("data/modules/parsha.json"),
-  r("data/modules/hebrew-calendar.json"),
-  r("data/modules/plan-daf-yomi.json"),
   r("passage-guide.jsx"),
   r("builder.jsx"),
   r("plans.jsx"),
-  r("data/modules/plan-canonical-1y.json"),
-  r("data/modules/plan-chronological-1y.json"),
-  r("data/modules/plan-gospels-90.json"),
-  r("data/modules/plan-psalms-30.json"),
-  r("data/modules/plan-whole-bible-90.json"),
-  r("data/modules/plan-torah-triennial.json"),
-  r("data/modules/kabbalah-mappings.json"),
-  r("data/modules/synoptic-parallels.json"),
+  r("quest-messiah.jsx"),
+  r("ai-quests.jsx"),
   r("marketplace.jsx"),
   r("compare.jsx"),
   r("vox.jsx"),
-  r("data/modules/prayer-formats.json"),
+  // ── Small data (< 30 KB each — cheap to pre-cache) ──────────────
+  r("data/help/articles.json"),
   r("data/module-index.json"),
-  r("app.jsx"),
-  // Bundled Bibles (static JSON shipped in the repo). Pre-cached so
-  // first cold offline launch can render apocryphal/Enoch content too.
-  r("data/bibles/eth-en.json"),
-  r("data/bibles/charles.json"),
-  r("data/bibles/zohrab.json"),
   r("data/red-letter.json"),
+  r("data/modules/reels-curated.json"),       //  14 KB
+  r("data/modules/voice-templates.json"),     //  20 KB
+  r("data/modules/prayer-formats.json"),      //  28 KB
+  r("data/modules/parsha.json"),              //  10 KB
+  r("data/modules/hebrew-calendar.json"),     //   4 KB
+  r("data/modules/kabbalah-mappings.json"),   //   9 KB
+  r("data/modules/synoptic-parallels.json"),  //  15 KB
+  r("data/modules/alignment-kjv-sample.json"),//   9 KB
+  r("data/modules/plan-canonical-1y.json"),   //  14 KB
+  r("data/modules/plan-chronological-1y.json"), // 14 KB
+  r("data/modules/plan-gospels-90.json"),     //   3 KB
+  r("data/modules/plan-psalms-30.json"),      //   2 KB
+  r("data/modules/plan-whole-bible-90.json"), //   4 KB
+  r("data/modules/plan-torah-triennial.json"),//  10 KB
+  // ── Tiny Bible bundle (Enoch — 214 KB, used by Gnosis panel) ────
+  r("data/bibles/eth-en.json"),
+  // ── LAZY (NOT pre-cached — fetched + cached on first use) ───────
+  // data/modules/strongs-hebrew.json         2.5 MB
+  // data/modules/strongs-greek.json          1.2 MB
+  // data/modules/tsk-sample.json             5.0 MB
+  // data/modules/easton-sample.json          4.1 MB
+  // data/modules/plan-daf-yomi.json          241 KB
+  // data/modules/timeline-events.json         62 KB
+  // data/bibles/charles.json                 955 KB
+  // data/bibles/zohrab.json                   84 KB
 ];
 
 // Cross-origin assets the app NEEDS to boot — React, Babel, Leaflet,

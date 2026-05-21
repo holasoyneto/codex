@@ -6,6 +6,7 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const zlib = require("zlib");
 
 const PORT = process.env.PORT || 3000;
 const DIR = __dirname;
@@ -119,6 +120,12 @@ const MIME = {
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
 
+// MIME types that benefit from gzip. Binary formats (images, woff2) don't.
+const COMPRESSIBLE = new Set([
+  ".html", ".css", ".js", ".jsx", ".json", ".svg", ".xml", ".txt",
+  ".webmanifest", ".md", ".map",
+]);
+
 function serveStatic(req, res) {
   let url = req.url.split("?")[0];
   if (url === "/") url = "/index.html";
@@ -128,8 +135,19 @@ function serveStatic(req, res) {
     res.writeHead(404); res.end("not found"); return;
   }
   const ext = path.extname(filePath).toLowerCase();
-  res.writeHead(200, { "Content-Type": MIME[ext] || "text/plain" });
-  fs.createReadStream(filePath).pipe(res);
+  const headers = { "Content-Type": MIME[ext] || "text/plain" };
+
+  // gzip text/json responses — saves ~80% on module JSON, ~60% on JS/CSS.
+  const accept = req.headers["accept-encoding"] || "";
+  if (COMPRESSIBLE.has(ext) && /\bgzip\b/.test(accept)) {
+    headers["Content-Encoding"] = "gzip";
+    headers["Vary"] = "Accept-Encoding";
+    res.writeHead(200, headers);
+    fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(res);
+  } else {
+    res.writeHead(200, headers);
+    fs.createReadStream(filePath).pipe(res);
+  }
 }
 
 function readBody(req) {
