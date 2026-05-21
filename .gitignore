@@ -42,3 +42,8 @@ coverage/
 *.tmp
 .cache/
 .claude/
+
+# BTC donation pool — server-side state, never commit
+data/donations.json
+data/donations.json.tmp
+data/donations.audit.log

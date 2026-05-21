@@ -5,6 +5,7 @@ const http = require("http");
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const PORT = process.env.PORT || 3000;
 const DIR = __dirname;
@@ -28,6 +29,23 @@ loadDotenv();
 // Mutable so the user can paste a key into the Oracle UI at runtime.
 let API_KEY = process.env.ANTHROPIC_API_KEY || "";
 let XAI_KEY = process.env.XAI_API_KEY || "";
+// Groq (groq.com — NOT xAI's Grok). OpenAI-compatible API at api.groq.com.
+// Free tier; keys begin with `gsk_`.
+let GROQ_KEY = process.env.GROQ_API_KEY || "";
+// Google Gemini (Google AI Studio). Native generateContent API at
+// generativelanguage.googleapis.com. Free tier ~15 req/min, 1M tokens/day.
+// Keys are usually `AIza…` but can vary — we don't gate on prefix.
+let GEMINI_KEY = process.env.GEMINI_API_KEY || "";
+// Ollama — local LLM daemon. Default URL is the standard local install.
+// Override with OLLAMA_URL=http://other-host:11434 for a LAN box.
+const OLLAMA_URL = (process.env.OLLAMA_URL || "http://localhost:11434").replace(/\/+$/, "");
+let OLLAMA_HOST = "localhost", OLLAMA_PORT = 11434, OLLAMA_PROTO = "http";
+try {
+  const u = new URL(OLLAMA_URL);
+  OLLAMA_HOST = u.hostname;
+  OLLAMA_PORT = parseInt(u.port || (u.protocol === "https:" ? "443" : "80"), 10);
+  OLLAMA_PROTO = u.protocol === "https:" ? "https" : "http";
+} catch {}
 const MODEL = process.env.CODEX_MODEL || "claude-haiku-4-5-20251001";
 
 // Multi-provider model registry. Whitelisted so a poisoned client payload
@@ -48,6 +66,25 @@ const PROVIDERS = {
       { id: "grok-3",       label: "Grok 3",       tier: "balanced" },
       { id: "grok-4",       label: "Grok 4",       tier: "best" },
       { id: "grok-4-heavy", label: "Grok 4 Heavy", tier: "premium" },
+    ],
+  },
+  groq: {
+    label: "Groq (free fast inference)",
+    models: [
+      { id: "llama-3.3-70b-versatile",        label: "Llama 3.3 70B Versatile",  tier: "best"      },
+      { id: "llama-3.1-8b-instant",           label: "Llama 3.1 8B Instant",     tier: "fast"      },
+      { id: "mixtral-8x7b-32768",             label: "Mixtral 8x7B (32k)",       tier: "balanced"  },
+      { id: "deepseek-r1-distill-llama-70b",  label: "DeepSeek R1 Distill 70B",  tier: "reasoning" },
+      { id: "qwen-2.5-32b",                   label: "Qwen 2.5 32B",             tier: "balanced"  },
+    ],
+  },
+  gemini: {
+    label: "Google Gemini (free · AI Studio)",
+    models: [
+      { id: "gemini-2.0-flash",                  label: "Gemini 2.0 Flash",          tier: "fast"      },
+      { id: "gemini-2.5-flash",                  label: "Gemini 2.5 Flash",          tier: "balanced"  },
+      { id: "gemini-2.5-pro",                    label: "Gemini 2.5 Pro",            tier: "best"      },
+      { id: "gemini-2.0-flash-thinking-exp",     label: "Gemini 2.0 Flash Thinking", tier: "reasoning" },
     ],
   },
   ollama: {
@@ -192,22 +229,158 @@ function postXAI(payload) {
   });
 }
 
-// Ollama — local LLM at http://localhost:11434, OpenAI-compatible endpoint.
-// Same normalization as postXAI so the client never has to care.
-function postOllama(payload) {
+// Groq — groq.com (DISTINCT from xAI's Grok). OpenAI-compatible chat
+// completions at api.groq.com/openai/v1. Free tier; Bearer gsk_… key.
+function postGroq(payload) {
   return new Promise((resolve, reject) => {
     const oaiMessages = [];
     if (payload.system) oaiMessages.push({ role: "system", content: payload.system });
     for (const m of payload.messages || []) oaiMessages.push(m);
     const body = JSON.stringify({
-      model: payload.model || "qwen2.5:14b-instruct-q4_K_M",
+      model: payload.model || "llama-3.3-70b-versatile",
+      messages: oaiMessages,
+      max_tokens: payload.max_tokens || 1024,
+      temperature: 0.7,
+    });
+    const r = https.request({
+      hostname: "api.groq.com",
+      path: "/openai/v1/chat/completions",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_KEY}`,
+        "Content-Length": Buffer.byteLength(body),
+      },
+    }, resp => {
+      let buf = "";
+      resp.on("data", c => buf += c);
+      resp.on("end", () => {
+        try {
+          const parsed = JSON.parse(buf);
+          if (resp.statusCode >= 400) { resolve({ status: resp.statusCode, body: parsed }); return; }
+          const text = parsed.choices?.[0]?.message?.content || "";
+          const usage = parsed.usage || {};
+          resolve({
+            status: 200,
+            body: {
+              content: [{ type: "text", text }],
+              model: parsed.model || payload.model,
+              usage: {
+                input_tokens: usage.prompt_tokens || 0,
+                output_tokens: usage.completion_tokens || 0,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+              },
+            },
+          });
+        } catch (e) {
+          resolve({ status: resp.statusCode, body: { error: buf } });
+        }
+      });
+    });
+    r.on("error", reject);
+    r.write(body);
+    r.end();
+  });
+}
+
+// Google Gemini — native generateContent API (NOT OpenAI-compatible).
+// Differences vs Groq/xAI:
+//   • API key is a URL query param, NOT a Bearer header.
+//   • Messages live under `contents[]` with role `"user"` or `"model"`
+//     (Anthropic "assistant" → Gemini "model").
+//   • Content blocks are `{parts: [{text}]}` instead of plain strings.
+//   • System prompt is a sibling `systemInstruction` field, not a message.
+// Response normalizes to the same {content, model, usage} envelope.
+function postGemini(payload) {
+  return new Promise((resolve, reject) => {
+    const model = payload.model || "gemini-2.0-flash";
+    // Translate Anthropic-shape messages → Gemini contents.
+    const contents = [];
+    for (const m of payload.messages || []) {
+      const role = m.role === "assistant" ? "model" : "user";
+      let text = "";
+      if (typeof m.content === "string") text = m.content;
+      else if (Array.isArray(m.content)) text = m.content.map(b => (b && b.text) || "").join("\n");
+      else if (m.content && m.content.text) text = m.content.text;
+      contents.push({ role, parts: [{ text }] });
+    }
+    const reqBody = {
+      contents,
+      generationConfig: { maxOutputTokens: payload.max_tokens || 1024, temperature: 0.7 },
+    };
+    if (payload.system) {
+      const sysText = typeof payload.system === "string"
+        ? payload.system
+        : (Array.isArray(payload.system)
+            ? payload.system.map(s => (typeof s === "string" ? s : (s && s.text) || "")).join("\n\n")
+            : (payload.system.text || ""));
+      if (sysText) reqBody.systemInstruction = { parts: [{ text: sysText }] };
+    }
+    const body = JSON.stringify(reqBody);
+    const r = https.request({
+      hostname: "generativelanguage.googleapis.com",
+      path: `/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    }, resp => {
+      let buf = "";
+      resp.on("data", c => buf += c);
+      resp.on("end", () => {
+        try {
+          const parsed = JSON.parse(buf);
+          if (resp.statusCode >= 400) { resolve({ status: resp.statusCode, body: parsed }); return; }
+          const cand = (parsed.candidates && parsed.candidates[0]) || {};
+          const parts = (cand.content && cand.content.parts) || [];
+          const text = parts.map(p => p.text || "").join("");
+          const um = parsed.usageMetadata || {};
+          resolve({
+            status: 200,
+            body: {
+              content: [{ type: "text", text }],
+              model,
+              usage: {
+                input_tokens: um.promptTokenCount || 0,
+                output_tokens: um.candidatesTokenCount || 0,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+              },
+            },
+          });
+        } catch (e) {
+          resolve({ status: resp.statusCode, body: { error: buf } });
+        }
+      });
+    });
+    r.on("error", reject);
+    r.write(body);
+    r.end();
+  });
+}
+
+// Ollama — local LLM (default http://localhost:11434), OpenAI-compatible
+// endpoint. Same normalization as postXAI so the client never has to care.
+function postOllama(payload) {
+  return new Promise((resolve, reject) => {
+    const oaiMessages = [];
+    if (payload.system) oaiMessages.push({ role: "system", content: payload.system });
+    for (const m of payload.messages || []) oaiMessages.push(m);
+    const fallbackModel = process.env.OLLAMA_MODEL
+      || (OLLAMA_STATUS.models[0] && OLLAMA_STATUS.models[0].id)
+      || "qwen2.5:14b-instruct-q4_K_M";
+    const body = JSON.stringify({
+      model: payload.model || fallbackModel,
       messages: oaiMessages,
       max_tokens: payload.max_tokens || 1024,
       stream: false,
     });
-    const r = http.request({
-      hostname: "localhost",
-      port: 11434,
+    const transport = OLLAMA_PROTO === "https" ? https : http;
+    const r = transport.request({
+      hostname: OLLAMA_HOST,
+      port: OLLAMA_PORT,
       path: "/v1/chat/completions",
       method: "POST",
       headers: {
@@ -238,7 +411,7 @@ function postOllama(payload) {
         }
       });
     });
-    r.on("error", () => resolve({ status: 503, body: { error: "Ollama not reachable on localhost:11434" } }));
+    r.on("error", () => resolve({ status: 503, body: { error: `Ollama not reachable at ${OLLAMA_URL}` } }));
     r.write(body);
     r.end();
   });
@@ -249,8 +422,9 @@ function postOllama(payload) {
 let OLLAMA_STATUS = { ok: false, models: [], lastProbe: 0 };
 function probeOllama() {
   return new Promise((resolve) => {
-    const r = http.request({
-      hostname: "localhost", port: 11434, path: "/api/tags", method: "GET",
+    const transport = OLLAMA_PROTO === "https" ? https : http;
+    const r = transport.request({
+      hostname: OLLAMA_HOST, port: OLLAMA_PORT, path: "/api/tags", method: "GET",
     }, resp => {
       let buf = "";
       resp.on("data", c => buf += c);
@@ -447,11 +621,131 @@ function handleDataApi(req, res, urlObj) {
   return true;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// BTC donation → free Haiku pool
+// On-chain BTC verified via blockstream.info (mainnet) or its testnet
+// endpoint when CODEX_BTC_TESTNET=1. Each verified tx unlocks a token
+// quota of Haiku tokens redeemable through the server's pool API key.
+// ─────────────────────────────────────────────────────────────────────
+
+const DONATION_BTC_ADDRESS = process.env.DONATION_BTC_ADDRESS || "";
+const BTC_TESTNET = process.env.CODEX_BTC_TESTNET === "1";
+const BTC_HOST = "blockstream.info";
+const BTC_API_BASE = BTC_TESTNET ? "/testnet/api" : "/api";
+const USD_PER_BTC_HOST = "mempool.space";
+const TOKENS_PER_USD = 250_000;
+const HAIKU_MODEL_ID = "claude-haiku-4-5-20251001";
+
+const DONATIONS_DIR = path.join(DIR, "data");
+const DONATIONS_FILE = path.join(DONATIONS_DIR, "donations.json");
+const DONATIONS_AUDIT = path.join(DONATIONS_DIR, "donations.audit.log");
+
+function loadDonations() {
+  try { return JSON.parse(fs.readFileSync(DONATIONS_FILE, "utf8")); }
+  catch { return {}; }
+}
+function saveDonations(map) {
+  try { fs.mkdirSync(DONATIONS_DIR, { recursive: true }); } catch {}
+  const tmp = DONATIONS_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(map, null, 2));
+  fs.renameSync(tmp, DONATIONS_FILE);
+}
+function auditLog(line) {
+  try { fs.appendFileSync(DONATIONS_AUDIT, `${new Date().toISOString()} ${line}\n`); } catch {}
+}
+
+let DONATIONS = loadDonations();
+// Secondary index: token -> tx_hash, built lazily for O(1) chat lookups.
+const TOKEN_INDEX = new Map();
+for (const [tx, rec] of Object.entries(DONATIONS)) {
+  if (rec && rec.token) TOKEN_INDEX.set(rec.token, tx);
+}
+
+// Cache for tx + price lookups (60s tx, 5min price).
+const BTC_CACHE = { tx: new Map(), price: { value: 0, ts: 0 } };
+function httpsGetJson(host, p) {
+  return new Promise((resolve) => {
+    const r = https.request({ hostname: host, path: p, method: "GET", headers: { "User-Agent": "codex-server/1.0" } }, resp => {
+      let buf = "";
+      resp.on("data", c => buf += c);
+      resp.on("end", () => {
+        if (resp.statusCode === 404) return resolve({ status: 404, body: null });
+        try { resolve({ status: resp.statusCode, body: JSON.parse(buf) }); }
+        catch { resolve({ status: resp.statusCode, body: null, raw: buf }); }
+      });
+    });
+    r.on("error", () => resolve({ status: 0, body: null }));
+    r.setTimeout(8000, () => { r.destroy(); resolve({ status: 0, body: null }); });
+    r.end();
+  });
+}
+async function fetchTx(txHash) {
+  const cached = BTC_CACHE.tx.get(txHash);
+  if (cached && Date.now() - cached.ts < 60_000) return cached.value;
+  const r = await httpsGetJson(BTC_HOST, `${BTC_API_BASE}/tx/${txHash}`);
+  BTC_CACHE.tx.set(txHash, { value: r, ts: Date.now() });
+  return r;
+}
+async function fetchBtcUsd() {
+  if (Date.now() - BTC_CACHE.price.ts < 5 * 60_000 && BTC_CACHE.price.value > 0) return BTC_CACHE.price.value;
+  const r = await httpsGetJson(USD_PER_BTC_HOST, "/api/v1/prices");
+  const usd = r.body && (r.body.USD || r.body.usd);
+  if (usd && Number.isFinite(usd)) {
+    BTC_CACHE.price = { value: usd, ts: Date.now() };
+    return usd;
+  }
+  return BTC_CACHE.price.value || 0;
+}
+
+// Per-IP rate limit for claim endpoint: 5/min.
+const BTC_RATE = new Map();
+function btcClaimRate(ip) {
+  const now = Date.now();
+  const e = BTC_RATE.get(ip);
+  if (!e || now - e.start > 60_000) { BTC_RATE.set(ip, { count: 1, start: now }); return true; }
+  e.count++;
+  return e.count <= 5;
+}
+
+function clientIp(req) {
+  return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown").toString().split(",")[0].trim();
+}
+
+function findDonationToken(req) {
+  const auth = req.headers["authorization"] || "";
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  const token = m[1].trim();
+  const tx = TOKEN_INDEX.get(token);
+  if (!tx) return null;
+  const rec = DONATIONS[tx];
+  if (!rec || rec.token !== token) return null;
+  return { tx, rec };
+}
+
+function estimateTokens(payload, respText, usage) {
+  if (usage && (usage.input_tokens || usage.output_tokens)) {
+    return (usage.input_tokens || 0) + (usage.output_tokens || 0)
+      + (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0);
+  }
+  // Fallback: ~4 chars per token estimate.
+  let chars = 0;
+  const sys = payload.system;
+  if (typeof sys === "string") chars += sys.length;
+  for (const m of payload.messages || []) {
+    const c = m.content;
+    if (typeof c === "string") chars += c.length;
+    else if (Array.isArray(c)) for (const b of c) chars += ((b && b.text) || "").length;
+  }
+  chars += (respText || "").length;
+  return Math.ceil(chars / 4);
+}
+
 const server = http.createServer(async (req, res) => {
   // CORS for localhost dev
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
   // Phase 5.4 public Data API (GET /api/v1/*). Returns true if handled.
@@ -470,9 +764,11 @@ const server = http.createServer(async (req, res) => {
       model: MODEL,
       usage: USAGE,
       providers: {
-        anthropic: { available: !!API_KEY, models: PROVIDERS.anthropic.models },
-        xai:       { available: !!XAI_KEY, models: PROVIDERS.xai.models },
-        ollama:    { available: OLLAMA_STATUS.ok, models: PROVIDERS.ollama.models },
+        anthropic: { available: !!API_KEY,    models: PROVIDERS.anthropic.models },
+        xai:       { available: !!XAI_KEY,    models: PROVIDERS.xai.models },
+        groq:      { available: !!GROQ_KEY,   models: PROVIDERS.groq.models },
+        gemini:    { available: !!GEMINI_KEY, models: PROVIDERS.gemini.models },
+        ollama:    { available: OLLAMA_STATUS.ok, url: OLLAMA_URL, models: PROVIDERS.ollama.models },
       },
     }));
     return;
@@ -484,21 +780,30 @@ const server = http.createServer(async (req, res) => {
       const parsed = JSON.parse(raw);
       const key = parsed.key;
       // Accept an explicit provider, else infer from the key prefix.
-      // Anthropic keys start with "sk-ant-", xAI keys start with "xai-".
+      // Anthropic: "sk-ant-"; xAI Grok: "xai-"; Groq: "gsk_"; Gemini: "AIza"
+      // (Gemini keys without that prefix must pass provider explicitly).
       let provider = parsed.provider;
       if (!provider) {
         if (key && key.startsWith("xai-")) provider = "xai";
+        else if (key && key.startsWith("gsk_")) provider = "groq";
+        else if (key && key.startsWith("AIza")) provider = "gemini";
         else if (key && key.startsWith("sk-ant-")) provider = "anthropic";
         else if (key && key.startsWith("sk-")) provider = "anthropic";
       }
-      if (!key || (provider !== "anthropic" && provider !== "xai")) {
+      if (!key || (provider !== "anthropic" && provider !== "xai" && provider !== "groq" && provider !== "gemini")) {
         res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid key — expected Anthropic (sk-ant-…) or xAI (xai-…) key" }));
+        res.end(JSON.stringify({ error: "Invalid key — expected Anthropic (sk-ant-…), xAI (xai-…), Groq (gsk_…) or Gemini (AIza…) key" }));
         return;
       }
       const trimmed = key.trim();
-      const envVar = provider === "xai" ? "XAI_API_KEY" : "ANTHROPIC_API_KEY";
-      if (provider === "xai") XAI_KEY = trimmed; else API_KEY = trimmed;
+      const envVar = provider === "xai" ? "XAI_API_KEY"
+                   : provider === "groq" ? "GROQ_API_KEY"
+                   : provider === "gemini" ? "GEMINI_API_KEY"
+                   : "ANTHROPIC_API_KEY";
+      if (provider === "xai") XAI_KEY = trimmed;
+      else if (provider === "groq") GROQ_KEY = trimmed;
+      else if (provider === "gemini") GEMINI_KEY = trimmed;
+      else API_KEY = trimmed;
       // Persist to .env for next restart so the user only enters it once.
       try {
         const envPath = path.join(DIR, ".env");
@@ -523,10 +828,194 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── BTC donation endpoints ─────────────────────────────────────────
+  if (req.url === "/api/btc-info" && req.method === "GET") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      address: DONATION_BTC_ADDRESS || "",
+      configured: !!DONATION_BTC_ADDRESS,
+      testnet: BTC_TESTNET,
+      min_usd: 1,
+      tokens_per_usd: TOKENS_PER_USD,
+      model: HAIKU_MODEL_ID,
+    }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/btc-status") && req.method === "GET") {
+    const u = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    const token = (u.searchParams.get("token") || "").trim();
+    const tx = TOKEN_INDEX.get(token);
+    const rec = tx ? DONATIONS[tx] : null;
+    if (!rec || rec.token !== token) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "token not found" }));
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      remaining_tokens: rec.remaining_tokens,
+      total_tokens: rec.total_tokens,
+      claimed_at: rec.claimed_at,
+      model: HAIKU_MODEL_ID,
+    }));
+    return;
+  }
+
+  if (req.url === "/api/btc-claim" && req.method === "POST") {
+    try {
+      const ip = clientIp(req);
+      if (!btcClaimRate(ip)) {
+        res.writeHead(429, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "rate limit exceeded, try again in a minute" }));
+        return;
+      }
+      if (!DONATION_BTC_ADDRESS) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "donation address not configured on server" }));
+        return;
+      }
+      const raw = await readBody(req);
+      const body = JSON.parse(raw || "{}");
+      const txHash = String(body.tx_hash || "").trim().toLowerCase();
+      const claimerEmail = body.claimer_email ? String(body.claimer_email).trim().slice(0, 200) : "";
+      if (!/^[0-9a-f]{64}$/.test(txHash)) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "invalid tx_hash format" }));
+        return;
+      }
+
+      // Recovery: existing record returns same token + current quota.
+      if (DONATIONS[txHash]) {
+        const rec = DONATIONS[txHash];
+        auditLog(`recover ip=${ip} tx=${txHash.slice(0,8)}…`);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          ok: true, status: "recovered",
+          token: rec.token,
+          total_tokens: rec.total_tokens,
+          remaining_tokens: rec.remaining_tokens,
+          sats: rec.sats, btc_usd: rec.btc_usd,
+        }));
+        return;
+      }
+
+      const txResp = await fetchTx(txHash);
+      if (txResp.status === 404 || !txResp.body) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "tx not found" }));
+        return;
+      }
+      const tx = txResp.body;
+      const confirmed = !!(tx.status && tx.status.confirmed);
+      if (!confirmed) {
+        res.writeHead(402, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "tx unconfirmed" }));
+        return;
+      }
+      let sats = 0;
+      for (const out of tx.vout || []) {
+        if (out && out.scriptpubkey_address === DONATION_BTC_ADDRESS) sats += (out.value || 0);
+      }
+      if (sats <= 0) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "tx does not send to donation address" }));
+        return;
+      }
+      const btcUsd = await fetchBtcUsd();
+      if (!btcUsd) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "could not fetch BTC/USD price, try again" }));
+        return;
+      }
+      const usdValue = (sats / 1e8) * btcUsd;
+      const totalTokens = Math.floor(usdValue * TOKENS_PER_USD);
+      if (totalTokens < 1) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "donation too small, minimum $1 USD equivalent" }));
+        return;
+      }
+      const token = crypto.randomBytes(24).toString("base64url");
+      const rec = {
+        tx_hash: txHash,
+        token,
+        total_tokens: totalTokens,
+        remaining_tokens: totalTokens,
+        sats,
+        btc_usd: btcUsd,
+        claimed_at: new Date().toISOString(),
+        claimer_email: claimerEmail || undefined,
+        confirmed_block: (tx.status && tx.status.block_height) || null,
+      };
+      DONATIONS[txHash] = rec;
+      TOKEN_INDEX.set(token, txHash);
+      saveDonations(DONATIONS);
+      auditLog(`new ip=${ip} sats=${sats} usd=${usdValue.toFixed(2)} tokens=${totalTokens}`);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        ok: true, status: "new",
+        token,
+        total_tokens: totalTokens,
+        remaining_tokens: totalTokens,
+        sats, btc_usd: btcUsd,
+      }));
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+
   if (req.url === "/api/chat" && req.method === "POST") {
     try {
       const raw = await readBody(req);
       const { system, messages, max_tokens, model, provider: reqProvider } = JSON.parse(raw);
+
+      // BTC donation token short-circuit: forces Haiku on the pool key.
+      const donation = findDonationToken(req);
+      if (donation) {
+        if (donation.rec.remaining_tokens <= 0) {
+          res.writeHead(402, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "donation quota exhausted", remaining_tokens: 0 }));
+          return;
+        }
+        if (!API_KEY) {
+          res.writeHead(503, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "donation pool unavailable: server has no ANTHROPIC_API_KEY configured" }));
+          return;
+        }
+        const payload = {
+          model: HAIKU_MODEL_ID,
+          max_tokens: max_tokens || 1024,
+          system: system || undefined,
+          messages: messages || [],
+        };
+        const resp = await postAnthropic(payload);
+        if (resp.status >= 400) {
+          res.writeHead(resp.status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(resp.body));
+          return;
+        }
+        const text = (resp.body.content || []).filter(c => c.type === "text").map(c => c.text).join("");
+        const u = resp.body.usage || {};
+        const spent = estimateTokens(payload, text, u);
+        donation.rec.remaining_tokens = Math.max(0, donation.rec.remaining_tokens - spent);
+        DONATIONS[donation.tx] = donation.rec;
+        saveDonations(DONATIONS);
+        USAGE.input += u.input_tokens || 0;
+        USAGE.output += u.output_tokens || 0;
+        USAGE.cache_create += u.cache_creation_input_tokens || 0;
+        USAGE.cache_read += u.cache_read_input_tokens || 0;
+        USAGE.calls += 1;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          text, model: resp.body.model, provider: "anthropic", usage: u,
+          donation_remaining: donation.rec.remaining_tokens,
+          donation_spent: spent,
+        }));
+        return;
+      }
+
 
       // Resolve provider: explicit request wins, else infer from model id,
       // else fall back to anthropic (legacy behavior).
@@ -552,6 +1041,16 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "No XAI_API_KEY set. Add it via Settings → AI Model, or set in .env." }));
         return;
       }
+      if (provider === "groq" && !GROQ_KEY) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "No GROQ_API_KEY set. Add it via Settings → AI Model, or set in .env." }));
+        return;
+      }
+      if (provider === "gemini" && !GEMINI_KEY) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "No GEMINI_API_KEY set. Add it via Settings → AI Model, or set in .env." }));
+        return;
+      }
 
       const payload = {
         model: chosenModel,
@@ -561,7 +1060,9 @@ const server = http.createServer(async (req, res) => {
       };
 
       let resp;
-      if (provider === "xai")        resp = await postXAI(payload);
+      if (provider === "xai")         resp = await postXAI(payload);
+      else if (provider === "groq")   resp = await postGroq(payload);
+      else if (provider === "gemini") resp = await postGemini(payload);
       else if (provider === "ollama") resp = await postOllama(payload);
       else                            resp = await postAnthropic(payload);
 
@@ -612,7 +1113,9 @@ server.listen(PORT, "0.0.0.0", async () => {
   console.log(`│  providers:`);
   console.log(`│    · anthropic  ${API_KEY ? "✓ key set" : "✗ no key  (set ANTHROPIC_API_KEY)"}`);
   console.log(`│    · xai/grok   ${XAI_KEY ? "✓ key set" : "✗ no key  (set XAI_API_KEY)"}`);
-  console.log(`│    · ollama     ${OLLAMA_STATUS.ok ? `✓ ${OLLAMA_STATUS.models.length} local model(s)` : "✗ not running on :11434"}`);
+  console.log(`│    · groq       ${GROQ_KEY ? "✓ key set" : "✗ no key  (set GROQ_API_KEY)"}`);
+  console.log(`│    · gemini     ${GEMINI_KEY ? "✓ key set" : "✗ no key  (set GEMINI_API_KEY)"}`);
+  console.log(`│    · ollama     ${OLLAMA_STATUS.ok ? `✓ ${OLLAMA_STATUS.models.length} local model(s) @ ${OLLAMA_URL}` : `✗ not running @ ${OLLAMA_URL}`}`);
   console.log(`│`);
   console.log(`│  desktop: http://localhost:${PORT}`);
   for (const a of lan) console.log(`│  phone:   http://${a.address}:${PORT}   (${a.iface})`);

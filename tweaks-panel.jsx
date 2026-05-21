@@ -885,13 +885,15 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
   const PROVIDERS = [
     { id: "anthropic", label: "Anthropic", sub: "Claude" },
     { id: "xai",       label: "xAI",       sub: "Grok"   },
+    { id: "groq",      label: "Groq",      sub: "free"   },
+    { id: "gemini",    label: "Gemini",    sub: "Google" },
     { id: "ollama",    label: "Local",     sub: "Ollama" },
   ];
 
   const reg = availableProviders || {};
   const curReg = reg[provider] || { available: false, models: [] };
   const models = curReg.models || [];
-  const needsKey = (provider === "anthropic" || provider === "xai") && !curReg.available;
+  const needsKey = (provider === "anthropic" || provider === "xai" || provider === "groq" || provider === "gemini") && !curReg.available;
 
   // When the user flips provider, snap model to the first available one so
   // we never POST a stale model id from a different provider.
@@ -911,8 +913,10 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
   const tooltipFor = (p) => {
     const r = reg[p];
     if (r && r.available) return `Use ${p}`;
-    if (p === "ollama")   return "Local: no Ollama detected on :11434";
+    if (p === "ollama")   return "Local: no Ollama detected (start the daemon)";
     if (p === "xai")      return "xAI: no key configured";
+    if (p === "groq")     return "Groq: no key configured — get a free key at console.groq.com";
+    if (p === "gemini")   return "Gemini: no key configured — get a free key at aistudio.google.com/apikey";
     if (p === "anthropic") return "Anthropic: no key configured";
     return "";
   };
@@ -1010,7 +1014,10 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
       {needsKey && (
         <div className="cx-tp-key">
           <label className="cx-tp-key-lbl">
-            {provider === "xai" ? "xAI API key (xai-…)" : "Anthropic API key (sk-ant-…)"}
+            {provider === "xai"  ? "xAI API key (xai-…)"
+             : provider === "groq" ? "Groq API key (gsk_…)"
+             : provider === "gemini" ? "Gemini API key (AIza… / aistudio.google.com)"
+             : "Anthropic API key (sk-ant-…)"}
             {keyMsg ? <em className={`cx-tp-key-msg ${keyMsg.startsWith("✓") ? "is-ok" : "is-err"}`}>{keyMsg}</em> : null}
           </label>
           <div className="cx-tp-key-row">
@@ -1018,7 +1025,7 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
               className="cx-tp-key-input"
               type="password"
               value={keyInput}
-              placeholder={provider === "xai" ? "xai-…" : "sk-ant-…"}
+              placeholder={provider === "xai" ? "xai-…" : provider === "groq" ? "gsk_…" : provider === "gemini" ? "AIza…" : "sk-ant-…"}
               onChange={(e) => setKeyInput(e.target.value)}
               autoComplete="off"
               spellCheck={false}

@@ -78,6 +78,16 @@ node server.js
 
 Or just open the hosted build: **https://holasoyneto.github.io/codex**
 
+### Connecting an AI engine
+
+CODEX speaks to five providers — pick whichever you like, mix and match, or run them all. Keys live only in your browser (`localStorage`) and the optional `.env` for the local Node server.
+
+- **Anthropic Claude** *(paid, highest quality)* — get a key at [console.anthropic.com](https://console.anthropic.com/settings/keys), drop it into Settings → API keys (starts with `sk-ant-…`). Best for nuanced exegesis and long contexts.
+- **xAI Grok** *(paid)* — sign up at [console.x.ai](https://console.x.ai), paste the `xai-…` key. Fast, conversational.
+- **Groq** *(free, very fast)* — different company from xAI's Grok. Free tier at [console.groq.com](https://console.groq.com) gives you Llama 3.3 70B, DeepSeek R1, Mixtral, and Qwen running on custom LPU silicon. Keys start with `gsk_…`. The fastest hosted option per token.
+- **Google Gemini** *(free, multimodal, 1M tokens/day)* — sign up at [aistudio.google.com/apikey](https://aistudio.google.com/apikey), paste the key into Settings → API keys. No prefix pattern — just a long alphanumeric string. Best free tier for image + audio inputs (when we expose those).
+- **Ollama** *(local, free, private)* — install from [ollama.com](https://ollama.com), `ollama pull llama3.2`, then start the daemon. CODEX auto-detects it on `http://localhost:11434`. No key, no network — everything runs on your machine.
+
 ## Tech
 
 Single-page React 18 app loaded via CDN with Babel-standalone — there is no build step, no bundler, no `node_modules` graveyard. Persistence lives in IndexedDB; offline lives in a Service Worker; translations stream from public-domain APIs and cache locally. The plugin system means every companion panel (gematria, Talmud, gnosis, Oracle) is a drop-in JSX module. Fork the repo, open `index.html`, and you're already running it.

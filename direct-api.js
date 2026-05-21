@@ -18,6 +18,11 @@
 (function () {
   const KEYS_LS = "codex.api.keys.v1";   // shared with app.jsx ApiKeysSection
   const LEGACY_KEY_LS = "codex.anthropic.key.v1";  // pre-engine-switch fallback
+  const BTC_TOKEN_LS = "codex.btc.token.v1";       // donation-pool bearer token
+
+  function btcToken() {
+    try { return (localStorage.getItem(BTC_TOKEN_LS) || "").trim(); } catch { return ""; }
+  }
 
   const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
   const ANTHROPIC_VERSION = "2023-06-01";
@@ -39,44 +44,104 @@
     "claude-opus-4-7":           "grok-4",
   };
 
+  // Groq (groq.com — NOT xAI's Grok). OpenAI-compatible. Free tier.
+  const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+  const GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile";
+  const GROQ_MODEL_MAP = {
+    "claude-haiku-4-5-20251001": "llama-3.1-8b-instant",
+    "claude-sonnet-4-6":         "llama-3.3-70b-versatile",
+    "claude-opus-4-7":           "deepseek-r1-distill-llama-70b",
+    "grok-3-mini":               "llama-3.1-8b-instant",
+    "grok-3":                    "llama-3.3-70b-versatile",
+    "grok-4":                    "deepseek-r1-distill-llama-70b",
+  };
+  const GROQ_ALLOWED = new Set([
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768",
+    "deepseek-r1-distill-llama-70b",
+    "qwen-2.5-32b",
+  ]);
+
+  // Google Gemini — native generateContent (NOT OpenAI-shape). API key
+  // travels as a URL query param (?key=…), NOT a Bearer header. Roles
+  // differ from Anthropic: "assistant" must be translated to "model"
+  // in BOTH directions when shuttling messages back and forth.
+  const GEMINI_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+  const GEMINI_DEFAULT_MODEL = "gemini-2.0-flash";
+  const GEMINI_MODEL_MAP = {
+    "claude-haiku-4-5-20251001": "gemini-2.0-flash",
+    "claude-sonnet-4-6":         "gemini-2.5-flash",
+    "claude-opus-4-7":           "gemini-2.5-pro",
+    "grok-3-mini":               "gemini-2.0-flash",
+    "grok-3":                    "gemini-2.5-flash",
+    "grok-4":                    "gemini-2.5-pro",
+  };
+  const GEMINI_ALLOWED = new Set([
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash-thinking-exp",
+  ]);
+
+  // Ollama — local daemon. URL is user-configurable from Settings.
+  const OLLAMA_URL_KEY   = "codex.ollama.url.v1";
+  const OLLAMA_MODEL_KEY = "codex.ollama.model.v1";
+  const OLLAMA_DEFAULT_URL = "http://localhost:11434";
+  function loadOllamaConfig() {
+    let url = OLLAMA_DEFAULT_URL, model = "";
+    try { url = (localStorage.getItem(OLLAMA_URL_KEY) || OLLAMA_DEFAULT_URL).replace(/\/+$/, ""); } catch {}
+    try { model = localStorage.getItem(OLLAMA_MODEL_KEY) || ""; } catch {}
+    return { url, model };
+  }
+
+  const VALID_ENGINES = new Set(["anthropic", "grok", "groq", "gemini", "ollama"]);
   function loadKeys() {
-    let out = { active: "anthropic", anthropic: "", grok: "" };
+    let out = { active: "anthropic", anthropic: "", grok: "", groq: "", gemini: "" };
     try {
       const raw = JSON.parse(localStorage.getItem(KEYS_LS) || "null");
       if (raw && typeof raw === "object") out = { ...out, ...raw };
     } catch {}
-    // Fallback to the legacy single-key store if a key was set under the
-    // old shim before the engine switcher landed.
     if (!out.anthropic) {
       try { out.anthropic = localStorage.getItem(LEGACY_KEY_LS) || ""; } catch {}
     }
-    // Defensive: paste from password managers / mobile keyboards frequently
-    // leaves trailing whitespace or a stray newline. Anthropic rejects such
-    // keys with "invalid x-api-key" — which is exactly the user-reported bug
-    // where the key looked saved but every page load failed until they
-    // re-Applied (the apply path happened to trim via handleKey).
     out.anthropic = String(out.anthropic || "").trim();
     out.grok = String(out.grok || "").trim();
-    // Auto-correct `active` if it points at a side with no key but the other
-    // side has one — e.g. user pasted only an xai- key but never tapped the
-    // Grok tab in Settings. Previously activeKey() returned "" and chat 503'd
-    // with "no Anthropic key", forcing a manual fix every session.
-    if (out.active === "grok" && !out.grok && out.anthropic) out.active = "anthropic";
-    if (out.active === "anthropic" && !out.anthropic && out.grok) out.active = "grok";
-    // Infer from prefix if active was never set sanely.
-    if (out.active !== "grok" && out.active !== "anthropic") {
-      out.active = out.grok && !out.anthropic ? "grok" : "anthropic";
+    out.groq = String(out.groq || "").trim();
+    out.gemini = String(out.gemini || "").trim();
+    // Auto-correct active when it points at an empty side.
+    const hasFor = (a) => a === "ollama" ? true /* keyless */
+      : a === "groq" ? !!out.groq
+      : a === "grok" ? !!out.grok
+      : a === "gemini" ? !!out.gemini
+      : !!out.anthropic;
+    if (!VALID_ENGINES.has(out.active) || (out.active !== "ollama" && !hasFor(out.active))) {
+      // Prefer the first engine the user actually has set up. Gemini keys
+      // don't have a single fixed prefix (usually AIza but not always), so
+      // we don't try to infer from prefix — the user picks the tab manually.
+      if (out.groq && out.groq.startsWith("gsk_")) out.active = "groq";
+      else if (out.grok) out.active = "grok";
+      else if (out.gemini) out.active = "gemini";
+      else if (out.anthropic) out.active = "anthropic";
+      // Else leave whatever was there; UI can flip to ollama explicitly.
     }
     return out;
   }
-  function activeEngine() { return loadKeys().active === "grok" ? "grok" : "anthropic"; }
+  function activeEngine() {
+    const a = loadKeys().active;
+    return VALID_ENGINES.has(a) ? a : "anthropic";
+  }
   function activeKey() {
     const k = loadKeys();
-    return k.active === "grok" ? (k.grok || "") : (k.anthropic || "");
+    if (k.active === "grok")   return k.grok || "";
+    if (k.active === "groq")   return k.groq || "";
+    if (k.active === "gemini") return k.gemini || "";
+    if (k.active === "ollama") return ""; // keyless
+    return k.anthropic || "";
   }
   function hasAnyKey() {
     const k = loadKeys();
-    return !!(k.anthropic || k.grok);
+    return !!(k.anthropic || k.grok || k.groq || k.gemini);
   }
 
   function jsonResponse(body, status = 200) {
@@ -87,13 +152,28 @@
   }
 
   async function handleHealth() {
+    const eng = activeEngine();
+    const k = loadKeys();
+    const oll = loadOllamaConfig();
+    const defaultModel = eng === "grok" ? XAI_DEFAULT_MODEL
+      : eng === "groq" ? GROQ_DEFAULT_MODEL
+      : eng === "gemini" ? GEMINI_DEFAULT_MODEL
+      : eng === "ollama" ? (oll.model || "")
+      : ANTHROPIC_DEFAULT_MODEL;
     return jsonResponse({
       ok: true,
-      hasKey: !!activeKey(),
-      engine: activeEngine(),
-      model: activeEngine() === "grok" ? XAI_DEFAULT_MODEL : ANTHROPIC_DEFAULT_MODEL,
+      hasKey: !!activeKey() || eng === "ollama",
+      engine: eng,
+      model: defaultModel,
       mode: "direct",
       usage: { input: 0, output: 0, cache_read: 0, cache_create: 0, calls: 0 },
+      providers: {
+        anthropic: { available: !!k.anthropic, models: [] },
+        xai:       { available: !!k.grok,      models: [] },
+        groq:      { available: !!k.groq,      models: Array.from(GROQ_ALLOWED).map(id => ({ id, label: id })) },
+        gemini:    { available: !!k.gemini,    models: Array.from(GEMINI_ALLOWED).map(id => ({ id, label: id })) },
+        ollama:    { available: false, url: oll.url, models: [] }, // probed by UI
+      },
     });
   }
 
@@ -106,18 +186,23 @@
       const body = JSON.parse(init.body || "{}");
       const key = (body.key || "").trim();
       // Infer provider from key prefix (matches server.js behavior) so the
-      // inline "set key" UI can accept either Anthropic or Grok keys.
+      // inline "set key" UI can accept any of the keyed providers.
       let provider = body.provider;
+      if (provider === "xai") provider = "grok"; // server uses "xai", client uses "grok"
       if (!provider) {
         if (key.startsWith("xai-")) provider = "grok";
+        else if (key.startsWith("gsk_")) provider = "groq";
+        else if (key.startsWith("AIza")) provider = "gemini";
         else if (key.startsWith("sk-")) provider = "anthropic";
       }
-      if (!key || (provider !== "anthropic" && provider !== "grok")) {
-        return jsonResponse({ error: "Invalid key — expected Anthropic (sk-…) or xAI (xai-…) key" }, 400);
+      if (!key || (provider !== "anthropic" && provider !== "grok" && provider !== "groq" && provider !== "gemini")) {
+        return jsonResponse({ error: "Invalid key — expected Anthropic (sk-…), xAI (xai-…), Groq (gsk_…) or Gemini (AIza…) key" }, 400);
       }
       const cur = loadKeys();
       const next = { ...cur };
-      if (provider === "grok") { next.grok = key; next.active = "grok"; }
+      if (provider === "grok")        { next.grok = key; next.active = "grok"; }
+      else if (provider === "groq")   { next.groq = key; next.active = "groq"; }
+      else if (provider === "gemini") { next.gemini = key; next.active = "gemini"; }
       else { next.anthropic = key; next.active = "anthropic"; try { localStorage.setItem(LEGACY_KEY_LS, key); } catch {} }
       try { localStorage.setItem(KEYS_LS, JSON.stringify(next)); } catch {}
       return jsonResponse({ ok: true, hasKey: true, engine: provider });
@@ -220,12 +305,163 @@
     };
   }
 
+  // Groq — OpenAI-shape, Bearer gsk_… key. Mirror of callGrok with a
+  // different URL + default model.
+  async function callGroq(payload, key) {
+    const requested = payload.model;
+    const model = GROQ_ALLOWED.has(requested)
+      ? requested
+      : (GROQ_MODEL_MAP[requested] || GROQ_DEFAULT_MODEL);
+    const sys = flattenSystem(payload.system);
+    const messages = [];
+    if (sys) messages.push({ role: "system", content: sys });
+    for (const m of (payload.messages || [])) {
+      messages.push({ role: m.role, content: flattenContent(m.content) });
+    }
+    const resp = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + key,
+      },
+      body: JSON.stringify({ model, max_tokens: payload.max_tokens || 1024, messages, stream: false }),
+    });
+    let data;
+    try { data = await resp.json(); }
+    catch { return { status: 502, body: { error: "Groq returned non-JSON" } }; }
+    if (!resp.ok) {
+      const msg = (data && data.error && (data.error.message || data.error)) || `HTTP ${resp.status}`;
+      return { status: resp.status, body: { error: typeof msg === "string" ? msg : JSON.stringify(msg) } };
+    }
+    const text = (((data.choices || [])[0] || {}).message || {}).content || "";
+    const u = data.usage || {};
+    return {
+      status: 200,
+      body: {
+        text, model: data.model,
+        usage: { input_tokens: u.prompt_tokens || 0, output_tokens: u.completion_tokens || 0 },
+        engine: "groq",
+      },
+    };
+  }
+
+  // Google Gemini — native generateContent. Key is a URL query param.
+  // Anthropic "assistant" role → Gemini "model" role.
+  // System prompt rides in `systemInstruction`, not the messages array.
+  async function callGemini(payload, key) {
+    const requested = payload.model;
+    const model = GEMINI_ALLOWED.has(requested)
+      ? requested
+      : (GEMINI_MODEL_MAP[requested] || GEMINI_DEFAULT_MODEL);
+    const sys = flattenSystem(payload.system);
+    const contents = [];
+    for (const m of (payload.messages || [])) {
+      const role = m.role === "assistant" ? "model" : "user";
+      contents.push({ role, parts: [{ text: flattenContent(m.content) }] });
+    }
+    const reqBody = {
+      contents,
+      generationConfig: { maxOutputTokens: payload.max_tokens || 1024, temperature: 0.7 },
+    };
+    if (sys) reqBody.systemInstruction = { parts: [{ text: sys }] };
+    const url = `${GEMINI_URL_BASE}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+    let resp;
+    try {
+      resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reqBody),
+      });
+    } catch (e) {
+      return { status: 503, body: { error: "Gemini unreachable: " + String(e.message || e) } };
+    }
+    let data;
+    try { data = await resp.json(); }
+    catch { return { status: 502, body: { error: "Gemini returned non-JSON" } }; }
+    if (!resp.ok) {
+      const msg = (data && data.error && (data.error.message || data.error)) || `HTTP ${resp.status}`;
+      return { status: resp.status, body: { error: typeof msg === "string" ? msg : JSON.stringify(msg) } };
+    }
+    const cand = (data.candidates || [])[0] || {};
+    const parts = (cand.content && cand.content.parts) || [];
+    const text = parts.map(p => p.text || "").join("");
+    const um = data.usageMetadata || {};
+    return {
+      status: 200,
+      body: {
+        text, model,
+        usage: { input_tokens: um.promptTokenCount || 0, output_tokens: um.candidatesTokenCount || 0 },
+        engine: "gemini",
+      },
+    };
+  }
+
+  // Ollama — direct browser→localhost POST. No auth header. Only works when
+  // the browser, the Ollama daemon, and the user are all on the same host
+  // (or the daemon is exposed on the LAN and CORS-permitted).
+  async function callOllama(payload) {
+    const { url, model: defaultModel } = loadOllamaConfig();
+    const model = payload.model || defaultModel || "llama3.2";
+    const sys = flattenSystem(payload.system);
+    const messages = [];
+    if (sys) messages.push({ role: "system", content: sys });
+    for (const m of (payload.messages || [])) {
+      messages.push({ role: m.role, content: flattenContent(m.content) });
+    }
+    let resp;
+    try {
+      resp = await fetch(url + "/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, max_tokens: payload.max_tokens || 1024, messages, stream: false }),
+      });
+    } catch (e) {
+      return { status: 503, body: { error: "Ollama not reachable at " + url + " — is the daemon running?" } };
+    }
+    let data;
+    try { data = await resp.json(); }
+    catch { return { status: 502, body: { error: "Ollama returned non-JSON" } }; }
+    if (!resp.ok) {
+      const msg = (data && data.error && (data.error.message || data.error)) || `HTTP ${resp.status}`;
+      return { status: resp.status, body: { error: typeof msg === "string" ? msg : JSON.stringify(msg) } };
+    }
+    const text = (((data.choices || [])[0] || {}).message || {}).content || "";
+    return {
+      status: 200,
+      body: {
+        text, model: data.model || model,
+        usage: { input_tokens: 0, output_tokens: 0 },
+        engine: "ollama",
+      },
+    };
+  }
+
   async function handleChat(init) {
-    const engine = activeEngine();
-    const key = activeKey();
-    if (!key) {
+    let payloadPreview = {};
+    try { payloadPreview = JSON.parse(init.body || "{}"); } catch {}
+    // Explicit per-request provider wins over the persisted active engine.
+    // Server uses "xai", client storage uses "grok" — normalize.
+    let engine = payloadPreview.provider || activeEngine();
+    if (engine === "xai") engine = "grok";
+    if (!VALID_ENGINES.has(engine)) engine = activeEngine();
+    const k = loadKeys();
+    const key = engine === "grok" ? k.grok
+              : engine === "groq" ? k.groq
+              : engine === "gemini" ? k.gemini
+              : engine === "ollama" ? ""
+              : k.anthropic;
+    if (engine !== "ollama" && !key) {
+      if (btcToken()) {
+        return jsonResponse({
+          error: "Donation pool requires the hosted server. Use direct mode with your own key, or open the app from the Node server."
+        }, 503);
+      }
+      const label = engine === "grok" ? "Grok"
+                  : engine === "groq" ? "Groq"
+                  : engine === "gemini" ? "Gemini"
+                  : "Anthropic";
       return jsonResponse({
-        error: `No ${engine === "grok" ? "Grok" : "Anthropic"} API key set. Open Settings → API keys and Apply your key.`
+        error: `No ${label} API key set. Open Settings → API keys and Apply your key.`
       }, 503);
     }
     let payload;
@@ -234,9 +470,11 @@
 
     let result;
     try {
-      result = engine === "grok"
-        ? await callGrok(payload, key)
-        : await callAnthropic(payload, key);
+      result = engine === "grok"   ? await callGrok(payload, key)
+             : engine === "groq"   ? await callGroq(payload, key)
+             : engine === "gemini" ? await callGemini(payload, key)
+             : engine === "ollama" ? await callOllama(payload)
+             : await callAnthropic(payload, key);
     } catch (e) {
       return jsonResponse({ error: "Network error: " + String(e.message || e) }, 500);
     }
@@ -306,7 +544,21 @@
     if (!isApi) return originalFetch(input, init);
 
     if (DIRECT_MODE === null) DIRECT_MODE = await probeMode();
-    if (!DIRECT_MODE) return originalFetch(input, init);
+
+    // Donation pool: attach Bearer token to /api/chat when present and the
+    // user hasn't set their own active key (or pool is preferred).
+    const isChat = (url.replace(/^https?:\/\/[^/]+/, "") === "/api/chat");
+    const tok = btcToken();
+    if (!DIRECT_MODE) {
+      if (isChat && tok && !activeKey()) {
+        const opts2 = { ...(init || {}) };
+        const h = new Headers(opts2.headers || {});
+        if (!h.has("Authorization")) h.set("Authorization", "Bearer " + tok);
+        opts2.headers = h;
+        return originalFetch(input, opts2);
+      }
+      return originalFetch(input, init);
+    }
 
     const path = url.replace(/^https?:\/\/[^/]+/, "");
     const opts = init || (input && typeof input === "object" ? input : {});

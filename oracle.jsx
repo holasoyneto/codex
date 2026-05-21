@@ -953,6 +953,7 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
     const modelLabel = (m && m.label) || _model || "";
     if (_provider === "ollama") return `Local · ${modelLabel}`;
     if (_provider === "xai")    return `via Grok · ${modelLabel}`;
+    if (_provider === "groq")   return `via Groq · ${modelLabel}`;
     return `via ${modelLabel}`;
   })();
   const data = window.CODEX_DATA;

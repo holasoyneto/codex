@@ -91,18 +91,25 @@ async function _idbSetKeys(v) {
   } catch {}
 })();
 function loadApiKeys() {
-  let v = { active: "anthropic", anthropic: "", grok: "" };
+  let v = { active: "anthropic", anthropic: "", grok: "", groq: "", gemini: "" };
   try { v = { ...v, ...JSON.parse(localStorage.getItem(API_KEYS_STORE) || "null") }; } catch {}
-  // Trim — keys with trailing whitespace (common paste artifact) cause
-  // every direct-mode call to fail with "invalid x-api-key" even though
-  // the key reads as "saved" in the panel.
   v.anthropic = String(v.anthropic || "").trim();
-  v.grok = String(v.grok || "").trim();
-  // Make sure `active` actually points at a side that has a key, otherwise
-  // the very first /api/chat returns 503 "no key" until the user toggles.
-  if (v.active === "anthropic" && !v.anthropic && v.grok) v.active = "grok";
-  if (v.active === "grok" && !v.grok && v.anthropic) v.active = "anthropic";
-  if (v.active !== "anthropic" && v.active !== "grok") v.active = "anthropic";
+  v.grok      = String(v.grok      || "").trim();
+  v.groq      = String(v.groq      || "").trim();
+  v.gemini    = String(v.gemini    || "").trim();
+  const VALID = new Set(["anthropic", "grok", "groq", "gemini", "ollama"]);
+  const has = (a) => a === "ollama" ? true
+    : a === "groq" ? !!v.groq
+    : a === "grok" ? !!v.grok
+    : a === "gemini" ? !!v.gemini
+    : !!v.anthropic;
+  if (!VALID.has(v.active) || (v.active !== "ollama" && !has(v.active))) {
+    if (v.anthropic) v.active = "anthropic";
+    else if (v.grok) v.active = "grok";
+    else if (v.groq) v.active = "groq";
+    else if (v.gemini) v.active = "gemini";
+    else v.active = "anthropic";
+  }
   return v;
 }
 // Returns { ok, where } so callers can surface real persistence failures
@@ -118,14 +125,33 @@ function saveApiKeys(v) {
   return { ok: lsOk, where: lsOk ? "localStorage+idb" : "idb-only" };
 }
 
+// Ollama settings live outside the keys blob (no secret material).
+const OLLAMA_URL_LS   = "codex.ollama.url.v1";
+const OLLAMA_MODEL_LS = "codex.ollama.model.v1";
+const OLLAMA_DEFAULT_URL = "http://localhost:11434";
+
 function ApiKeysSection() {
   const [keys, setKeys] = useState(loadApiKeys);
   const [showA, setShowA] = useState(false);
   const [showG, setShowG] = useState(false);
+  const [showQ, setShowQ] = useState(false);
+  const [showM, setShowM] = useState(false);
   const [busyA, setBusyA] = useState(false);
   const [busyG, setBusyG] = useState(false);
+  const [busyQ, setBusyQ] = useState(false);
+  const [busyM, setBusyM] = useState(false);
   const [statusA, setStatusA] = useState("");
   const [statusG, setStatusG] = useState("");
+  const [statusQ, setStatusQ] = useState("");
+  const [statusM, setStatusM] = useState("");
+  // Ollama state
+  const [ollamaUrl, setOllamaUrl] = useState(() => {
+    try { return localStorage.getItem(OLLAMA_URL_LS) || OLLAMA_DEFAULT_URL; } catch { return OLLAMA_DEFAULT_URL; }
+  });
+  const [ollamaModel, setOllamaModel] = useState(() => {
+    try { return localStorage.getItem(OLLAMA_MODEL_LS) || ""; } catch { return ""; }
+  });
+  const [ollamaProbe, setOllamaProbe] = useState({ status: "idle", models: [], err: "" });
   // Persist on every keystroke so the direct-API shim always sees the
   // latest values; Apply re-broadcasts so any open Oracle re-probes.
   const update = (patch) => {
@@ -134,16 +160,30 @@ function ApiKeysSection() {
     const cleaned = { ...patch };
     if (typeof cleaned.anthropic === "string") cleaned.anthropic = cleaned.anthropic.trim();
     if (typeof cleaned.grok === "string") cleaned.grok = cleaned.grok.trim();
+    if (typeof cleaned.groq === "string") cleaned.groq = cleaned.groq.trim();
+    if (typeof cleaned.gemini === "string") cleaned.gemini = cleaned.gemini.trim();
     const next = { ...keys, ...cleaned };
-    // Auto-detect active provider from the key prefix when the user pastes
-    // a key into either field — saves them the extra step of remembering
-    // to tap the Anthropic/Grok tab. Manual `active` patches still win.
+    // Auto-detect active provider from the key prefix. Gemini keys vary
+    // (usually AIza but not always), so we don't auto-flip on gemini —
+    // user clicks the tab if they want it active.
     if (patch.active === undefined) {
-      if (cleaned.anthropic && cleaned.anthropic.startsWith("sk-")) next.active = "anthropic";
+      if (cleaned.groq && cleaned.groq.startsWith("gsk_")) next.active = "groq";
+      else if (cleaned.anthropic && cleaned.anthropic.startsWith("sk-")) next.active = "anthropic";
       else if (cleaned.grok && cleaned.grok.startsWith("xai-")) next.active = "grok";
+      else if (cleaned.gemini && cleaned.gemini.startsWith("AIza")) next.active = "gemini";
       // Re-balance if the currently-active side just got emptied.
-      if (next.active === "anthropic" && !next.anthropic && next.grok) next.active = "grok";
-      if (next.active === "grok" && !next.grok && next.anthropic) next.active = "anthropic";
+      if (next.active === "anthropic" && !next.anthropic) {
+        if (next.groq) next.active = "groq"; else if (next.grok) next.active = "grok"; else if (next.gemini) next.active = "gemini";
+      }
+      if (next.active === "grok" && !next.grok) {
+        if (next.groq) next.active = "groq"; else if (next.anthropic) next.active = "anthropic"; else if (next.gemini) next.active = "gemini";
+      }
+      if (next.active === "groq" && !next.groq) {
+        if (next.anthropic) next.active = "anthropic"; else if (next.grok) next.active = "grok"; else if (next.gemini) next.active = "gemini";
+      }
+      if (next.active === "gemini" && !next.gemini) {
+        if (next.anthropic) next.active = "anthropic"; else if (next.groq) next.active = "groq"; else if (next.grok) next.active = "grok";
+      }
     }
     setKeys(next);
     const r = saveApiKeys(next);
@@ -155,6 +195,12 @@ function ApiKeysSection() {
     if (patch.grok !== undefined) {
       setStatusG(r.ok ? "" : "⚠ saved to IDB only (localStorage full)");
     }
+    if (patch.groq !== undefined) {
+      setStatusQ(r.ok ? "" : "⚠ saved to IDB only (localStorage full)");
+    }
+    if (patch.gemini !== undefined) {
+      setStatusM(r.ok ? "" : "⚠ saved to IDB only (localStorage full)");
+    }
     try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
   };
 
@@ -164,8 +210,8 @@ function ApiKeysSection() {
     const onRestore = (e) => {
       const v = e?.detail;
       if (!v || typeof v !== "object") return;
-      // Only adopt if our state has no anthropic key yet (don't clobber).
-      setKeys((cur) => (cur.anthropic || cur.grok) ? cur : { ...cur, ...v });
+      // Only adopt if our state has no key yet (don't clobber).
+      setKeys((cur) => (cur.anthropic || cur.grok || cur.groq || cur.gemini) ? cur : { ...cur, ...v });
     };
     window.addEventListener("codex:keys:restored", onRestore);
     return () => window.removeEventListener("codex:keys:restored", onRestore);
@@ -219,6 +265,84 @@ function ApiKeysSection() {
     }
   };
 
+  // Groq (groq.com — free fast inference, distinct from xAI's Grok).
+  const applyGroq = async () => {
+    const key = (keys.groq || "").trim();
+    if (!key.startsWith("gsk_")) { setStatusQ("Key must start with gsk_"); return; }
+    setBusyQ(true); setStatusQ("");
+    try {
+      const r = await fetch("/api/key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, provider: "groq" }),
+      });
+      setStatusQ(r.ok ? "✓ applied" : "✓ saved locally");
+    } catch {
+      setStatusQ("✓ saved locally");
+    } finally {
+      try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
+      setBusyQ(false);
+    }
+  };
+
+  // Gemini (aistudio.google.com — free, 1M tokens/day). Validate length
+  // since Gemini keys don't share a single fixed prefix (usually AIza but
+  // GCP-issued keys can vary). Length check at 30+ chars catches typos
+  // without falsely rejecting valid keys.
+  const applyGemini = async () => {
+    const key = (keys.gemini || "").trim();
+    if (key.length < 30) { setStatusM("Key looks too short (need ≥30 chars)"); return; }
+    setBusyM(true); setStatusM("");
+    try {
+      const r = await fetch("/api/key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, provider: "gemini" }),
+      });
+      setStatusM(r.ok ? "✓ applied" : "✓ saved locally");
+    } catch {
+      setStatusM("✓ saved locally");
+    } finally {
+      try { window.CODEX_DIRECT && window.CODEX_DIRECT.notifyEngineChange(); } catch {}
+      setBusyM(false);
+    }
+  };
+
+  // Ollama: probe ${url}/api/tags to confirm the daemon is running and to
+  // populate the model dropdown. Cached briefly; UI calls on tab open + on
+  // explicit "Detect" button click.
+  const probeOllama = useCallback(async (url) => {
+    const u = (url || ollamaUrl || OLLAMA_DEFAULT_URL).replace(/\/+$/, "");
+    setOllamaProbe({ status: "probing", models: [], err: "" });
+    try {
+      const r = await fetch(u + "/api/tags");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const models = (d.models || []).map(m => ({ id: m.name, label: m.name }));
+      setOllamaProbe({ status: "ok", models, err: "" });
+      if (!ollamaModel && models[0]) {
+        setOllamaModel(models[0].id);
+        try { localStorage.setItem(OLLAMA_MODEL_LS, models[0].id); } catch {}
+      }
+    } catch (e) {
+      setOllamaProbe({ status: "down", models: [], err: String(e.message || e) });
+    }
+  }, [ollamaUrl, ollamaModel]);
+  // Auto-probe once on mount.
+  useEffect(() => { probeOllama(ollamaUrl); /* eslint-disable-line */ }, []);
+
+  const updateOllamaUrl = (v) => {
+    setOllamaUrl(v);
+    try { localStorage.setItem(OLLAMA_URL_LS, v); } catch {}
+  };
+  const updateOllamaModel = (v) => {
+    setOllamaModel(v);
+    try { localStorage.setItem(OLLAMA_MODEL_LS, v); } catch {}
+  };
+  const activateOllama = () => {
+    update({ active: "ollama" });
+  };
+
   return (
     <div className="cx-api">
       <div className="cx-api-seg" role="tablist" aria-label="Active engine">
@@ -243,6 +367,39 @@ function ApiKeysSection() {
         >
           <span className="cx-api-seg-glyph">⌬</span>
           <span><b>Grok</b><i>xAI{keys.active === "grok" ? " · active" : ""}</i></span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={keys.active === "groq"}
+          className={`cx-api-seg-btn ${keys.active === "groq" ? "is-on" : ""}`}
+          onClick={() => update({ active: "groq" })}
+          disabled={!keys.groq}
+          title={keys.groq ? "Use Groq (free fast inference) as the Oracle engine" : "Add your Groq key first"}
+        >
+          <span className="cx-api-seg-glyph">⚡</span>
+          <span><b>Groq</b><i>free{keys.active === "groq" ? " · active" : ""}</i></span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={keys.active === "gemini"}
+          className={`cx-api-seg-btn ${keys.active === "gemini" ? "is-on" : ""}`}
+          onClick={() => update({ active: "gemini" })}
+          disabled={!keys.gemini}
+          title={keys.gemini ? "Use Google Gemini as the Oracle engine" : "Add your Gemini key first"}
+        >
+          <span className="cx-api-seg-glyph">✦</span>
+          <span><b>Gemini</b><i>Google{keys.active === "gemini" ? " · active" : ""}</i></span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={keys.active === "ollama"}
+          className={`cx-api-seg-btn ${keys.active === "ollama" ? "is-on" : ""}`}
+          onClick={() => update({ active: "ollama" })}
+          disabled={ollamaProbe.status !== "ok"}
+          title={ollamaProbe.status === "ok" ? "Use your local Ollama daemon" : "Start Ollama locally to enable"}
+        >
+          <span className="cx-api-seg-glyph">▣</span>
+          <span><b>Ollama</b><i>local{keys.active === "ollama" ? " · active" : ""}</i></span>
         </button>
       </div>
 
@@ -290,7 +447,100 @@ function ApiKeysSection() {
             {busyG ? "···" : "APPLY"}
           </button>
         </div>
-        <p className="cx-api-hint">Both keys stay in your browser. Switch engines via the toggle above — takes effect on the next Oracle reply.</p>
+        <p className="cx-api-hint">All keys stay in your browser. Switch engines via the toggle above — takes effect on the next Oracle reply.</p>
+      </div>
+
+      <div className="cx-api-field">
+        <label className="cx-api-lbl">
+          <span>Groq API key <em style={{opacity:0.65}}>· free, fast (groq.com)</em></span>
+          {statusQ ? <em className={`cx-api-status ${statusQ.startsWith("✓") ? "is-ok" : "is-err"}`}>{statusQ}</em> : null}
+        </label>
+        <div className="cx-api-row">
+          <input
+            className="cx-api-input"
+            type={showQ ? "text" : "password"}
+            value={keys.groq}
+            placeholder="gsk_..."
+            onChange={(e) => update({ groq: e.target.value })}
+            onKeyDown={(e) => { if (e.key === "Enter") applyGroq(); }}
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <button className="cx-api-eye" onClick={() => setShowQ(s => !s)} title={showQ ? "Hide" : "Show"}>{showQ ? "◐" : "◌"}</button>
+          <button className="cx-api-save" onClick={applyGroq} disabled={busyQ || !keys.groq}>
+            {busyQ ? "···" : "APPLY"}
+          </button>
+        </div>
+        <p className="cx-api-hint">Get a free key at <code>console.groq.com</code>. Runs Llama 3.3 70B + DeepSeek R1 on LPU silicon.</p>
+      </div>
+
+      <div className="cx-api-field">
+        <label className="cx-api-lbl">
+          <span>Gemini API key <em style={{opacity:0.65}}>· free · Google AI Studio · 1M tokens/day</em></span>
+          {statusM ? <em className={`cx-api-status ${statusM.startsWith("✓") ? "is-ok" : "is-err"}`}>{statusM}</em> : null}
+        </label>
+        <div className="cx-api-row">
+          <input
+            className="cx-api-input"
+            type={showM ? "text" : "password"}
+            value={keys.gemini}
+            placeholder="AIza... (or any long alphanumeric Gemini key)"
+            onChange={(e) => update({ gemini: e.target.value })}
+            onKeyDown={(e) => { if (e.key === "Enter") applyGemini(); }}
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <button className="cx-api-eye" onClick={() => setShowM(s => !s)} title={showM ? "Hide" : "Show"}>{showM ? "◐" : "◌"}</button>
+          <button className="cx-api-save" onClick={applyGemini} disabled={busyM || !keys.gemini}>
+            {busyM ? "···" : "APPLY"}
+          </button>
+        </div>
+        <p className="cx-api-hint">Get a free key at <code>aistudio.google.com/apikey</code>. Generous free tier — 1M tokens/day, ~15 req/min. Multimodal-ready.</p>
+      </div>
+
+      <div className="cx-api-field">
+        <label className="cx-api-lbl">
+          <span>Ollama (local, no key) <em style={{opacity:0.65}}>· runs on your machine</em></span>
+          {ollamaProbe.status === "ok" && (
+            <em className="cx-api-status is-ok">✓ {ollamaProbe.models.length} model{ollamaProbe.models.length===1?"":"s"} detected</em>
+          )}
+          {ollamaProbe.status === "down" && (
+            <em className="cx-api-status is-err">⚠ not detected — install at ollama.com</em>
+          )}
+          {ollamaProbe.status === "probing" && <em className="cx-api-status">…probing</em>}
+        </label>
+        <div className="cx-api-row">
+          <input
+            className="cx-api-input"
+            type="text"
+            value={ollamaUrl}
+            placeholder={OLLAMA_DEFAULT_URL}
+            onChange={(e) => updateOllamaUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") probeOllama(ollamaUrl); }}
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <button className="cx-api-save" onClick={() => probeOllama(ollamaUrl)} title="Probe ${url}/api/tags">
+            DETECT
+          </button>
+        </div>
+        {ollamaProbe.status === "ok" && (
+          <div className="cx-api-row" style={{marginTop:6}}>
+            <select
+              className="cx-api-input"
+              value={ollamaModel}
+              onChange={(e) => updateOllamaModel(e.target.value)}
+            >
+              {ollamaProbe.models.map(m => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+            <button className="cx-api-save" onClick={activateOllama} disabled={keys.active === "ollama"}>
+              {keys.active === "ollama" ? "ACTIVE" : "USE"}
+            </button>
+          </div>
+        )}
+        <p className="cx-api-hint">Browser → <code>{ollamaUrl}</code> works when Ollama runs on the same machine as your browser. For LAN access, start Ollama with <code>OLLAMA_HOST=0.0.0.0</code>.</p>
       </div>
     </div>
   );
@@ -1040,6 +1290,7 @@ function App() {
   const [availableProviders, setAvailableProviders] = useState({
     anthropic: { available: false, models: [] },
     xai:       { available: false, models: [] },
+    groq:      { available: false, models: [] },
     ollama:    { available: false, models: [] },
   });
   useEffect(() => {
