@@ -24,6 +24,7 @@ function removeRepo(id) {
   if (next.length === stored.length) return false; // not user-added
   saveRepos(next);
   data.translations = data.translations.filter(t => t.id !== id);
+  try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id } })); } catch {}
   // Purge cache entries for this translation.
   try {
     const cache = JSON.parse(localStorage.getItem("codex.bible.cache.v2") || "{}");
@@ -43,7 +44,10 @@ function removeRepo(id) {
   const data = window.CODEX_DATA;
   if (!data) return;
   const have = new Set(data.translations.map(t => t.id));
-  for (const r of stored) if (!have.has(r.id)) data.translations.push(r);
+  for (const r of stored) if (!have.has(r.id)) {
+    data.translations.push(r);
+    try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: r.id } })); } catch {}
+  }
 })();
 
 // Known providers · catalog of common ids the search auto-completes against.
@@ -111,7 +115,10 @@ function RepoAdd({ onAdded }) {
     } catch {}
     // Register in-memory + persisted.
     const data = window.CODEX_DATA;
-    if (!data.translations.find(t => t.id === repo.id)) data.translations.push(repo);
+    if (!data.translations.find(t => t.id === repo.id)) {
+      data.translations.push(repo);
+      try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: repo.id } })); } catch {}
+    }
     const stored = loadRepos();
     if (!stored.find(r => r.id === repo.id)) { stored.push(repo); saveRepos(stored); }
     // Probe again to actually warm the cache now that registration is complete.

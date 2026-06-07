@@ -1275,6 +1275,7 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
 
     const next = [...messages, { role: "user", text }];
     setMessages(next);
+    if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackOracle();
     setBusy(true);
 
     const langName = (window.codexLangName && window.codexLangName()) || "English";

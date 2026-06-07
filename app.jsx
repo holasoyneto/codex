@@ -984,37 +984,6 @@ function ToastDock() {
   );
 }
 
-// ── ForgeStatusPill — surfaces BabelForge's in-flight whole-Bible forge as
-// a small pill in the corner so the user can leave the BABEL panel and
-// still see the progress. Clicking it dispatches an event that the panel
-// listens for to jump back into the project.
-function ForgeStatusPill() {
-  const [s, setS] = useState(() => (window.CODEX_BabelForge && window.CODEX_BabelForge.forgeStatus) || null);
-  useEffect(() => {
-    const fn = (e) => setS(e.detail || null);
-    window.addEventListener("codex:babelforge-forge-status", fn);
-    return () => window.removeEventListener("codex:babelforge-forge-status", fn);
-  }, []);
-  if (!s || !s.running) return null;
-  const pct = s.total ? Math.floor((s.done / s.total) * 100) : 0;
-  return (
-    <button
-      type="button"
-      className="cx-forge-pill"
-      onClick={() => {
-        try { window.dispatchEvent(new CustomEvent("codex:open-panel", { detail: { pluginId: "babelforge", panelId: "babel" } })); } catch {}
-      }}
-      title={`Forging "${s.name}" · ${s.done}/${s.total} verses`}
-    >
-      <span className="cx-forge-pill-glyph">⚡</span>
-      <span className="cx-forge-pill-meta">
-        <span className="cx-forge-pill-name">{s.name}</span>
-        <span className="cx-forge-pill-pct">{pct}% · {s.done}/{s.total}</span>
-      </span>
-    </button>
-  );
-}
-
 // ── AutoCacheTick — pill that surfaces auto-cache progress in the footer.
 // Hidden when idle / done. Listens to the events fired by auto-cache.js.
 function AutoCacheTick() {
@@ -1074,7 +1043,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "notesEnabled": false,
   "oracleFontScale": 14,
   "hermeneuticDriftCompensation": false,
-  "bootIntro": true,
+  "bootIntro": false,
   "provider": "anthropic",
   "model": "claude-haiku-4-5-20251001",
   "schizo": false
@@ -1201,7 +1170,6 @@ function WelcomeTour({ onClose }) {
             <li>Talmudic parallels</li>
             <li>Gnosis overlay</li>
             <li>Semantic search</li>
-            <li>BabelForge translations</li>
           </ul>
           <div className="cx-welcome-pair" style={{ "--cx-w-i": 4 }}>
             <button className="cx-welcome-btn cx-welcome-btn--primary" onClick={openSettings}>Add a key →</button>
@@ -1256,6 +1224,86 @@ function WelcomeTour({ onClose }) {
   );
 }
 
+// ── Engagement: Welcome-back card ────────────────────────────────────────
+function WelcomeBack({ onContinue, onDismiss, onDiscoveryClick }) {
+  const engage = window.CODEX_ENGAGE;
+  if (!engage) return null;
+  const stats = engage.loadStats();
+  if (stats.sessionCount <= 1) return null;
+
+  const sk = engage.loadStreak();
+  const session = engage.loadSession();
+  const disc = engage.getDailyDiscovery();
+  const warn = engage.streakWarning();
+  const tod = engage.timeOfDaySuggestion();
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  return (
+    <div className="cx-welcome-back">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div className="cx-wb-greeting">{greeting}</div>
+        <button onClick={onDismiss} style={{ background: "none", border: "none", color: "var(--cx-fg-dim)", cursor: "pointer", fontSize: "14px", padding: "0 2px" }} title="Dismiss">&times;</button>
+      </div>
+
+      {sk.current > 0 && (
+        <div className="cx-wb-streak">
+          <span className="cx-flame">{"🔥"}</span>
+          <span>{sk.current}-day streak{sk.current === sk.longest ? " (personal best!)" : ""}</span>
+        </div>
+      )}
+
+      {warn && (
+        <div className="cx-streak-warn">
+          <span className="cx-streak-warn-icon">{"🔥"}</span>
+          <span>{warn.msg}</span>
+        </div>
+      )}
+
+      {session && (
+        <button className="cx-wb-continue" onClick={() => onContinue(session)}>
+          <span className="cx-wb-continue-icon">{"▶"}</span>
+          <div className="cx-wb-continue-text">
+            <div className="cx-wb-continue-ref">Continue: {session.bookName} {session.chapter}</div>
+            <div className="cx-wb-continue-sub">Pick up where you left off</div>
+          </div>
+        </button>
+      )}
+
+      {disc && disc.title && (
+        <div className="cx-daily-disc" onClick={() => onDiscoveryClick(disc)}>
+          <div className="cx-daily-disc-badge">{"✦"} daily discovery · {disc.type}</div>
+          <div className="cx-daily-disc-title">{disc.title}</div>
+          <div className="cx-daily-disc-body">{disc.body}</div>
+          {disc.ref && <div className="cx-daily-disc-ref">{disc.ref}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Engagement: Achievement toast ────────────────────────────────────────
+function AchievementToast({ achievement, onDone }) {
+  const [exiting, setExiting] = useState(false);
+  useEffect(() => {
+    const exitTimer = setTimeout(() => setExiting(true), 3700);
+    const removeTimer = setTimeout(() => { if (onDone) onDone(); }, 4000);
+    return () => { clearTimeout(exitTimer); clearTimeout(removeTimer); };
+  }, [onDone]);
+  if (!achievement) return null;
+  return (
+    <div className={`cx-achievement-toast ${exiting ? "is-exiting" : ""}`}>
+      <span className="cx-achievement-toast-icon">{achievement.icon || "🏆"}</span>
+      <div className="cx-achievement-toast-body">
+        <div className="cx-achievement-toast-label">Achievement unlocked</div>
+        <div className="cx-achievement-toast-title">{achievement.title}</div>
+        <div className="cx-achievement-toast-desc">{achievement.desc}</div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   // Push the persisted language into the global i18n module so window.t()
@@ -1276,7 +1324,7 @@ function App() {
 
   // Global bump so any consumer of window.CODEX_DATA.translations (right-rail
   // picker, compare set, offline panel) re-derives when a translation is
-  // installed/removed (e.g. BabelForge).
+  // installed/removed.
   const [, _bumpTrans] = useState(0);
   useEffect(() => {
     const fn = () => _bumpTrans(n => n + 1);
@@ -1588,10 +1636,16 @@ function App() {
     if (!passage.book || !passage.chapter) return;
     const detail = { book: passage.book, bookId: passage.bookId, chapter: passage.chapter };
     try { window.dispatchEvent(new CustomEvent("codex:navigate", { detail })); } catch {}
+    if (window.CODEX_ENGAGE) {
+      window.CODEX_ENGAGE.trackChapter(detail.bookId || passage.bookId, detail.chapter || passage.chapter);
+      window.CODEX_ENGAGE.saveSession(detail.bookId || passage.bookId, detail.chapter || passage.chapter, detail.book || passage.book || "");
+      const newAch = window.CODEX_ENGAGE.checkAchievements();
+      if (newAch && newAch.length) showAchievements(newAch);
+    }
     if (window.CODEX_PLUGINS_API) {
       window.CODEX_PLUGINS_API.onNavigate(passage.book, passage.chapter);
     }
-  }, [passage.bookId, passage.chapter, passage.book]);
+  }, [passage.bookId, passage.chapter, passage.book]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every verse cursor change: fire codex:verse-select + call onVerseSelect.
   useEffect(() => {
@@ -1621,45 +1675,6 @@ function App() {
   }, [primary, JSON.stringify(compareSet)]);
 
   useEffect(() => { try { localStorage.setItem("codex.passageLoc", JSON.stringify(passageLoc)); } catch {} }, [passageLoc]);
-
-  // Reload the current passage when a translation it shows just gained
-  // a new chapter (BabelForge background pass). Without this, the
-  // newly translated verses sit in localStorage until the user manually
-  // navigates somewhere and back.
-  useEffect(() => {
-    const onChanged = (e) => {
-      try {
-        const id = e && e.detail && e.detail.id;
-        const visible = new Set([primary, ...(compareSet || [])]);
-        if (id && visible.has(id)) {
-          loadPassage(passageLoc.bookId, passageLoc.chapter, passageLoc.verse || currentVerse || 1);
-        }
-      } catch {}
-    };
-    window.addEventListener("codex:translations-changed", onChanged);
-    return () => window.removeEventListener("codex:translations-changed", onChanged);
-    // eslint-disable-next-line
-  }, [primary, JSON.stringify(compareSet), passageLoc.bookId, passageLoc.chapter]);
-
-  // Auto-forge: when the user is reading (or comparing against) a
-  // BabelForge translation, kick off background translation of the
-  // whole book on every navigation so the chapter they jump to next
-  // is already done. Fire-and-forget; no-ops if no key / no project.
-  // Debounced 600ms so rapid prev/next mashing doesn't queue ten
-  // book-translations in two seconds.
-  useEffect(() => {
-    if (!window.CODEX_BabelForge || typeof window.CODEX_BabelForge.ensureBook !== "function") return;
-    const cohort = Array.from(new Set([primary, ...(compareSet || [])])).filter(id => typeof id === "string" && id.startsWith("bf-"));
-    if (!cohort.length) return;
-    const bookId = passageLoc.bookId, chapter = passageLoc.chapter;
-    const t = setTimeout(() => {
-      cohort.forEach(translationId => {
-        try { window.CODEX_BabelForge.ensureChapter({ translationId, bookId, chapter }); } catch {}
-        try { window.CODEX_BabelForge.ensureBook({ translationId, bookId }); } catch {}
-      });
-    }, 600);
-    return () => clearTimeout(t);
-  }, [primary, JSON.stringify(compareSet), passageLoc.bookId, passageLoc.chapter]);
 
   // Personal-bible MARKS — unified concept: a mark IS a highlight. One list,
   // one schema, one mental model.
@@ -1694,6 +1709,7 @@ function App() {
             ? verseText.replace(/\s+/g, " ").trim().split(" ").slice(0, 7).join(" ") + "…"
             : ""),
         };
+        if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackHighlight();
       }
       return next;
     });
@@ -1849,7 +1865,7 @@ function App() {
   }, [installed, installPrompt, isIOS]);
 
   // ── Export / import — open-format snapshot of every codex.* localStorage
-  // key plus a small header. Lets users migrate marks, oracle history, cached
+  // key plus a small header. Lets users migrate marks, notes, cached
   // chapters, panels, settings to another browser, device, or compatible app.
   // No proprietary fields — everything is plain JSON the user can inspect.
   // Keys that contain secrets — NEVER exported, NEVER overwritten by import.
@@ -1860,6 +1876,7 @@ function App() {
     "codex.sync.firebase",     // Firebase config / tokens
     "codex.btc.token",         // donation pool bearer token
     "codex.session.",          // ephemeral session state
+    "codex.oracle",            // Oracle chat history — PRIVATE, local-only; never exported or overwritten by import
   ];
   const isSensitive = (k) => SENSITIVE_PREFIXES.some(p => k.startsWith(p));
 
@@ -1999,20 +2016,58 @@ function App() {
   // Phase 1.2 — full-text search modal
   const [searchOpen, setSearchOpen] = useState(false);
 
+  // ── Engagement state ──────────────────────────────────────────────────
+  const [toastQueue, setToastQueue] = useState([]);
+  const [wbDismissed, setWbDismissed] = useState(false);
+
+  const showAchievements = useCallback((newlyUnlocked) => {
+    if (!newlyUnlocked || !newlyUnlocked.length) return;
+    setToastQueue(q => [...q, ...newlyUnlocked]);
+  }, []);
+
+  // Track session on boot + check for new achievements
+  useEffect(() => {
+    if (window.CODEX_ENGAGE) {
+      const newAch = window.CODEX_ENGAGE.trackSession();
+      if (newAch && newAch.length) showAchievements(newAch);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // First-run welcome tour (v2). A 4-step modal overlay. Replaces the old
   // v1 chip strip. Migration: if v1 is set (existing user), treat v2 as
   // already complete — never show. Only fires for genuinely new users.
-  const [tourOpen, setTourOpen] = useState(() => {
+  // Scripture-first: a new user is NEVER gated behind a full-screen tour.
+  // They land directly on the chapter — a plain Bible page, the way it should
+  // greet you. On a genuine first run we fire one gentle, dismissible hint
+  // pointing at the menu + study rails. The full tour stays available on
+  // demand via the `codex:open-tour` event (e.g. from Help).
+  const [tourOpen, setTourOpen] = useState(false);
+  useEffect(() => {
+    let firstRun = false;
     try {
-      if (localStorage.getItem("codex.firstRun.v2")) return false;
-      if (localStorage.getItem("codex.firstRun.v1")) {
-        // Migrate: mark v2 done so the new tour never appears for them.
-        try { localStorage.setItem("codex.firstRun.v2", JSON.stringify({ completed: Date.now(), migrated: true })); } catch {}
-        return false;
+      const seen = localStorage.getItem("codex.firstRun.v2") || localStorage.getItem("codex.firstRun.v1");
+      firstRun = !seen;
+      if (!localStorage.getItem("codex.firstRun.v2")) {
+        localStorage.setItem("codex.firstRun.v2", JSON.stringify({ completed: Date.now(), migrated: !firstRun }));
       }
-      return true;
-    } catch { return false; }
-  });
+    } catch {}
+    if (firstRun) {
+      const id = setTimeout(() => {
+        try {
+          window.dispatchEvent(new CustomEvent("codex:toast", {
+            detail: { msg: "Welcome.  ≣ books · ⋮ study tools · tap any verse.", kind: "info" },
+          }));
+        } catch {}
+      }, 1400);
+      // best-effort cleanup if unmounted fast
+      return () => clearTimeout(id);
+    }
+  }, []);
+  useEffect(() => {
+    const openTour = () => setTourOpen(true);
+    window.addEventListener("codex:open-tour", openTour);
+    return () => window.removeEventListener("codex:open-tour", openTour);
+  }, []);
   const closeTour = useCallback(() => {
     try { localStorage.setItem("codex.firstRun.v2", JSON.stringify({ completed: Date.now() })); } catch {}
     setTourOpen(false);
@@ -2069,6 +2124,7 @@ function App() {
 
     const focusSearch = () => {
       // Phase 1.2 — open the full-text search overlay
+      if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackSearch();
       setSearchOpen(true);
       // Defer focus to the next frame so the overlay has mounted.
       requestAnimationFrame(() => {
@@ -2259,11 +2315,42 @@ function App() {
     return () => window.removeEventListener("codex:jump-ref", onJump);
   }, [jumpToRef]);
 
-  // Click on the reader title opens the Library overlay.
+  // Click on the reader title opens the Library. On mobile this slides the
+  // left drawer in; on desktop the rail is already visible, so we also
+  // un-collapse it and focus its search — otherwise the click looked dead.
   useEffect(() => {
-    const onOpen = () => setLeftOpen(true);
+    const onOpen = () => {
+      setLeftOpen(true);
+      setLeftCollapsed(false);
+      setTimeout(() => {
+        try { window.dispatchEvent(new CustomEvent("codex:focus-lib-search")); } catch {}
+      }, 60);
+    };
     window.addEventListener("codex:open-library", onOpen);
     return () => window.removeEventListener("codex:open-library", onOpen);
+  }, []);
+
+  // Plugin panels (cross-references, Strong's, word-study, dictionary,
+  // passage-guide, vox, map) ask to be shown via `codex:open-panel`. Nothing
+  // listened for it before, so those verse-menu actions silently did nothing.
+  // Normalize the various detail shapes to the canonical tab id
+  // `plugin:<pluginId>:<panelId>`, surface the right rail, switch to the tab,
+  // and focus the clicked verse so the panel renders for it.
+  useEffect(() => {
+    const onOpenPanel = (e) => {
+      const d = (e && e.detail) || {};
+      let id = d.panelId || "";
+      if (!id) return;
+      if (d.pluginId && id.indexOf(":") === -1) id = `${d.pluginId}:${id}`;
+      if (id.indexOf("plugin:") !== 0) id = `plugin:${id}`;
+      const v = d.ctx && (d.ctx.verse || (d.ctx.ref && d.ctx.ref.verse));
+      if (v) setCurrentVerse(v);
+      setRightOpen(true);
+      setRightCollapsed(false);
+      setTab(id);
+    };
+    window.addEventListener("codex:open-panel", onOpenPanel);
+    return () => window.removeEventListener("codex:open-panel", onOpenPanel);
   }, []);
 
   // Quick translation switcher in the reader header → set primary.
@@ -2370,6 +2457,36 @@ function App() {
 
         {tourOpen ? <WelcomeTour onClose={closeTour} /> : null}
 
+        {/* Center column wrapper. The WelcomeBack banner and the Reader share
+            grid column 2 — without this wrapper the in-flow WelcomeBack stole a
+            grid track and shoved the reader + right rail into the wrong cells. */}
+        <div className="cx-center-col">
+        {!wbDismissed && (
+          <WelcomeBack
+            onContinue={(session) => {
+              loadPassage(session.bookId, session.chapter, 1);
+              setWbDismissed(true);
+            }}
+            onDismiss={() => setWbDismissed(true)}
+            onDiscoveryClick={(disc) => {
+              if (disc.ref) {
+                // Handle compound refs like "Gen 3:8 ↔ John 20:15" — take the first
+                const firstRef = disc.ref.split(/\s*[↔→←]\s*/)[0].trim();
+                const loc = parseRef(firstRef, data.books);
+                if (loc) loadPassage(loc.bookId, loc.chapter, loc.verse || 1);
+              }
+              setWbDismissed(true);
+            }}
+          />
+        )}
+
+        {toastQueue.length > 0 && (
+          <AchievementToast
+            achievement={toastQueue[0]}
+            onDone={() => setToastQueue(q => q.slice(1))}
+          />
+        )}
+
         <Reader
           schizo={!!(schizoEligible && t.schizo)}
           passage={passage}
@@ -2418,6 +2535,7 @@ function App() {
             }
           }}
         />
+        </div>{/* /.cx-center-col */}
 
         {/* Floating Reels launcher — single-pane only. Switches the right
             rail to the Reels panel which auto-pops the fullscreen overlay. */}
@@ -2512,8 +2630,6 @@ function App() {
 
       <ToastDock />
 
-      <ForgeStatusPill />
-
 
       {searchOpen && window.CODEX_SearchBar ? (
         React.createElement(window.CODEX_SearchBar, {
@@ -2597,6 +2713,7 @@ function App() {
           onOpenMirror={openVerseMirror}
           pluginVersion={pluginVersion}
           onOpenNote={(v, refStr) => {
+            if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackNote();
             // Pre-seed the draft in localStorage BEFORE the widget mounts so
             // its initial state already has the verse pinned. Bulletproof
             // against race conditions between enabling notes + the open
@@ -3030,6 +3147,7 @@ function OfflineBiblesPanel({ bookLookup }) {
     // Go through BIBLE.removeTranslation so the in-memory cache stays
     // consistent (direct localStorage writes were leaving _memCache stale).
     const removed = window.BIBLE.removeTranslation(t.id);
+    try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: t.id } })); } catch {}
     setResults(r => { const x = { ...r }; delete x[t.id]; return x; });
     bumpNow();
     return removed;
@@ -3143,6 +3261,7 @@ function OfflineBiblesPanel({ bookLookup }) {
       setMassStatus(`updating ${u.name} · ${i}/${targets.length}`);
       // Force re-fetch by removing then loading via repair (which fetches all missing)
       window.BIBLE.removeTranslation(u.id);
+      try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: u.id } })); } catch {}
       await new Promise(r => setTimeout(r, 100));
       const t = window.CODEX_DATA.translations.find(x => x.id === u.id);
       await new Promise(resolve => {

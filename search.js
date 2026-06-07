@@ -428,6 +428,7 @@
       });
     }
     results.sort((a, b) => b.score - a.score || a.ref.localeCompare(b.ref));
+    if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackSearch();
     const limit = opts.limit || 20;
     return results.slice(0, limit);
   }
@@ -765,10 +766,8 @@
       function pickConcept(r) {
         if (!r) return;
         const bookId = r.bookId;
-        if (bookId && typeof window.codexJumpToRef === "function") {
-          window.codexJumpToRef(bookId, r.chapter, r.verse);
-        } else if (typeof onNavigate === "function" && bookId) {
-          onNavigate(bookId, r.chapter, r.verse);
+        if (bookId) {
+          onNavigate?.(bookId, r.chapter, r.verse);
         }
         onClose?.();
       }

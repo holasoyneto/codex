@@ -20,8 +20,14 @@
   // Cache key includes the active UI language AND the AI engine
   // (provider + model) so switching language OR engine never collides
   // with previous generations — each combo gets its own cache slot.
-  function engineSuffix() {
-    const e = window.CODEX_PANELS_ENGINE || {};
+  // Bug D fix — the engine MUST be passed in by each call, sourced from that
+  // call's local opts, so two concurrently-loading panels with different
+  // engines never read each other's cache slot. `window.CODEX_PANELS_ENGINE`
+  // is demoted to a read-only DISPLAY HINT used only as a fallback for the
+  // public read helpers (getCached/purge/etc.) that have no engine context;
+  // it is NEVER the authoritative source inside the async load*() paths.
+  function engineSuffix(engine) {
+    const e = engine || window.CODEX_PANELS_ENGINE || {};
     const p = e.provider || (window.CODEX_AI_DEFAULT && window.CODEX_AI_DEFAULT.provider) || "anthropic";
     const m = e.model || (window.CODEX_AI_DEFAULT && window.CODEX_AI_DEFAULT.model) || "default";
     // Default-anthropic+default model stays empty for backwards compat
@@ -29,17 +35,17 @@
     if (p === "anthropic" && m === "default") return "";
     return `.${p}.${String(m).replace(/[^a-z0-9_-]+/gi, "_")}`;
   }
-  function cacheKey(bookId, chapter) {
+  function cacheKey(bookId, chapter, engine) {
     const lang = (window.CODEX_LANG || "en");
     const langSuffix = lang === "en" ? "" : `.${lang}`;
-    return `${CACHE_PREFIX}${bookId}.${chapter}${langSuffix}${engineSuffix()}`;
+    return `${CACHE_PREFIX}${bookId}.${chapter}${langSuffix}${engineSuffix(engine)}`;
   }
 
   // Cache format v2: { _v: 2, data, fetchedAt }. Old format (bare object)
   // is auto-migrated on read so existing caches keep working.
-  function getCached(bookId, chapter) {
+  function getCached(bookId, chapter, engine) {
     try {
-      const raw = localStorage.getItem(cacheKey(bookId, chapter));
+      const raw = localStorage.getItem(cacheKey(bookId, chapter, engine));
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed && parsed._v === 2 && parsed.data) return parsed.data;
@@ -51,9 +57,9 @@
   // Returns { fetchedAt: ms } for cached entries, or null if not cached.
   // Used by the UI to show "CACHED · 5d ago" badges so users can SEE that
   // re-visiting a chapter never re-hits the API.
-  function getCachedMeta(bookId, chapter) {
+  function getCachedMeta(bookId, chapter, engine) {
     try {
-      const raw = localStorage.getItem(cacheKey(bookId, chapter));
+      const raw = localStorage.getItem(cacheKey(bookId, chapter, engine));
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed && parsed._v === 2) return { fetchedAt: parsed.fetchedAt || 0 };
@@ -62,10 +68,10 @@
     return null;
   }
 
-  function putCached(bookId, chapter, data) {
+  function putCached(bookId, chapter, data, engine) {
     try {
       const wrapped = { _v: 2, data, fetchedAt: Date.now() };
-      localStorage.setItem(cacheKey(bookId, chapter), JSON.stringify(wrapped));
+      localStorage.setItem(cacheKey(bookId, chapter, engine), JSON.stringify(wrapped));
     } catch {}
   }
 
@@ -85,8 +91,8 @@
     return out.sort((a, b) => b.fetchedAt - a.fetchedAt);
   }
 
-  function purge(bookId, chapter) {
-    try { localStorage.removeItem(cacheKey(bookId, chapter)); } catch {}
+  function purge(bookId, chapter, engine) {
+    try { localStorage.removeItem(cacheKey(bookId, chapter, engine)); } catch {}
   }
 
   function notify(event) { listeners.forEach(fn => { try { fn(event); } catch {} }); }
@@ -269,12 +275,15 @@ Rules:
   }
 
   async function load(bookId, chapter, bookName, opts = {}) {
-    // Pin the engine on the global hint so cacheKey() resolves to the
-    // same slot for reads and writes within this call.
-    window.CODEX_PANELS_ENGINE = { provider: opts.provider || "anthropic", model: opts.model || "default" };
-    const key = cacheKey(bookId, chapter);
-    const cached = !opts.force && getCached(bookId, chapter);
-    if (cached) return cached;
+    // Bug D — derive the engine from THIS call's opts and thread it through
+    // every cache read/write below, so the slot is fixed for the whole call
+    // and never depends on a global another concurrent load could overwrite
+    // across an `await`. CODEX_PANELS_ENGINE stays only as a display hint.
+    const engine = { provider: opts.provider || "anthropic", model: opts.model || "default" };
+    window.CODEX_PANELS_ENGINE = engine;
+    const key = cacheKey(bookId, chapter, engine);
+    const cached = !opts.force && getCached(bookId, chapter, engine);
+    if (cached) { if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackPanel(); return cached; }
     if (inflight.has(key)) return inflight.get(key);
 
     notify({ type: "start", bookId, chapter });
@@ -312,7 +321,8 @@ Return ONLY the JSON object as specified in the system instructions.${langDirect
       // and future cache-busting can compare engines.
       parsed._provider = data.provider || opts.provider || "anthropic";
       parsed._model = data.model || opts.model || null;
-      putCached(bookId, chapter, parsed);
+      putCached(bookId, chapter, parsed, engine);
+      if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackPanel();
       return parsed;
     })()
       .then(data => { notify({ type: "done", bookId, chapter, data }); return data; })
@@ -391,16 +401,16 @@ translation philosophy drives divergence. Return ONLY JSON:
 
 Scholarly, neutral. Do not invent renderings — use the texts supplied.`;
 
-  function exegesisKey(passageKey) {
+  function exegesisKey(passageKey, engine) {
     const lang = (window.CODEX_LANG || "en");
     const suffix = lang === "en" ? "" : `.${lang}`;
-    return `${EXEGESIS_PREFIX}${passageKey}${suffix}${engineSuffix()}`;
+    return `${EXEGESIS_PREFIX}${passageKey}${suffix}${engineSuffix(engine)}`;
   }
-  function txAnalysisKey(passageKey, translationIds) {
+  function txAnalysisKey(passageKey, translationIds, engine) {
     const lang = (window.CODEX_LANG || "en");
     const suffix = lang === "en" ? "" : `.${lang}`;
     const tids = [...translationIds].sort().join("+");
-    return `${TXANALYSIS_PREFIX}${passageKey}.${tids}${suffix}${engineSuffix()}`;
+    return `${TXANALYSIS_PREFIX}${passageKey}.${tids}${suffix}${engineSuffix(engine)}`;
   }
 
   function readWrapped(key) {
@@ -453,34 +463,37 @@ Scholarly, neutral. Do not invent renderings — use the texts supplied.`;
   const exegesisInflight = new Map();
   const txInflight = new Map();
 
-  function getExegesisCached(passageKey) {
-    const w = readWrapped(exegesisKey(passageKey));
+  function getExegesisCached(passageKey, engine) {
+    const w = readWrapped(exegesisKey(passageKey, engine));
     return w ? w.data : null;
   }
-  function getExegesisMeta(passageKey) {
-    const w = readWrapped(exegesisKey(passageKey));
+  function getExegesisMeta(passageKey, engine) {
+    const w = readWrapped(exegesisKey(passageKey, engine));
     return w ? { fetchedAt: w.fetchedAt } : null;
   }
-  function purgeExegesis(passageKey) {
-    try { localStorage.removeItem(exegesisKey(passageKey)); } catch {}
+  function purgeExegesis(passageKey, engine) {
+    try { localStorage.removeItem(exegesisKey(passageKey, engine)); } catch {}
   }
-  function getTxAnalysisCached(passageKey, translationIds) {
-    const w = readWrapped(txAnalysisKey(passageKey, translationIds));
+  function getTxAnalysisCached(passageKey, translationIds, engine) {
+    const w = readWrapped(txAnalysisKey(passageKey, translationIds, engine));
     return w ? w.data : null;
   }
-  function getTxAnalysisMeta(passageKey, translationIds) {
-    const w = readWrapped(txAnalysisKey(passageKey, translationIds));
+  function getTxAnalysisMeta(passageKey, translationIds, engine) {
+    const w = readWrapped(txAnalysisKey(passageKey, translationIds, engine));
     return w ? { fetchedAt: w.fetchedAt } : null;
   }
-  function purgeTxAnalysis(passageKey, translationIds) {
-    try { localStorage.removeItem(txAnalysisKey(passageKey, translationIds)); } catch {}
+  function purgeTxAnalysis(passageKey, translationIds, engine) {
+    try { localStorage.removeItem(txAnalysisKey(passageKey, translationIds, engine)); } catch {}
   }
 
   async function loadExegesis(passageKey, opts = {}) {
-    window.CODEX_PANELS_ENGINE = { provider: opts.provider || "anthropic", model: opts.model || "default" };
-    const k = exegesisKey(passageKey);
+    // Bug D — engine from this call's opts, threaded through the cache key;
+    // global is only a display hint.
+    const engine = { provider: opts.provider || "anthropic", model: opts.model || "default" };
+    window.CODEX_PANELS_ENGINE = engine;
+    const k = exegesisKey(passageKey, engine);
     if (!opts.force) {
-      const cached = getExegesisCached(passageKey);
+      const cached = getExegesisCached(passageKey, engine);
       if (cached) return cached;
     }
     if (exegesisInflight.has(k)) return exegesisInflight.get(k);
@@ -519,12 +532,15 @@ Return ONLY the JSON object.`;
   }
 
   async function loadTranslationAnalysis(passageKey, translations, opts = {}) {
-    window.CODEX_PANELS_ENGINE = { provider: opts.provider || "anthropic", model: opts.model || "default" };
+    // Bug D — engine from this call's opts, threaded through the cache key;
+    // global is only a display hint.
+    const engine = { provider: opts.provider || "anthropic", model: opts.model || "default" };
+    window.CODEX_PANELS_ENGINE = engine;
     // translations: [{ id, name, year?, philosophy?, text }]
     const ids = translations.map(t => t.id);
-    const k = txAnalysisKey(passageKey, ids);
+    const k = txAnalysisKey(passageKey, ids, engine);
     if (!opts.force) {
-      const cached = getTxAnalysisCached(passageKey, ids);
+      const cached = getTxAnalysisCached(passageKey, ids, engine);
       if (cached) return cached;
     }
     if (txInflight.has(k)) return txInflight.get(k);
@@ -606,22 +622,22 @@ HARD RULES:
 - Sober, factual, citation-anchored. No editorializing beyond the textual rebuttal.
 - Return ONLY the JSON. Stay compact.`;
 
-  function disarmKey(bookId, chapter) {
+  function disarmKey(bookId, chapter, engine) {
     const lang = (window.CODEX_LANG || "en");
     const langSuffix = lang === "en" ? "" : `.${lang}`;
-    return `${DISARM_PREFIX}${bookId}.${chapter}${langSuffix}${engineSuffix()}`;
+    return `${DISARM_PREFIX}${bookId}.${chapter}${langSuffix}${engineSuffix(engine)}`;
   }
 
-  function getDisarmCached(bookId, chapter) {
-    const w = readWrapped(disarmKey(bookId, chapter));
+  function getDisarmCached(bookId, chapter, engine) {
+    const w = readWrapped(disarmKey(bookId, chapter, engine));
     return w ? w.data : null;
   }
-  function getDisarmMeta(bookId, chapter) {
-    const w = readWrapped(disarmKey(bookId, chapter));
+  function getDisarmMeta(bookId, chapter, engine) {
+    const w = readWrapped(disarmKey(bookId, chapter, engine));
     return w ? { fetchedAt: w.fetchedAt } : null;
   }
-  function purgeDisarm(bookId, chapter) {
-    try { localStorage.removeItem(disarmKey(bookId, chapter)); } catch {}
+  function purgeDisarm(bookId, chapter, engine) {
+    try { localStorage.removeItem(disarmKey(bookId, chapter, engine)); } catch {}
   }
 
   function validateDisarm(obj) {
@@ -646,13 +662,16 @@ HARD RULES:
     const bookName = passage?.book || bookId;
     if (!bookId || !chapter) throw new Error("loadDisarm: missing passage");
     const eng = engine || {};
-    window.CODEX_PANELS_ENGINE = {
+    // Bug D — engine from this call's args, threaded through the cache key;
+    // global is only a display hint.
+    const activeEngine = {
       provider: provider || eng.provider || "anthropic",
       model: model || eng.model || "default",
     };
-    const k = disarmKey(bookId, chapter);
+    window.CODEX_PANELS_ENGINE = activeEngine;
+    const k = disarmKey(bookId, chapter, activeEngine);
     if (!force) {
-      const cached = getDisarmCached(bookId, chapter);
+      const cached = getDisarmCached(bookId, chapter, activeEngine);
       if (cached) return cached;
     }
     if (disarmInflight.has(k)) return disarmInflight.get(k);

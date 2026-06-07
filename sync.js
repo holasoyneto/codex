@@ -32,7 +32,6 @@
     "codex.bible.",
     "codex.panels.",
     "codex.redletter.",
-    "codex.oracle.history.",
     "codex.bootIntro",
     "codex.lang",
   ];
@@ -42,6 +41,7 @@
     "codex.sync.",          // sync config (tokens, gist IDs)
     "codex.session.",       // ephemeral session state
     "codex.btc.token",      // donation pool bearer token
+    "codex.oracle",         // Oracle chat history — PRIVATE, local-only, never leaves the device
   ];
   function isSyncable(key) {
     if (!key || typeof key !== "string") return false;

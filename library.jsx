@@ -212,6 +212,17 @@ function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslati
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // Reader-title click (codex:open-library) → focus the search so the click
+  // does something visible on desktop, where the rail is already on screen.
+  useEffect(() => {
+    const onFocusSearch = () => {
+      const el = inputRef.current;
+      if (el) { el.focus(); el.select && el.select(); }
+    };
+    window.addEventListener("codex:focus-lib-search", onFocusSearch);
+    return () => window.removeEventListener("codex:focus-lib-search", onFocusSearch);
+  }, []);
+
   const ot = useMemo(() => data.books.filter(b => b.testament === "OT" && showsBook(b)), [data.books, canons]);
   const nt = useMemo(() => data.books.filter(b => b.testament === "NT" && showsBook(b)), [data.books, canons]);
   // Group deuterocanonical/apocryphal books by canon so each "shelf"

@@ -647,17 +647,6 @@
         React.createElement("button", { onClick: () => verseStep(+1), style: btnSecondary, title: "Next verse" }, "VERSE ▶"),
       ),
 
-      // Cloud-TTS placeholder
-      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 14 } },
-        React.createElement("button", {
-          disabled: true,
-          title: "Coming soon — premium voices via cloud TTS providers (OpenAI / ElevenLabs / etc.)",
-          style: { ...btnSecondary, opacity: 0.45, cursor: "not-allowed" },
-        }, "✦ ENHANCE VOICE"),
-        React.createElement("span", { style: { fontSize: 11, color: "#6b7785" } },
-          "Premium cloud TTS — coming soon"),
-      ),
-
       // Status / now-speaking
       currentVerse && React.createElement("div", { style: nowSpeakingStyle },
         "▸ Speaking: ", React.createElement("b", { style: { color: "#7ee0ff" } }, currentVerse)),

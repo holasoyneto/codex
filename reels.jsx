@@ -369,7 +369,7 @@
       const el = scrollRef.current; if (!el) return;
       const cardH = el.clientHeight;
       const idx = Math.round(el.scrollTop / cardH);
-      if (idx !== activeIdx) setActiveIdx(idx);
+      if (idx !== activeIdx) { setActiveIdx(idx); if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackReel(); }
       // Refill near the end
       if (idx > State.deck.length - 8) refillDeck(ctx, State.deck.length + 20).catch(() => {});
     }, [activeIdx, ctx]);

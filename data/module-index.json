@@ -148,20 +148,6 @@
       "bundled": true
     },
     {
-      "id": "voice-templates",
-      "name": "BabelForge Voice Templates",
-      "type": "dictionary",
-      "version": "1.0.0",
-      "author": "CODEX",
-      "license": "MIT",
-      "size_kb": 20,
-      "description": "Pre-built voice profiles for BabelForge — 1611 KJV, beat poet, courtroom transcript, gangster, academic, and more.",
-      "path": "data/modules/voice-templates.json",
-      "tags": ["babelforge", "voices", "translation"],
-      "category": "dictionaries",
-      "bundled": true
-    },
-    {
       "id": "prayer-formats",
       "name": "Prayer Formats",
       "type": "dictionary",

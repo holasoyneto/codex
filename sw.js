@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v224";
+const VERSION = "v228";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -41,6 +41,8 @@ const SHELL_FILES = [
   r("manifest.json"),
   r("icon.svg"),
   // ── JS engine / data layer ───────────────────────────────────────
+  r("observability.js"),
+  r("boot-contract.js"),
   r("direct-api.js"),
   r("i18n.js"),
   r("ai-translate-ui.js"),
@@ -51,11 +53,11 @@ const SHELL_FILES = [
   r("sync.js"),
   r("modules.js"),
   r("plugins.js"),
+  r("engagement.js"),
   r("gematria.js"),
   r("panels-gen.js"),
   r("mark-search.js"),
   r("search.js"),
-  r("translate-engine.js"),
   // ── UI components ────────────────────────────────────────────────
   r("app.jsx"),
   r("components.jsx"),
@@ -78,7 +80,6 @@ const SHELL_FILES = [
   r("reels.jsx"),
   r("timeline.jsx"),
   r("jewish-study.jsx"),
-  r("babelforge.jsx"),
   r("passage-guide.jsx"),
   r("builder.jsx"),
   r("plans.jsx"),
@@ -92,7 +93,6 @@ const SHELL_FILES = [
   r("data/module-index.json"),
   r("data/red-letter.json"),
   r("data/modules/reels-curated.json"),       //  14 KB
-  r("data/modules/voice-templates.json"),     //  20 KB
   r("data/modules/prayer-formats.json"),      //  28 KB
   r("data/modules/parsha.json"),              //  10 KB
   r("data/modules/hebrew-calendar.json"),     //   4 KB

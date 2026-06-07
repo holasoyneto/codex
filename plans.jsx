@@ -151,6 +151,50 @@
   }
 
   // ───────────────────────────────────────────────────────────────────────
+  // StreakHeatmap — last 12 weeks activity grid from engagement engine
+  // ───────────────────────────────────────────────────────────────────────
+  function StreakHeatmap() {
+    const engage = window.CODEX_ENGAGE;
+    if (!engage) return null;
+
+    const sk = engage.loadStreak();
+    const today = isoToday();
+    const cells = [];
+
+    // Build 84 days ending today, aligned to week start (Sunday)
+    const todayDate = new Date(today + "T00:00:00");
+    const todayDow = todayDate.getDay(); // 0=Sun
+    const startOffset = -(83 + todayDow); // start from first Sunday
+    const totalDays = 84 + todayDow; // fill to complete the current week
+
+    for (let i = 0; i < totalDays; i++) {
+      const d = isoOffset(today, startOffset + i);
+      const isActive = !!sk.history[d];
+      const isToday = d === today;
+      const isFuture = d > today;
+      const cls = "cx-heatmap-cell" +
+        (isActive ? " is-active" : "") +
+        (isToday ? " is-today" : "") +
+        (isFuture ? " is-future" : "");
+      cells.push(
+        <div key={d} className={cls} data-date={d} title={d + (isActive ? " ✓" : "")} />
+      );
+    }
+
+    const dows = ["S","M","T","W","T","F","S"];
+
+    return (
+      <div className="cx-heatmap">
+        <div className="cx-heatmap-head">READING ACTIVITY · LAST 12 WEEKS</div>
+        <div className="cx-heatmap-grid">
+          {dows.map((d, i) => <div key={"dow"+i} className="cx-heatmap-dow">{d}</div>)}
+          {cells}
+        </div>
+      </div>
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
   // PlansPanel
   // ───────────────────────────────────────────────────────────────────────
   function PlansPanel(ctx) {
@@ -210,6 +254,8 @@
             );
           })}
         </div>
+
+        <StreakHeatmap />
 
         <PlanDetail plan={activePlan} onChange={force} key={activePlan.meta.id + ":" + tick} />
       </div>
@@ -273,6 +319,7 @@
     const totalDays = plan.days.length;
     const behind = Math.max(0, dayNum - 1 - countCompletedDays(plan, completed, dayNum - 1));
     const streak = computeStreak(plan, completed);
+    const longestStreak = window.CODEX_ENGAGE?.loadStreak?.()?.longest || streak;
     const day = plan.days.find(d => d.day === Math.min(dayNum, totalDays));
 
     function toggleReading(d, idx) {
@@ -280,6 +327,25 @@
       const next = new Set(completed);
       if (next.has(key)) next.delete(key); else next.add(key);
       persistCompleted(next);
+
+      // Check if all readings for this day are now complete
+      const dayEntry = plan.days.find(x => x.day === d);
+      if (dayEntry) {
+        const dayAllDone = dayEntry.readings.every((_, i) => next.has(`${d}.${i}`));
+        if (dayAllDone) {
+          // Fire celebration animation
+          const el = document.querySelector(".cx-plan-detail");
+          if (el) {
+            el.classList.add("cx-plan-celebrate");
+            setTimeout(() => el.classList.remove("cx-plan-celebrate"), 6000);
+          }
+          // Track engagement
+          if (window.CODEX_ENGAGE) {
+            window.CODEX_ENGAGE.recordDay();
+            window.CODEX_ENGAGE.checkAchievements();
+          }
+        }
+      }
     }
 
     function catchUp() {
@@ -328,11 +394,21 @@
 
     return (
       <div className="cx-plan-detail">
+        {(() => {
+          const warn = window.CODEX_ENGAGE?.streakWarning?.();
+          if (!warn) return null;
+          return (
+            <div className="cx-streak-warn">
+              <span className="cx-streak-warn-icon">🔥</span>
+              <span>{warn.msg}</span>
+            </div>
+          );
+        })()}
         <div className="cx-plan-detail-head">
           <div className="cx-plan-detail-name">{plan.meta.name}</div>
           <div className="cx-plan-detail-meta">
             Day <b>{Math.min(dayNum, totalDays)}</b> of {totalDays} ·
-            <span className="cx-plan-streak"> 🔥 {streak} streak</span>
+            <span className="cx-plan-streak"> 🔥 {streak} day streak{streak === longestStreak ? " · personal best!" : ` · best: ${longestStreak}`}</span>
           </div>
         </div>
 

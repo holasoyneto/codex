@@ -255,6 +255,7 @@ function Notes({ passage, currentVerse, onJumpTo, onDisable }) {
     const next = [note, ...notes];
     setNotes(next);
     saveNotes(next);
+    if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackNote();
     setDraft("");
     setListOpen(true);
   };

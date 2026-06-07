@@ -47,3 +47,7 @@ coverage/
 data/donations.json
 data/donations.json.tmp
 data/donations.audit.log
+
+# Internal dev artifacts (architecture map + foundation plan — not for the public PWA)
+_arch-viz.html
+FOUNDATION.md

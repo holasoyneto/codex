@@ -298,7 +298,7 @@
             <div className="cx-js-section-label">DAF YOMI · DAY {todayDaf.day}</div>
             <div className="cx-js-daf-refs">
               {todayDaf.readings.map((r, i) => (
-                <span key={i} className="cx-js-daf-ref" title="External Talmud lookup coming soon">
+                <span key={i} className="cx-js-daf-ref" title={r.replace(/^talmud\./, "").replace(/\./g, " ")}>
                   {r.replace(/^talmud\./, "").replace(/\./g, " ")}
                 </span>
               ))}

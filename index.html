@@ -1,6 +1,53 @@
 <!doctype html>
 <html lang="en">
 <head>
+<!-- Phase 0.0 — early inline CDN/Babel trap. MUST be the first child of <head>,
+     BEFORE the CDN <script> tags, so its capture-phase listeners are registered
+     before any CDN tag runs and can observe React/ReactDOM/Babel/Leaflet load +
+     SRI failures. Tiny, guarded, non-throwing, no JSX, no optional chaining. -->
+<script>
+(function () {
+  try {
+    window.__CODEX_ERRORS__ = window.__CODEX_ERRORS__ || [];
+    var CAP = 200;
+    function push(entry) {
+      try {
+        var a = window.__CODEX_ERRORS__;
+        a.push(entry);
+        if (a.length > CAP) a.splice(0, a.length - CAP); // ring buffer
+      } catch (_) {}
+    }
+    window.addEventListener('error', function (e) {
+      try {
+        push({
+          when: Date.now(),
+          type: 'error',
+          message: (e && e.message) || '',
+          src: (e && e.target && e.target.src) || '',
+          stack: (e && e.error && e.error.stack) || ''
+        });
+      } catch (_) {}
+    }, true); // capture phase → catches <script> load errors incl. SRI failures
+    window.addEventListener('unhandledrejection', function (e) {
+      try {
+        push({ when: Date.now(), type: 'rejection', message: String((e && e.reason) || ''), src: '' });
+      } catch (_) {}
+    });
+    window.addEventListener('load', function () {
+      try {
+        if (typeof window.Babel === 'undefined' || typeof window.React === 'undefined') {
+          push({
+            when: Date.now(),
+            type: 'cdn-missing',
+            message: 'Babel/React absent — CDN unreachable or SRI mismatch',
+            src: ''
+          });
+        }
+      } catch (_) {}
+    });
+  } catch (_) {}
+})();
+</script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes" />
 <meta name="theme-color" content="#06080e" />
@@ -9,10 +56,10 @@
 <meta name="apple-mobile-web-app-title" content="CODEX" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
-<meta name="description" content="CODEX — like Palantir, but for the Bible. An all-source scripture intelligence terminal. 43+ translation feeds, AI fusion analysts (Talmud · gnosis · gematria · commentary), an Oracle interrogator, BabelForge cover-translations. Air-gap capable, offline-first PWA. Eyes only." />
+<meta name="description" content="CODEX — like Palantir, but for the Bible. An all-source scripture intelligence terminal. 43+ translation feeds, AI fusion analysts (Talmud · gnosis · gematria · commentary), an Oracle interrogator. Air-gap capable, offline-first PWA. Eyes only." />
 <meta name="keywords" content="bible, bible study, scripture, kjv, esv, talmud, gematria, nag hammadi, gnosticism, apocrypha, interlinear, strongs, pwa, offline bible, parallel bible, reading plans, hebrew, greek, vulgate, peshitta, all-source, fusion analyst, intelligence terminal, OSINT, palantir, signals, dossier, zherka" />
 <meta property="og:title" content="CODEX · Like Palantir, but for the Bible" />
-<meta property="og:description" content="An all-source scripture intelligence terminal. 43+ translation feeds · Talmud · gnosis · gematria · Oracle · BabelForge cover-translations. Offline, air-gap capable. Eyes only." />
+<meta property="og:description" content="An all-source scripture intelligence terminal. 43+ translation feeds · Talmud · gnosis · gematria · Oracle. Offline, air-gap capable. Eyes only." />
 <meta property="og:type" content="website" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
@@ -141,8 +188,12 @@
 (function(){
   var boot = document.getElementById("cx-boot");
   if (!boot) return;
-  var skip = false;
-  try { skip = localStorage.getItem("codex.bootIntro") === "0"; } catch (e) {}
+  // Scripture-first by default: a brand-new user (no stored preference)
+  // lands straight on the chapter, like a plain Bible page. The terminal
+  // boot is an opt-in flourish — it only plays when explicitly enabled
+  // ("1") from Settings.
+  var skip = true;
+  try { skip = localStorage.getItem("codex.bootIntro") !== "1"; } catch (e) {}
   if (skip) { boot.style.display = "none"; return; }
 
   var log = document.getElementById("cx-boot-log");
@@ -259,6 +310,8 @@
 })();
 </script>
 
+<script src="observability.js"></script>
+<script src="boot-contract.js"></script>
 <script src="direct-api.js"></script>
 <script src="i18n.js"></script>
 <script src="ai-translate-ui.js"></script>
@@ -269,11 +322,11 @@
 <script src="sync.js"></script>
 <script src="modules.js"></script>
 <script src="plugins.js"></script>
+<script src="engagement.js"></script>
 <script src="gematria.js"></script>
 <script src="panels-gen.js"></script>
 <script src="mark-search.js"></script>
 <script src="search.js"></script>
-<script src="translate-engine.js"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
 <script type="text/babel" src="help.jsx"></script>
 <script type="text/babel" src="components.jsx"></script>
@@ -299,7 +352,6 @@
 <script type="text/babel" src="builder.jsx"></script>
 <script type="text/babel" src="timeline.jsx"></script>
 <script type="text/babel" src="jewish-study.jsx"></script>
-<script type="text/babel" src="babelforge.jsx"></script>
 <script type="text/babel" src="marketplace.jsx"></script>
 <script type="text/babel" src="compare.jsx"></script>
 <script type="text/babel" src="vox.jsx"></script>

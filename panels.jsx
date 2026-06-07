@@ -36,15 +36,14 @@ if (typeof window !== "undefined") window.railTabs = railTabs;
 // ── Panel palette ──────────────────────────────────────────────────────
 // A command-palette style picker that replaces the old overflow tab-strip.
 // Opens via the ⌘ button in the rail header or Cmd/Ctrl+K. Tabs are grouped
-// into intent-driven sections (READING, STUDY, REFERENCE, DISCOVER, FORGE)
+// into intent-driven sections (READING, STUDY, REFERENCE, DISCOVER)
 // and filterable by typing. The rail itself only shows 3 user-pinned tabs
 // plus the palette button — much calmer at 280px and beyond.
 const PALETTE_SECTIONS = [
   { id: "reading",   label: "READING",   ids: ["trans"] },
   { id: "study",     label: "STUDY",     ids: ["comm", "talmud", "exeg", "txan", "gem", "gnosis", "disarm"] },
-  { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs:crossrefs", "plugin:word-study:word", "plugin:dictionary:dictionary", "plugin:passage-guide:guide"] },
-  { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:timeline:timeline", "plugin:jewish-study:torah", "plugin:plans:plans", "plugin:ai-quests:quests", "plugin:builder:builder"] },
-  { id: "forge",     label: "FORGE",     ids: ["plugin:babelforge:babel", "plugin:marketplace:market"] },
+  { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs-tsk:crossrefs", "plugin:word-study:word", "plugin:dictionary:dictionary", "plugin:passage-guide:guide"] },
+  { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:timeline:timeline", "plugin:jewish-study:torah", "plugin:plans:plans", "plugin:ai-quests:quests", "plugin:builder:builder", "plugin:marketplace:market"] },
 ];
 const PALETTE_DESCRIPTIONS = {
   trans: "Translations and side-by-side compare",
@@ -56,7 +55,7 @@ const PALETTE_DESCRIPTIONS = {
   gnosis: "Esoteric / mystical reading layer",
   disarm: "How power twists this verse — and the rebuttals",
   "plugin:strongs-concordance:strongs": "Strong's concordance lookups",
-  "plugin:crossrefs:crossrefs": "Cross-references for the verse",
+  "plugin:crossrefs-tsk:crossrefs": "Cross-references for the verse",
   "plugin:word-study:word": "Deep word studies",
   "plugin:dictionary:dictionary": "Bible dictionary",
   "plugin:passage-guide:guide": "Guided tour of the passage",
@@ -66,7 +65,6 @@ const PALETTE_DESCRIPTIONS = {
   "plugin:plans:plans": "Reading plans",
   "plugin:ai-quests:quests": "Quests and challenges",
   "plugin:builder:builder": "Study workspace builder",
-  "plugin:babelforge:babel": "BabelForge translation playground",
   "plugin:marketplace:market": "Plugin marketplace",
 };
 const DEFAULT_PINNED = ["trans", "comm", "plugin:strongs-concordance:strongs"];
@@ -641,7 +639,6 @@ function _autoBundleDrain() {
 function maybeAutoBundle(t, books) {
   if (!t || !books || !_autoBundleEnabled()) return;
   if (!window.BIBLE || !window.BIBLE.downloadAll || !window.BIBLE.cacheStats) return;
-  // Skip user-forged BabelForge bibles (already stored locally) and bundle-source.
   if (t.source === "bundle") return;
   if (_autoBundleTried.has(t.id)) return;
   let stats;
@@ -791,9 +788,9 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
     return () => _dlListeners.delete(fn);
   }, []);
 
-  // Re-render when a translation is installed/removed (e.g. BabelForge
-  // forges a Bible). data.translations is mutated in place so the
-  // useMemo above would otherwise miss it.
+  // Re-render when a translation is installed/removed.
+  // data.translations is mutated in place so the useMemo above would
+  // otherwise miss it.
   useEffect(() => {
     const fn = () => bump(n => n + 1);
     window.addEventListener("codex:translations-changed", fn);
@@ -848,6 +845,7 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
         localStorage.setItem("codex.bible.cache.v2", JSON.stringify(raw));
       }
     } catch {}
+    try { window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: t.id } })); } catch {}
     _dlState.delete(t.id);
     _autoBundleTried.delete(t.id);
     _dlNotify();
@@ -870,13 +868,6 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
       window.removeEventListener("scroll", close, true);
     };
   }, [ctxMenu]);
-
-  // Forge-from: open BabelForge pre-filled with this translation as source.
-  const forgeFrom = (t) => {
-    try {
-      window.dispatchEvent(new CustomEvent("codex:babelforge-forge-from", { detail: { sourceTr: t.id } }));
-    } catch {}
-  };
 
   // Cmd+F focuses the filter (when panel is mounted/focused).
   useEffect(() => {
@@ -1085,15 +1076,6 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
                           onStop={() => stopDownload(t)}
                           onClear={() => clearOffline(t)}
                         />
-                        <button
-                          className="cx-tp-forge"
-                          onClick={(e) => { e.stopPropagation(); forgeFrom(t); }}
-                          title={`Forge a custom version from ${t.name} (BabelForge)`}
-                          aria-label="Forge custom version"
-                          style={{ background: "transparent", border: "1px solid transparent", color: "var(--cx-fg-dim)", borderRadius: 3, padding: "2px 5px", cursor: "pointer", fontSize: 11, marginLeft: 2, opacity: 0.55 }}
-                          onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.color = "var(--cx-accent)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.55; e.currentTarget.style.color = "var(--cx-fg-dim)"; }}
-                        >⌬</button>
                         {isUser ? (
                           <button
                             className="cx-tp-rm"
@@ -1113,7 +1095,7 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
       </div>
 
       <div className="cx-tp-foot">
-        <span>● primary  ·  ◉ compare  ·  ⌬ forge  ·  ⋮⋮ drag</span>
+        <span>● primary  ·  ◉ compare  ·  ⋮⋮ drag</span>
       </div>
       {window.RepoAdd ? (
         <div className="cx-tp-browse" style={{ padding: "6px 8px 10px" }}>
@@ -1155,7 +1137,6 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
               { label: "Set as primary", on: () => onPrimaryWrap(t.id), disabled: isPrim },
               { label: isCmp ? "Remove from compare" : "Add to compare", on: () => onToggleCompareWrap(t.id) },
               { label: "Save offline", on: () => startDownload(t), disabled: st?.fully },
-              { label: "Forge custom version (BabelForge)", on: () => forgeFrom(t) },
               { label: "Remove offline data", on: () => clearOffline(t), disabled: !st || st.cached === 0 },
             ];
             if (userIds.has(t.id)) items.push({ label: "Remove from library", on: () => removeOne(t), danger: true });
@@ -2720,12 +2701,20 @@ function RegenBtn({ onClick }) {
 }
 
 // ── Right-rail width resizer · drag the left edge to widen / narrow ─────
+// Viewport-relative max so a rail can never crush the reader (which keeps
+// minmax(0,1fr)). Hard ceilings as a backstop on ultra-wide screens.
+function rrailMax() { return Math.min(480, Math.floor((window.innerWidth || 1280) * 0.34)); }
+function lrailMax() { return Math.min(360, Math.floor((window.innerWidth || 1280) * 0.34)); }
 function RightRailResizer() {
   useEffect(() => {
     try {
-      const saved = parseInt(localStorage.getItem("codex.rrail.width") || "", 10);
-      if (saved >= 320 && saved <= 820) {
-        document.documentElement.style.setProperty("--cx-rrail-w", saved + "px");
+      let saved = parseInt(localStorage.getItem("codex.rrail.width") || "", 10);
+      if (Number.isFinite(saved)) {
+        // Clamp on read — corrects any over-wide value persisted before the
+        // clamp existed (was breaking the desktop grid).
+        const clamped = Math.max(280, Math.min(rrailMax(), saved));
+        document.documentElement.style.setProperty("--cx-rrail-w", clamped + "px");
+        if (clamped !== saved) { try { localStorage.setItem("codex.rrail.width", String(clamped)); } catch {} }
       }
     } catch {}
   }, []);
@@ -2733,9 +2722,10 @@ function RightRailResizer() {
     e.preventDefault();
     const startX = e.clientX;
     const start = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--cx-rrail-w")) || 380;
+    const maxW = rrailMax();
     document.body.classList.add("cx-resizing");
     const onMove = (m) => {
-      const next = Math.max(320, Math.min(820, start + (startX - m.clientX)));
+      const next = Math.max(280, Math.min(maxW, start + (startX - m.clientX)));
       document.documentElement.style.setProperty("--cx-rrail-w", next + "px");
     };
     const onUp = () => {
@@ -2757,9 +2747,11 @@ function RightRailResizer() {
 function LeftRailResizer() {
   useEffect(() => {
     try {
-      const saved = parseInt(localStorage.getItem("codex.lrail.width") || "", 10);
-      if (saved >= 200 && saved <= 560) {
-        document.documentElement.style.setProperty("--cx-lrail-w", saved + "px");
+      let saved = parseInt(localStorage.getItem("codex.lrail.width") || "", 10);
+      if (Number.isFinite(saved)) {
+        const clamped = Math.max(180, Math.min(lrailMax(), saved));
+        document.documentElement.style.setProperty("--cx-lrail-w", clamped + "px");
+        if (clamped !== saved) { try { localStorage.setItem("codex.lrail.width", String(clamped)); } catch {} }
       }
     } catch {}
   }, []);
@@ -2767,9 +2759,10 @@ function LeftRailResizer() {
     e.preventDefault();
     const startX = e.clientX;
     const start = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--cx-lrail-w")) || 232;
+    const maxW = lrailMax();
     document.body.classList.add("cx-resizing");
     const onMove = (m) => {
-      const next = Math.max(200, Math.min(560, start + (m.clientX - startX)));
+      const next = Math.max(180, Math.min(maxW, start + (m.clientX - startX)));
       document.documentElement.style.setProperty("--cx-lrail-w", next + "px");
     };
     const onUp = () => {

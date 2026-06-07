@@ -24,7 +24,6 @@ function VerseMenu({
   highlightColors,  // { amber: { name, swatch }, ... }
   currentHighlight, // string | null — current colour for this verse
   onClose,
-  onMark,
   onCompare,
   onSetPrimary,
   onAskOracle,
@@ -146,12 +145,6 @@ function VerseMenu({
               <span className="cx-vm-sub">5 hues ▸</span>
             </button>
           ) : null}
-
-          <button className="cx-vm-row" onClick={() => { onCompare(verse.n); onClose(); }}>
-            <span className="cx-vm-icon">Α/Ω</span>
-            <span className="cx-vm-lbl">{sideBySide ? vmt("vm.compare.focus") : vmt("vm.compare")}</span>
-            <span className="cx-vm-sub">{sideBySide ? "focus this verse" : "engage side-by-side"}</span>
-          </button>
 
           <button className="cx-vm-row" onClick={() => setView("translate")}>
             <span className="cx-vm-icon">↔</span>
