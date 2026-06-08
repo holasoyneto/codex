@@ -8,6 +8,7 @@
     "check": "node scripts/check.mjs"
   },
   "devDependencies": {
-    "@babel/standalone": "7.29.0"
+    "@babel/standalone": "7.29.0",
+    "puppeteer-core": "^25.1.0"
   }
 }

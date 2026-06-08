@@ -103,66 +103,56 @@
       } catch (_) {}
     }
 
-    function assertAll() {
-      var ok = true;
-      try {
-        var globals = (CODEX_BOOT_CONTRACT && CODEX_BOOT_CONTRACT.globals) || [];
-        for (var i = 0; i < globals.length; i++) {
-          var g = globals[i];
-          if (!g || !g.name) continue;
-          var val;
-          try {
-            val = window[g.name];
-          } catch (_) {
-            val = undefined;
-          }
-          if (typeof val === "undefined" || val === null) {
-            ok = false;
-            fail(g.name, "missing");
-            continue;
-          }
-          var good = false;
-          try {
-            good = !!(g.shape && g.shape(val));
-          } catch (_) {
-            good = false;
-          }
-          if (!good) {
-            ok = false;
-            fail(g.name, "malformed");
-          }
-        }
-      } catch (_) {
-        // If the assertion machinery itself fails, do not mark ready, but
-        // never throw.
-        ok = false;
+    // One non-logging pass → returns the list of missing/malformed globals.
+    function checkOnce() {
+      var missing = [];
+      var globals = (CODEX_BOOT_CONTRACT && CODEX_BOOT_CONTRACT.globals) || [];
+      for (var i = 0; i < globals.length; i++) {
+        var g = globals[i];
+        if (!g || !g.name) continue;
+        var val;
+        try { val = window[g.name]; } catch (_) { val = undefined; }
+        if (typeof val === "undefined" || val === null) { missing.push({ name: g.name, why: "missing" }); continue; }
+        var good = false;
+        try { good = !!(g.shape && g.shape(val)); } catch (_) { good = false; }
+        if (!good) missing.push({ name: g.name, why: "malformed" });
       }
-
-      try {
-        window.__CODEX_READY__ = !!ok;
-      } catch (_) {}
-
-      if (!ok) {
-        try {
-          // Production: just log. observability.js mirrors __CODEX_ERRORS__ too.
-          console.error("[CODEX] boot-contract: one or more globals missing/malformed");
-        } catch (_) {}
-      }
-      return ok;
+      return missing;
     }
 
-    // MUST run on 'load' — the .jsx phase is async, so phase:'jsx' globals
-    // (e.g. codexJumpToRef) do not exist before the load event fires.
+    // phase:'jsx' globals appear only after the async .jsx phase — and some
+    // (e.g. codexJumpToRef, set in a React useEffect) appear AFTER the 'load'
+    // event, once effects have committed. A single check on 'load' would log a
+    // false "missing" and never set __CODEX_READY__. So poll for a bounded
+    // window; only treat globals still absent past the deadline as real
+    // failures. ~8s comfortably covers cold-start transpile + first effects.
+    var DEADLINE_MS = 8000, INTERVAL_MS = 150;
+    function runWithRetry(startedAt) {
+      var missing;
+      try { missing = checkOnce(); } catch (_) { missing = [{ name: "(checker)", why: "threw" }]; }
+      if (!missing.length) {
+        try { window.__CODEX_READY__ = true; } catch (_) {}
+        return;
+      }
+      if (Date.now() - startedAt < DEADLINE_MS) {
+        try { setTimeout(function () { runWithRetry(startedAt); }, INTERVAL_MS); } catch (_) {}
+        return;
+      }
+      // Deadline exceeded → genuine failure: log each still-missing global once.
+      for (var i = 0; i < missing.length; i++) fail(missing[i].name, missing[i].why);
+      try { window.__CODEX_READY__ = false; } catch (_) {}
+      try { console.error("[CODEX] boot-contract: globals missing/malformed after " + DEADLINE_MS + "ms"); } catch (_) {}
+    }
+
+    function start() { runWithRetry(Date.now()); }
+
+    // Asserted starting at 'load' (the .jsx phase is async), then polled until
+    // the effect-set jsx globals land or the deadline passes.
     try {
       if (document.readyState === "complete") {
-        // 'load' already fired (unlikely this early, but be safe).
-        setTimeout(assertAll, 0);
+        setTimeout(start, 0);
       } else {
-        window.addEventListener("load", function () {
-          try {
-            assertAll();
-          } catch (_) {}
-        });
+        window.addEventListener("load", function () { try { start(); } catch (_) {} });
       }
     } catch (_) {}
   } catch (_) {
