@@ -2353,6 +2353,14 @@ function App() {
     return () => window.removeEventListener("codex:open-panel", onOpenPanel);
   }, []);
 
+  // Exiting a fullscreen experience (e.g. Reels) should return to reading, not
+  // leave the rail open behind a dimmed scrim. Reels dispatches this on close.
+  useEffect(() => {
+    const onCloseRails = () => { setLeftOpen(false); setRightOpen(false); };
+    window.addEventListener("codex:close-rails", onCloseRails);
+    return () => window.removeEventListener("codex:close-rails", onCloseRails);
+  }, []);
+
   // Quick translation switcher in the reader header → set primary.
   useEffect(() => {
     const onSet = (e) => { const id = e && e.detail && e.detail.id; if (id) setPrimary(id); };
@@ -2537,20 +2545,8 @@ function App() {
         />
         </div>{/* /.cx-center-col */}
 
-        {/* Floating Reels launcher — single-pane only. Switches the right
-            rail to the Reels panel which auto-pops the fullscreen overlay. */}
-        {!sideBySide ? (
-          <button
-            className="cx-reels-fab"
-            title="Open Reels"
-            aria-label="Open Reels"
-            onClick={() => {
-              setRightOpen(true);
-              setRightCollapsed(false);
-              setTab("plugin:reels:reels");
-            }}
-          >⛶</button>
-        ) : null}
+        {/* Reels launcher moved out of the reading area into the footer
+            (see FooterBar onOpenReels) — the floating circle was intrusive. */}
 
         <RightRail
           isCollapsed={rightCollapsed}
@@ -2615,6 +2611,7 @@ function App() {
           setRightCollapsed(v => !v);
         }}
         onShowShortcuts={() => setShowShortcuts(true)}
+        onOpenReels={() => { setRightOpen(true); setRightCollapsed(false); setTab("plugin:reels:reels"); }}
         isOnline={isOnline}
       />
 
@@ -3537,7 +3534,7 @@ function CachedPanelsBrowser({ onJump, bookLookup }) {
   );
 }
 
-function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, onOpenLeft, onOpenRight, distractionFree, onToggleDistractionFree, theater, onToggleTheater, leftCollapsed, onToggleLeftCollapsed, rightCollapsed, onToggleRightCollapsed, onShowShortcuts, isOnline = true }) {
+function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, onOpenLeft, onOpenRight, distractionFree, onToggleDistractionFree, theater, onToggleTheater, leftCollapsed, onToggleLeftCollapsed, rightCollapsed, onToggleRightCollapsed, onShowShortcuts, onOpenReels, isOnline = true }) {
   return (
     <footer className="cx-footer">
       <div className="cx-footer-l">
@@ -3560,6 +3557,14 @@ function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCou
             aria-label="Settings"
             data-tweaks-trigger
           >⚙</button>
+          {onOpenReels ? (
+            <button
+              className="cx-df-toggle cx-reels-launch"
+              onClick={onOpenReels}
+              title="Reels — endless scripture feed"
+              aria-label="Open Reels"
+            >❖</button>
+          ) : null}
         </div>
         {/* Compare-count tick: only renders when there's actually something
             to compare. Kills a permanently-zero pill in the default state. */}

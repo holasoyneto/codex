@@ -1810,10 +1810,19 @@ body {
   pointer-events: none;
   transition: opacity .2s ease;
 }
-.cx-app.left-open .cx-rail-scrim,
-.cx-app.right-open .cx-rail-scrim {
-  opacity: 1;
-  pointer-events: auto;
+/* The scrim only dims on mobile, where the rails are off-canvas drawers and a
+   dimmed backdrop is correct. On desktop the rails are INLINE grid columns, so
+   a full-viewport z-99 scrim would sit ON TOP of them — dimming the screen and
+   swallowing clicks (the "panel opens but nothing happens / screen just dims /
+   needs an extra click" bug). Guarding activation to the drawer breakpoint
+   makes the scrim a no-op on desktop (base rule keeps it opacity:0 /
+   pointer-events:none there). */
+@media (max-width: 880px) {
+  .cx-app.left-open .cx-rail-scrim,
+  .cx-app.right-open .cx-rail-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* Inertial scrolling for every scrollable surface on iOS. */

@@ -463,12 +463,19 @@
   function ReelsPanel(ctx) {
     const [fs, setFs] = useState(true);
     useEffect(() => { setFs(true); }, []);
+    // Closing reels returns to reading: drop fullscreen AND ask the host to
+    // close the rails, so we don't leave an open rail behind a dimmed scrim
+    // (the "exit reels leaves the screen dimmed, needs an extra click" bug).
+    const closeFs = () => {
+      setFs(false);
+      try { window.dispatchEvent(new CustomEvent("codex:close-rails")); } catch (e) {}
+    };
     // Render the overlay through a portal to document.body so it escapes
     // every parent stacking context / transform / clip (the right-rail
     // panel was clipping the "fullscreen" overlay on some viewports).
     const overlay = fs ? (
-      <div className="cx-reels-overlay" role="dialog" aria-label="Reels fullscreen" onClick={(e) => e.target === e.currentTarget && setFs(false)}>
-        <ReelsFeed ctx={ctx} fullscreen={true} onClose={() => setFs(false)} />
+      <div className="cx-reels-overlay" role="dialog" aria-label="Reels fullscreen" onClick={(e) => e.target === e.currentTarget && closeFs()}>
+        <ReelsFeed ctx={ctx} fullscreen={true} onClose={closeFs} />
       </div>
     ) : null;
     const portal = (overlay && window.ReactDOM && window.ReactDOM.createPortal)
