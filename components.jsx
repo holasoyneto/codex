@@ -496,6 +496,22 @@ function MarkRow({ mark, idx, onSelect, onClear, onTogglePin, swatch, aiReason }
   );
 }
 
+// Mounts the sermon/study Builder panel inline (its plugin render) so Studies
+// are reachable straight from the Library rail, not only via a verse action.
+function StudiesMount() {
+  const panel = React.useMemo(() => {
+    try {
+      const ps = (window.CODEX_PLUGINS_API && window.CODEX_PLUGINS_API.getPanels && window.CODEX_PLUGINS_API.getPanels()) || [];
+      return ps.find(p => p.pluginId === "sermon-builder" && p.id === "builder") || null;
+    } catch { return null; }
+  }, []);
+  if (!panel || typeof panel.render !== "function") {
+    return <div style={{ padding: 14, color: "var(--cx-fg-dim)" }}>Studies loading…</div>;
+  }
+  try { return panel.render({}); }
+  catch (e) { return <div style={{ padding: 14, color: "var(--cx-fg-dim)" }}>Studies unavailable.</div>; }
+}
+
 function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, onSelectMark, onClearMark, onTogglePinMark, onMarkCurrent, onSelectChapter, currentRef, oracleProps, isCollapsed, onCollapse }) {
   const data = window.CODEX_DATA;
   const ot = useMemo(() => data.books.filter(b => b.testament === "OT"), [data.books]);
@@ -568,6 +584,7 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
     { id: "library", label: tx("tab.library"), glyph: "📖", title: tx("tab.library.title") },
     { id: "oracle",  label: tx("tab.oracle"),  glyph: "◉",  title: tx("tab.oracle.title") },
     { id: "marks",   label: tx("tab.marks"),   glyph: "✦",  title: `${tx("marks")} (${marks.length})` },
+    { id: "studies", label: (tx("tab.studies") === "tab.studies" ? "Studies" : tx("tab.studies")), glyph: "❡", title: "Sermon & study builder" },
   ];
 
   return (
@@ -617,6 +634,12 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
       {tab === "oracle" ? (
         <CornerFrame label="ORACLE · NEUTRAL" className="cx-rail-flex">
           {window.Oracle ? <Oracle {...oracleProps} /> : <div style={{padding:14,color:"var(--cx-fg-dim)"}}>Oracle loading…</div>}
+        </CornerFrame>
+      ) : null}
+
+      {tab === "studies" ? (
+        <CornerFrame label="STUDIES · SERMON BUILDER" className="cx-rail-flex">
+          <StudiesMount />
         </CornerFrame>
       ) : null}
 
