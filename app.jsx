@@ -1286,11 +1286,17 @@ function WelcomeBack({ onContinue, onDismiss, onDiscoveryClick }) {
 // ── Engagement: Achievement toast ────────────────────────────────────────
 function AchievementToast({ achievement, onDone }) {
   const [exiting, setExiting] = useState(false);
+  // Keep the latest onDone in a ref so the dismiss timers run ONCE on mount.
+  // Depending on [onDone] was the bug: the parent passes a fresh arrow every
+  // render and the app re-renders every second (clock), so the timers were
+  // cleared+reset before 4s and the toast never dismissed ("won't go away").
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
   useEffect(() => {
     const exitTimer = setTimeout(() => setExiting(true), 3700);
-    const removeTimer = setTimeout(() => { if (onDone) onDone(); }, 4000);
+    const removeTimer = setTimeout(() => { const f = onDoneRef.current; if (f) f(); }, 4000);
     return () => { clearTimeout(exitTimer); clearTimeout(removeTimer); };
-  }, [onDone]);
+  }, []);
   if (!achievement) return null;
   return (
     <div className={`cx-achievement-toast ${exiting ? "is-exiting" : ""}`}>

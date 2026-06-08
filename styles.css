@@ -2799,22 +2799,34 @@ body.cx-resizing * { cursor: ew-resize !important; }
 .cx-tp-foot { flex: 0 0 auto; }
 .cx-tp-quote {
   margin: 10px 14px 4px;
-  padding: 10px 12px 12px 36px;
+  padding: 10px 12px 12px;
   border-left: 2px solid var(--cx-accent);
   background: color-mix(in oklab, var(--cx-accent) 6%, transparent);
   position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
   font-family: var(--cx-serif);
   font-size: 14px;
   line-height: 1.55;
   color: var(--cx-fg);
 }
 .cx-tp-quote-glyph {
-  position: absolute; top: 8px; left: 10px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 35%, transparent);
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--cx-accent) 10%, transparent);
   font-family: var(--cx-mono);
-  font-size: 9.5px; letter-spacing: 0.1em;
-  color: var(--cx-accent); opacity: 0.85;
+  font-size: 9.5px; line-height: 1.4; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cx-accent); opacity: 0.9;
+  white-space: nowrap;
 }
-.cx-tp-quote-text { display: block; }
+.cx-tp-quote-text { flex: 1 1 0; min-width: 0; }
 
 .cx-tp-list {
   list-style: none; margin: 0; padding: 0;

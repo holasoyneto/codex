@@ -952,7 +952,7 @@ function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, pa
         title="Tap to copy · long-press to share"
         style={{ touchAction: "manipulation", userSelect: "none", cursor: "pointer" }}
       >
-        <span className="cx-tp-quote-glyph" style={{ fontSize: "1.15em" }}>{primaryMeta?.glyph}</span>
+        <span className="cx-tp-quote-glyph">{primaryMeta?.glyph}</span>
         <span className="cx-tp-quote-text">{primaryText}</span>
         <span className="cx-tp-quote-vn" style={{ fontFeatureSettings: '"tnum"', opacity: 0.55, marginLeft: 6, fontSize: 11 }}>
           {verse ? `${verse.n}` : ""}

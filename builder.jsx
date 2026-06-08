@@ -619,6 +619,10 @@
             detail = { type: "verse", ref: String(verseRef || ""), text: "", translation: "kjv" };
           }
           window.dispatchEvent(new CustomEvent("codex:add-to-study", { detail }));
+          // Surface the Studies panel so the user SEES the verse land (the
+          // action was silently adding in the background = "not working").
+          try { window.dispatchEvent(new CustomEvent("codex:open-panel", { detail: { pluginId: "sermon-builder", panelId: "builder" } })); } catch (e) {}
+          try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Added to study", kind: "ok" } })); } catch (e) {}
         },
       }],
     });

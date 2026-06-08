@@ -120,6 +120,31 @@ function fmtYear(y) {
   return `${n} ${y < 0 ? "BCE" : "CE"}`;
 }
 
+// Resolve the user's currently-active AI engine the same way the other
+// AI panels do (ai-quests, passage-guide). Falls back to nothing so the
+// server can apply its own default / surface an actionable error.
+function getActiveEngine() {
+  const t = (window.CODEX_DATA && window.CODEX_DATA.tweaks) || {};
+  return { provider: t.provider || undefined, model: t.model || undefined };
+}
+
+// Servers vary in error shape: { error: "msg" } or
+// { error: { message } } (Anthropic/OpenAI style). Always get a string.
+function errMessage(body, status) {
+  const e = body && body.error;
+  if (typeof e === "string") return e;
+  if (e && typeof e === "object") return e.message || e.type || JSON.stringify(e);
+  return `HTTP ${status}`;
+}
+
+// Navigate the reader to a cross-reference. Prefer the prop wired from
+// app.jsx; fall back to the global jump fn so the Mirror still works when
+// opened from contexts that don't pass onJumpRef.
+function jumpRef(onJumpRef, ref) {
+  if (typeof onJumpRef === "function") return onJumpRef(ref);
+  if (typeof window.codexJumpToRef === "function") return window.codexJumpToRef(ref);
+}
+
 function VerseMirror({ verse, refStr, verseText, passage, primary, onClose, onJumpRef }) {
   const key = `codex.mirrors.${passage.bookId}.${passage.chapter}.${verse?.n}`;
   const [data, setData]    = useState(() => {
@@ -135,11 +160,15 @@ function VerseMirror({ verse, refStr, verseText, passage, primary, onClose, onJu
     let cancelled = false;
     (async () => {
       try {
+        const eng = getActiveEngine();
         const r = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "claude-haiku-4-5-20251001",
+            // Use the reader's active engine if one is selected; otherwise
+            // fall back to a Haiku default and let the server decide/erroring.
+            provider: eng.provider,
+            model: eng.model || "claude-haiku-4-5-20251001",
             system: MIRROR_PROMPT,
             messages: [{
               role: "user",
@@ -148,8 +177,8 @@ function VerseMirror({ verse, refStr, verseText, passage, primary, onClose, onJu
             max_tokens: 3200,
           }),
         });
-        const body = await r.json();
-        if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(errMessage(body, r.status));
         const text = (body.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
         const i = text.indexOf("{");
         if (i === -1) throw new Error("Mirror response not JSON");
@@ -199,6 +228,11 @@ function VerseMirror({ verse, refStr, verseText, passage, primary, onClose, onJu
           <div className="cx-mirror-err">
             <b>MIRROR ORACLE OFFLINE</b>
             <code>{err}</code>
+            {/credential|authentic|api key|no .*_api_key|401|403|provider/i.test(err) ? (
+              <span className="cx-mirror-err-hint">
+                Add an AI provider API key in Settings → AI Model, then reopen the Mirror.
+              </span>
+            ) : null}
           </div>
         ) : data ? (
           <MirrorBody data={data} onJumpRef={onJumpRef} />
@@ -294,10 +328,12 @@ function MirrorBody({ data, onJumpRef }) {
             {data.crossReferences.map((x, i) => (
               <li
                 key={i}
-                onClick={() => onJumpRef && onJumpRef(x.ref)}
-                className={onJumpRef ? "is-clickable" : ""}
-                role={onJumpRef ? "button" : undefined}
-                title={onJumpRef ? `Jump to ${x.ref}` : undefined}
+                onClick={() => jumpRef(onJumpRef, x.ref)}
+                className="is-clickable"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); jumpRef(onJumpRef, x.ref); } }}
+                title={`Jump to ${x.ref}`}
               >
                 <b>{x.ref}</b>
                 <span>{x.note}</span>
@@ -319,13 +355,23 @@ function MirrorBody({ data, onJumpRef }) {
 }
 
 function Section({ tag, title, color, children }) {
+  const [open, setOpen] = useState(true);
   return (
-    <section className={`cx-mirror-sect is-${color}`}>
-      <header className="cx-mirror-sect-h">
+    <section className={`cx-mirror-sect is-${color} ${open ? "is-open" : "is-collapsed"}`}>
+      <header
+        className="cx-mirror-sect-h is-clickable"
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        title={open ? "Collapse" : "Expand"}
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
+      >
         <span className="cx-mirror-sect-tag">{tag}</span>
         <h3>{title}</h3>
+        <span className="cx-mirror-sect-caret" aria-hidden="true">{open ? "▾" : "▸"}</span>
       </header>
-      {children}
+      {open ? children : null}
     </section>
   );
 }
