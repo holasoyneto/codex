@@ -16,6 +16,23 @@
   const ACHIEVEMENTS_KEY = "codex.engagement.achievements.v1";
   const DAILY_KEY        = "codex.engagement.daily.v1";
   const SESSION_KEY      = "codex.engagement.session.v1";
+  const REEL_LIKES_KEY   = "codex.reels.likes.v1";   // [{key,type,anchor,title,book,ts}]
+
+  // ── Reel likes + reader taste profile ────────────────────────────────
+  function reelCardKey(card) {
+    if (!card) return "";
+    return `${card.type || "?"}:${card.id || card.anchor || card.title || "?"}`;
+  }
+  function loadReelLikes() {
+    try { return JSON.parse(localStorage.getItem(REEL_LIKES_KEY) || "[]") || []; }
+    catch { return []; }
+  }
+  function saveReelLikes(list) {
+    try { localStorage.setItem(REEL_LIKES_KEY, JSON.stringify(list.slice(-500))); } catch {}
+  }
+  function bookOf(anchor) {
+    return (typeof anchor === "string" && anchor.indexOf(".") > 0) ? anchor.split(".")[0] : null;
+  }
 
   // ── Date helpers ─────────────────────────────────────────────────────
   function isoToday() {
@@ -372,6 +389,62 @@
     trackReel() {
       const s = loadStats(); s.reelsViewed++; saveStats(s);
       return checkAchievements();
+    },
+    // ── Reel likes (the explicit taste signal) ───────────────────────
+    isReelLiked(card) {
+      const k = reelCardKey(card);
+      return loadReelLikes().some((l) => l.key === k);
+    },
+    // Toggle a like. Returns { liked: boolean, achievements }.
+    toggleReelLike(card) {
+      const k = reelCardKey(card);
+      let list = loadReelLikes();
+      const idx = list.findIndex((l) => l.key === k);
+      let liked;
+      if (idx >= 0) { list.splice(idx, 1); liked = false; }
+      else {
+        list.push({
+          key: k, type: card.type || null, anchor: card.anchor || null,
+          title: card.title || null, book: bookOf(card.anchor), ts: Date.now(),
+        });
+        liked = true;
+      }
+      saveReelLikes(list);
+      recordDay();
+      return { liked, achievements: checkAchievements() };
+    },
+    getReelLikes() { return loadReelLikes(); },
+    // Derive a taste profile from explicit likes + highlights + reading
+    // history. Used to bias the Reels feed toward what the reader engages with.
+    buildReaderProfile() {
+      const likes = loadReelLikes();
+      const stats = loadStats();
+      const cardTypes = {};   // type → weight
+      const books = {};       // bookId → weight
+      const likedKeys = {};
+      for (const l of likes) {
+        likedKeys[l.key] = true;
+        if (l.type) cardTypes[l.type] = (cardTypes[l.type] || 0) + 2;   // explicit like = strong
+        if (l.book) books[l.book] = (books[l.book] || 0) + 2;
+      }
+      // Highlights = medium signal (verse-level interest).
+      try {
+        const hl = JSON.parse(localStorage.getItem("codex.highlights.v1") || localStorage.getItem("codex.marks.v1") || "{}");
+        for (const key of Object.keys(hl)) { const b = bookOf(key); if (b) books[b] = (books[b] || 0) + 1; }
+      } catch {}
+      // Reading history = light signal.
+      try {
+        for (const ref of Object.keys(stats.chaptersRead || {})) { const b = bookOf(ref); if (b) books[b] = (books[b] || 0) + 0.5; }
+      } catch {}
+      const topBooks = Object.keys(books).sort((a, b) => books[b] - books[a]).slice(0, 8);
+      const topTypes = Object.keys(cardTypes).sort((a, b) => cardTypes[b] - cardTypes[a]);
+      const likeCount = likes.length;
+      return {
+        cardTypes, books, likedKeys, topBooks, topTypes,
+        likeCount,
+        hasSignal: likeCount > 0 || topBooks.length > 0,
+        tier: likeCount >= 20 ? "deep" : likeCount >= 5 ? "engaged" : likeCount >= 1 ? "warming" : "new",
+      };
     },
     trackQuest() {
       const s = loadStats(); s.questsCompleted++; saveStats(s);

@@ -68,14 +68,23 @@
 
   // Pull a fresh card off the wheel. Round-robins through types so the
   // user never sees 5 of the same kind in a row.
-  function pickCurated(typeRotation) {
+  function pickCurated(typeRotation, profile) {
     const seen = loadSeen();
-    const pool = State.curated.filter(c => !seen.has(cardKey(c)));
+    let pool = State.curated.filter(c => !seen.has(cardKey(c)));
     if (!pool.length) {
       // All cards seen — reset the rolling window so the user can re-encounter
       State.seen = new Set();
       try { localStorage.removeItem(SEEN_KEY); } catch {}
       return State.curated[Math.floor(Math.random() * State.curated.length)];
+    }
+    // Profile bias: when the reader has favourite books, prefer cards anchored
+    // there — but only when that still leaves a healthy pool (keep variety).
+    if (profile && profile.topBooks && profile.topBooks.length) {
+      const fav = pool.filter(c => {
+        const b = (typeof c.anchor === "string" && c.anchor.indexOf(".") > 0) ? c.anchor.split(".")[0] : null;
+        return b && profile.topBooks.indexOf(b) >= 0;
+      });
+      if (fav.length >= 3 && Math.random() < 0.6) pool = fav;
     }
     const preferredType = typeRotation;
     const byType = pool.filter(c => c.type === preferredType);
@@ -127,15 +136,22 @@
     State.busy = true;
     try {
       await loadCurated();
+      // Reader taste profile (from likes + highlights + history). Biases the
+      // feed toward preferred card types/books while keeping ~45% exploration.
+      const profile = (window.CODEX_ENGAGE && window.CODEX_ENGAGE.buildReaderProfile)
+        ? window.CODEX_ENGAGE.buildReaderProfile() : null;
       let i = State.deck.length;
       let attempts = 0;
       while (State.deck.length < targetSize && attempts < 200) {
-        const typeForSlot = TYPE_ORDER[i % TYPE_ORDER.length];
+        let typeForSlot = TYPE_ORDER[i % TYPE_ORDER.length];
+        if (profile && profile.topTypes && profile.topTypes.length && Math.random() < 0.55) {
+          typeForSlot = profile.topTypes[Math.floor(Math.random() * Math.min(3, profile.topTypes.length))];
+        }
         let card = null;
         if (typeForSlot === "art-verse") {
           card = fromContext(ctx);
         }
-        if (!card) card = pickCurated(typeForSlot);
+        if (!card) card = pickCurated(typeForSlot, profile);
         if (card && !State.deck.find(c => cardKey(c) === cardKey(card))) {
           State.deck.push(card);
           markSeen(card);
@@ -423,32 +439,69 @@
   }
 
   function ReelActions({ card, onClose }) {
-    const saveToBookmark = () => {
-      if (!card.anchor) return;
-      try {
-        const list = JSON.parse(localStorage.getItem("codex.bookmarks") || "[]");
-        list.push({ ref: card.anchor, kind: "reel", title: card.title || card.type, at: Date.now() });
-        localStorage.setItem("codex.bookmarks", JSON.stringify(list));
-        window.dispatchEvent(new CustomEvent("codex:bookmark-added", { detail: { ref: card.anchor } }));
-      } catch {}
+    const ENG = (typeof window !== "undefined" && window.CODEX_ENGAGE) || null;
+    const [liked, setLiked] = useState(() => {
+      try { return !!(ENG && ENG.isReelLiked && ENG.isReelLiked(card)); } catch { return false; }
+    });
+    const toast = (msg, kind) => {
+      try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg, kind: kind || "ok" } })); } catch {}
     };
+
+    // LIKE — records the explicit taste signal (engagement profile) and, if the
+    // card points at a passage, also bookmarks it. Works on every card type.
+    const like = () => {
+      let res = { liked: !liked };
+      try { if (ENG && ENG.toggleReelLike) res = ENG.toggleReelLike(card); } catch {}
+      setLiked(res.liked);
+      if (res.liked && card.anchor) {
+        try {
+          const list = JSON.parse(localStorage.getItem("codex.bookmarks") || "[]");
+          if (!list.some((b) => b.ref === card.anchor && b.kind === "reel")) {
+            list.push({ ref: card.anchor, kind: "reel", title: card.title || card.type, at: Date.now() });
+            localStorage.setItem("codex.bookmarks", JSON.stringify(list));
+            window.dispatchEvent(new CustomEvent("codex:bookmark-added", { detail: { ref: card.anchor } }));
+          }
+        } catch {}
+      }
+      toast(res.liked ? "♥ Liked — your feed will lean this way" : "Removed from likes");
+    };
+
     const openPassage = () => {
       navigateToAnchor(card.anchor);
       if (onClose) onClose();
     };
-    const sharePlainText = () => {
-      const text = [card.title, card.body || card.question || "", card.anchor ? `— ${refLabel(card.anchor)}` : ""]
-        .filter(Boolean).join("\n\n");
-      try { navigator.clipboard?.writeText(text); } catch {}
+
+    // SHARE — native share sheet when available (mobile + supported desktop),
+    // clipboard fallback otherwise, with explicit feedback either way.
+    const share = async () => {
+      const text = [card.title, card.body || card.question || "", card.anchor ? `— ${refLabel(card.anchor)}` : "", "", "✦ via CODEX"]
+        .filter(Boolean).join("\n");
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+          await navigator.share({ title: card.title || "CODEX", text });
+          return; // native sheet handled it
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // user dismissed — silent
+        // otherwise fall through to clipboard
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("Copied to clipboard");
+      } catch (e) {
+        toast("Share unavailable here", "warn");
+      }
     };
+
     return (
       <div className="cx-reel-actions">
-        <button type="button" className="cx-reel-act" onClick={saveToBookmark} title="Save to bookmarks" disabled={!card.anchor}>♡</button>
+        <button type="button" className={`cx-reel-act ${liked ? "is-liked" : ""}`} onClick={like}
+                title={liked ? "Unlike" : "Like — show me more like this"} aria-pressed={liked}>{liked ? "♥" : "♡"}</button>
         <button type="button" className="cx-reel-act" onClick={openPassage} title="Open passage" disabled={!card.anchor}>📖</button>
         {window.CODEX_NormieToggle && (card.body || card.fulfillment_text)
           ? <window.CODEX_NormieToggle text={card.body || card.fulfillment_text} scope={`reel-${card.type}`} />
           : null}
-        <button type="button" className="cx-reel-act" onClick={sharePlainText} title="Copy">⤴</button>
+        <button type="button" className="cx-reel-act" onClick={share} title="Share">⤴</button>
       </div>
     );
   }

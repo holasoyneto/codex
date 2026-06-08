@@ -892,21 +892,23 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
 
   const reg = availableProviders || {};
   const curReg = reg[provider] || { available: false, models: [] };
-  const models = curReg.models || [];
+  // Model list: prefer the live /api/health list (Node mode, includes Ollama's
+  // runtime models); fall back to the client-side catalog (window.CODEX_MODELS)
+  // so the picker works on GitHub Pages where there is no server. The catalog
+  // is keyed by the internal routing id ("grok", not "xai").
+  const catalogKey = provider === "xai" ? "grok" : provider;
+  const catalog = (typeof window !== "undefined" && window.CODEX_MODELS && window.CODEX_MODELS[catalogKey]) || [];
+  const models = (curReg.models && curReg.models.length) ? curReg.models : catalog;
   const needsKey = (provider === "anthropic" || provider === "xai" || provider === "groq" || provider === "gemini") && !curReg.available;
 
   // When the user flips provider, snap model to the first available one so
   // we never POST a stale model id from a different provider.
   const pickProvider = (p) => {
     const r = reg[p];
-    if (!r || !r.available) {
-      // Still let them pick (so they can paste a key). Model becomes empty
-      // until /api/health says the provider has models available.
-      const first = (r && r.models && r.models[0] && r.models[0].id) || "";
-      onChange({ provider: p, model: first });
-      return;
-    }
-    const first = (r.models && r.models[0] && r.models[0].id) || "";
+    const ck = p === "xai" ? "grok" : p;
+    const cat = (typeof window !== "undefined" && window.CODEX_MODELS && window.CODEX_MODELS[ck]) || [];
+    // First model from /api/health if present, else from the client catalog.
+    const first = (r && r.models && r.models[0] && r.models[0].id) || (cat[0] && cat[0].id) || "";
     onChange({ provider: p, model: first });
   };
 

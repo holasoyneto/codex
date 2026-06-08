@@ -96,6 +96,72 @@
   }
 
   const VALID_ENGINES = new Set(["anthropic", "grok", "groq", "gemini", "ollama"]);
+
+  // ── Client-side model catalog ─────────────────────────────────────────
+  // Single source of truth for the Settings model picker. Works on GitHub
+  // Pages where there is no /api/health. Keyed by the INTERNAL routing id
+  // (grok, not xai). Exposed as window.CODEX_MODELS for the UI.
+  const MODEL_CATALOG = {
+    anthropic: [
+      { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", tier: "fast" },
+      { id: "claude-sonnet-4-6",         label: "Claude Sonnet 4.6", tier: "balanced" },
+      { id: "claude-opus-4-7",           label: "Claude Opus 4.7",   tier: "deepest" },
+    ],
+    grok: [
+      { id: "grok-3-mini", label: "Grok 3 mini", tier: "fast" },
+      { id: "grok-3",      label: "Grok 3",      tier: "balanced" },
+      { id: "grok-4",      label: "Grok 4",      tier: "deepest" },
+    ],
+    groq: [
+      { id: "llama-3.1-8b-instant",          label: "Llama 3.1 8B",   tier: "fast" },
+      { id: "llama-3.3-70b-versatile",       label: "Llama 3.3 70B",  tier: "balanced" },
+      { id: "deepseek-r1-distill-llama-70b", label: "DeepSeek R1 70B", tier: "reasoning" },
+      { id: "qwen-2.5-32b",                  label: "Qwen 2.5 32B",   tier: "balanced" },
+      { id: "mixtral-8x7b-32768",            label: "Mixtral 8x7B",   tier: "long context" },
+    ],
+    gemini: [
+      { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", tier: "fast" },
+      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", tier: "balanced" },
+      { id: "gemini-2.5-pro",   label: "Gemini 2.5 Pro",   tier: "deepest" },
+    ],
+    ollama: [], // discovered at runtime from the daemon
+  };
+  const PROVIDER_DEFAULT = {
+    anthropic: ANTHROPIC_DEFAULT_MODEL, grok: XAI_DEFAULT_MODEL,
+    groq: GROQ_DEFAULT_MODEL, gemini: GEMINI_DEFAULT_MODEL, ollama: "",
+  };
+  try { window.CODEX_MODELS = MODEL_CATALOG; } catch (e) {}
+
+  function isValidModelFor(provider, model) {
+    if (!model) return false;
+    if (provider === "ollama") return true;
+    const list = MODEL_CATALOG[provider] || [];
+    if (list.some((m) => m.id === model)) return true;
+    if (provider === "grok"   && /^grok/.test(model))   return true;
+    if (provider === "gemini" && /^gemini/.test(model)) return true;
+    return false;
+  }
+  // The user's chosen model, persisted by the Settings picker into
+  // codex.tweaks.v1 {provider, model}. Validated for the routing provider;
+  // falls back to that provider's default. This makes the model choice apply
+  // to EVERY AI call — even ones that never pass a model.
+  function chosenModel(provider) {
+    try {
+      const t = JSON.parse(localStorage.getItem("codex.tweaks.v1") || "{}");
+      if (t.model && isValidModelFor(provider, t.model)) return t.model;
+    } catch (e) {}
+    return PROVIDER_DEFAULT[provider] || "";
+  }
+  function resolveModel(provider, requested) {
+    return (requested && isValidModelFor(provider, requested)) ? requested : chosenModel(provider);
+  }
+  try {
+    window.CODEX_GET_ENGINE = function () {
+      const p = (function () { try { return activeEngine(); } catch (e) { return "anthropic"; } })();
+      return { provider: p, model: chosenModel(p) };
+    };
+  } catch (e) {}
+
   function loadKeys() {
     let out = { active: "anthropic", anthropic: "", grok: "", groq: "", gemini: "" };
     try {
@@ -467,6 +533,12 @@
     let payload;
     try { payload = JSON.parse(init.body || "{}"); }
     catch (e) { return jsonResponse({ error: "Bad JSON in request body" }, 400); }
+
+    // Honor the user's chosen model for the routing provider. If the caller
+    // passed a model valid for this provider, keep it; otherwise use the
+    // Settings-chosen model (falling back to the provider default). This is
+    // what makes "switch Haiku → Opus" apply across Oracle, panels, reels, etc.
+    payload.model = resolveModel(engine, payload.model);
 
     let result;
     try {
