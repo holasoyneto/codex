@@ -17,6 +17,7 @@
   const DAILY_KEY        = "codex.engagement.daily.v1";
   const SESSION_KEY      = "codex.engagement.session.v1";
   const REEL_LIKES_KEY   = "codex.reels.likes.v1";   // [{key,type,anchor,title,book,ts}]
+  const ORACLE_TOPICS_KEY = "codex.engagement.oracle.v1";  // { [bookId]: weight }
 
   // ── Reel likes + reader taste profile ────────────────────────────────
   function reelCardKey(card) {
@@ -29,6 +30,13 @@
   }
   function saveReelLikes(list) {
     try { localStorage.setItem(REEL_LIKES_KEY, JSON.stringify(list.slice(-500))); } catch {}
+  }
+  function loadOracleTopics() {
+    try { return JSON.parse(localStorage.getItem(ORACLE_TOPICS_KEY) || "{}") || {}; }
+    catch { return {}; }
+  }
+  function saveOracleTopics(map) {
+    try { localStorage.setItem(ORACLE_TOPICS_KEY, JSON.stringify(map)); } catch {}
   }
   function bookOf(anchor) {
     return (typeof anchor === "string" && anchor.indexOf(".") > 0) ? anchor.split(".")[0] : null;
@@ -374,8 +382,13 @@
       const s = loadStats(); s.notesCreated++; saveStats(s);
       return checkAchievements();
     },
-    trackOracle() {
+    trackOracle(ctx) {
       const s = loadStats(); s.oracleQuestions++; saveStats(s);
+      if (ctx && ctx.book) {
+        const t = loadOracleTopics();
+        t[ctx.book] = (t[ctx.book] || 0) + 1;
+        saveOracleTopics(t);
+      }
       return checkAchievements();
     },
     trackSearch() {
@@ -414,6 +427,13 @@
       return { liked, achievements: checkAchievements() };
     },
     getReelLikes() { return loadReelLikes(); },
+    // Wipe learned personalization (likes + oracle topics). Keeps the user's
+    // real data (highlights, notes, reading history, streaks) intact.
+    clearProfile() {
+      try { localStorage.removeItem(REEL_LIKES_KEY); } catch {}
+      try { localStorage.removeItem(ORACLE_TOPICS_KEY); } catch {}
+      return { ok: true };
+    },
     // Derive a taste profile from explicit likes + highlights + reading
     // history. Used to bias the Reels feed toward what the reader engages with.
     buildReaderProfile() {
@@ -435,6 +455,11 @@
       // Reading history = light signal.
       try {
         for (const ref of Object.keys(stats.chaptersRead || {})) { const b = bookOf(ref); if (b) books[b] = (books[b] || 0) + 0.5; }
+      } catch {}
+      // Oracle topics = medium signal (asking about a book biases the feed toward it).
+      try {
+        const topics = loadOracleTopics();
+        for (const b of Object.keys(topics)) { books[b] = (books[b] || 0) + 1.5 * topics[b]; }
       } catch {}
       const topBooks = Object.keys(books).sort((a, b) => books[b] - books[a]).slice(0, 8);
       const topTypes = Object.keys(cardTypes).sort((a, b) => cardTypes[b] - cardTypes[a]);

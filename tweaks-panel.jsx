@@ -114,19 +114,22 @@ const __TWEAKS_STYLE = `
      now a thin track with a hairline border at rest, accent fill when on.
      The 44×44 hit area is preserved via padding (the user wins the tap;
      the visible footprint is just the 26×12 track). */
-  .twk-toggle{position:relative;width:26px;height:12px;border:0;border-radius:999px;
-    background:transparent;
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);
-    transition:background .14s ease,box-shadow .14s ease,opacity .14s ease;
-    cursor:default;padding:16px 9px;box-sizing:content-box;opacity:.78}
+  /* Proper PILL switch (was rendering as a full 46x46 circle: a 26x12 track
+     with 16/9 content-box padding squared the button, and border-radius:999px
+     on a square is a circle). Now a clean 42x24 horizontal pill with a sliding
+     thumb — professional, unmistakably a toggle. */
+  .twk-toggle{position:relative;flex:0 0 auto;width:42px;height:24px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.14);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);
+    transition:background .14s ease,box-shadow .14s ease;
+    cursor:pointer;padding:0;box-sizing:border-box;opacity:.9}
   .twk-toggle:hover{opacity:1}
-  .twk-toggle[data-on="1"]{background:#34c759;box-shadow:inset 0 0 0 1px #34c759;opacity:1}
-  .twk-toggle i{position:absolute;top:17px;left:10px;width:10px;height:10px;border-radius:50%;
-    background:rgba(0,0,0,.45);
-    box-shadow:none;
-    transition:transform .16s cubic-bezier(.3,.7,.4,1),background .14s}
-  .twk-toggle[data-on="1"] i{transform:translateX(14px);background:#fff;
-    box-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .twk-toggle[data-on="1"]{background:var(--cx-accent,#34c759);box-shadow:none;opacity:1}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+    background:#fff;
+    box-shadow:0 1px 2px rgba(0,0,0,.25);
+    transition:transform .16s cubic-bezier(.3,.7,.4,1)}
+  .twk-toggle[data-on="1"] i{transform:translateX(18px);background:#fff}
 
   .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:26px;padding:0 0 0 8px;
     border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
@@ -561,6 +564,13 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
       <TweakToggle key="__deck-rail" label="Thumbnail rail" value={railVisible} onChange={toggleRail} />,
     );
   }
+  // Personalization — lets the user wipe the learned taste profile and Oracle
+  // context. Injected here (rather than supplied as a child by the consumer)
+  // so it's always present regardless of how the panel is composed.
+  buckets.system.push(
+    <TweakSection key="__personalization" label="Personalization" />,
+    <TweakPersonalization key="__personalization-ctl" />,
+  );
   // If the currently-selected tab is empty (because children changed),
   // silently fall back to the first non-empty tab without re-rendering.
   const firstNonEmpty = TABS.find(t => buckets[t.id].length)?.id || "reading";
@@ -869,6 +879,42 @@ function TweakButton({ label, onClick, secondary = false }) {
   );
 }
 
+// TweakPersonalization — clears the CODEX taste profile (likes + Oracle topics
+// learned for Reels tailoring) and resets the Oracle conversation context.
+// Everything is wrapped in try/catch so a missing engine never throws and
+// breaks the settings panel render.
+function TweakPersonalization() {
+  const [done, setDone] = React.useState(false);
+  const onClear = () => {
+    try {
+      if (window.CODEX_ENGAGE && window.CODEX_ENGAGE.clearProfile) {
+        window.CODEX_ENGAGE.clearProfile();
+      }
+    } catch (e) { /* never throw from settings */ }
+    try {
+      window.dispatchEvent(new CustomEvent("codex:oracle-reset"));
+    } catch (e) { /* ignore */ }
+    try {
+      window.dispatchEvent(new CustomEvent("codex:toast",
+        { detail: { msg: "Personalization cleared", kind: "ok" } }));
+    } catch (e) { /* ignore */ }
+    try { setDone(true); } catch (e) { /* ignore */ }
+  };
+  return (
+    <div className="twk-row">
+      <div className="twk-lbl" style={{ display: 'block' }}>
+        <span style={{ display: 'block', fontWeight: 400, color: 'rgba(41,38,27,.6)', lineHeight: 1.4 }}>
+          CODEX learns from your likes, Oracle questions, and highlights to tailor Reels.
+        </span>
+      </div>
+      <TweakButton label="Clear profile & Oracle context" secondary onClick={onClear} />
+      {done && (
+        <span className="twk-val" style={{ marginTop: 2 }}>Personalization cleared</span>
+      )}
+    </div>
+  );
+}
+
 // ── AIModelSection ─────────────────────────────────────────────────────────
 // Provider + model selector used in the CODEX Settings panel. Reads the live
 // /providers map (passed in from /api/health) so the segmented control can
@@ -1123,6 +1169,7 @@ Object.assign(window, {
   useTweaks, TweaksPanel, TweakSection, TweakRow,
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
   TweakText, TweakNumber, TweakColor, TweakButton,
+  TweakPersonalization,
   TweakSchizoToggle,
   AIModelSection, LightThemePicker,
 });
