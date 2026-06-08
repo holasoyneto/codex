@@ -711,6 +711,33 @@ function LeafletField({ data }) {
       } catch {}
     }
 
+    // Notify the engagement engine of a brand-new discovery without ever
+    // throwing or duplicating streak/milestone logic. Prefer the engine's
+    // own convenience emitter; otherwise dispatch the canonical bus event
+    // (the engine listens for codex:depth-action). Per the frozen contract
+    // the discovery depth-action type is "discovery-logged" (weight 2,
+    // cross-cutting domain) — passing the site ref lets the engine log
+    // which case the discovery closed.
+    function notifyEngagementDiscovery(site, entry) {
+      try {
+        const ref = "site:" + ((site && site.id) || (entry && entry.id) || (site && site.name) || "");
+        const eng = window.CODEX_ENGAGEMENT;
+        if (eng && typeof eng.emit === "function") {
+          eng.emit("discovery-logged", ref, 2, null);
+          return;
+        }
+        if (eng && typeof eng.record === "function") {
+          eng.record({ type: "discovery-logged", ref: ref, weight: 2, domain: null });
+          return;
+        }
+        // Engine absent / Lite mode: fall back to the bus so a later-loading
+        // engine still picks it up via its codex:depth-action listener.
+        window.dispatchEvent(new CustomEvent("codex:depth-action", {
+          detail: { type: "discovery-logged", ref: ref, weight: 2, domain: null },
+        }));
+      } catch (_) { /* engagement is best-effort; never break the map */ }
+    }
+
     async function discoverSite(s, userLatLng) {
       const disc = JSON.parse(localStorage.getItem("codex.discovered") || "{}");
       if (disc[s.id]) return;
@@ -719,6 +746,13 @@ function LeafletField({ data }) {
       disc[s.id] = entry;
       localStorage.setItem("codex.discovered", JSON.stringify(disc));
       window.dispatchEvent(new CustomEvent("codex:discovered", { detail: { site: entry } }));
+      // Route this genuinely-new discovery through the unified engagement
+      // engine so it feeds continuity / mastery / the unified milestone
+      // system (the 10/25/50/100 discovery thresholds are owned by the
+      // engine's counters, NOT duplicated here). Fires exactly once per
+      // site thanks to the `if (disc[s.id]) return;` guard above. Fully
+      // defensive: no-op if the engine is absent or in Lite mode.
+      notifyEngagementDiscovery(s, entry);
       try {
         const r = await fetch("/api/chat", {
           method: "POST", headers: { "Content-Type": "application/json" },

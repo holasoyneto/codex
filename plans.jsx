@@ -132,7 +132,47 @@
     try { localStorage.setItem(kPrefix(id)+".reminderTime", v); } catch {}
   }
 
-  // streak: count back consecutive days where ALL readings for that day were checked.
+  // ───────────────────────────────────────────────────────────────────────
+  // Unified continuity engine bridge (window.CODEX_ENGAGEMENT, Phase 2.5)
+  //
+  // Plans no longer maintain a parallel streak counter. Checking off a reading
+  // dispatches a codex:depth-action so continuity + mastery are computed
+  // centrally. Every call is guarded with typeof checks so the plan UI never
+  // breaks when the engine is absent (Lite mode / offline / not yet loaded).
+  // ───────────────────────────────────────────────────────────────────────
+  function emitDepthAction(type, ref, weight, domain) {
+    // Prefer the bus so the engine records when present; a missing listener is
+    // a silent no-op. Fall back to CustomEvent dispatch for older environments.
+    try {
+      if (window.CODEX_ENGAGEMENT && typeof window.CODEX_ENGAGEMENT.emit === "function") {
+        window.CODEX_ENGAGEMENT.emit(type, ref, weight, domain);
+        return;
+      }
+    } catch {}
+    try {
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function"
+          && typeof CustomEvent === "function") {
+        window.dispatchEvent(new CustomEvent("codex:depth-action", {
+          detail: { type, ref, weight, domain },
+        }));
+      }
+    } catch {}
+  }
+
+  // Read the unified continuity snapshot for display, or null if the engine is
+  // absent. Never throws.
+  function unifiedContinuity() {
+    try {
+      if (window.CODEX_ENGAGEMENT && typeof window.CODEX_ENGAGEMENT.continuity === "function") {
+        return window.CODEX_ENGAGEMENT.continuity();
+      }
+    } catch {}
+    return null;
+  }
+
+  // streak: count back consecutive days where ALL readings for that day were
+  // checked. Retained only as a display FALLBACK when the unified continuity
+  // engine is unavailable (Lite mode / offline / not yet loaded).
   function computeStreak(plan, completed) {
     const start = readStart(plan.meta.id);
     if (!start) return 0;
@@ -318,31 +358,53 @@
     const dayNum = Math.max(1, daysBetween(start, todayIso) + 1);
     const totalDays = plan.days.length;
     const behind = Math.max(0, dayNum - 1 - countCompletedDays(plan, completed, dayNum - 1));
-    const streak = computeStreak(plan, completed);
-    const longestStreak = window.CODEX_ENGAGE?.loadStreak?.()?.longest || streak;
+    // Display continuity from the UNIFIED engine when present; fall back to the
+    // legacy local per-plan computation so the UI never breaks in Lite/offline.
+    const cont = unifiedContinuity();
+    const streak = (cont && typeof cont.current === "number")
+      ? cont.current
+      : computeStreak(plan, completed);
+    const longestStreak = (cont && typeof cont.longest === "number")
+      ? cont.longest
+      : (window.CODEX_ENGAGE?.loadStreak?.()?.longest || streak);
     const day = plan.days.find(d => d.day === Math.min(dayNum, totalDays));
 
     function toggleReading(d, idx) {
       const key = `${d}.${idx}`;
       const next = new Set(completed);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      const wasDone = next.has(key);
+      if (wasDone) next.delete(key); else next.add(key);
       persistCompleted(next);
+
+      // Only checking ON is a depth action; un-checking never advances anything.
+      if (!wasDone) {
+        const dayEntry0 = plan.days.find(x => x.day === d);
+        const r = dayEntry0?.readings?.[idx];
+        const parsed = r ? parseReading(r) : null;
+        const ref = parsed?.navRef || (r ? `${id}#${d}.${idx}` : `${id}#${d}.${idx}`);
+        // A single reading read → canon-coverage, chapter-weight (1).
+        emitDepthAction("read", ref, 1, "canon-coverage");
+      }
 
       // Check if all readings for this day are now complete
       const dayEntry = plan.days.find(x => x.day === d);
       if (dayEntry) {
         const dayAllDone = dayEntry.readings.every((_, i) => next.has(`${d}.${i}`));
-        if (dayAllDone) {
+        if (dayAllDone && !wasDone) {
           // Fire celebration animation
           const el = document.querySelector(".cx-plan-detail");
           if (el) {
             el.classList.add("cx-plan-celebrate");
             setTimeout(() => el.classList.remove("cx-plan-celebrate"), 6000);
           }
-          // Track engagement
+          // Completing a full day of the plan is a closed plan-step thread —
+          // routed through the UNIFIED continuity engine (depth-gated, central).
+          emitDepthAction("plan-step", `${id}#${d}`, 4, "canon-coverage");
+          // Legacy engagement engine (window.CODEX_ENGAGE) — kept intact so the
+          // existing heatmap / achievements keep working. Guarded defensively.
           if (window.CODEX_ENGAGE) {
-            window.CODEX_ENGAGE.recordDay();
-            window.CODEX_ENGAGE.checkAchievements();
+            try { window.CODEX_ENGAGE.recordDay(); } catch {}
+            try { window.CODEX_ENGAGE.checkAchievements(); } catch {}
           }
         }
       }
@@ -357,7 +419,10 @@
       for (let d = 1; d < dayNum; d++) {
         const entry = plan.days.find(x => x.day === d);
         if (!entry) continue;
+        const wasAllDone = entry.readings.every((_, idx) => next.has(`${d}.${idx}`));
         entry.readings.forEach((_, idx) => next.add(`${d}.${idx}`));
+        // Newly-closed catch-up day → one plan-step into the unified engine.
+        if (!wasAllDone) emitDepthAction("plan-step", `${id}#${d}`, 4, "canon-coverage");
       }
       persistCompleted(next);
     }

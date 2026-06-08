@@ -119,6 +119,57 @@
     return { day, translit };
   }
 
+  // ── Accurate Hebrew → Gregorian (the "goy calendar") ──────────────────
+  // Uses the browser's built-in Hebrew calendar (Intl ca-hebrew): accurate,
+  // offline, and works for ANY Gregorian year — current, future, or historical
+  // — so the user knows exactly when each holiday falls. Maps our holiday
+  // month transliterations → Intl's Hebrew month names (Adar → Adar/Adar II
+  // to cover leap years, where Purim's "14 Adar" lands in Adar II).
+  const _HEB_INTL = {
+    nisan: ["Nisan"], iyar: ["Iyar"], iyyar: ["Iyar"], sivan: ["Sivan"],
+    tammuz: ["Tammuz"], tamuz: ["Tammuz"], av: ["Av"], elul: ["Elul"],
+    tishrei: ["Tishri"], tishri: ["Tishri"],
+    cheshvan: ["Heshvan"], marcheshvan: ["Heshvan"], heshvan: ["Heshvan"],
+    kislev: ["Kislev"], tevet: ["Tevet"], teveth: ["Tevet"],
+    shevat: ["Shevat"], shvat: ["Shevat"],
+    adar: ["Adar", "Adar II"], "adar i": ["Adar I"], "adar ii": ["Adar II"],
+  };
+  const _gregCache = {};
+  let _hebFmt;
+  function gregForHoliday(day, translit, gregYear) {
+    if (!day || !translit || !gregYear) return null;
+    const accept = _HEB_INTL[String(translit).toLowerCase().trim()];
+    if (!accept) return null;
+    const key = gregYear + ":" + translit + ":" + day;
+    if (key in _gregCache) return _gregCache[key];
+    let out = null;
+    try {
+      if (!_hebFmt) _hebFmt = new Intl.DateTimeFormat("en-u-ca-hebrew", { day: "numeric", month: "long", timeZone: "UTC" });
+      const base = Date.UTC(gregYear, 0, 1);
+      for (let i = 0; i < 366; i++) {
+        const d = new Date(base + i * 86400000);
+        if (d.getUTCFullYear() !== gregYear) break;
+        let mo = "", dd = "";
+        for (const p of _hebFmt.formatToParts(d)) {
+          if (p.type === "month") mo = p.value;
+          else if (p.type === "day") dd = p.value;
+        }
+        if (Number(dd) === Number(day) && accept.indexOf(mo) !== -1) { out = d; break; }
+      }
+    } catch (e) { out = null; }
+    _gregCache[key] = out;
+    return out;
+  }
+  function fmtGreg(d) {
+    if (!d) return null;
+    try { return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }); }
+    catch (e) { return null; }
+  }
+  function holidayGreg(dateStr, gregYear) {
+    const p = parseHolidayDate(dateStr);
+    return p ? fmtGreg(gregForHoliday(p.day, p.translit, gregYear)) : null;
+  }
+
   // Compute days-until for a holiday relative to "today's" approx hebrew date.
   function daysUntilHoliday(holiday, todayHeb, monthsList) {
     const parsed = parseHolidayDate(holiday.date);
@@ -165,6 +216,7 @@
     const [parshaIdx, setParshaIdx] = useState(null);
     const [showMonths, setShowMonths] = useState(false);
     const [showHolidays, setShowHolidays] = useState(false);
+    const [holYear, setHolYear] = useState(() => { try { return new Date().getFullYear(); } catch (e) { return 2026; } });
 
     useEffect(() => {
       let cancelled = false;
@@ -280,6 +332,7 @@
             <div className="cx-js-holiday-name">{holidayInfo.upcoming.h.hebrew}</div>
             <div className="cx-js-holiday-translit">
               {holidayInfo.upcoming.h.name} <span className="cx-js-dim">· {holidayInfo.upcoming.h.date}</span>
+              {(() => { const g = holidayGreg(holidayInfo.upcoming.h.date, (today && today.getFullYear ? today.getFullYear() : holYear)); return g ? <span style={{ color: "var(--cx-accent)", marginLeft: 6 }}>· {g}</span> : null; })()}
             </div>
             <div className="cx-js-holiday-readings">
               <span className="cx-js-reading-label">Readings</span>
@@ -338,19 +391,31 @@
                 <span>{showHolidays ? "▾" : "▸"}</span> All major holidays
               </button>
               {showHolidays ? (
-                <ul className="cx-js-holiday-list">
-                  {cal.holidays.map((h) => (
-                    <li key={h.id} className="cx-js-holiday-li">
-                      <div className="cx-js-holiday-li-head">
-                        <span className="cx-js-heb">{h.hebrew}</span>
-                        <span> · </span>
-                        <span>{h.name}</span>
-                        <span className="cx-js-dim"> · {h.date}</span>
-                      </div>
-                      <div className="cx-js-reading-refs">{renderRefList(h.readings)}</div>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <div className="cx-js-year-row" style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 10px", fontSize: "0.85em" }}>
+                    <span className="cx-js-dim">Gregorian dates ·</span>
+                    <button className="cx-js-ref" onClick={() => setHolYear((y) => y - 1)} aria-label="Previous year" title="Earlier year">◀</button>
+                    <b style={{ minWidth: 42, textAlign: "center" }}>{holYear}</b>
+                    <button className="cx-js-ref" onClick={() => setHolYear((y) => y + 1)} aria-label="Next year" title="Later year">▶</button>
+                  </div>
+                  <ul className="cx-js-holiday-list">
+                    {cal.holidays.map((h) => {
+                      const greg = holidayGreg(h.date, holYear);
+                      return (
+                        <li key={h.id} className="cx-js-holiday-li">
+                          <div className="cx-js-holiday-li-head">
+                            <span className="cx-js-heb">{h.hebrew}</span>
+                            <span> · </span>
+                            <span>{h.name}</span>
+                            <span className="cx-js-dim"> · {h.date}</span>
+                            {greg ? <span style={{ color: "var(--cx-accent)", marginLeft: 6 }}>· {greg}</span> : null}
+                          </div>
+                          <div className="cx-js-reading-refs">{renderRefList(h.readings)}</div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
               ) : null}
             </section>
           </>

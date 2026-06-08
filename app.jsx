@@ -1046,7 +1046,10 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "bootIntro": false,
   "provider": "anthropic",
   "model": "claude-haiku-4-5-20251001",
-  "schizo": false
+  "schizo": false,
+  "continuityEnabled": true,
+  "continuityThreshold": 1,
+  "notifyCadence": "subtle"
 }/*EDITMODE-END*/;
 
 const HIGHLIGHT_COLORS = {
@@ -2039,6 +2042,48 @@ function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Continuity & Mastery (Phase 2.5) — push the user's daily-threshold tweak
+  // into the engagement engine. dailyThreshold = qualifying depth events a
+  // calendar day needs to count toward continuity (default 1). Local-only;
+  // the engine persists it to codex.engagement.config.v1. Guarded so a missing
+  // engine (Lite/offline) never throws.
+  useEffect(() => {
+    try {
+      const eng = window.CODEX_ENGAGEMENT;
+      if (eng && typeof eng.setConfig === "function") {
+        const n = parseInt(t.continuityThreshold, 10);
+        eng.setConfig({ dailyThreshold: (n > 0 ? n : 1) });
+      }
+    } catch {}
+  }, [t.continuityThreshold]);
+
+  // Surface engagement milestones through the EXISTING understated achievement
+  // toast (NOT confetti). Continuity-tick + milestone also get a calm terminal
+  // toast from continuity.jsx's IntelToastDock; this hook additionally feeds
+  // mastery-level + quest-complete marks into the shared analyst toast queue so
+  // a single neutral mark appears. Solo-first, no streak-guilt, no fanfare.
+  useEffect(() => {
+    if (t.continuityEnabled === false) return;
+    const onMilestone = (e) => {
+      const d = (e && e.detail) || {};
+      // Only the meaningful, infrequent marks reach the achievement queue —
+      // mastery level-ups and closed quests. First-time/threshold marks stay in
+      // the quieter intel toast (continuity.jsx) to avoid double-announcing.
+      if (d.kind !== "mastery-level" && d.kind !== "quest-complete") return;
+      const tt2 = (k, f) => { try { const v = window.t && window.t(k); return (v && v !== k) ? v : f; } catch { return f; } };
+      const title = d.kind === "mastery-level"
+        ? (tt2("cx.mastery.title", "Mastery") + " · " + (d.domain ? tt2("cx.domain." + d.domain, d.domain) : ""))
+        : tt2("cx.quest.complete", "Closed");
+      setToastQueue(q => [...q, {
+        icon: "▦",
+        title: title,
+        desc: d.label || d.labelEn || "",
+      }]);
+    };
+    window.addEventListener("codex:milestone", onMilestone);
+    return () => window.removeEventListener("codex:milestone", onMilestone);
+  }, [t.continuityEnabled]);
+
   // First-run welcome tour (v2). A 4-step modal overlay. Replaces the old
   // v1 chip strip. Migration: if v1 is set (existing user), treat v2 as
   // already complete — never show. Only fires for genuinely new users.
@@ -2500,6 +2545,16 @@ function App() {
             onDone={() => setToastQueue(q => q.slice(1))}
           />
         )}
+
+        {/* Continuity & Mastery (Phase 2.5) — ambient analyst surfaces:
+            the quiet "⌁ next: …" thread line + understated intel/continuity
+            toasts. Depth-gated, solo-first, no confetti. Renders nothing in
+            Lite mode (?lite=1) or when the engagement engine is absent. The
+            ANALYST DESK dossier itself mounts as a rail panel (registered by
+            continuity.jsx via CODEX_PLUGINS_API). Gated on the user tweak. */}
+        {t.continuityEnabled !== false && window.CODEX_CONTINUITY && window.CODEX_CONTINUITY.Mount
+          ? React.createElement(window.CODEX_CONTINUITY.Mount)
+          : null}
 
         <Reader
           schizo={!!(schizoEligible && t.schizo)}

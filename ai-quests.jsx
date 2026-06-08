@@ -43,6 +43,31 @@
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
   function lsDel(k) { try { localStorage.removeItem(k); } catch {} }
 
+  // --- Phase 2.5 engagement bridge (additive, defensive) ----------------
+  // Feed AI-quest progress into the unified CODEX_ENGAGEMENT engine so each
+  // completed step counts toward continuity + mastery. Every engine touch is
+  // guarded so the quest still runs standalone / in Lite mode / offline.
+  function emitDepth(type, ref, weight, domain) {
+    try {
+      const E = window.CODEX_ENGAGEMENT;
+      if (E && typeof E.emit === "function") { E.emit(type, ref, weight, domain); return; }
+      if (typeof window.CustomEvent === "function") {
+        window.dispatchEvent(new CustomEvent("codex:depth-action", {
+          detail: { type, ref: ref || null, weight: weight, domain: domain || null },
+        }));
+      }
+    } catch (e) {}
+  }
+  function emitQuestStep(questId, step, status, domain) {
+    try {
+      if (typeof window.CustomEvent === "function") {
+        window.dispatchEvent(new CustomEvent("codex:quest-step", {
+          detail: { questId: questId, step: step, status: status, domain: domain || null },
+        }));
+      }
+    } catch (e) {}
+  }
+
   function getTweaks() {
     return (window.CODEX_DATA && window.CODEX_DATA.tweaks) || {};
   }
@@ -237,6 +262,9 @@ Rules: 5-8 steps. Scripture-faithful. Engaging questions, not catechism. Each st
 
     const goNext = () => {
       saveAnswer();
+      // Depth-gated: completing a quest step feeds continuity + mastery.
+      emitDepth("quest-step", step ? step.passage : quest.id, 3, "canon-coverage");
+      emitQuestStep(quest.id, stepIdx + 1, "active", "canon-coverage");
       if (stepIdx < total - 1) setStepIdx(i => i + 1);
       else { setPhase("synthesis"); setStepIdx(total); }
     };
@@ -284,6 +312,8 @@ Rules: 5-8 steps. Scripture-faithful. Engaging questions, not catechism. Each st
       if (idx >= 0) list[idx] = envelope; else list.unshift(envelope);
       lsSet(SAVED_KEY, list);
       setSaved(true);
+      // Mark the quest closed in the unified engine.
+      emitQuestStep(quest.id, total, "complete", "canon-coverage");
       if (typeof onComplete === "function") onComplete(envelope);
     };
 

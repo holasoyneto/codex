@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v234";
+const VERSION = "v236";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -78,6 +78,7 @@ const SHELL_FILES = [
   r("word-study.jsx"),
   r("dictionary.jsx"),
   r("reels.jsx"),
+  r("continuity.jsx"),
   r("timeline.jsx"),
   r("jewish-study.jsx"),
   r("passage-guide.jsx"),
@@ -93,6 +94,8 @@ const SHELL_FILES = [
   r("data/module-index.json"),
   r("data/red-letter.json"),
   r("data/modules/reels-curated.json"),       //  14 KB
+  r("data/modules/quests-curated.json"),      //  19 KB — Phase 2.5 quests
+  r("data/modules/seasons.json"),             //   5 KB — Phase 2.5 seasons
   r("data/modules/prayer-formats.json"),      //  28 KB
   r("data/modules/parsha.json"),              //  10 KB
   r("data/modules/hebrew-calendar.json"),     //   4 KB

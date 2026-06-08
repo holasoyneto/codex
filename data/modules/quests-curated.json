@@ -1,0 +1,407 @@
+{
+  "meta": {
+    "id": "quests-curated",
+    "type": "quest-pack",
+    "version": "1.0.0",
+    "name": "Curated Quests",
+    "lang": "en",
+    "description": "Hand-authored, zero-AI study quests. Each quest is a depth-gated thread: read, find, connect, reflect. Tradition-tagged so the runtime never assumes one canon.",
+    "license": "CC0-1.0"
+  },
+  "quests": [
+    {
+      "meta": {
+        "id": "quest-covenant-genesis",
+        "type": "quest",
+        "title": "Trace the Covenant Through Genesis",
+        "tradition": "shared",
+        "domain": "cross-references",
+        "estSteps": 5,
+        "ring": "covenant"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["gen.9.8-17"],
+          "prompt": "Read the covenant with Noah. Note the sign God gives and to whom it extends.",
+          "reveal": "The Noahic covenant is unconditional and universal — it binds 'every living creature', not one people. The bow is laid down, a weapon unstrung."
+        },
+        {
+          "kind": "read",
+          "refs": ["gen.15.1-21"],
+          "prompt": "Read the covenant with Abram. Watch who passes between the pieces.",
+          "reveal": "Only God (the smoking firepot) passes between the halves — Abram sleeps. The covenant's burden falls on God alone."
+        },
+        {
+          "kind": "connect",
+          "refs": ["gen.17.1-14", "gen.15.6"],
+          "prompt": "Connect the sign of circumcision (ch.17) back to the reckoning of righteousness (15:6). Which came first — the faith or the sign?",
+          "reveal": "Righteousness is credited in ch.15 before the sign is given in ch.17. The sign seals a faith already present."
+        },
+        {
+          "kind": "find",
+          "refs": ["gen.26.3-5", "gen.28.13-15"],
+          "prompt": "Find where the covenant is re-spoken to Isaac, then to Jacob. List the three recipients in order.",
+          "reveal": "Abraham → Isaac → Jacob. The covenant is dynastic: it descends, gathering the same threefold promise (land, seed, blessing-to-nations)."
+        },
+        {
+          "kind": "reflect",
+          "refs": ["gen.50.24"],
+          "prompt": "Joseph dies in Egypt invoking the promise. Write one line on how a covenant survives outside the promised land.",
+          "reveal": "The covenant is carried in memory and bones, not geography. 'God will surely visit you' — the thread outlives every exile."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-i-am-john",
+        "type": "quest",
+        "title": "Every 'I AM' in John",
+        "tradition": "christian",
+        "domain": "hebrew-greek",
+        "estSteps": 5,
+        "ring": "logos"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["exo.3.14"],
+          "prompt": "Read the divine name given to Moses. Hold the Greek of the LXX (ego eimi) in mind for what follows.",
+          "reveal": "'I AM THAT I AM' — ehyeh asher ehyeh. The Septuagint renders the absolute 'I AM' as ego eimi, the exact phrase John will weaponize."
+        },
+        {
+          "kind": "find",
+          "refs": ["jhn.6.35", "jhn.8.12", "jhn.10.9", "jhn.10.11", "jhn.11.25"],
+          "prompt": "Find the predicated 'I AM' sayings: bread, light, door, shepherd, resurrection. Note each predicate.",
+          "reveal": "Each predicate is a self-disclosure: sustenance, guidance, access, sacrifice, life-over-death. Seven in total across the gospel."
+        },
+        {
+          "kind": "find",
+          "refs": ["jhn.14.6", "jhn.15.1"],
+          "prompt": "Find the final two predicated sayings: the way/truth/life, and the true vine.",
+          "reveal": "These close the set: relationship (the way) and abiding (the vine). The seven 'I AM' predicates form a complete christology."
+        },
+        {
+          "kind": "connect",
+          "refs": ["jhn.8.58", "exo.3.14"],
+          "prompt": "Connect the absolute 'Before Abraham was, I AM' to Exodus 3:14. Why do they pick up stones in the next verse?",
+          "reveal": "8:58 drops the predicate — it is the bare divine name. The crowd hears blasphemy and reaches for stones (Lev 24:16). The claim is unmistakable."
+        },
+        {
+          "kind": "reflect",
+          "refs": ["jhn.18.5-6"],
+          "prompt": "At the arrest, when Jesus says 'ego eimi', the soldiers fall to the ground. Write one line on this final, wordless 'I AM'.",
+          "reveal": "The same name that called Israel out of Egypt knocks an armed cohort flat — then surrenders to them anyway. Power held in restraint."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-153-gematria",
+        "type": "quest",
+        "title": "Follow 153 Through the Gematria Index",
+        "tradition": "esoteric",
+        "domain": "gematria",
+        "estSteps": 4,
+        "ring": "number"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["jhn.21.11"],
+          "prompt": "Read the catch of fish. The number is exact and unexplained. Why count them?",
+          "reveal": "153 large fish, 'and the net was not torn'. A number this specific in a symbolic gospel invites a second reading."
+        },
+        {
+          "kind": "find",
+          "refs": ["jhn.21.11"],
+          "prompt": "Compute: 153 is the sum of 1..17 (the 17th triangular number). Run a gematria match in your own library for any term valuing 153.",
+          "reveal": "153 = the triangular number of 17. In Hebrew, 'bnei ha-Elohim' (sons of God) and 'Ani Elohim' (I am God) have been read at this value by various hands — the index is the place to check, not to assume."
+        },
+        {
+          "kind": "connect",
+          "refs": ["eze.47.9-10"],
+          "prompt": "Connect the fish of John 21 to the fishermen of Ezekiel's river. From En-gedi to En-eglaim, 'fish of very many kinds'.",
+          "reveal": "Ezekiel's healed sea teems with every kind of fish, fishermen spreading nets — John's unbroken net gathering 153 may echo this universal harvest."
+        },
+        {
+          "kind": "reflect",
+          "refs": [],
+          "prompt": "Gematria reveals associations, not proofs. Write one line distinguishing a pattern you find compelling from one you find forced.",
+          "reveal": "The discipline of esoteric reading is restraint: a value that recurs across independent witnesses is a thread; a value you had to strain to reach is your own."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-messiah-thread",
+        "type": "quest",
+        "title": "The Messiah Thread: OT → NT",
+        "tradition": "christian",
+        "domain": "cross-references",
+        "estSteps": 6,
+        "ring": "messiah"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["gen.3.15"],
+          "prompt": "Read the protoevangelium — the first promise of a bruised heel and a crushed head.",
+          "reveal": "The 'seed of the woman' against the serpent. Read by many as the earliest messianic thread, before any law or temple."
+        },
+        {
+          "kind": "connect",
+          "refs": ["isa.7.14", "mat.1.22-23"],
+          "prompt": "Connect the Immanuel sign to Matthew's citation. Note what Matthew claims it fulfills.",
+          "reveal": "Matthew reads Isaiah's near-term sign as also a far-term fulfillment — 'God with us' realized in the nativity."
+        },
+        {
+          "kind": "find",
+          "refs": ["mic.5.2", "mat.2.5-6"],
+          "prompt": "Find the birthplace prophecy and where the scribes quote it to Herod.",
+          "reveal": "Bethlehem Ephrathah, 'least among the clans', named centuries before. The scribes know the text cold — yet do not follow the star."
+        },
+        {
+          "kind": "find",
+          "refs": ["isa.53.1-12"],
+          "prompt": "Find the Suffering Servant song. List three afflictions the Servant bears for others.",
+          "reveal": "Wounded for transgressions, crushed for iniquities, the chastisement that brings peace — substitution at the heart of the song."
+        },
+        {
+          "kind": "connect",
+          "refs": ["psa.22.16-18", "jhn.19.23-24"],
+          "prompt": "Connect the pierced hands and divided garments of Psalm 22 to the crucifixion in John.",
+          "reveal": "Casting lots for clothing, pierced extremities — John reads the passion as Psalm 22 enacted. Written before crucifixion existed as a method."
+        },
+        {
+          "kind": "reflect",
+          "refs": ["luk.24.27"],
+          "prompt": "On the Emmaus road, 'beginning with Moses', the whole thread is read at once. Write one line on reading a library backwards from its end.",
+          "reveal": "A thread is only visible once you know where it leads. The risen reader rereads the scroll and the scattered signs become one line."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-i-am-egypt",
+        "type": "quest",
+        "title": "The Names of God in Exodus",
+        "tradition": "jewish",
+        "domain": "hebrew-greek",
+        "estSteps": 4,
+        "ring": "name"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["exo.3.13-15"],
+          "prompt": "Read the revelation of the Name at the bush. Note the tense and the refusal to be pinned down.",
+          "reveal": "Ehyeh asher ehyeh — 'I will be what I will be', a verb, not a noun. The Name resists capture; it is a promise of presence, not a definition."
+        },
+        {
+          "kind": "find",
+          "refs": ["exo.6.2-3"],
+          "prompt": "Find where God says the patriarchs knew El Shaddai but not the Name YHWH. Hold the tension with Genesis.",
+          "reveal": "A classic source-critical and theological crux: the Name's full disclosure is reserved for the exodus generation — redemption unlocks revelation."
+        },
+        {
+          "kind": "connect",
+          "refs": ["exo.34.6-7"],
+          "prompt": "Connect the Name to its own self-description after the golden calf. List the attributes proclaimed.",
+          "reveal": "Compassionate, gracious, slow to anger, abounding in hesed and truth — the Thirteen Attributes, recited in liturgy to this day. The Name is defined by mercy."
+        },
+        {
+          "kind": "reflect",
+          "refs": ["deu.6.4"],
+          "prompt": "The Shema gathers the Name into one. Write one line on what it means to call the unnameable 'one'.",
+          "reveal": "Unity is not arithmetic here but allegiance — the Name that will-be is the only one to whom the heart is wholly bound."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-wisdom-personified",
+        "type": "quest",
+        "title": "Wisdom Personified: Proverbs to John",
+        "tradition": "shared",
+        "domain": "cross-references",
+        "estSteps": 4,
+        "ring": "wisdom"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["pro.8.22-31"],
+          "prompt": "Read Wisdom's song. She is present at creation, 'beside him like a master worker'.",
+          "reveal": "Wisdom (Hokhmah) is pre-existent, rejoicing in the inhabited world. A feminine figure standing at the origin of all things."
+        },
+        {
+          "kind": "connect",
+          "refs": ["jhn.1.1-3", "pro.8.30"],
+          "prompt": "Connect the Logos 'in the beginning, with God' to Wisdom 'beside him'. What did each help make?",
+          "reveal": "John maps the Logos onto the Wisdom tradition: both pre-exist, both are with God, both are the agent through whom all things are made."
+        },
+        {
+          "kind": "find",
+          "refs": ["col.1.15-17"],
+          "prompt": "Find where Paul calls Christ the one in whom 'all things hold together'. Compare to Wisdom's role.",
+          "reveal": "'Firstborn of all creation… all things hold together in him' — Wisdom's cosmic function, now christological. The thread runs through the wisdom literature into the hymns."
+        },
+        {
+          "kind": "reflect",
+          "refs": ["1co.1.24"],
+          "prompt": "Paul calls Christ 'the wisdom of God'. Write one line on a tradition reading its oldest poem into its newest figure.",
+          "reveal": "To name Christ as Wisdom is to claim the whole sapiential canon as a single, slowly-disclosed portrait."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-gnosis-light",
+        "type": "quest",
+        "title": "The Light Within: A Gnostic Reading of John",
+        "tradition": "gnostic",
+        "domain": "gnosis",
+        "estSteps": 4,
+        "ring": "light"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["jhn.1.4-9"],
+          "prompt": "Read the light that 'enlightens everyone'. Hold the dualism of light and darkness lightly.",
+          "reveal": "'The light shines in the darkness' — the prologue's dualism gave gnostic readers a frame: an interior light, kindled from above, that the dark cannot grasp."
+        },
+        {
+          "kind": "find",
+          "refs": ["luk.17.21"],
+          "prompt": "Find 'the kingdom of God is within you' (or 'in your midst'). Note the translation tension.",
+          "reveal": "Entos hymon — 'within' or 'among'. Gnostic readers heard an interior kingdom; the Gospel of Thomas (log. 3) makes the same move: the kingdom is inside and outside you."
+        },
+        {
+          "kind": "connect",
+          "refs": ["jhn.8.32"],
+          "prompt": "Connect 'the truth will set you free' to gnosis as liberating knowledge. What kind of knowing frees?",
+          "reveal": "For the gnostic, salvation is recognition — knowing one's origin in the light. 'Free' is not pardon but awakening from forgetfulness."
+        },
+        {
+          "kind": "reflect",
+          "refs": [],
+          "prompt": "A gnostic reading is one lens among many. Write one line on what it illuminates and what it risks leaving in shadow.",
+          "reveal": "Interiority gains depth but can lose the body, the neighbor, and history. Every lens both reveals and occludes — name the trade."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-geography-exodus",
+        "type": "quest",
+        "title": "Mapping the Exodus Route",
+        "tradition": "academic",
+        "domain": "geography",
+        "estSteps": 4,
+        "ring": "journey"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["exo.12.37"],
+          "prompt": "Read the departure from Rameses to Succoth. Open the map and locate the start.",
+          "reveal": "Rameses (Pi-Ramesse) in the eastern Nile delta. The route's first leg sets the southern-vs-northern-route debate that still divides scholars."
+        },
+        {
+          "kind": "find",
+          "refs": ["exo.13.17-18", "exo.14.2"],
+          "prompt": "Find why they avoid the 'way of the land of the Philistines'. Locate Pi-hahiroth and Migdol on the map.",
+          "reveal": "The coastal road was the fortified military highway — too dangerous. They turn toward the Sea of Reeds (Yam Suph), whose exact location is itself contested."
+        },
+        {
+          "kind": "connect",
+          "refs": ["exo.19.1-2", "num.33.15"],
+          "prompt": "Connect the arrival at Sinai to the wilderness-itinerary list of Numbers 33. Trace two waypoints.",
+          "reveal": "Numbers 33 preserves a 42-stage itinerary — a geographic memory-text. Cross-referencing it against the map turns narrative into a route."
+        },
+        {
+          "kind": "reflect",
+          "refs": [],
+          "prompt": "The map has gaps the text does not fill. Write one line on reading geography where the ground is uncertain.",
+          "reveal": "Sacred geography is part archaeology, part memory, part theology. Mark what is located, what is plausible, and what is lost — and keep them distinct."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-talmud-first-mishnah",
+        "type": "quest",
+        "title": "Opening Berakhot: A First Daf",
+        "tradition": "jewish",
+        "domain": "talmud",
+        "estSteps": 4,
+        "ring": "daf"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["deu.6.7"],
+          "prompt": "Read the command to speak of these words 'when you lie down and when you rise'. This is the seed of the first Mishnah.",
+          "reveal": "Berakhot 2a opens by asking: from when may one recite the evening Shema? The whole tractate grows from this single verse's 'when you lie down'."
+        },
+        {
+          "kind": "find",
+          "refs": ["deu.6.7"],
+          "prompt": "Find the question the Mishnah asks about timing. (From the verse alone: when does evening begin?)",
+          "reveal": "The Mishnah fixes it 'from the time the priests enter to eat their terumah' — a concrete daily marker. The Gemara then interrogates every word of that answer."
+        },
+        {
+          "kind": "connect",
+          "refs": ["num.6.24-26"],
+          "prompt": "Connect the daily rhythm of Shema to the priestly blessing. Both structure sacred time. How do they differ?",
+          "reveal": "The Shema is the people's twice-daily acceptance of the yoke of heaven; the blessing is the priest's bestowal. Reception versus gift — the Talmud lives in the gap between."
+        },
+        {
+          "kind": "reflect",
+          "refs": [],
+          "prompt": "A daf is a conversation across centuries. Write one line on entering an argument that has no last word.",
+          "reveal": "To learn a daf is to take a seat at a table where no one has finished speaking. You do not solve it; you join it."
+        }
+      ]
+    },
+    {
+      "meta": {
+        "id": "quest-patristics-incarnation",
+        "type": "quest",
+        "title": "The Fathers on the Incarnation",
+        "tradition": "patristic",
+        "domain": "patristics",
+        "estSteps": 4,
+        "ring": "incarnation"
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "refs": ["jhn.1.14"],
+          "prompt": "Read 'the Word became flesh'. This single clause is the seed of four centuries of councils.",
+          "reveal": "'Kai ho logos sarx egeneto' — egeneto (became) is the contested verb. Did the Word change, or assume? The Fathers built their christology on this word."
+        },
+        {
+          "kind": "connect",
+          "refs": ["phl.2.5-8"],
+          "prompt": "Connect the kenosis hymn ('emptied himself') to John 1:14. What is emptied, and what is kept?",
+          "reveal": "Athanasius read the 'emptying' as veiling, not loss: the Word does not cease to fill all things while becoming an infant. 'He became what we are that we might become what he is.'"
+        },
+        {
+          "kind": "find",
+          "refs": ["heb.2.14-17"],
+          "prompt": "Find where Hebrews argues he had to be made like his brothers 'in every respect'. Why the insistence on full humanity?",
+          "reveal": "Gregory of Nazianzus: 'what is not assumed is not healed.' Hebrews' 'in every respect' becomes the Fathers' rule against any half-incarnation."
+        },
+        {
+          "kind": "reflect",
+          "refs": [],
+          "prompt": "The Fathers fought over a verb. Write one line on why the precise wording of a mystery still mattered to them.",
+          "reveal": "For the Fathers, getting the grammar wrong meant getting salvation wrong. Precision was not pedantry but pastoral care — the shape of the cure depended on the diagnosis."
+        }
+      ]
+    }
+  ]
+}

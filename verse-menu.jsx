@@ -88,6 +88,20 @@ function VerseMenu({
   const verseText = verse ? (verse[primary] || verse.kjv || verse.web || "") : "";
   const ref$ = `${passage.book} ${passage.chapter}:${verse?.n ?? "?"}`;
 
+  // CODEX Phase 2.5 — depth-action emitter (additive, defensive).
+  // At the moment the user invokes a depth surface from this menu, dispatch the
+  // engagement bus event so the (optional) CODEX_ENGAGEMENT engine can record a
+  // qualifying depth event. Guarded so nothing breaks if the engine is absent /
+  // in Lite mode. ref shape per frozen contract: "book.chapter.verse".
+  const depthRef = `${passage.book}.${passage.chapter}.${verse?.n ?? ""}`;
+  const emitDepth = (type, weight) => {
+    try {
+      window.dispatchEvent(new CustomEvent("codex:depth-action", {
+        detail: { type, ref: depthRef, weight },
+      }));
+    } catch (_) { /* never throw from a UI handler */ }
+  };
+
   const copy = async () => {
     const payload = `“${verseText}” — ${ref$}`;
     const toast = (msg, kind = "ok") => {
@@ -171,7 +185,7 @@ function VerseMenu({
             <span className="cx-vm-sub">{gnosisOn ? "disengage overlay" : "engage overlay"}</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { onOpenMap?.(verse, ref$, verseText); onClose(); }}>
+          <button className="cx-vm-row" onClick={() => { emitDepth("map-place-study", 2); onOpenMap?.(verse, ref$, verseText); onClose(); }}>
             <span className="cx-vm-icon">◎</span>
             <span className="cx-vm-lbl">{vmt("vm.map")}</span>
             <span className="cx-vm-sub">place · era · timeline</span>
@@ -195,7 +209,7 @@ function VerseMenu({
             <span className="cx-vm-sub">{vmt("vm.mirror.sub")}</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { onOpenNote?.(verse, ref$); onClose(); }}>
+          <button className="cx-vm-row" onClick={() => { emitDepth("note-written", 2); onOpenNote?.(verse, ref$); onClose(); }}>
             <span className="cx-vm-icon">✎</span>
             <span className="cx-vm-lbl">{vmt("vm.note")}</span>
             <span className="cx-vm-sub">{vmt("vm.note.sub")}</span>

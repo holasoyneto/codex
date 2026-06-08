@@ -49,7 +49,7 @@
       "bundled": true
     },
     {
-      "id": "easton",
+      "id": "easton-sample",
       "name": "Easton's + Smith's Bible Dictionary",
       "type": "dictionary",
       "version": "1.0.0",

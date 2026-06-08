@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "id": "seasons",
+    "type": "season-pack",
+    "version": "1.0.0",
+    "name": "Seasonal Campaigns",
+    "lang": "en",
+    "description": "Tradition-tagged seasonal campaigns. Each season references a quest-series and a continuity ring. Dates are descriptive (lunar/computed feasts vary by year); the engine reads `window` hints, never assumes one tradition's calendar as default.",
+    "license": "CC0-1.0"
+  },
+  "seasons": [
+    {
+      "id": "season-advent",
+      "title": "Advent",
+      "tradition": "christian",
+      "subtitle": "Four weeks of waiting toward the Nativity",
+      "window": { "kind": "fixed-relative", "anchor": "christmas", "startOffsetDays": -28, "endOffsetDays": -1 },
+      "ring": "messiah",
+      "questSeries": ["quest-messiah-thread", "quest-wisdom-personified"],
+      "continuityRingDays": 28,
+      "intel": "Advent traces the long expectation. The Messiah thread is the spine; Wisdom personified is the antiphon."
+    },
+    {
+      "id": "season-lent",
+      "title": "Lent",
+      "tradition": "christian",
+      "subtitle": "Forty days toward the Passion",
+      "window": { "kind": "fixed-relative", "anchor": "easter", "startOffsetDays": -46, "endOffsetDays": -1 },
+      "ring": "incarnation",
+      "questSeries": ["quest-patristics-incarnation", "quest-i-am-john"],
+      "continuityRingDays": 40,
+      "intel": "Lent is forty days of descent. The Fathers on the Incarnation and the 'I AM' sayings prepare the reader for the cross."
+    },
+    {
+      "id": "season-eastertide",
+      "title": "Eastertide",
+      "tradition": "christian",
+      "subtitle": "Fifty days of resurrection light",
+      "window": { "kind": "fixed-relative", "anchor": "easter", "startOffsetDays": 0, "endOffsetDays": 49 },
+      "ring": "light",
+      "questSeries": ["quest-i-am-john", "quest-153-gematria"],
+      "continuityRingDays": 50,
+      "intel": "Fifty days from Resurrection to Pentecost. The light sayings and the catch of 153 fish carry the post-Easter narrative."
+    },
+    {
+      "id": "season-elul-high-holidays",
+      "title": "Elul → High Holidays",
+      "tradition": "jewish",
+      "subtitle": "A month of return toward the Days of Awe",
+      "window": { "kind": "hebrew-month", "startMonth": "Elul", "startDay": 1, "endFeast": "Yom Kippur" },
+      "ring": "name",
+      "questSeries": ["quest-i-am-egypt", "quest-talmud-first-mishnah"],
+      "continuityRingDays": 40,
+      "intel": "Elul through Yom Kippur is the season of teshuvah (return). The Names of God and the opening of Berakhot anchor the daily turning."
+    },
+    {
+      "id": "season-daf-yomi",
+      "title": "Daf Yomi",
+      "tradition": "jewish",
+      "subtitle": "One folio of Talmud a day, the full Shas in cycle",
+      "window": { "kind": "rolling-cycle", "cycleDays": 2711, "unit": "daf" },
+      "ring": "daf",
+      "questSeries": ["quest-talmud-first-mishnah"],
+      "continuityRingDays": 30,
+      "planRef": "plan-daf-yomi",
+      "intel": "The seven-and-a-half-year cycle through the Babylonian Talmud, one daf per day. Continuity here is the discipline of the page."
+    },
+    {
+      "id": "season-tehillim-monthly",
+      "title": "Tehillim — Monthly",
+      "tradition": "jewish",
+      "subtitle": "The whole Psalter across a Hebrew month",
+      "window": { "kind": "monthly-cycle", "cycleDays": 30, "unit": "psalm-portion" },
+      "ring": "tehillim",
+      "questSeries": ["quest-wisdom-personified"],
+      "continuityRingDays": 30,
+      "planRef": "plan-psalms-30",
+      "intel": "The traditional division of Tehillim across thirty days. A continuity ring sized to the lunar month."
+    },
+    {
+      "id": "season-codex-annual",
+      "title": "CODEX Annual — Ninety Days Through the Whole Canon",
+      "tradition": "shared",
+      "subtitle": "The entire canon, apocrypha included, in ninety days",
+      "window": { "kind": "rolling-cycle", "cycleDays": 90, "unit": "reading-portion" },
+      "ring": "canon",
+      "questSeries": [
+        "quest-covenant-genesis",
+        "quest-i-am-egypt",
+        "quest-wisdom-personified",
+        "quest-messiah-thread",
+        "quest-i-am-john",
+        "quest-patristics-incarnation"
+      ],
+      "continuityRingDays": 90,
+      "planRef": "plan-whole-bible-90",
+      "includesApocrypha": true,
+      "intel": "The flagship campaign: ninety days across the whole canon including the apocrypha. Six quests sequence the spine; the continuity ring spans the full ninety."
+    },
+    {
+      "id": "season-gnosis-arc",
+      "title": "The Hidden Reading",
+      "tradition": "gnostic",
+      "subtitle": "A self-paced arc through the gospels of light",
+      "window": { "kind": "self-paced", "cycleDays": 33 },
+      "ring": "light",
+      "questSeries": ["quest-gnosis-light", "quest-153-gematria"],
+      "continuityRingDays": 33,
+      "intel": "A tradition-honest gnostic arc. Self-paced, thirty-three days, framed as one lens among many."
+    }
+  ]
+}

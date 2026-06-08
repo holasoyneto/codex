@@ -218,13 +218,35 @@
     return M[code] || code.toUpperCase();
   }
 
-  // Read a chapter's verses via the canonical BIBLE store.
+  // Verse-shape helpers — CODEX verses are { n, <translationId>: text, ... }.
+  function verseNum(v) { return v ? (v.n != null ? v.n : (v.verse != null ? v.verse : v.num)) : undefined; }
+  function verseTextOf(v, translation) {
+    if (!v) return "";
+    if (translation && typeof v[translation] === "string" && v[translation]) return v[translation];
+    if (typeof v.kjv === "string" && v.kjv) return v.kjv;
+    if (typeof v.web === "string" && v.web) return v.web;
+    if (typeof v.text === "string" && v.text) return v.text;
+    if (typeof v.t === "string" && v.t) return v.t;
+    for (const k in v) { if (k !== "n" && typeof v[k] === "string" && v[k]) return v[k]; }
+    return "";
+  }
+
+  // Read a chapter's verses via the canonical BIBLE store. Uses loadChapter
+  // (the real export — there is no getChapter, which is why VOX always said
+  // "Nothing to read"), with a cached-read fallback.
   async function loadChapterVerses(bookId, chapter, translation) {
     try {
-      if (window.BIBLE && typeof window.BIBLE.getChapter === "function") {
-        const ch = await window.BIBLE.getChapter(bookId, chapter, translation);
-        if (ch && Array.isArray(ch.verses)) return ch.verses;
+      if (window.BIBLE && typeof window.BIBLE.loadChapter === "function") {
+        const res = await window.BIBLE.loadChapter(bookId, chapter, translation);
+        if (Array.isArray(res)) return res;
+        if (res && Array.isArray(res.verses)) return res.verses;
+      }
+    } catch (e) {}
+    try {
+      if (window.BIBLE && typeof window.BIBLE.getCachedChapter === "function") {
+        const ch = window.BIBLE.getCachedChapter(bookId, chapter, translation);
         if (Array.isArray(ch)) return ch;
+        if (ch && Array.isArray(ch.verses)) return ch.verses;
       }
     } catch (e) {}
     return [];
@@ -388,10 +410,10 @@
     async function getReadingChunks() {
       if (source === "verse" && ctx.bookId && ctx.chapter && ctx.verse) {
         const verses = await loadChapterVerses(ctx.bookId, ctx.chapter, ctx.translation);
-        const v = verses.find(x => Number(x.verse || x.num) === Number(ctx.verse));
+        const v = verses.find(x => Number(verseNum(x)) === Number(ctx.verse));
         if (v) {
-          const text = v.text || v.t || "";
-          return [{ text, meta: { ref: `${ctx.bookId}.${ctx.chapter}.${ctx.verse}` } }];
+          const text = verseTextOf(v, ctx.translation);
+          if (text) return [{ text, meta: { ref: `${ctx.bookId}.${ctx.chapter}.${ctx.verse}` } }];
         }
         return [];
       }
@@ -405,8 +427,8 @@
       if (!verses.length) return [];
       const out = [];
       for (const v of verses) {
-        const num = v.verse || v.num;
-        const text = (v.text || v.t || "").trim();
+        const num = verseNum(v);
+        const text = verseTextOf(v, ctx.translation).trim();
         if (!text) continue;
         const ref = `${ctx.bookId}.${ctx.chapter}.${num}`;
         // Each verse becomes one chunk for clean per-verse highlight; if a

@@ -34,6 +34,30 @@
 
   function bumpListeners() { State.listeners.forEach(fn => { try { fn(); } catch {} }); }
 
+  // Depth-action emitter — fires ONLY on genuine depth actions (open passage,
+  // quest-tease tap, a question resolved), NEVER on mere scrolling/viewing a
+  // reel (that stays a no-op so it can't advance continuity — see the existing
+  // no-doom-loop rule). Defensive: guarded so nothing breaks when the
+  // engagement engine is absent / in Lite mode. The engine listens on the
+  // codex:depth-action bus event and records it (bumps mastery + continuity).
+  function emitDepth(type, ref, weight, domain) {
+    try {
+      if (typeof window !== "undefined"
+          && window.CODEX_ENGAGEMENT
+          && typeof window.CODEX_ENGAGEMENT.emit === "function") {
+        window.CODEX_ENGAGEMENT.emit(type, ref || undefined, weight, domain);
+        return;
+      }
+    } catch {}
+    // Fallback: dispatch the bus event directly (the engine still listens),
+    // so an emit() that is missing/throwing never silently drops the signal.
+    try {
+      window.dispatchEvent(new CustomEvent("codex:depth-action", {
+        detail: { type, ref: ref || null, weight, domain: domain || null },
+      }));
+    } catch {}
+  }
+
   function loadSeen() {
     if (State.seen) return State.seen;
     try {
@@ -323,6 +347,13 @@
 
   function CardQuestion({ card }) {
     const [revealed, setRevealed] = useState(false);
+    // Resolving a question is a genuine depth action ("find/question" card
+    // resolved). Log it as a discovery (weight 2, cross-cutting / no domain).
+    // Only on the explicit reveal tap, never on mount/scroll.
+    const resolve = () => {
+      setRevealed(true);
+      emitDepth("discovery-logged", card.anchor || (card.id ? "reel:" + card.id : null), 2, null);
+    };
     return (
       <div className="cx-reel cx-reel-q" style={{ ['--card-hue']: card.hue }}>
         <div className="cx-reel-q-label">QUESTION</div>
@@ -330,7 +361,7 @@
         {revealed ? (
           <p className="cx-reel-q-answer">{card.answer}</p>
         ) : (
-          <button type="button" className="cx-reel-q-reveal" onClick={() => setRevealed(true)}>
+          <button type="button" className="cx-reel-q-reveal" onClick={resolve}>
             tap to reveal
           </button>
         )}
@@ -340,11 +371,32 @@
   }
 
   function CardQuest({ card }) {
+    // Picking up a quest-tease is a genuine depth action: the reader is opening
+    // a thread. Emit on the explicit tap only (never on scroll/view), then try
+    // to start a matching curated quest if the engine exposes one, and follow
+    // the passage. All engine calls guarded for Lite/offline.
+    const openThread = () => {
+      emitDepth("quest-step", card.questId || card.id || card.anchor || null, 3, null);
+      try {
+        const ENG = (typeof window !== "undefined" && window.CODEX_ENGAGEMENT) || null;
+        const qid = card.questId || card.id;
+        if (qid && ENG && typeof ENG.questState === "function" && typeof ENG.startQuest === "function") {
+          const st = ENG.questState(qid);
+          if (!st || st.status === "available") {
+            Promise.resolve(ENG.startQuest(qid)).catch(() => {});
+          }
+        }
+      } catch {}
+      if (card.anchor) navigateToAnchor(card.anchor);
+    };
     return (
       <div className="cx-reel cx-reel-quest" style={{ ['--card-hue']: card.hue }}>
         <div className="cx-reel-quest-label">A QUEST</div>
-        <div className="cx-reel-quest-title">{card.title}</div>
-        <p className="cx-reel-quest-body">{card.body}</p>
+        <button type="button" className="cx-reel-quest-tap" onClick={openThread}
+                title="Open this thread">
+          <div className="cx-reel-quest-title">{card.title}</div>
+          <p className="cx-reel-quest-body">{card.body}</p>
+        </button>
         <div className="cx-reel-quest-ref">{refLabel(card.anchor)}</div>
       </div>
     );
@@ -467,6 +519,10 @@
     };
 
     const openPassage = () => {
+      // Genuine depth action: the reader is following the card's thread into
+      // the passage. Use the contract crossref-follow type (weight 1,
+      // cross-references). Guarded so Lite/offline never breaks.
+      if (card.anchor) emitDepth("crossref-follow", card.anchor, 1, "cross-references");
       navigateToAnchor(card.anchor);
       if (onClose) onClose();
     };

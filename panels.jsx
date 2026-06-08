@@ -42,8 +42,8 @@ if (typeof window !== "undefined") window.railTabs = railTabs;
 const PALETTE_SECTIONS = [
   { id: "reading",   label: "READING",   ids: ["trans"] },
   { id: "study",     label: "STUDY",     ids: ["comm", "talmud", "exeg", "txan", "gem", "gnosis", "disarm"] },
-  { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs-tsk:crossrefs", "plugin:word-study:word", "plugin:dictionary:dictionary", "plugin:passage-guide:guide"] },
-  { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:timeline:timeline", "plugin:jewish-study:torah", "plugin:plans:plans", "plugin:ai-quests:quests", "plugin:builder:builder", "plugin:marketplace:market"] },
+  { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs-tsk:crossrefs", "plugin:word-study:word", "plugin:bible-dictionary:dictionary", "plugin:passage-guide:guide"] },
+  { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:biblical-timeline:timeline", "plugin:jewish-study:torah", "plugin:reading-plans:plans", "plugin:ai-quests:quests", "plugin:sermon-builder:builder", "plugin:module-marketplace:market"] },
 ];
 const PALETTE_DESCRIPTIONS = {
   trans: "Translations and side-by-side compare",
@@ -57,15 +57,15 @@ const PALETTE_DESCRIPTIONS = {
   "plugin:strongs-concordance:strongs": "Strong's concordance lookups",
   "plugin:crossrefs-tsk:crossrefs": "Cross-references for the verse",
   "plugin:word-study:word": "Deep word studies",
-  "plugin:dictionary:dictionary": "Bible dictionary",
+  "plugin:bible-dictionary:dictionary": "Bible dictionary",
   "plugin:passage-guide:guide": "Guided tour of the passage",
   "plugin:reels:reels": "Short-form scripture reels",
-  "plugin:timeline:timeline": "Biblical timeline",
+  "plugin:biblical-timeline:timeline": "Biblical timeline",
   "plugin:jewish-study:torah": "Torah portions and Jewish lens",
-  "plugin:plans:plans": "Reading plans",
+  "plugin:reading-plans:plans": "Reading plans",
   "plugin:ai-quests:quests": "Quests and challenges",
-  "plugin:builder:builder": "Study workspace builder",
-  "plugin:marketplace:market": "Plugin marketplace",
+  "plugin:sermon-builder:builder": "Sermon & study builder",
+  "plugin:module-marketplace:market": "Plugin marketplace",
 };
 const DEFAULT_PINNED = ["trans", "comm", "plugin:strongs-concordance:strongs"];
 const PINNED_KEY = "codex.rail.pinned";
@@ -85,14 +85,20 @@ function savePinned(arr) {
 function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, gnosisOn, onToggleGnosis }) {
   const [q, setQ] = React.useState("");
   const inputRef = React.useRef(null);
+  // Keep onClose in a ref so the open-effect depends ONLY on `open`. Depending
+  // on [open, onClose] was the bug: the parent passes a fresh onClose every
+  // render and the app re-renders every second (clock), so setQ("") fired
+  // ~once a second and wiped whatever the user was typing.
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
   React.useEffect(() => {
     if (!open) return;
     setQ("");
     const id = requestAnimationFrame(() => inputRef.current?.focus());
-    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onCloseRef.current && onCloseRef.current(); } };
     document.addEventListener("keydown", onKey, true);
     return () => { cancelAnimationFrame(id); document.removeEventListener("keydown", onKey, true); };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   const byId = new Map(tabs.map(t => [t.id, t]));
   const filter = q.trim().toLowerCase();

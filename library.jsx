@@ -79,6 +79,21 @@ function _useTextSuggestions(query, primary) {
   return { hits, loading };
 }
 
+// Render a search snippet that may contain <mark>…</mark> from the index.
+// XSS-safe: strips every tag EXCEPT <mark>, then renders the marked spans as
+// accent-highlighted React nodes (no dangerouslySetInnerHTML). Inline style so
+// it needs no styles.css change.
+function _renderSnippet(str) {
+  if (!str) return null;
+  const clean = String(str).replace(/<(?!\/?mark\b)[^>]*>/gi, "");
+  const parts = clean.split(/<mark>([\s\S]*?)<\/mark>/gi);
+  return parts.map((p, i) =>
+    i % 2 === 1
+      ? React.createElement("mark", { key: i, style: { background: "transparent", color: "var(--cx-accent, #7ee0ff)", fontWeight: 600 } }, p)
+      : p
+  );
+}
+
 function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslation, onJumpRef }) {
   const data = window.CODEX_DATA;
   const [q, setQ] = useState("");
@@ -172,7 +187,7 @@ function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslati
       out.push({
         kind: "verse",
         label: `${b.name} ${ch}${v ? `:${v}` : ""}`,
-        sub: String(h.snippet || h.text || "").slice(0, 80),
+        sub: String(h.snippet || h.text || ""),
         do: () => { onSelectChapter(bookId, ch); if (v && onJumpRef) onJumpRef(`${bookId}.${ch}.${v}`); }
       });
     });
@@ -246,8 +261,13 @@ function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslati
       .filter(g => g.books.length);
   }, [data.books, canons]);
 
+  // Only narrow the visible book list for book-NAME queries. For a reference
+  // ("john 3:16") or a full-text query ("love"), the suggestions dropdown
+  // handles it — narrowing the list by book name there would (wrongly) blank
+  // the entire list while you type, which read as "the search bar is broken".
+  const narrowList = !!match && parsed.kind !== "ref" && parsed.kind !== "text";
   const renderBook = (b) => {
-    if (match && !match.has(b.id)) return null;
+    if (narrowList && !match.has(b.id)) return null;
     const isActive = b.id === activeBookId;
     const isOpen   = b.id === openId;
     return (
@@ -348,7 +368,7 @@ function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslati
                       onMouseDown={(e) => { e.preventDefault(); s.do(); setQ(""); setSuggestOpen(false); }}
                     >
                       <span className="cx-lib-suggest-lbl">{s.label}</span>
-                      <span className="cx-lib-suggest-sub">{s.sub}</span>
+                      <span className="cx-lib-suggest-sub">{s.kind === "verse" ? _renderSnippet(s.sub) : s.sub}</span>
                     </button>
                   ))}
                 </React.Fragment>

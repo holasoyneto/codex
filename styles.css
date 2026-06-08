@@ -17243,3 +17243,433 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 }
 .cx-action-chip:hover { background: color-mix(in oklab, var(--cx-accent, #7ee0ff) 20%, transparent); }
 .cx-action-chip:active { transform: scale(0.97); }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   ENGAGEMENT LAYER — Phase 2.5 Continuity & Mastery (window.CODEX_ENGAGEMENT)
+   ────────────────────────────────────────────────────────────────────────
+   Authoritative styles for every class the UI agent references via the
+   frozen contract. Design law:
+     · GRACE-SHAPED — no red, no broken flame, no "loss"/alarm styling.
+       Grace-held + idle states use a calm neutral accent, NEVER --cx-accent-warn.
+     · NO confetti, NO mascot — terminal / "analyst desk" aesthetic, built on
+       the existing --cx-* HUD vars.
+     · Restrained motion — gentle, short transitions only; a
+       prefers-reduced-motion block at the end makes EVERY animation static.
+     · Mobile-safe (tap targets ≥40px, fluid grids) and RTL-safe (logical
+       props / [dir="rtl"] mirrors). :focus-visible parity for keyboard users.
+   Local namespace tokens so the layer reads as one cohesive surface; all
+   resolve against the existing CODEX palette with safe fallbacks.
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Calm/neutral accent for grace + idle: cool slate, never alarm. */
+  --cx-calm:      #8fa3bd;
+  --cx-calm-soft: rgba(143, 163, 189, 0.16);
+  --cx-hold:      rgba(143, 163, 189, 0.28);
+}
+
+/* ── Generic intel / analyst panel wrapper ─────────────────────────────── */
+.cx-intel-panel {
+  background: var(--cx-panel, rgba(10, 16, 28, 0.78));
+  border: 1px solid var(--cx-line, rgba(126, 224, 255, 0.18));
+  border-radius: 8px;
+  padding: 14px 14px 16px;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  color: var(--cx-fg, #c9d6e6);
+}
+
+/* ── Dossier — the engagement home ("analyst desk") ────────────────────── */
+.cx-dossier {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--cx-panel, rgba(10, 16, 28, 0.78));
+  border: 1px solid var(--cx-line, rgba(126, 224, 255, 0.18));
+  border-radius: 8px;
+  padding: 16px;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  color: var(--cx-fg, #c9d6e6);
+}
+.cx-dossier-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--cx-line, rgba(126, 224, 255, 0.18));
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cx-accent, #7ee0ff);
+}
+.cx-dossier-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cx-dossier-section > h4,
+.cx-dossier-section > .cx-dossier-section-title {
+  margin: 0;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cx-fg-dim, #6b7c95);
+}
+.cx-dossier-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--cx-fg-dim, #6b7c95);
+}
+.cx-dossier-stat > b,
+.cx-dossier-stat .cx-dossier-stat-val {
+  color: var(--cx-fg, #c9d6e6);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cx-dossier:empty::before { content: none; }
+
+/* ── Continuity ring + count + grace + status ──────────────────────────── */
+.cx-continuity-ring {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  /* Progress arc driven by --cx-ring-pct (0–100), set inline by the UI. */
+  background:
+    conic-gradient(
+      var(--cx-accent, #7ee0ff) calc(var(--cx-ring-pct, 0) * 1%),
+      color-mix(in oklab, var(--cx-line, rgba(126,224,255,.18)) 80%, transparent) 0
+    );
+  transition: background 320ms ease;
+}
+.cx-continuity-ring::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--cx-bg-2, #0a0e18);
+  border: 1px solid var(--cx-line, rgba(126, 224, 255, 0.18));
+}
+.cx-continuity-count {
+  position: relative;
+  z-index: 1;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cx-fg, #c9d6e6);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.cx-continuity-count small {
+  display: block;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cx-fg-dim, #6b7c95);
+  margin-top: 3px;
+}
+.cx-continuity-grace {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--cx-calm, #8fa3bd);
+}
+/* Grace tokens render as calm pips — held = filled, available slot = hollow.
+   Never a flame, never red. */
+.cx-continuity-grace i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--cx-calm, #8fa3bd);
+  background: transparent;
+  display: inline-block;
+}
+.cx-continuity-grace i[data-held="1"],
+.cx-continuity-grace i.is-held {
+  background: var(--cx-calm, #8fa3bd);
+}
+.cx-continuity-status {
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--cx-fg-dim, #6b7c95);
+}
+/* Grace-held day: calm neutral accent — a steady note, not an alarm. */
+.cx-continuity-held .cx-continuity-ring {
+  background:
+    conic-gradient(
+      var(--cx-calm, #8fa3bd) calc(var(--cx-ring-pct, 0) * 1%),
+      color-mix(in oklab, var(--cx-line, rgba(126,224,255,.18)) 80%, transparent) 0
+    );
+}
+.cx-continuity-held .cx-continuity-status { color: var(--cx-calm, #8fa3bd); }
+.cx-continuity-held .cx-continuity-count { color: var(--cx-calm, #8fa3bd); }
+/* Idle / paused: neutral, no guilt framing — dimmed, never broken. */
+.cx-continuity-idle .cx-continuity-ring { opacity: 0.7; }
+.cx-continuity-idle .cx-continuity-count { color: var(--cx-fg-dim, #6b7c95); }
+.cx-continuity-idle .cx-continuity-status { color: var(--cx-fg-dim, #6b7c95); }
+
+/* ── Mastery grid (8 domains) ──────────────────────────────────────────── */
+.cx-mastery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.cx-mastery-domain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--cx-bg-2, #0a0e18);
+  border: 1px solid var(--cx-line, rgba(126, 224, 255, 0.18));
+  border-radius: 6px;
+}
+.cx-mastery-domain > .cx-mastery-domain-name {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cx-fg, #c9d6e6);
+}
+.cx-mastery-bar {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--cx-line, rgba(126,224,255,.18)) 70%, transparent);
+  overflow: hidden;
+}
+.cx-mastery-bar::after,
+.cx-mastery-bar > i {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: calc(var(--cx-bar-pct, 0) * 1%);
+  background: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--cx-accent, #7ee0ff) 60%, transparent),
+    var(--cx-accent, #7ee0ff)
+  );
+  border-radius: inherit;
+  transition: width 320ms ease;
+}
+/* When an explicit <i> fill child is present, suppress the ::after fallback. */
+.cx-mastery-bar:has(> i)::after { content: none; }
+.cx-mastery-level {
+  align-self: flex-start;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--cx-accent, #7ee0ff);
+  background: color-mix(in oklab, var(--cx-accent, #7ee0ff) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--cx-accent, #7ee0ff) 40%, transparent);
+}
+.cx-mastery-threads {
+  font-size: 9.5px;
+  color: var(--cx-fg-dim, #6b7c95);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Quests ────────────────────────────────────────────────────────────── */
+.cx-quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cx-quest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--cx-bg-2, #0a0e18);
+  border: 1px solid var(--cx-line, rgba(126, 224, 255, 0.18));
+  border-radius: 8px;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  transition: border-color 160ms ease;
+}
+.cx-quest-card:hover { border-color: var(--cx-line-strong, rgba(126, 224, 255, 0.5)); }
+.cx-quest-card.cx-quest-active {
+  border-color: var(--cx-accent, #7ee0ff);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--cx-accent, #7ee0ff) 30%, transparent);
+}
+.cx-quest-card.cx-quest-complete {
+  opacity: 0.72;
+  border-color: color-mix(in oklab, var(--cx-line, rgba(126,224,255,.18)) 80%, transparent);
+}
+.cx-quest-step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--cx-fg-dim, #6b7c95);
+}
+.cx-quest-step > .cx-quest-step-kind {
+  flex: 0 0 auto;
+  min-width: 56px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cx-accent-2, #ffc46b);
+}
+.cx-quest-step.is-done { color: var(--cx-fg, #c9d6e6); }
+.cx-quest-progress {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--cx-fg-dim, #6b7c95);
+  font-variant-numeric: tabular-nums;
+}
+.cx-quest-progress > span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--cx-line, rgba(126,224,255,.18)) 70%, transparent);
+  overflow: hidden;
+  position: relative;
+}
+.cx-quest-progress > span::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: calc(var(--cx-quest-pct, 0) * 1%);
+  background: var(--cx-accent, #7ee0ff);
+  border-radius: inherit;
+  transition: width 280ms ease;
+}
+
+/* ── Next thread (single best suggestion) ──────────────────────────────── */
+.cx-nextthread {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--cx-accent, #7ee0ff) 8%, transparent),
+    transparent
+  );
+  border: 1px solid var(--cx-line, rgba(126, 224, 255, 0.18));
+  border-inline-start: 2px solid var(--cx-accent, #7ee0ff);
+  border-radius: 6px;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.cx-nextthread:hover { border-color: var(--cx-line-strong, rgba(126, 224, 255, 0.5)); }
+.cx-nextthread > .cx-nextthread-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cx-fg, #c9d6e6);
+  letter-spacing: 0.02em;
+}
+.cx-nextthread > .cx-nextthread-reason {
+  font-size: 10px;
+  color: var(--cx-fg-dim, #6b7c95);
+}
+
+/* ── Intel badge (milestone / discovery) — terminal, no confetti ───────── */
+.cx-intel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cx-accent, #7ee0ff);
+  background: color-mix(in oklab, var(--cx-accent, #7ee0ff) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--cx-accent, #7ee0ff) 40%, transparent);
+  border-radius: 4px;
+}
+.cx-intel-badge::before {
+  content: "◈";
+  font-size: 9px;
+  opacity: 0.8;
+}
+
+/* ── Intel toast (milestone / continuity announcement) ─────────────────── */
+.cx-intel-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  max-width: min(92vw, 360px);
+  background: var(--cx-panel-2, rgba(14, 22, 38, 0.95));
+  border: 1px solid var(--cx-line-strong, rgba(126, 224, 255, 0.5));
+  border-inline-start: 3px solid var(--cx-accent, #7ee0ff);
+  border-radius: 6px;
+  box-shadow: var(--cx-shadow, 0 8px 32px rgba(0, 0, 0, 0.6));
+  font-family: var(--cx-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--cx-fg, #c9d6e6);
+  animation: cx-intel-toast-in 240ms ease both;
+}
+@keyframes cx-intel-toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Keyboard focus parity ─────────────────────────────────────────────── */
+.cx-quest-card:focus-visible,
+.cx-nextthread:focus-visible,
+.cx-mastery-domain:focus-visible,
+.cx-dossier:focus-visible,
+.cx-intel-badge:focus-visible {
+  outline: 2px solid var(--cx-accent, #7ee0ff);
+  outline-offset: 2px;
+}
+
+/* ── RTL safety — the ring's conic arc + logical fills already flip; mirror
+   the few decorative direction-bound bits that don't auto-mirror. ──────── */
+[dir="rtl"] .cx-nextthread {
+  background: linear-gradient(
+    to left,
+    color-mix(in oklab, var(--cx-accent, #7ee0ff) 8%, transparent),
+    transparent
+  );
+}
+[dir="rtl"] .cx-mastery-bar::after,
+[dir="rtl"] .cx-mastery-bar > i {
+  background: linear-gradient(
+    to left,
+    color-mix(in oklab, var(--cx-accent, #7ee0ff) 60%, transparent),
+    var(--cx-accent, #7ee0ff)
+  );
+}
+
+/* ── Mobile — keep tap targets comfortable, let grids collapse ─────────── */
+@media (max-width: 520px) {
+  .cx-mastery-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+  .cx-quest-card,
+  .cx-nextthread { padding: 12px; }
+  /* Ensure interactive engagement surfaces meet the 40px tap floor. */
+  .cx-quest-card,
+  .cx-nextthread { min-height: 40px; }
+}
+
+/* ── Reduced motion — static form for EVERY animation/transition above ─── */
+@media (prefers-reduced-motion: reduce) {
+  .cx-continuity-ring,
+  .cx-mastery-bar::after,
+  .cx-mastery-bar > i,
+  .cx-quest-card,
+  .cx-quest-progress > span::after,
+  .cx-nextthread { transition: none; }
+  .cx-intel-toast { animation: none; }
+}

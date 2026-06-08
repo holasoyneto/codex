@@ -571,6 +571,14 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
     <TweakSection key="__personalization" label="Personalization" />,
     <TweakPersonalization key="__personalization-ctl" />,
   );
+  // Continuity — the Phase 2.5 engagement layer (continuity / mastery / quests).
+  // Self-injected (like Personalization) so it's always present regardless of
+  // how the host composes the panel. Label resolves via i18n ("Continuity"),
+  // which tabFor() routes to the System tab.
+  buckets.system.push(
+    <TweakSection key="__continuity" label={(window.t && window.t("cx.tweak.section")) || "Continuity"} />,
+    <TweakContinuity key="__continuity-ctl" />,
+  );
   // If the currently-selected tab is empty (because children changed),
   // silently fall back to the first non-empty tab without re-rendering.
   const firstNonEmpty = TABS.find(t => buckets[t.id].length)?.id || "reading";
@@ -1165,11 +1173,118 @@ function TweakSchizoToggle({ eligible, value, onChange }) {
   );
 }
 
+// ── TweakContinuity (Phase 2.5 engagement layer) ───────────────────────────
+// Self-contained "Continuity" settings group for the engagement engine
+// (window.CODEX_ENGAGEMENT). Injected by TweaksPanel into the System tab the
+// same way TweakPersonalization is, so it is present regardless of how the
+// host composes the panel and never requires touching app.jsx.
+//
+// Controls (grace-shaped, conservative defaults):
+//   · engageEnabled        — turn the layer on/off (default ON)
+//   · engageDailyThreshold — qualifying depth actions to count a day; ALSO
+//                            pushed to the engine via setConfig({dailyThreshold})
+//   · engageNotifyCadence  — announcement cadence: off | milestones | all
+//                            (conservative default: "milestones")
+//   · engageReduceMotion   — static form for every engagement "celebration"
+//
+// Reads/writes the same persisted blob (codex.tweaks.v1) the rest of the app
+// uses, merge-preserving so it never clobbers other keys, and listens for
+// 'tweakchange' so it stays in sync if the host edits the same keys. Every
+// engine call is wrapped in try/catch — settings must never throw.
+const __CX_ENGAGE_DEFAULTS = {
+  engageEnabled: true,
+  engageDailyThreshold: 1,
+  engageNotifyCadence: 'milestones',
+  engageReduceMotion: false,
+};
+
+function __cxReadEngageTweaks() {
+  let stored = {};
+  try {
+    const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
+    if (raw) stored = JSON.parse(raw) || {};
+  } catch (e) { /* fall through to defaults */ }
+  return { ...__CX_ENGAGE_DEFAULTS, ...stored };
+}
+
+function __cxWriteEngageTweak(key, value) {
+  let stored = {};
+  try {
+    const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
+    if (raw) stored = JSON.parse(raw) || {};
+  } catch (e) { /* start fresh */ }
+  const next = { ...stored, [key]: value };
+  try { localStorage.setItem(CODEX_TWEAKS_KEY, JSON.stringify(next)); } catch (e) { /* quota */ }
+  // Keep author-time editing + the rest of the app in sync (same channel
+  // useTweaks/setTweak use), so the host's tweak state mirrors ours.
+  try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: value } }, '*'); } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('tweakchange', { detail: { [key]: value } })); } catch (e) {}
+}
+
+function TweakContinuity() {
+  const tt = (k, fb) => { try { return (window.t && window.t(k)) || fb; } catch (e) { return fb; } };
+  const [v, setV] = React.useState(__cxReadEngageTweaks);
+
+  // Stay in sync if the host (or another surface) edits the same keys.
+  React.useEffect(() => {
+    const onChange = (e) => {
+      const d = (e && e.detail) || {};
+      if (Object.keys(d).some(k => k.startsWith('engage'))) setV(__cxReadEngageTweaks());
+    };
+    window.addEventListener('tweakchange', onChange);
+    return () => window.removeEventListener('tweakchange', onChange);
+  }, []);
+
+  const set = (key, value) => {
+    __cxWriteEngageTweak(key, value);
+    setV(prev => ({ ...prev, [key]: value }));
+    // engageDailyThreshold is the one tweak the engine itself consumes.
+    if (key === 'engageDailyThreshold') {
+      try {
+        if (window.CODEX_ENGAGEMENT && window.CODEX_ENGAGEMENT.setConfig) {
+          window.CODEX_ENGAGEMENT.setConfig({ dailyThreshold: value });
+        }
+      } catch (e) { /* never throw from settings */ }
+    }
+  };
+
+  return (
+    <>
+      <TweakToggle
+        label={tt('cx.tweak.enable', 'Engagement layer')}
+        value={!!v.engageEnabled}
+        onChange={(val) => set('engageEnabled', val)} />
+      {v.engageEnabled && (
+        <>
+          <TweakSlider
+            label={tt('cx.tweak.threshold', 'Depth actions per day')}
+            value={v.engageDailyThreshold}
+            min={1} max={5} step={1}
+            onChange={(val) => set('engageDailyThreshold', val)} />
+          <TweakRadio
+            label={tt('cx.tweak.cadence', 'Announcements')}
+            value={v.engageNotifyCadence}
+            options={[
+              { value: 'off',        label: tt('cx.tweak.cadence.off', 'Off') },
+              { value: 'milestones', label: tt('cx.tweak.cadence.milestones', 'Milestones') },
+              { value: 'all',        label: tt('cx.tweak.cadence.all', 'All') },
+            ]}
+            onChange={(val) => set('engageNotifyCadence', val)} />
+          <TweakToggle
+            label={tt('cx.tweak.motion', 'Reduce motion')}
+            value={!!v.engageReduceMotion}
+            onChange={(val) => set('engageReduceMotion', val)} />
+        </>
+      )}
+    </>
+  );
+}
+
 Object.assign(window, {
   useTweaks, TweaksPanel, TweakSection, TweakRow,
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
   TweakText, TweakNumber, TweakColor, TweakButton,
   TweakPersonalization,
-  TweakSchizoToggle,
+  TweakSchizoToggle, TweakContinuity,
   AIModelSection, LightThemePicker,
 });

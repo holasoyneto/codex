@@ -63,6 +63,33 @@
 
   const QUEST_ID = "messiah-50";
   const PROGRESS_KEY = `codex.quest.${QUEST_ID}.progress`;
+
+  // --- Phase 2.5 engagement bridge (additive, defensive) ----------------
+  // Feed quest progress into the unified CODEX_ENGAGEMENT engine so studying
+  // prophecies counts toward continuity + mastery. Every engine touch is
+  // guarded so the quest still runs standalone / in Lite mode / offline.
+  // A studied card is a depth action (weight 3, like a quest-step); we also
+  // dispatch codex:quest-step so engagement UI can reflect live progress.
+  function emitDepth(type, ref, weight, domain) {
+    try {
+      const E = typeof window !== "undefined" ? window.CODEX_ENGAGEMENT : null;
+      if (E && typeof E.emit === "function") { E.emit(type, ref, weight, domain); return; }
+      if (typeof window !== "undefined" && typeof window.CustomEvent === "function") {
+        window.dispatchEvent(new CustomEvent("codex:depth-action", {
+          detail: { type, ref: ref || null, weight: weight, domain: domain || null },
+        }));
+      }
+    } catch (e) {}
+  }
+  function emitQuestStep(step, status) {
+    try {
+      if (typeof window !== "undefined" && typeof window.CustomEvent === "function") {
+        window.dispatchEvent(new CustomEvent("codex:quest-step", {
+          detail: { questId: QUEST_ID, step: step, status: status, domain: "canon-coverage" },
+        }));
+      }
+    } catch (e) {}
+  }
   function loadProgress() {
     try { return { studied: [], lastIdx: 0, ...(JSON.parse(localStorage.getItem(PROGRESS_KEY) || "null") || {}) }; }
     catch { return { studied: [], lastIdx: 0 }; }
@@ -156,9 +183,16 @@
 
     const toggleStudied = () => {
       const next = new Set(studiedSet);
+      const willStudy = !next.has(card.id);
       if (next.has(card.id)) next.delete(card.id); else next.add(card.id);
       const np = { ...progress, studied: [...next], lastIdx: idx };
       setProgress(np); saveProgress(np);
+      // Depth-gated: only marking a prophecy studied advances engagement.
+      if (willStudy) {
+        emitDepth("quest-step", card.ot_reference || card.id, 3, "canon-coverage");
+        const done = next.size;
+        emitQuestStep(done, done >= CARDS.length ? "complete" : "active");
+      }
     };
     const goNext = () => { if (idx < CARDS.length - 1) setIdx(i => i + 1); };
     const goPrev = () => { if (idx > 0) setIdx(i => i - 1); };

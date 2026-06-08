@@ -487,3 +487,913 @@
 
   window.CODEX_ENGAGE = api;
 })();
+
+
+// ════════════════════════════════════════════════════════════════════════
+// CODEX — Continuity & Mastery Engine  (Phase 2.5)
+//
+// A NEW namespace: window.CODEX_ENGAGEMENT. Lives alongside (does NOT touch)
+// the legacy window.CODEX_ENGAGE Hook-Model layer above.
+//
+// DESIGN LAW (non-negotiable):
+//   • DEPTH-GATED, not presence-gated. Opening/scrolling/idling NEVER advance
+//     anything. Only depth actions count (Strong's lookup, cross-ref thread,
+//     word study, note written, quest step, gematria match, guide read, …).
+//   • GRACE-SHAPED. Continuity (the streak) forgives lapses with grace tokens.
+//     No red, no broken-flame, no "don't break your streak" — ever.
+//   • SOLO-FIRST. No leaderboard, no social, no friends. Anywhere.
+//   • NO mascot / confetti / cute. Terminal "analyst desk" framing.
+//   • TRADITION-AGNOSTIC. Never assumes one tradition's calendar/canon.
+//   • LOCAL-ONLY. localStorage + IndexedDB. Never phones home. Never routed
+//     through observability.js. Rides the existing codex.* export/import.
+//   • NEVER THROWS at load. All IDB wrapped in try/catch with LS fallback.
+//   • Offline + Lite mode (?lite=1): engine still loads; UI may hide surfaces.
+//
+// The rest of the build binds to the FROZEN CONTRACT returned by this agent.
+// ════════════════════════════════════════════════════════════════════════
+(function () {
+  "use strict";
+
+  // ── Storage keys (all codex.* so they ride export/import automatically) ──
+  const K_CONTINUITY = "codex.continuity.v1";   // { current, longest, lastDay, grace, history, ringStart }
+  const K_MASTERY    = "codex.mastery.v1";       // { [domain]: { score, threads, level, lastTs } }
+  const K_MILESTONES = "codex.milestones.v1";    // { [milestoneId]: isoDay }
+  const K_QUESTS     = "codex.quests.v1";        // { [questId]: { status, step, startedAt, updatedAt, completedAt } }
+  const K_EVENTLOG   = "codex.eventlog.v1";      // LS fallback array (capped) for the append-only log
+  const K_CONFIG     = "codex.engagement.config.v1"; // { dailyThreshold }
+
+  const IDB_NAME  = "codex-engagement";
+  const IDB_STORE = "events";
+  const IDB_VERSION = 1;
+  const LS_LOG_CAP = 2000;   // capped fallback array size
+  const GRACE_CAP  = 2;      // hold at most 2 grace tokens
+  const GRACE_EVERY = 7;     // auto-grant 1 grace token every 7 continuity days
+
+  const DEFAULT_DAILY_THRESHOLD = 1;  // qualifying depth events needed to count a day
+
+  // ── tiny helpers ─────────────────────────────────────────────────────
+  function safeT(key, fallback) {
+    try {
+      if (typeof window !== "undefined" && typeof window.t === "function") {
+        const v = window.t(key);
+        if (v && v !== key) return v;
+      }
+    } catch (_) {}
+    return fallback;
+  }
+  function lsGet(key, dflt) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw == null ? dflt : JSON.parse(raw);
+    } catch (_) { return dflt; }
+  }
+  function lsSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch (_) { return false; }
+  }
+  function dispatch(name, detail) {
+    try {
+      if (typeof window !== "undefined" && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent(name, { detail }));
+      }
+    } catch (_) {}
+  }
+  function now() { return Date.now(); }
+
+  // ── date helpers (local calendar day, matches legacy engine) ──────────
+  function isoDay(ts) {
+    const d = ts == null ? new Date() : new Date(ts);
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      String(d.getDate()).padStart(2, "0"),
+    ].join("-");
+  }
+  function dayOffset(iso, days) {
+    const [Y, M, D] = iso.split("-").map(Number);
+    const d = new Date(Y, M - 1, D);
+    d.setDate(d.getDate() + days);
+    return isoDay(d.getTime());
+  }
+  function daysBetween(a, b) {
+    const da = new Date(a + "T00:00:00").getTime();
+    const db = new Date(b + "T00:00:00").getTime();
+    return Math.round((db - da) / 86400000);
+  }
+
+  // ── config ────────────────────────────────────────────────────────────
+  function getConfig() {
+    const c = lsGet(K_CONFIG, null) || {};
+    return { dailyThreshold: Math.max(1, c.dailyThreshold || DEFAULT_DAILY_THRESHOLD) };
+  }
+  function setConfig(patch) {
+    const c = { ...getConfig(), ...(patch || {}) };
+    lsSet(K_CONFIG, c);
+    return c;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // DOMAIN + DEPTH-ACTION TAXONOMY  (the contract emitters bind to)
+  // ════════════════════════════════════════════════════════════════════
+  // Eight mastery domains. Tradition-agnostic labels via i18n at the UI layer.
+  const DOMAINS = [
+    "hebrew-greek",     // Strong's, lemmas, word studies
+    "cross-references", // followed cross-ref threads / chains
+    "gematria",         // numeric / isopsephy matches
+    "talmud",           // daf / mishnah study
+    "patristics",       // church-fathers commentary
+    "gnosis",           // gnostic / nag-hammadi reading
+    "geography",        // map / place study
+    "canon-coverage",   // breadth across the canon (chapters/books closed)
+  ];
+
+  // Depth-action types. Each: { weight, domain }.
+  //   weight  → how much it advances mastery (closing a thread weighs more
+  //             than a single lookup). A day counts toward continuity if it
+  //             has >= dailyThreshold qualifying depth events (any type).
+  //   domain  → which mastery domain it feeds (null = continuity-only, feeds
+  //             no specific domain but still qualifies the day).
+  const DEPTH_ACTIONS = {
+    // — Hebrew/Greek —
+    "strongs-lookup":      { weight: 1, domain: "hebrew-greek" },
+    "lemma-open":          { weight: 1, domain: "hebrew-greek" },
+    "word-study-complete": { weight: 5, domain: "hebrew-greek" }, // closing a thread
+    // — Cross-references —
+    "crossref-follow":     { weight: 1, domain: "cross-references" },
+    "crossref-chain":      { weight: 5, domain: "cross-references" }, // >=3-hop chain closed
+    // — Gematria —
+    "gematria-lookup":     { weight: 1, domain: "gematria" },
+    "gematria-match":      { weight: 4, domain: "gematria" }, // match found in user's own library
+    // — Talmud —
+    "daf-read":            { weight: 3, domain: "talmud" },
+    "mishnah-study":       { weight: 3, domain: "talmud" },
+    // — Patristics —
+    "patristics-read":     { weight: 2, domain: "patristics" },
+    // — Gnosis —
+    "gnosis-read":         { weight: 2, domain: "gnosis" },
+    // — Geography —
+    "map-place-study":     { weight: 2, domain: "geography" },
+    // — Canon coverage —
+    "passage-guide-read":  { weight: 4, domain: "canon-coverage" }, // a full passage guide
+    "chapter-closed":      { weight: 1, domain: "canon-coverage" },
+    "study-built":         { weight: 5, domain: "canon-coverage" }, // a built study
+    // — Cross-cutting depth (feed no single domain, still qualify the day) —
+    "note-written":        { weight: 2, domain: null },
+    "discovery-logged":    { weight: 2, domain: null },
+    "quest-step":          { weight: 3, domain: null }, // re-tagged to quest's domain when known
+  };
+
+  // Mastery level thresholds (cumulative weight → named level).
+  const MASTERY_LEVELS = [
+    { level: 0, min: 0,    key: "cx.mastery.lvl.dormant",  en: "Dormant" },
+    { level: 1, min: 10,   key: "cx.mastery.lvl.tracking", en: "Tracking" },
+    { level: 2, min: 40,   key: "cx.mastery.lvl.analyst",  en: "Analyst" },
+    { level: 3, min: 120,  key: "cx.mastery.lvl.adept",    en: "Adept" },
+    { level: 4, min: 300,  key: "cx.mastery.lvl.cryptic",  en: "Cryptographer" },
+    { level: 5, min: 700,  key: "cx.mastery.lvl.oracle",   en: "Oracle-grade" },
+  ];
+  function levelForScore(score) {
+    let lv = MASTERY_LEVELS[0];
+    for (const m of MASTERY_LEVELS) if (score >= m.min) lv = m;
+    return lv;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // EVENT LOG — append-only. IndexedDB primary, capped LS array fallback.
+  // ════════════════════════════════════════════════════════════════════
+  let _idb = null;          // cached open db
+  let _idbBroken = false;   // once a failure is seen, stop trying IDB this session
+
+  function openLogDB() {
+    return new Promise(function (resolve, reject) {
+      if (_idbBroken) return reject(new Error("idb-disabled"));
+      if (_idb) return resolve(_idb);
+      if (typeof indexedDB === "undefined") { _idbBroken = true; return reject(new Error("no-idb")); }
+      let req;
+      try { req = indexedDB.open(IDB_NAME, IDB_VERSION); }
+      catch (e) { _idbBroken = true; return reject(e); }
+      req.onupgradeneeded = function (e) {
+        try {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(IDB_STORE)) {
+            const os = db.createObjectStore(IDB_STORE, { keyPath: "id", autoIncrement: true });
+            os.createIndex("ts", "ts", { unique: false });
+            os.createIndex("domain", "domain", { unique: false });
+          }
+        } catch (_) {}
+      };
+      req.onsuccess = function () { _idb = req.result; resolve(_idb); };
+      req.onerror = function () { _idbBroken = true; reject(req.error || new Error("idb-open-failed")); };
+    });
+  }
+
+  function idbAppend(evt) {
+    return openLogDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        try {
+          const tx = db.transaction(IDB_STORE, "readwrite");
+          tx.objectStore(IDB_STORE).add(evt);
+          tx.oncomplete = function () { resolve(true); };
+          tx.onerror = function () { reject(tx.error); };
+          tx.onabort = function () { reject(tx.error); };
+        } catch (e) { reject(e); }
+      });
+    });
+  }
+
+  function idbAll() {
+    return openLogDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        try {
+          const tx = db.transaction(IDB_STORE, "readonly");
+          const req = tx.objectStore(IDB_STORE).getAll();
+          req.onsuccess = function () { resolve(req.result || []); };
+          req.onerror = function () { reject(req.error); };
+        } catch (e) { reject(e); }
+      });
+    });
+  }
+
+  function idbClear() {
+    return openLogDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        try {
+          const tx = db.transaction(IDB_STORE, "readwrite");
+          tx.objectStore(IDB_STORE).clear();
+          tx.oncomplete = function () { resolve(true); };
+          tx.onerror = function () { reject(tx.error); };
+        } catch (e) { reject(e); }
+      });
+    });
+  }
+
+  // LS fallback (also a synchronous mirror of "today's" events for fast day-counting)
+  function lsLogAppend(evt) {
+    const arr = lsGet(K_EVENTLOG, []) || [];
+    arr.push(evt);
+    if (arr.length > LS_LOG_CAP) arr.splice(0, arr.length - LS_LOG_CAP);
+    lsSet(K_EVENTLOG, arr);
+  }
+  function lsLogAll() { return lsGet(K_EVENTLOG, []) || []; }
+
+  // Append to the durable log. Never throws. Always mirrors to the capped
+  // LS array (cheap, synchronous, survives IDB failure & powers day-counting).
+  function appendEvent(evt) {
+    lsLogAppend(evt);                       // synchronous mirror — always
+    try {
+      idbAppend(evt).catch(function () {}); // best-effort durable append
+    } catch (_) {}
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // CONTINUITY (the streak) + GRACE
+  // ════════════════════════════════════════════════════════════════════
+  function defaultContinuity() {
+    return {
+      current: 0,        // current continuity length in days
+      longest: 0,        // best ever
+      lastDay: null,     // iso day of last qualifying day
+      todayCount: 0,     // qualifying depth events recorded today
+      countedToday: false, // whether today already counted
+      grace: 0,          // grace tokens held (cap GRACE_CAP)
+      graceSpentDays: {}, // { isoDay: true } days that a token covered
+      sinceGrace: 0,     // qualifying days since last grace grant
+      ringStart: null,   // iso day the current continuity ring began
+      history: {},       // { isoDay: true } qualifying days (trimmed to 400)
+    };
+  }
+  function loadContinuity() {
+    const c = lsGet(K_CONTINUITY, null);
+    return c ? { ...defaultContinuity(), ...c } : defaultContinuity();
+  }
+  function saveContinuity(c) { lsSet(K_CONTINUITY, c); }
+
+  // Resolve the gap between lastDay and `today`, spending grace silently for
+  // missed days. Returns { status, graceSpent }. No guilt framing ever.
+  function reconcileGap(c, today) {
+    if (!c.lastDay) return { status: "fresh", graceSpent: 0 };
+    const gap = daysBetween(c.lastDay, today);
+    if (gap <= 1) return { status: "continuous", graceSpent: 0 };
+    // gap-1 missed days between lastDay and today
+    const missed = gap - 1;
+    let spent = 0;
+    for (let i = 0; i < missed; i++) {
+      if (c.grace > 0) {
+        c.grace -= 1;
+        spent += 1;
+        const coveredDay = dayOffset(c.lastDay, i + 1);
+        c.graceSpentDays[coveredDay] = true;
+      } else {
+        // No token: continuity pauses (NOT broken). It will restart at 1 on
+        // the next qualifying day. No loss state, no red.
+        return { status: "paused", graceSpent: spent };
+      }
+    }
+    // All missed days covered by grace → continuity HELD.
+    return { status: "held", graceSpent: spent };
+  }
+
+  // Record one qualifying depth event toward continuity. Returns a summary.
+  // Dispatches codex:continuity-tick only when a NEW day first qualifies.
+  function tickContinuity() {
+    const cfg = getConfig();
+    const c = loadContinuity();
+    const today = isoDay();
+
+    // Roll over to a new day if needed.
+    if (c.lastCountDay !== today) {
+      // Different day than where todayCount was accruing.
+      if (c.lastDay === today) {
+        // already counted today; just resume accrual count
+      } else {
+        c.todayCount = 0;
+        c.countedToday = false;
+      }
+      c.lastCountDay = today;
+    }
+
+    c.todayCount += 1;
+
+    // Already counted today → nothing more to do (no tick).
+    if (c.lastDay === today) {
+      saveContinuity(c);
+      return continuityStatus(c);
+    }
+
+    // Need threshold to count the day.
+    if (c.todayCount < cfg.dailyThreshold) {
+      saveContinuity(c);
+      return continuityStatus(c);
+    }
+
+    // ── Today qualifies. Reconcile any gap with grace, then advance. ──
+    const gap = reconcileGap(c, today);
+    if (gap.status === "paused") {
+      c.current = 1;             // restart, no guilt
+      c.ringStart = today;
+    } else if (gap.status === "fresh") {
+      c.current = 1;
+      c.ringStart = today;
+    } else {
+      c.current = (c.current || 0) + 1; // continuous or held
+      if (!c.ringStart) c.ringStart = today;
+    }
+
+    c.lastDay = today;
+    c.countedToday = true;
+    c.longest = Math.max(c.longest || 0, c.current);
+    c.history[today] = true;
+    c.sinceGrace = (c.sinceGrace || 0) + 1;
+
+    // Auto-grant grace every GRACE_EVERY qualifying days (cap GRACE_CAP).
+    let graceGranted = 0;
+    while (c.sinceGrace >= GRACE_EVERY && c.grace < GRACE_CAP) {
+      c.grace += 1;
+      c.sinceGrace -= GRACE_EVERY;
+      graceGranted += 1;
+    }
+    if (c.sinceGrace >= GRACE_EVERY) c.sinceGrace = c.sinceGrace % GRACE_EVERY;
+
+    // Trim history to last 400 days.
+    const cutoff = dayOffset(today, -400);
+    for (const d of Object.keys(c.history)) if (d < cutoff) delete c.history[d];
+    for (const d of Object.keys(c.graceSpentDays)) if (d < cutoff) delete c.graceSpentDays[d];
+
+    saveContinuity(c);
+
+    const status = continuityStatus(c, { graceSpent: gap.graceSpent, graceGranted, gapStatus: gap.status });
+    dispatch("codex:continuity-tick", status);
+    return status;
+  }
+
+  function continuityStatus(c, extra) {
+    c = c || loadContinuity();
+    extra = extra || {};
+    const today = isoDay();
+    let copyKey = "cx.continuity.active", copyEn = "Continuity active";
+    if (extra.graceSpent > 0) { copyKey = "cx.continuity.held"; copyEn = "Continuity held — grace spent"; }
+    else if (extra.gapStatus === "paused") { copyKey = "cx.continuity.resumed"; copyEn = "Continuity resumed"; }
+    else if (!c.lastDay) { copyKey = "cx.continuity.idle"; copyEn = "Continuity idle"; }
+    return {
+      current: c.current || 0,
+      longest: c.longest || 0,
+      lastDay: c.lastDay || null,
+      countedToday: c.lastDay === today,
+      grace: c.grace || 0,
+      graceCap: GRACE_CAP,
+      graceSpent: extra.graceSpent || 0,
+      graceGranted: extra.graceGranted || 0,
+      ringStart: c.ringStart || null,
+      sinceGrace: c.sinceGrace || 0,
+      nextGraceIn: Math.max(0, GRACE_EVERY - (c.sinceGrace || 0)),
+      statusKey: copyKey,
+      statusText: safeT(copyKey, copyEn),
+    };
+  }
+
+  // Read-only continuity snapshot that ALSO reconciles a stale gap for display
+  // (spends grace if the user opened after a lapse) without requiring an event.
+  function continuity() {
+    const c = loadContinuity();
+    const today = isoDay();
+    if (c.lastDay && c.lastDay !== today) {
+      const gap = reconcileGap(c, today);
+      if (gap.graceSpent > 0 || gap.status === "paused") {
+        if (gap.status === "paused") { /* paused: current stays; restarts on next qualifying day */ }
+        saveContinuity(c);
+        return continuityStatus(c, { graceSpent: gap.graceSpent, gapStatus: gap.status });
+      }
+    }
+    return continuityStatus(c);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // MASTERY (per domain) — rises from closing threads (weighted events)
+  // ════════════════════════════════════════════════════════════════════
+  function loadMastery() {
+    const m = lsGet(K_MASTERY, null) || {};
+    for (const d of DOMAINS) if (!m[d]) m[d] = { score: 0, threads: 0, level: 0, lastTs: null };
+    return m;
+  }
+  function saveMastery(m) { lsSet(K_MASTERY, m); }
+
+  function bumpMastery(domain, weight, isThread) {
+    if (!domain || DOMAINS.indexOf(domain) === -1) return null;
+    const m = loadMastery();
+    const cell = m[domain];
+    const prevLevel = cell.level;
+    cell.score += weight;
+    if (isThread) cell.threads += 1;
+    cell.lastTs = now();
+    const lv = levelForScore(cell.score);
+    cell.level = lv.level;
+    saveMastery(m);
+    if (lv.level > prevLevel) {
+      // A level-up is a milestone too.
+      unlockMilestone("mastery." + domain + ".lvl" + lv.level, {
+        kind: "mastery-level", domain, level: lv.level,
+        labelEn: lv.en, labelKey: lv.key,
+      });
+    }
+    return { domain, score: cell.score, level: cell.level, threads: cell.threads, levelLabel: safeT(lv.key, lv.en) };
+  }
+
+  function mastery(domain) {
+    const m = loadMastery();
+    if (domain) {
+      const cell = m[domain] || { score: 0, threads: 0, level: 0, lastTs: null };
+      const lv = levelForScore(cell.score);
+      return { domain, ...cell, levelLabel: safeT(lv.key, lv.en), levelKey: lv.key };
+    }
+    const out = {};
+    for (const d of DOMAINS) {
+      const cell = m[d];
+      const lv = levelForScore(cell.score);
+      out[d] = { ...cell, domain: d, levelLabel: safeT(lv.key, lv.en), levelKey: lv.key };
+    }
+    return out;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // MILESTONES / DISCOVERY — unified unlock system
+  // ════════════════════════════════════════════════════════════════════
+  // Generalizes verse-map's 10/25/50/100 and "first time you opened X".
+  // Counters are derived from the event log mirror; thresholds unlock once.
+  const MILESTONE_RULES = [
+    // Cross-reference breadth (generalizes verse-map 10/25/50/100)
+    { id: "crossref.10",  domain: "cross-references", count: "crossref-follow", n: 10,  labelEn: "10 cross-ref threads" },
+    { id: "crossref.25",  domain: "cross-references", count: "crossref-follow", n: 25,  labelEn: "25 cross-ref threads" },
+    { id: "crossref.50",  domain: "cross-references", count: "crossref-follow", n: 50,  labelEn: "50 cross-ref threads" },
+    { id: "crossref.100", domain: "cross-references", count: "crossref-follow", n: 100, labelEn: "100 cross-ref threads" },
+    // Word-study depth
+    { id: "wordstudy.10", domain: "hebrew-greek", count: "word-study-complete", n: 10, labelEn: "10 word studies closed" },
+    { id: "wordstudy.25", domain: "hebrew-greek", count: "word-study-complete", n: 25, labelEn: "25 word studies closed" },
+    // Gematria matches
+    { id: "gematria.10",  domain: "gematria", count: "gematria-match", n: 10, labelEn: "10 gematria matches" },
+    // Canon coverage
+    { id: "canon.50",  domain: "canon-coverage", count: "chapter-closed", n: 50,  labelEn: "50 chapters closed" },
+    { id: "canon.150", domain: "canon-coverage", count: "chapter-closed", n: 150, labelEn: "150 chapters closed" },
+  ];
+
+  function loadMilestones() { return lsGet(K_MILESTONES, {}) || {}; }
+  function saveMilestones(m) { lsSet(K_MILESTONES, m); }
+
+  // Unlock a milestone by id if not already held. Dispatches codex:milestone.
+  function unlockMilestone(id, meta) {
+    const held = loadMilestones();
+    if (held[id]) return null;
+    held[id] = isoDay();
+    saveMilestones(held);
+    const detail = { id, day: held[id], ...(meta || {}) };
+    if (detail.labelEn && !detail.label) detail.label = safeT("cx.milestone." + id, detail.labelEn);
+    dispatch("codex:milestone", detail);
+    return detail;
+  }
+
+  // "First time you did X" milestones (per depth-action type).
+  function checkFirstTime(type) {
+    const id = "first." + type;
+    const held = loadMilestones();
+    if (held[id]) return;
+    const labelEn = "First " + type.replace(/-/g, " ");
+    unlockMilestone(id, { kind: "first", type, labelEn });
+  }
+
+  // Threshold milestones from running counters.
+  function loadCounters() { return lsGet("codex.engagement.counters.v1", {}) || {}; }
+  function saveCounters(c) { lsSet("codex.engagement.counters.v1", c); }
+  function bumpCounter(type) {
+    const c = loadCounters();
+    c[type] = (c[type] || 0) + 1;
+    saveCounters(c);
+    for (const rule of MILESTONE_RULES) {
+      if (rule.count === type && c[type] === rule.n) {
+        unlockMilestone(rule.id, { kind: "threshold", domain: rule.domain, n: rule.n, labelEn: rule.labelEn });
+      }
+    }
+    return c[type];
+  }
+
+  function milestones() {
+    return { unlocked: loadMilestones(), counters: loadCounters(), rules: MILESTONE_RULES.slice() };
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // CORE: record(event) — the single ingestion point
+  // ════════════════════════════════════════════════════════════════════
+  // event = { type, ref?, weight?, domain?, ts? }
+  // Returns a summary; never throws.
+  function record(event) {
+    try {
+      if (!event || typeof event !== "object" || !event.type) return null;
+      const spec = DEPTH_ACTIONS[event.type] || {};
+      const type = event.type;
+      const weight = (typeof event.weight === "number" && event.weight > 0) ? event.weight : (spec.weight || 1);
+      const domain = event.domain || spec.domain || null;
+      const ts = event.ts || now();
+      const ref = event.ref != null ? event.ref : null;
+
+      const logEvt = { ts, type, ref, weight, domain };
+      appendEvent(logEvt);
+
+      // First-time + threshold milestones
+      checkFirstTime(type);
+      bumpCounter(type);
+
+      // Mastery: every weighted event nudges its domain; "thread-closing"
+      // actions (weight >= 4) count as a closed thread.
+      const isThread = weight >= 4;
+      let masteryResult = null;
+      if (domain) masteryResult = bumpMastery(domain, weight, isThread);
+
+      // Continuity: any qualifying depth event ticks the day.
+      const cont = tickContinuity();
+
+      const summary = { recorded: logEvt, continuity: cont, mastery: masteryResult };
+      return summary;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // QUESTS runtime
+  // ════════════════════════════════════════════════════════════════════
+  let _questPackCache = null;
+
+  function _getModuleSync(id) {
+    // Best-effort sync lookup if a host has pre-staged modules.
+    try {
+      if (window.CODEX_MODULE_DATA && window.CODEX_MODULE_DATA[id]) return window.CODEX_MODULE_DATA[id];
+    } catch (_) {}
+    return null;
+  }
+
+  function _loadQuestPack() {
+    if (_questPackCache) return Promise.resolve(_questPackCache);
+    const staged = _getModuleSync("quests-curated");
+    if (staged && staged.quests) { _questPackCache = staged; return Promise.resolve(staged); }
+    // Try the module loader (IDB-cached), then plain fetch.
+    const viaLoader = (window.CODEX_MODULES && typeof window.CODEX_MODULES.loadModule === "function")
+      ? window.CODEX_MODULES.loadModule("quests-curated").catch(function () { return null; })
+      : Promise.resolve(null);
+    return viaLoader.then(function (mod) {
+      if (mod && mod.quests) { _questPackCache = mod; return mod; }
+      return fetch("data/modules/quests-curated.json", { credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { if (j && j.quests) { _questPackCache = j; return j; } return { quests: [] }; })
+        .catch(function () { return { quests: [] }; });
+    });
+  }
+
+  function listQuests() {
+    return _loadQuestPack().then(function (pack) {
+      const states = lsGet(K_QUESTS, {}) || {};
+      return (pack.quests || []).map(function (q) {
+        const st = states[q.meta.id] || null;
+        return {
+          id: q.meta.id,
+          title: q.meta.title,
+          tradition: q.meta.tradition || null,
+          domain: q.meta.domain || null,
+          steps: (q.steps || []).length,
+          ring: q.meta.ring || null,
+          status: st ? st.status : "available",
+          step: st ? st.step : 0,
+        };
+      });
+    });
+  }
+
+  function getQuest(id) {
+    return _loadQuestPack().then(function (pack) {
+      return (pack.quests || []).find(function (q) { return q.meta.id === id; }) || null;
+    });
+  }
+
+  function questState(id) {
+    const states = lsGet(K_QUESTS, {}) || {};
+    return states[id] || { status: "available", step: 0, startedAt: null, updatedAt: null, completedAt: null };
+  }
+  function _writeQuestState(id, patch) {
+    const states = lsGet(K_QUESTS, {}) || {};
+    states[id] = { ...questState(id), ...patch, updatedAt: now() };
+    lsSet(K_QUESTS, states);
+    return states[id];
+  }
+
+  function startQuest(id) {
+    return getQuest(id).then(function (q) {
+      if (!q) return null;
+      const st = _writeQuestState(id, { status: "active", step: 0, startedAt: now(), completedAt: null });
+      dispatch("codex:quest-step", { questId: id, step: 0, status: "active", domain: q.meta.domain || null });
+      return st;
+    });
+  }
+
+  // Advance the active quest one step. Records a depth event (quest-step,
+  // re-tagged to the quest's domain) so it feeds mastery + continuity.
+  function advanceQuest(id) {
+    return getQuest(id).then(function (q) {
+      if (!q) return null;
+      const total = (q.steps || []).length;
+      const cur = questState(id);
+      let step = (cur.step || 0);
+      if (cur.status !== "active") {
+        // auto-start on first advance
+        _writeQuestState(id, { status: "active", startedAt: cur.startedAt || now() });
+      }
+      // Record the depth action for the step being completed.
+      record({ type: "quest-step", ref: id + "#" + step, weight: DEPTH_ACTIONS["quest-step"].weight, domain: q.meta.domain || null });
+      step += 1;
+      const done = step >= total;
+      const st = _writeQuestState(id, {
+        status: done ? "complete" : "active",
+        step: done ? total : step,
+        completedAt: done ? now() : null,
+      });
+      dispatch("codex:quest-step", { questId: id, step: st.step, status: st.status, domain: q.meta.domain || null });
+      if (done) {
+        unlockMilestone("quest." + id, { kind: "quest-complete", questId: id, domain: q.meta.domain || null, labelEn: "Quest closed: " + q.meta.title });
+      }
+      return st;
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // nextThread(ctx) — pure-logic single best next thread. NO AI.
+  // ════════════════════════════════════════════════════════════════════
+  // ctx (all optional): { ref, book, library:[{ref,gematria?}], parsha, daf,
+  //                       crossrefsAvailable:bool }
+  // Returns one suggestion: { kind, title, ref?, questId?, reason }.
+  // Synchronous best-effort against already-cached data only.
+  function nextThread(ctx) {
+    ctx = ctx || {};
+    try {
+      // 1) An unfinished quest is the strongest pull (a thread already opened).
+      const states = lsGet(K_QUESTS, {}) || {};
+      const active = Object.keys(states).find(function (id) { return states[id].status === "active"; });
+      if (active) {
+        const pack = _questPackCache;
+        const q = pack && pack.quests ? pack.quests.find(function (x) { return x.meta.id === active; }) : null;
+        return {
+          kind: "quest",
+          questId: active,
+          title: q ? q.meta.title : active,
+          step: states[active].step || 0,
+          reason: safeT("cx.nextthread.quest", "Resume an open quest thread"),
+        };
+      }
+
+      // 2) A gematria match in the user's OWN library (high-signal coincidence).
+      if (Array.isArray(ctx.library) && ctx.library.length > 1) {
+        const byVal = {};
+        for (const item of ctx.library) {
+          if (item && typeof item.gematria === "number") {
+            (byVal[item.gematria] = byVal[item.gematria] || []).push(item);
+          }
+        }
+        for (const v of Object.keys(byVal)) {
+          if (byVal[v].length >= 2) {
+            return {
+              kind: "gematria",
+              value: Number(v),
+              refs: byVal[v].slice(0, 4).map(function (i) { return i.ref; }),
+              title: safeT("cx.nextthread.gematria", "A gematria match sits in your own library"),
+              reason: byVal[v].map(function (i) { return i.ref; }).slice(0, 3).join(" · "),
+            };
+          }
+        }
+      }
+
+      // 3) A cross-ref worth chasing from the current verse.
+      if (ctx.ref && ctx.crossrefsAvailable) {
+        return {
+          kind: "crossref",
+          ref: ctx.ref,
+          title: safeT("cx.nextthread.crossref", "Follow a cross-ref thread from here"),
+          reason: ctx.ref,
+        };
+      }
+
+      // 4) The day's parsha / daf (tradition-agnostic: only if host supplies it).
+      if (ctx.daf) {
+        return { kind: "daf", ref: ctx.daf, title: safeT("cx.nextthread.daf", "Today's daf"), reason: ctx.daf };
+      }
+      if (ctx.parsha) {
+        return { kind: "parsha", ref: ctx.parsha, title: safeT("cx.nextthread.parsha", "This week's parsha"), reason: ctx.parsha };
+      }
+
+      // 5) Suggest starting the most on-ramp quest.
+      if (_questPackCache && _questPackCache.quests && _questPackCache.quests.length) {
+        const q = _questPackCache.quests[0];
+        return { kind: "quest-start", questId: q.meta.id, title: q.meta.title, reason: safeT("cx.nextthread.start", "Open a new thread") };
+      }
+
+      return { kind: "none", title: safeT("cx.nextthread.none", "Open any depth surface to begin a thread"), reason: null };
+    } catch (_) {
+      return { kind: "none", title: safeT("cx.nextthread.none", "Open any depth surface to begin a thread"), reason: null };
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // SEASONS (read-only helpers over seasons.json)
+  // ════════════════════════════════════════════════════════════════════
+  let _seasonsCache = null;
+  function listSeasons() {
+    if (_seasonsCache) return Promise.resolve(_seasonsCache.seasons || []);
+    const staged = _getModuleSync("seasons");
+    if (staged && staged.seasons) { _seasonsCache = staged; return Promise.resolve(staged.seasons); }
+    return fetch("data/modules/seasons.json", { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { _seasonsCache = j || { seasons: [] }; return _seasonsCache.seasons || []; })
+      .catch(function () { return []; });
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // EXPORT / IMPORT / CLEAR  (all engagement state, local-only)
+  // ════════════════════════════════════════════════════════════════════
+  // The codex.* localStorage keys already ride the app-wide export. This
+  // gives a self-contained bundle that ALSO captures the IDB event log.
+  function exportState() {
+    const base = {
+      format: "codex.engagement",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      continuity: lsGet(K_CONTINUITY, null),
+      mastery: lsGet(K_MASTERY, null),
+      milestones: lsGet(K_MILESTONES, null),
+      counters: loadCounters(),
+      quests: lsGet(K_QUESTS, null),
+      config: getConfig(),
+      eventlog: lsLogAll(),  // capped LS mirror (sync)
+    };
+    // Best-effort: replace with the full durable IDB log if available.
+    return idbAll().then(function (all) {
+      if (all && all.length) base.eventlog = all;
+      return base;
+    }).catch(function () { return base; });
+  }
+
+  function importState(bundle) {
+    try {
+      if (!bundle || bundle.format !== "codex.engagement" || !bundle.version) return false;
+      if (bundle.continuity) lsSet(K_CONTINUITY, bundle.continuity);
+      if (bundle.mastery)    lsSet(K_MASTERY, bundle.mastery);
+      if (bundle.milestones) lsSet(K_MILESTONES, bundle.milestones);
+      if (bundle.counters)   saveCounters(bundle.counters);
+      if (bundle.quests)     lsSet(K_QUESTS, bundle.quests);
+      if (bundle.config)     setConfig(bundle.config);
+      if (Array.isArray(bundle.eventlog)) {
+        const capped = bundle.eventlog.slice(-LS_LOG_CAP);
+        lsSet(K_EVENTLOG, capped);
+        // Rehydrate IDB best-effort.
+        idbClear().then(function () {
+          bundle.eventlog.forEach(function (e) { idbAppend(e).catch(function () {}); });
+        }).catch(function () {});
+      }
+      return true;
+    } catch (_) { return false; }
+  }
+
+  function clearState() {
+    [K_CONTINUITY, K_MASTERY, K_MILESTONES, K_QUESTS, K_EVENTLOG, K_CONFIG,
+     "codex.engagement.counters.v1"].forEach(function (k) {
+      try { localStorage.removeItem(k); } catch (_) {}
+    });
+    _questPackCache = null; _seasonsCache = null;
+    idbClear().catch(function () {});
+    return { ok: true };
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // BUS WIRING — the engine LISTENS so emitters only need to dispatch.
+  // ════════════════════════════════════════════════════════════════════
+  function onDepthAction(e) {
+    const d = (e && e.detail) || {};
+    record({ type: d.type, ref: d.ref, weight: d.weight, domain: d.domain, ts: d.ts });
+  }
+  try {
+    if (typeof window !== "undefined" && window.addEventListener) {
+      window.addEventListener("codex:depth-action", onDepthAction);
+    }
+  } catch (_) {}
+
+  // ── Public API (the FROZEN CONTRACT) ──────────────────────────────────
+  const ENGAGEMENT = {
+    // version + taxonomy
+    VERSION: "2.5.0",
+    DOMAINS: DOMAINS.slice(),
+    DEPTH_ACTIONS: DEPTH_ACTIONS,
+    MASTERY_LEVELS: MASTERY_LEVELS.slice(),
+    STORAGE_KEYS: {
+      continuity: K_CONTINUITY, mastery: K_MASTERY, milestones: K_MILESTONES,
+      quests: K_QUESTS, eventlog: K_EVENTLOG, config: K_CONFIG,
+      counters: "codex.engagement.counters.v1",
+    },
+
+    // core ingestion
+    record: record,                 // record({type,ref?,weight?,domain?,ts?})
+    emit: function (type, ref, weight, domain) { // convenience: dispatch the bus event
+      dispatch("codex:depth-action", { type, ref, weight, domain });
+    },
+
+    // continuity + grace
+    continuity: continuity,         // () → status (reconciles gap for display)
+    continuityStatus: function () { return continuityStatus(loadContinuity()); },
+
+    // mastery
+    mastery: mastery,               // (domain?) → cell | map
+
+    // milestones / discovery
+    milestones: milestones,         // () → { unlocked, counters, rules }
+    unlockMilestone: unlockMilestone, // (id, meta?) → detail | null
+
+    // next thread (pure logic, no AI)
+    nextThread: nextThread,         // (ctx) → suggestion
+
+    // quests
+    listQuests: listQuests,         // () → Promise<[{id,title,...}]>
+    getQuest: getQuest,             // (id) → Promise<questModule|null>
+    startQuest: startQuest,         // (id) → Promise<state>
+    advanceQuest: advanceQuest,     // (id) → Promise<state>
+    questState: questState,         // (id) → state (sync)
+
+    // seasons
+    listSeasons: listSeasons,       // () → Promise<[season]>
+
+    // config
+    getConfig: getConfig,
+    setConfig: setConfig,
+
+    // event log access (durable)
+    eventLog: function () { return idbAll().catch(function () { return lsLogAll(); }); },
+
+    // export / import / clear (local-only)
+    export: exportState,            // () → Promise<bundle>
+    import: importState,            // (bundle) → bool
+    clear: clearState,              // () → { ok }
+  };
+
+  // RESERVED hook for AI quest generation (NOT implemented here — contract only).
+  // A later AI agent implements window.CODEX_QUESTGEN.generate(theme, opts?).
+  if (typeof window !== "undefined" && !window.CODEX_QUESTGEN) {
+    window.CODEX_QUESTGEN = {
+      // generate(theme:string, opts?:{tradition?,domain?,steps?}) → Promise<questModule>
+      generate: null,
+      // Adapter the UI/AI uses to register a generated quest into the runtime.
+      register: function (questModule) {
+        try {
+          if (!questModule || !questModule.meta || !questModule.meta.id) return false;
+          if (!_questPackCache) _questPackCache = { quests: [] };
+          const idx = _questPackCache.quests.findIndex(function (q) { return q.meta.id === questModule.meta.id; });
+          if (idx >= 0) _questPackCache.quests[idx] = questModule;
+          else _questPackCache.quests.push(questModule);
+          return true;
+        } catch (_) { return false; }
+      },
+    };
+  }
+
+  if (typeof window !== "undefined") window.CODEX_ENGAGEMENT = ENGAGEMENT;
+})();

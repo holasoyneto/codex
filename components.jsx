@@ -496,22 +496,6 @@ function MarkRow({ mark, idx, onSelect, onClear, onTogglePin, swatch, aiReason }
   );
 }
 
-// Mounts the sermon/study Builder panel inline (its plugin render) so Studies
-// are reachable straight from the Library rail, not only via a verse action.
-function StudiesMount() {
-  const panel = React.useMemo(() => {
-    try {
-      const ps = (window.CODEX_PLUGINS_API && window.CODEX_PLUGINS_API.getPanels && window.CODEX_PLUGINS_API.getPanels()) || [];
-      return ps.find(p => p.pluginId === "sermon-builder" && p.id === "builder") || null;
-    } catch { return null; }
-  }, []);
-  if (!panel || typeof panel.render !== "function") {
-    return <div style={{ padding: 14, color: "var(--cx-fg-dim)" }}>Studies loading…</div>;
-  }
-  try { return panel.render({}); }
-  catch (e) { return <div style={{ padding: 14, color: "var(--cx-fg-dim)" }}>Studies unavailable.</div>; }
-}
-
 function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, onSelectMark, onClearMark, onTogglePinMark, onMarkCurrent, onSelectChapter, currentRef, oracleProps, isCollapsed, onCollapse }) {
   const data = window.CODEX_DATA;
   const ot = useMemo(() => data.books.filter(b => b.testament === "OT"), [data.books]);
@@ -584,7 +568,6 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
     { id: "library", label: tx("tab.library"), glyph: "📖", title: tx("tab.library.title") },
     { id: "oracle",  label: tx("tab.oracle"),  glyph: "◉",  title: tx("tab.oracle.title") },
     { id: "marks",   label: tx("tab.marks"),   glyph: "✦",  title: `${tx("marks")} (${marks.length})` },
-    { id: "studies", label: (tx("tab.studies") === "tab.studies" ? "Studies" : tx("tab.studies")), glyph: "❡", title: "Sermon & study builder" },
   ];
 
   return (
@@ -637,11 +620,6 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
         </CornerFrame>
       ) : null}
 
-      {tab === "studies" ? (
-        <CornerFrame label="STUDIES · SERMON BUILDER" className="cx-rail-flex">
-          <StudiesMount />
-        </CornerFrame>
-      ) : null}
 
       {tab === "marks" ? (
         <CornerFrame label={`${tx("marks.tab")} · ${tx("marks")}`} className="cx-rail-flex">
@@ -1374,14 +1352,35 @@ function ReaderViewPopover({
   sideBySide, onToggleSideBySide,
 }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
   const ref = useRef(null);
+  const popRef = useRef(null);
+  // The popover is portaled to <body> and viewport-FIXED so it can never be
+  // clipped by an overflow:hidden ancestor (the reader frame) — visible no
+  // matter the verse or platform. Clamp on-screen + cap height (scrolls).
   useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    if (!open) { setPos(null); return; }
+    const measure = () => {
+      const r = ref.current && ref.current.getBoundingClientRect();
+      if (!r) return;
+      const W = 240, M = 8;
+      const left = Math.max(M, Math.min(r.right - W, window.innerWidth - W - M));
+      const top = Math.min(r.bottom + 6, window.innerHeight - 120);
+      const maxH = Math.max(140, window.innerHeight - top - 12);
+      setPos({ top, left, width: W, maxH });
+    };
+    measure();
+    const onDown = (e) => {
+      if (ref.current && ref.current.contains(e.target)) return;
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
     const t = setTimeout(() => document.addEventListener("mousedown", onDown), 0);
     document.addEventListener("keydown", onKey);
-    return () => { clearTimeout(t); document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
   }, [open]);
   // Surface a tiny indicator dot when at least one non-default toggle is on.
   const anyOn = redLetter || yhwhMode || sideBySide || fontScale !== 22;
@@ -1398,8 +1397,9 @@ function ReaderViewPopover({
         <span className="cx-vp-trigger-glyph">Aa</span>
         {anyOn ? <i className="cx-vp-trigger-dot" /> : null}
       </button>
-      {open ? (
-        <div className="cx-vp-pop" role="dialog" aria-label="Reading view options" style={{ right: 'auto', left: 0 }}>
+      {open && pos && window.ReactDOM && window.ReactDOM.createPortal ? window.ReactDOM.createPortal((
+        <div ref={popRef} className="cx-vp-pop" role="dialog" aria-label="Reading view options"
+             style={{ position: 'fixed', top: pos.top + 'px', left: pos.left + 'px', right: 'auto', width: pos.width + 'px', maxHeight: pos.maxH + 'px', overflowY: 'auto' }}>
           <div className="cx-vp-row" style={{ minHeight: 44 }}>
             <span className="cx-vp-lbl">{tx("size")}</span>
             <button className="cx-vp-stepper" onClick={onCycleFontSize} title="Cycle text size" style={{ minHeight: 44 }}>
@@ -1445,7 +1445,7 @@ function ReaderViewPopover({
             ><i /></button>
           </div>
         </div>
-      ) : null}
+      ), document.body) : null}
     </span>
   );
 }

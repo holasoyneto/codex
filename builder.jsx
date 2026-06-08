@@ -400,6 +400,29 @@
             <span className="cx-builder-glyph">❡</span>
             <b>STUDIES</b>
             <button className="cx-builder-btn" onClick={newStudy} title="New study">+ New</button>
+            <button className="cx-builder-btn" onClick={() => fileInputRef.current && fileInputRef.current.click()} title="Import a .codex-study file">⇡ Import</button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".codex-study,application/json,.json"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = "";
+                if (!f) return;
+                try {
+                  const obj = JSON.parse(await f.text());
+                  if (importStudyObject(obj)) {
+                    setStore(loadStore());
+                    try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Study imported", kind: "ok" } })); } catch {}
+                  } else {
+                    try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "That file isn't a CODEX study", kind: "warn" } })); } catch {}
+                  }
+                } catch (err) {
+                  try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Couldn't parse that file", kind: "err" } })); } catch {}
+                }
+              }}
+            />
           </div>
           <div className="cx-builder-studylist">
             {store.studies.length === 0 ? (

@@ -709,10 +709,280 @@ Cover the most historically significant misuses of any verse in this chapter, ba
     return p;
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // AI QUEST GENERATION — fulfils the engagement contract's questGenHook.
+  // Implements window.CODEX_QUESTGEN.generate(theme, opts?) by routing through
+  // the SAME engine resolution (/api/chat with provider+model from opts) and
+  // the SAME per-engine cache-key discipline (engineSuffix) used by the panels
+  // above. Output is a quest module matching the FROZEN curated schema:
+  //   { meta:{id, type:'quest', title, tradition?, domain?, ring?},
+  //     steps:[{kind:'read'|'find'|'connect'|'reflect', refs?, prompt, reveal?}] }
+  // On ANY failure (network, parse, validation, Lite/offline) it returns a
+  // valid curated FALLBACK quest of the same shape so callers never get null.
+  // Additive: does not touch panel generation. Every CODEX_ENGAGEMENT /
+  // CODEX_QUESTGEN touch is typeof-guarded so absence (Lite mode) is safe.
+  // ─────────────────────────────────────────────────────────────────────
+  const QUESTGEN_PREFIX = "codex.questgen.v1.";
+  const QUEST_KINDS = ["read", "find", "connect", "reflect"];
+
+  // Pull the valid mastery domains from the engine when present; otherwise use
+  // the frozen taxonomy so generation/validation still works in Lite mode.
+  function questDomains() {
+    try {
+      if (typeof window !== "undefined" && window.CODEX_ENGAGEMENT &&
+          Array.isArray(window.CODEX_ENGAGEMENT.DOMAINS) &&
+          window.CODEX_ENGAGEMENT.DOMAINS.length) {
+        return window.CODEX_ENGAGEMENT.DOMAINS.slice();
+      }
+    } catch {}
+    return [
+      "hebrew-greek", "cross-references", "gematria", "talmud",
+      "patristics", "gnosis", "geography", "canon-coverage",
+    ];
+  }
+
+  function slugify(s) {
+    return String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "theme";
+  }
+
+  // Deterministic per-(theme,opts,engine) cache slot so re-asking the same
+  // theme never re-hits the API — mirrors the panel cache discipline.
+  function questGenKey(theme, opts, engine) {
+    const lang = (window.CODEX_LANG || "en");
+    const langSuffix = lang === "en" ? "" : `.${lang}`;
+    const o = opts || {};
+    const variant = [
+      slugify(theme),
+      o.tradition ? `t-${slugify(o.tradition)}` : "",
+      o.domain ? `d-${slugify(o.domain)}` : "",
+      o.steps ? `s-${o.steps}` : "",
+    ].filter(Boolean).join(".");
+    return `${QUESTGEN_PREFIX}${variant}${langSuffix}${engineSuffix(engine)}`;
+  }
+
+  const PROMPT_QUESTGEN = `You are CODEX QUEST DESIGNER. Design ONE depth-gated study quest — a guided thread the reader works through step by step (read → find → connect → reflect). Return ONLY a single JSON object, no prose, no fences.
+
+OUTPUT SCHEMA (match EXACTLY):
+
+{
+  "meta": {
+    "title": "5-9 word quest title naming the thread",
+    "tradition": "shared|christian|jewish|gnostic|academic|esoteric",
+    "domain": "ONE OF: hebrew-greek | cross-references | gematria | talmud | patristics | gnosis | geography | canon-coverage",
+    "ring": "one short lowercase keyword for the season/ring this belongs to (e.g. covenant, logos, exile)",
+    "estSteps": <int, 4-6>
+  },
+  "steps": [   // 4-6 entries, in working order
+    {
+      "kind": "read|find|connect|reflect",
+      "refs": ["osis-style refs, e.g. gen.15.1-21 or jhn.1.1-5"],
+      "prompt": "what the reader DOES at this step — one or two sentences, concrete and depth-oriented",
+      "reveal": "the payoff / insight unlocked once the step is done — 1-2 sentences, scholarly, no proselytising"
+    }
+  ]
+}
+
+RULES:
+- Steps progress: open with a read, build through find/connect, close with a reflect.
+- refs MUST be plausible OSIS-style book.chapter.verse identifiers (lowercase book code). Omit refs only for a pure reflect step.
+- Tradition-agnostic: honour the requested tradition; never assume one canon as default.
+- Scholarly, calm tone. No exclamations, no emoji, no sermonising.
+- Return ONLY the JSON. Stay compact so the response completes.`;
+
+  // Curated, zero-AI fallback quest — always a VALID quest module of the
+  // contract shape. Used whenever generation fails or the engine is absent.
+  function fallbackQuest(theme, opts) {
+    const o = opts || {};
+    const domains = questDomains();
+    const domain = (o.domain && domains.indexOf(o.domain) >= 0) ? o.domain : "cross-references";
+    const title = theme
+      ? `Trace the Thread: ${String(theme).slice(0, 48)}`
+      : "Open a New Study Thread";
+    return {
+      meta: {
+        id: `quest-gen-${slugify(theme)}-fallback`,
+        type: "quest",
+        title,
+        tradition: o.tradition || "shared",
+        domain,
+        ring: slugify(theme),
+        estSteps: 4,
+        generated: true,
+        fallback: true,
+      },
+      steps: [
+        {
+          kind: "read",
+          refs: [],
+          prompt: `Read a passage that opens the theme "${theme || "your study"}". Note one word or phrase worth chasing.`,
+          reveal: "Every thread begins with a single line read closely. The word you flagged is the loose end to pull.",
+        },
+        {
+          kind: "find",
+          refs: [],
+          prompt: "Find a second passage that uses the same word or develops the same idea. Use the cross-reference rail.",
+          reveal: "A theme is confirmed when it recurs. Two witnesses turn a hunch into a thread.",
+        },
+        {
+          kind: "connect",
+          refs: [],
+          prompt: "Connect the two passages: what does the second add, invert, or fulfil from the first?",
+          reveal: "Connection is the work. The gap between two texts is where the reading lives.",
+        },
+        {
+          kind: "reflect",
+          refs: [],
+          prompt: "Write one line on what this thread shows that neither passage said alone.",
+          reveal: "The thread closes when you can state it in your own words. That sentence is the case made.",
+        },
+      ],
+    };
+  }
+
+  // Coerce any candidate into a strictly-valid quest module of the contract
+  // shape. Throws if it cannot be made minimally valid (caller falls back).
+  function validateQuest(obj, theme, opts) {
+    if (!obj || typeof obj !== "object") throw new Error("not an object");
+    const o = opts || {};
+    const domains = questDomains();
+    const meta = (obj.meta && typeof obj.meta === "object") ? obj.meta : {};
+    const title = (meta.title || obj.title || "").toString().trim()
+      || (theme ? `Study Thread: ${String(theme).slice(0, 48)}` : "Study Thread");
+    let domain = (meta.domain || o.domain || "").toString();
+    if (domains.indexOf(domain) < 0) domain = "cross-references";
+    const tradition = (meta.tradition || o.tradition || "shared").toString();
+    const ring = (meta.ring || slugify(theme)).toString();
+
+    let rawSteps = Array.isArray(obj.steps) ? obj.steps : [];
+    const steps = rawSteps.slice(0, 8).map(s => {
+      if (!s || typeof s !== "object") return null;
+      let kind = (s.kind || "").toString().toLowerCase();
+      if (QUEST_KINDS.indexOf(kind) < 0) kind = "read";
+      const refs = Array.isArray(s.refs)
+        ? s.refs.filter(r => typeof r === "string" && r.trim()).map(r => r.trim()).slice(0, 8)
+        : [];
+      const prompt = (s.prompt || "").toString().trim();
+      const reveal = (s.reveal || "").toString().trim();
+      if (!prompt) return null;       // a step with no instruction is useless
+      return { kind, refs, prompt, reveal };
+    }).filter(Boolean);
+
+    if (steps.length < 2) throw new Error("too few usable steps");
+
+    return {
+      meta: {
+        id: `quest-gen-${slugify(theme)}-${slugify(title)}`.slice(0, 80),
+        type: "quest",
+        title,
+        tradition,
+        domain,
+        ring,
+        estSteps: steps.length,
+        generated: true,
+      },
+      steps,
+    };
+  }
+
+  function getQuestGenCached(theme, opts, engine) {
+    const w = readWrapped(questGenKey(theme, opts, engine));
+    return w ? w.data : null;
+  }
+  function getQuestGenMeta(theme, opts, engine) {
+    const w = readWrapped(questGenKey(theme, opts, engine));
+    return w ? { fetchedAt: w.fetchedAt } : null;
+  }
+  function purgeQuestGen(theme, opts, engine) {
+    try { localStorage.removeItem(questGenKey(theme, opts, engine)); } catch {}
+  }
+
+  const questGenInflight = new Map();
+
+  // Public generator. Resolves to a quest module (generated OR curated
+  // fallback). Never rejects — on failure it resolves the fallback so the
+  // contract's `generate -> Promise<questModule>` is always honoured.
+  async function generateQuest(theme, opts = {}) {
+    const o = opts || {};
+    // Same engine resolution as the panels above.
+    const engine = { provider: o.provider || "anthropic", model: o.model || "default" };
+    const k = questGenKey(theme, o, engine);
+
+    if (!o.force) {
+      const cached = getQuestGenCached(theme, o, engine);
+      if (cached) return cached;
+    }
+    if (questGenInflight.has(k)) return questGenInflight.get(k);
+
+    const langName = (window.codexLangName && window.codexLangName()) || "English";
+    const langDirective = langName === "English"
+      ? ""
+      : `\n\nLANGUAGE: All human-readable string values (title, prompt, reveal, ring) MUST be written in ${langName}. Keep "kind" enum values, OSIS refs, and the "domain"/"tradition" enums in English.`;
+
+    const domains = questDomains().join(" | ");
+    const stepHint = (o.steps && o.steps >= 3 && o.steps <= 8)
+      ? `Make exactly ${o.steps} steps.`
+      : "Make 4-6 steps.";
+    const userMsg = `Design one depth-gated study quest on the theme: "${theme || "a passage of the reader's choosing"}".
+${o.tradition ? `Tradition: ${o.tradition}. ` : ""}${o.domain ? `Primary mastery domain: ${o.domain} (must be one of: ${domains}). ` : `Pick the single best-fitting domain from: ${domains}. `}${stepHint}
+Return ONLY the JSON object as specified.`;
+
+    const p = (async () => {
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: PROMPT_QUESTGEN + langDirective,
+          messages: [{ role: "user", content: userMsg }],
+          max_tokens: 1800,
+          // Multi-provider routing — same contract as the panel calls; the
+          // server validates against its whitelist and falls back if invalid.
+          provider: o.provider,
+          model: o.model,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `questgen HTTP ${r.status}`);
+      const parsed = validateQuest(extractJSON(data.text || ""), theme, o);
+      parsed.meta.provider = data.provider || o.provider || "anthropic";
+      parsed.meta.model = data.model || o.model || null;
+      writeWrapped(k, parsed);
+      return parsed;
+    })()
+      // Defensive: any failure yields a valid curated fallback, never a reject.
+      .catch(() => fallbackQuest(theme, o))
+      .finally(() => { questGenInflight.delete(k); });
+
+    questGenInflight.set(k, p);
+    return p;
+  }
+
   window.CODEX_PANELS = {
     cacheKey, getCached, getCachedMeta, putCached, purge, load, subscribe, cacheStats,
     loadExegesis, getExegesisCached, getExegesisMeta, purgeExegesis,
     loadTranslationAnalysis, getTxAnalysisCached, getTxAnalysisMeta, purgeTxAnalysis,
     loadDisarm, getDisarmCached, getDisarmMeta, purgeDisarm,
+    // AI quest generation (engagement questGenHook)
+    generateQuest, getQuestGenCached, getQuestGenMeta, purgeQuestGen, fallbackQuest,
   };
+
+  // Wire the generator into the engagement contract's reserved hook.
+  // Guarded so Lite mode / a missing engine never breaks: we only fill the
+  // `generate` slot (leaving `register`, supplied by engagement.js, intact),
+  // and we install a minimal namespace if the engine hasn't created one yet.
+  try {
+    if (typeof window !== "undefined") {
+      if (!window.CODEX_QUESTGEN || typeof window.CODEX_QUESTGEN !== "object") {
+        window.CODEX_QUESTGEN = {};
+      }
+      // Only set generate if the engine left it null/absent — never clobber a
+      // generator another agent may have already installed.
+      if (typeof window.CODEX_QUESTGEN.generate !== "function") {
+        window.CODEX_QUESTGEN.generate = generateQuest;
+      }
+    }
+  } catch {}
 })();
