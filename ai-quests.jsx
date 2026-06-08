@@ -48,8 +48,19 @@
   }
 
   function hasAiKey() {
-    // Heuristic mirrors how oracle.jsx decides: if a provider/model is set
-    // we attempt; the server returns an actionable error otherwise.
+    // Check the REAL key store (codex.api.keys.v1) — the same source the
+    // request layer (direct-api.js) uses — not the tweaks model-picker. The
+    // old heuristic checked t.provider/t.model, so a user who set their key in
+    // Settings → API keys but never opened the model picker got a false
+    // "no API key" even though the Oracle works fine.
+    try {
+      const k = JSON.parse(localStorage.getItem("codex.api.keys.v1") || "null") || {};
+      if (k.active === "ollama") return true; // local, keyless
+      if (k.anthropic || k.grok || k.groq || k.gemini) return true;
+    } catch (e) {}
+    // Legacy single-key fallback.
+    try { if (localStorage.getItem("codex.anthropic.key")) return true; } catch (e) {}
+    // Last resort: a model/provider explicitly chosen still counts.
     const t = getTweaks();
     return !!(t.provider || t.model);
   }
