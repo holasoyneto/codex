@@ -511,6 +511,18 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
     window.addEventListener("oracle:prefill", onPrefill);
     return () => window.removeEventListener("oracle:prefill", onPrefill);
   }, []);
+  // Keyboard shortcuts `o` / `b` open the left rail AND announce which tab
+  // they meant via codex:shortcut — land on it, don't leave the user on
+  // whatever tab was open last.
+  useEffect(() => {
+    const onShortcut = (e) => {
+      const action = e?.detail?.action;
+      if (action === "toggle-oracle") setTab("oracle");
+      else if (action === "toggle-bookmarks") setTab("marks");
+    };
+    window.addEventListener("codex:shortcut", onShortcut);
+    return () => window.removeEventListener("codex:shortcut", onShortcut);
+  }, []);
   const [libQuery, setLibQuery] = useState("");
   const [bmQuery, setBmQuery] = useState("");
   // AI-ranked mark search — fires when the literal substring filter
@@ -1702,6 +1714,17 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
   // failed to load for that verse.
   const verseText = (v, tId) => v[tId] || v.kjv || v.web || v.bbe || "";
 
+  // Versification differs across traditions (Vulgate/LXX Psalm 39 is
+  // Masoretic Psalm 40, etc.), so the merged verse list can carry verse
+  // numbers that simply don't exist in the translation being displayed.
+  // Showing them as blank rows reads as a bug — drop them per view. If the
+  // filter would empty the list (the displayed translation failed to load
+  // entirely), keep the unfiltered list so the rescue chain still paints.
+  const versesFor = (tId) => {
+    const vis = passage.verses.filter(v => verseText(v, tId));
+    return vis.length ? vis : passage.verses;
+  };
+
   return (
     <main className="cx-reader">
       <CornerFrame label={`${passage.book.toUpperCase()} · CH ${passage.chapter} · ${
@@ -1774,7 +1797,7 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                   <span className="cx-col-h-glyph">{tMeta.glyph}</span>
                   <div><b>{tMeta.name}</b> <span style={{opacity:.6}}>· {tMeta.year} · {tMeta.lang}</span></div>
                 </div>
-                {passage.verses.map(v => (
+                {versesFor(tMeta.id).map(v => (
                   <VerseRow
                     key={`v${v.n}-${tMeta.id}`}
                     v={v}
@@ -1797,8 +1820,11 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
           ) : sideBySide && colsMeta.length > 1 ? (
             (() => {
               const gnosisEntries = (gnosisOn && panelData?.gnosis) ? panelData.gnosis : [];
-              const points = gnosisInsertionPoints(passage.verses.length, gnosisEntries.length);
-              return passage.verses.flatMap((v, vi) => {
+              // Keep a row when ANY visible column has text — empty cells in
+              // one column are meaningful in a comparison (numbering gaps).
+              const rows = passage.verses.filter(v => colsMeta.some(t => verseText(v, t.id)));
+              const points = gnosisInsertionPoints(rows.length, gnosisEntries.length);
+              return rows.flatMap((v, vi) => {
                 const out = [
                   <VerseSideRow
                     key={`v${v.n}`}
@@ -1826,8 +1852,9 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
           ) : (
             (() => {
               const gnosisEntries = (gnosisOn && panelData?.gnosis) ? panelData.gnosis : [];
-              const points = gnosisInsertionPoints(passage.verses.length, gnosisEntries.length);
-              return passage.verses.flatMap((v, vi) => {
+              const rows = versesFor(primary);
+              const points = gnosisInsertionPoints(rows.length, gnosisEntries.length);
+              return rows.flatMap((v, vi) => {
                 const out = [
                   <VerseRow
                     key={`v${v.n}`}

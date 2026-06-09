@@ -341,10 +341,13 @@
   }
 
   // ── Recent-translation weight: read app primary if available ──────
+  // The primary translation lives in the tweaks blob (codex.tweaks.v1 →
+  // primaryTranslation); the bare "codex.primary" key was never written.
   function _recentTranslations() {
     try {
-      const primary = localStorage.getItem("codex.primary");
-      return primary ? new Set([primary.replace(/^"|"$/g, "")]) : new Set();
+      const tweaks = JSON.parse(localStorage.getItem("codex.tweaks.v1") || "{}");
+      const primary = tweaks.primaryTranslation || localStorage.getItem("codex.primary");
+      return primary ? new Set([String(primary).replace(/^"|"$/g, "")]) : new Set();
     } catch { return new Set(); }
   }
 

@@ -232,6 +232,18 @@ function Notes({ passage, currentVerse, onJumpTo, onDisable }) {
     return () => window.removeEventListener("codex:notes:show", onShow);
   }, []);
 
+  // The `n` shortcut (app.jsx) flips codex.notes.visible in localStorage and
+  // dispatches this event. Same-tab localStorage writes don't fire `storage`,
+  // so without this listener the shortcut was a silent no-op.
+  useEffect(() => {
+    const onToggle = () => {
+      try { setVisible(localStorage.getItem(NOTES_VIS) !== "0"); }
+      catch { setVisible(v => !v); }
+    };
+    window.addEventListener("codex:notes:toggle", onToggle);
+    return () => window.removeEventListener("codex:notes:toggle", onToggle);
+  }, []);
+
   // Refresh from localStorage when imports happen
   useEffect(() => {
     const onStorage = (e) => { if (e.key === NOTES_KEY) setNotes(loadNotes()); };

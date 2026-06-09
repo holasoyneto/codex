@@ -442,14 +442,18 @@
       if (idx > State.deck.length - 8) refillDeck(ctx, State.deck.length + 20).catch(() => {});
     }, [activeIdx, ctx]);
 
-    // Keyboard nav
+    // Keyboard nav. Resolve the scroller INSIDE the handler — on first
+    // render the deck is still loading, so scrollRef.current is null and an
+    // early-return here would mean Escape never binds (the deps never change).
     useEffect(() => {
-      const el = scrollRef.current; if (!el) return;
       const onKey = (e) => {
+        const el = scrollRef.current;
         if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " " || e.key === "j") {
+          if (!el) return;
           e.preventDefault();
           el.scrollBy({ top: el.clientHeight, behavior: "smooth" });
         } else if (e.key === "ArrowUp" || e.key === "PageUp" || e.key === "k") {
+          if (!el) return;
           e.preventDefault();
           el.scrollBy({ top: -el.clientHeight, behavior: "smooth" });
         } else if (e.key === "Escape" && onClose) {
@@ -511,7 +515,7 @@
           if (!list.some((b) => b.ref === card.anchor && b.kind === "reel")) {
             list.push({ ref: card.anchor, kind: "reel", title: card.title || card.type, at: Date.now() });
             localStorage.setItem("codex.bookmarks", JSON.stringify(list));
-            window.dispatchEvent(new CustomEvent("codex:bookmark-added", { detail: { ref: card.anchor } }));
+            window.dispatchEvent(new CustomEvent("codex:bookmark-added", { detail: { ref: card.anchor, title: card.title || card.type } }));
           }
         } catch {}
       }

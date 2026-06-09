@@ -1752,6 +1752,26 @@ function App() {
     setHighlights(h => { const next = { ...h }; delete next[key]; return next; });
   }, []);
 
+  // Reels' LIKE promises "also bookmarks it" — marks ARE highlights, so
+  // materialize the like as a mark or it never shows up in the Marks rail.
+  // Idempotent: an existing mark is left alone (never toggled off by a like).
+  useEffect(() => {
+    const onAdd = (e) => {
+      const ref = e?.detail?.ref;
+      if (typeof ref !== "string") return;
+      const [bookId, ch, vn] = ref.split(".");
+      const chapter = parseInt(ch, 10), n = parseInt(vn, 10);
+      if (!bookId || !Number.isFinite(chapter) || !Number.isFinite(n)) return;
+      setHighlights(h => {
+        const key = `${bookId}.${chapter}.${n}`;
+        if (h[key]) return h;
+        return { ...h, [key]: { color: t.highlightColor || "amber", ts: Date.now(), note: e?.detail?.title || "" } };
+      });
+    };
+    window.addEventListener("codex:bookmark-added", onAdd);
+    return () => window.removeEventListener("codex:bookmark-added", onAdd);
+  }, [t.highlightColor]);
+
   // ── Schizo cipher mode ─────────────────────────────────────────────────
   // When Schizo Mode is enabled, pressing "=" anywhere outside an input
   // prompts for a gematria value and jumps to the first matching verse.

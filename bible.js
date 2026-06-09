@@ -593,8 +593,13 @@ window.BIBLE = (function () {
     for (const [tId, verses] of results) {
       if (!verses) continue;
       for (const v of verses) {
+        // An empty verse contributes nothing but a phantom row — some
+        // sources pad chapters with blank verses, and the Strong's scrub
+        // can reduce a corrupt cache entry to "". Skip them entirely.
+        const text = typeof v.text === "string" ? v.text : String(v.text ?? "");
+        if (!text.trim()) continue;
         if (!byVerse.has(v.n)) byVerse.set(v.n, { n: v.n });
-        byVerse.get(v.n)[tId] = v.text;
+        byVerse.get(v.n)[tId] = text;
         if (v.n > maxN) maxN = v.n;
       }
     }

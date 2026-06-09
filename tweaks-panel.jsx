@@ -470,6 +470,25 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   // Reset query when switching tabs so each tab starts fresh.
   React.useEffect(() => { setTwkQuery(""); }, [activeTab]);
 
+  // App-wide "open settings" intent — the welcome tour and Oracle's
+  // [[do:open-settings]] one-tap action both dispatch this. This panel IS
+  // the settings surface, so honor it here; detail.section routes to the
+  // matching tab (e.g. "api-keys" / "ai" → AI).
+  React.useEffect(() => {
+    const onOpen = (e) => {
+      setOpen(true);
+      const sect = String(e?.detail?.section || "").toLowerCase();
+      if (!sect) return;
+      if (/api|ai|model|engine|infer/.test(sect)) setActiveTab("ai");
+      else if (/sync|cache|offline|data|export|import/.test(sect)) setActiveTab("sync");
+      else if (/read|look|mark|font|theme/.test(sect)) setActiveTab("reading");
+      else if (/help|wiki/.test(sect)) setActiveTab("help");
+      else setActiveTab("system");
+    };
+    window.addEventListener("codex:open-settings", onOpen);
+    return () => window.removeEventListener("codex:open-settings", onOpen);
+  }, []);
+
   if (!open) return null;
 
   // ── Tab grouping ───────────────────────────────────────────────────
@@ -551,6 +570,20 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   } else {
     buckets.help.push(<div key="__help-pending" style={{padding:"24px 12px",textAlign:"center",color:"var(--cx-fg-dim)",fontFamily:"var(--cx-mono)",fontSize:12}}>Help wiki loading…</div>);
   }
+  // Replay the first-run welcome tour — app.jsx listens for codex:open-tour
+  // (this was the intended Help-tab trigger; it never got wired).
+  buckets.help.push(
+    <div key="__help-tour" style={{padding:"8px 12px 16px",textAlign:"center"}}>
+      <button
+        type="button"
+        className="twk-btn"
+        onClick={() => {
+          dismiss();
+          try { window.dispatchEvent(new CustomEvent("codex:open-tour")); } catch (e) {}
+        }}
+      >↻ Replay the welcome tour</button>
+    </div>
+  );
   let currentTab = "system";  // anything before the first TweakSection goes to system
   for (const node of childArr) {
     if (node && node.type === TweakSection) {
