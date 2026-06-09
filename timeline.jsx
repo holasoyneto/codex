@@ -353,6 +353,8 @@
           </div>
         </div>
 
+        <IntelBanner console="TIMELINE" scope="CHRONOLOGY" />
+
         {/* Category filter chips */}
         <div className="cx-tl-chips">
           {CATEGORIES.map(c => {

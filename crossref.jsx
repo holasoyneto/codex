@@ -126,11 +126,8 @@
     return !!(t.provider || t.model);
   }
 
-  // Resolve the user's active engine the same way the other AI panels do.
-  function getActiveEngine() {
-    const t = (window.CODEX_DATA && window.CODEX_DATA.tweaks) || {};
-    return { provider: t.provider || undefined, model: t.model || undefined };
-  }
+  // Engine resolution delegates to the shared intel layer (one canonical copy).
+  function getActiveEngine() { return window.CODEX_INTEL.intelEngine(); }
 
   const RESONANCE_PROMPT =
     "You are a calm, scholarly study aide. In ONE or TWO sentences (under 45 words, no preamble, " +

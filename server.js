@@ -8,7 +8,9 @@ const path = require("path");
 const crypto = require("crypto");
 const zlib = require("zlib");
 
-const PORT = process.env.PORT || 3000;
+// 7777 — out of the way of the usual dev-server ports (3000/8080/5173),
+// so CODEX never loses a port race to another project again.
+const PORT = process.env.PORT || 7777;
 const DIR = __dirname;
 
 // Read .env from the app directory (KEY=value, # comments). Lets the user

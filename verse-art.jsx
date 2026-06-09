@@ -38,34 +38,9 @@ Rules:
 
 const ART_MORE_PROMPT = (excludeTitles) => `Same task as before — return MORE artworks for the same verse, in the same JSON schema. EXCLUDE these already-shown titles: ${excludeTitles.map(t => `"${t}"`).join(", ")}. Aim for different artists, eras, or media. 6 new works.`;
 
-// Walks the text from the start, tracking the deepest fully-balanced cursor.
-// On a JSON.parse failure rewinds to that point, strips trailing comma, and
-// closes any still-open brackets — recovers a partial works[] from a
-// truncated response without losing earlier valid entries.
-function tolerantParse(s) {
-  try { return JSON.parse(s); } catch {}
-  let inString = false, escape = false;
-  const stk = [];
-  let lastSafe = 0, safeStack = [];
-  const mark = (idx) => { lastSafe = idx; safeStack = stk.slice(); };
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (escape) { escape = false; continue; }
-    if (inString) {
-      if (c === "\\") { escape = true; continue; }
-      if (c === "\"") { inString = false; mark(i + 1); }
-      continue;
-    }
-    if (c === "\"") { inString = true; continue; }
-    if (c === "{" || c === "[") stk.push(c === "{" ? "}" : "]");
-    else if (c === "}" || c === "]") { stk.pop(); mark(i + 1); }
-    else if (c === ",") mark(i);
-    else if (/[\d.eE+\-tfn ul]/.test(c)) mark(i + 1);
-  }
-  let head = s.slice(0, lastSafe).replace(/[,\s]+$/, "");
-  head = head.replace(/,?\s*"[^"]*"\s*:\s*$/, "");
-  return JSON.parse(head + safeStack.reverse().join(""));
-}
+// Truncation-tolerant JSON parsing now lives in the shared intel layer
+// (intel.jsx) — one canonical implementation for map/mirror/art.
+function tolerantParse(s) { return window.CODEX_INTEL.intelParseJSON(s); }
 
 function VerseArt({ verse, refStr, verseText, passage, primary, onClose }) {
   const key = `codex.art.${passage.bookId}.${passage.chapter}.${verse?.n}`;

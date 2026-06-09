@@ -3,11 +3,11 @@
 // fresh profile (so no stale service-worker cache), loads the real page, and
 // proves the app actually boots: #root mounts, the boot-contract passes
 // (__CODEX_READY__), zero collected errors, and the key fixes are present.
-// Run: node scripts/smoke.mjs   (server must be on :3000)
+// Run: node scripts/smoke.mjs   (server must be on :7777)
 import puppeteer from "puppeteer-core";
 
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const URL = process.env.SMOKE_URL || "http://localhost:3000/";
+const URL = process.env.SMOKE_URL || "http://localhost:7777/";
 const fail = (m) => { console.error("[smoke] FAIL —", m); process.exit(1); };
 
 const browser = await puppeteer.launch({

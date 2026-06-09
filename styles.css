@@ -17655,3 +17655,463 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 @media (max-width: 880px) {
   .cx-app { grid-template-rows: auto 1fr auto; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   CODEX INTEL LAYER — the shared intelligence-console design language.
+   Palantir-grade power, Apple-grade restraint: hairline borders, precise
+   mono labels, one accent, subtle glow. Scripture remains serif; data
+   speaks mono. All additive — nothing above this block changes meaning.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Primitive: decrypt-in text ──────────────────────────────────────── */
+.cx-intel-decrypt {
+  font-variant-ligatures: none;
+}
+
+/* ── Primitive: signal-strength bars ─────────────────────────────────── */
+.cx-intel-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  vertical-align: middle;
+}
+.cx-intel-bars i {
+  display: inline-block;
+  width: 3px;
+  border-radius: 1px;
+  background: color-mix(in oklab, var(--cx-fg-dim) 25%, transparent);
+  transition: background 200ms ease-out;
+}
+.cx-intel-bars i.is-lit { background: var(--cx-accent); box-shadow: 0 0 6px color-mix(in oklab, var(--cx-accent) 55%, transparent); }
+.cx-intel-bars.is-strong   i.is-lit { background: var(--cx-accent); }
+.cx-intel-bars.is-moderate i.is-lit { background: color-mix(in oklab, var(--cx-accent) 70%, var(--cx-fg) 30%); }
+.cx-intel-bars.is-faint    i.is-lit { background: color-mix(in oklab, var(--cx-accent) 45%, var(--cx-fg-dim) 55%); box-shadow: none; }
+.cx-intel-bars-grade {
+  font-family: var(--cx-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  margin-left: 5px;
+  color: var(--cx-fg-dim);
+  align-self: center;
+}
+.cx-intel-bars.is-strong .cx-intel-bars-grade { color: var(--cx-accent); }
+
+/* ── Primitive: classification banner ────────────────────────────────── */
+.cx-intel-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 14px;
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  border-top: 1px solid color-mix(in oklab, var(--cx-accent) 22%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--cx-accent) 22%, transparent);
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--cx-accent) 9%, transparent),
+      transparent 30%,
+      transparent 70%,
+      color-mix(in oklab, var(--cx-accent) 9%, transparent));
+  color: var(--cx-fg-dim);
+  user-select: none;
+}
+.cx-intel-banner-sig { color: var(--cx-accent); font-weight: 600; white-space: nowrap; }
+.cx-intel-banner-note { opacity: 0.75; text-align: right; }
+
+/* ── Primitive: intel ticker ─────────────────────────────────────────── */
+.cx-intel-ticker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  font-family: var(--cx-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--cx-fg-dim);
+  border-top: 1px solid color-mix(in oklab, var(--cx-fg-dim) 14%, transparent);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.cx-intel-ticker-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--cx-accent);
+  box-shadow: 0 0 8px var(--cx-accent);
+  animation: cx-intel-blink 2.4s ease-in-out infinite;
+  flex: none;
+}
+.cx-intel-ticker-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: cx-intel-tick-in 380ms ease-out;
+  min-width: 0;
+  flex: 1;
+}
+.cx-intel-ticker-n { opacity: 0.5; font-size: 8.5px; flex: none; }
+@keyframes cx-intel-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes cx-intel-tick-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ── Primitive: ID stamp chip ────────────────────────────────────────── */
+.cx-intel-stamp {
+  display: inline-block;
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 35%, transparent);
+  border-radius: 2px;
+  color: var(--cx-accent);
+  background: color-mix(in oklab, var(--cx-accent) 7%, transparent);
+  vertical-align: middle;
+}
+.cx-intel-stamp.is-amber  { color: #e8b465; border-color: rgba(232,180,101,0.4); background: rgba(232,180,101,0.07); }
+.cx-intel-stamp.is-red    { color: #ff8291; border-color: rgba(255,130,145,0.4); background: rgba(255,130,145,0.07); }
+.cx-intel-stamp.is-violet { color: #b88cff; border-color: rgba(184,140,255,0.4); background: rgba(184,140,255,0.07); }
+.cx-intel-stamp.is-dim    { color: var(--cx-fg-dim); border-color: color-mix(in oklab, var(--cx-fg-dim) 30%, transparent); background: transparent; }
+
+/* ── Global terminal skin — applies app-wide, dark theme ─────────────── */
+/* Selection + caret speak accent. */
+.cx-app ::selection { background: color-mix(in oklab, var(--cx-accent) 30%, transparent); }
+
+/* Thin precise scrollbars everywhere (webkit + firefox). */
+.cx-app * { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--cx-accent) 35%, transparent) transparent; }
+.cx-app *::-webkit-scrollbar { width: 6px; height: 6px; }
+.cx-app *::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--cx-accent) 28%, transparent); border-radius: 3px; }
+.cx-app *::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--cx-accent) 48%, transparent); }
+.cx-app *::-webkit-scrollbar-track { background: transparent; }
+
+/* Keyboard focus: one precise ring, everywhere. (Closes the :focus-visible
+   follow-up from the hardening pass — uniform, visible, never a blur soup.) */
+.cx-app :focus-visible {
+  outline: 1px solid var(--cx-accent) !important;
+  outline-offset: 2px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--cx-accent) 18%, transparent);
+}
+
+/* CRT field — barely-there scanlines + vignette on dark themes only.
+   2% opacity: felt, not seen. Static (no animation) so it costs nothing
+   and reduced-motion users are unaffected by definition. */
+body:has(.cx-app.is-dark)::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.014) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse 120% 120% at 50% 50%, transparent 60%, rgba(0,0,0,0.10) 100%);
+}
+
+/* ── Resolution ladder — phone → desktop → command wall ──────────────── */
+/* Large desktop: consoles get room to breathe. */
+@media (min-width: 1600px) {
+  .cx-mirror { max-width: 1180px; }
+  .cx-map    { max-width: 1280px; }
+}
+/* Command wall (2560px+): full intelligence-wall consoles. */
+@media (min-width: 2560px) {
+  .cx-mirror { max-width: 1540px; }
+  .cx-map    { max-width: 1720px; }
+  .cx-mirror-body { font-size: 15px; }
+}
+/* Mobile: consoles are full-screen ops views, not floating cards. */
+@media (max-width: 640px) {
+  .cx-mirror-backdrop, .cx-map-backdrop { padding: 0; }
+  .cx-mirror, .cx-map {
+    max-width: 100%;
+    width: 100%;
+    height: 100%;
+    max-height: 100dvh;
+    border: 0;
+  }
+}
+
+/* ── MIRROR v2 — Temporal Intelligence Console ───────────────────────── */
+.cx-mirror-rean {
+  appearance: none;
+  font-family: var(--cx-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--cx-accent);
+  background: color-mix(in oklab, var(--cx-accent) 7%, transparent);
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 30%, transparent);
+  border-radius: 2px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background 160ms ease-out, border-color 160ms ease-out;
+}
+.cx-mirror-rean:hover { background: color-mix(in oklab, var(--cx-accent) 16%, transparent); border-color: var(--cx-accent); }
+
+.cx-mirror-loading-epigraph {
+  font-family: var(--cx-serif);
+  font-style: italic;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--cx-fg-dim);
+  max-width: 420px;
+  line-height: 1.6;
+  opacity: 0.85;
+}
+
+/* Pattern-lock line — the analyst's one-sentence read of the shape. */
+.cx-mirror-pattern {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 14px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 26%, transparent);
+  border-left: 2px solid var(--cx-accent);
+  background: color-mix(in oklab, var(--cx-accent) 5%, transparent);
+}
+.cx-mirror-pattern-tag {
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--cx-accent);
+  white-space: nowrap;
+}
+.cx-mirror-pattern-line {
+  font-family: var(--cx-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--cx-fg);
+}
+
+/* Counts strip */
+.cx-mirror-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 10px 0 2px;
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  color: var(--cx-fg-dim);
+}
+.cx-mirror-counts span::before {
+  content: "▪ ";
+  color: var(--cx-accent);
+}
+
+/* Resonance cascade canvas */
+.cx-mirror-cascade {
+  margin: 12px 0 6px;
+  border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 18%, transparent);
+  background: color-mix(in oklab, var(--cx-bg) 94%, var(--cx-accent) 6%);
+}
+.cx-mirror-cascade-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px 2px;
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  color: var(--cx-fg-dim);
+}
+.cx-mirror-cascade-tag { color: var(--cx-accent); font-weight: 600; }
+.cx-mirror-cascade-legend { display: inline-flex; align-items: center; gap: 6px; }
+.cx-mirror-cascade-legend i {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-left: 8px;
+}
+.cx-mirror-cascade-legend i.is-hist { background: var(--cx-accent); box-shadow: 0 0 6px var(--cx-accent); }
+.cx-mirror-cascade-legend i.is-mod  { background: #e8b465; box-shadow: 0 0 6px #e8b465; }
+.cx-mirror-cascade-hint { margin-left: 12px; opacity: 0.6; letter-spacing: 0.08em; text-transform: none; }
+.cx-mirror-canvas {
+  display: block;
+  width: 100%;
+  height: 158px;
+}
+@media (max-width: 640px) {
+  .cx-mirror-canvas { height: 128px; }
+  .cx-mirror-cascade-hint { display: none; }
+}
+
+/* Dossier cards — hover-synced with the cascade */
+.cx-mirror-event { transition: border-color 180ms ease-out, background 180ms ease-out; }
+.cx-mirror-event header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.cx-mirror-event.is-hot {
+  border-color: var(--cx-accent) !important;
+  background: color-mix(in oklab, var(--cx-accent) 6%, transparent);
+}
+.cx-mirror-event.is-modern.is-hot {
+  border-color: #e8b465 !important;
+  background: rgba(232, 180, 101, 0.06);
+}
+.cx-mirror-event.is-flash { animation: cx-mirror-flash 1.1s ease-out; }
+@keyframes cx-mirror-flash {
+  0%   { box-shadow: 0 0 0 2px var(--cx-accent), 0 0 24px color-mix(in oklab, var(--cx-accent) 40%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.cx-mirror-event-bars { margin-left: auto; }
+.cx-mirror-event-geo {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--cx-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--cx-fg-dim);
+  opacity: 0.8;
+}
+
+/* Prophecy spread — traditions side-by-side */
+.cx-mirror-spread {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+.cx-mirror-trad {
+  border: 1px solid color-mix(in oklab, #b88cff 24%, transparent);
+  border-top: 2px solid color-mix(in oklab, #b88cff 55%, transparent);
+  background: color-mix(in oklab, #b88cff 4%, transparent);
+  padding: 10px 12px;
+}
+.cx-mirror-trad header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.cx-mirror-trad .cx-mirror-tradition {
+  font-family: var(--cx-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #b88cff;
+  text-transform: uppercase;
+}
+.cx-mirror-trad p { margin: 0 0 6px; font-size: 13px; line-height: 1.55; }
+.cx-mirror-trad small { font-family: var(--cx-mono); font-size: 9px; color: var(--cx-fg-dim); }
+
+/* Map hint + ticker */
+.cx-mirror-maphint {
+  margin: 14px 0 4px;
+  padding: 8px 12px;
+  font-family: var(--cx-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--cx-fg-dim);
+  border: 1px dashed color-mix(in oklab, var(--cx-accent) 30%, transparent);
+}
+.cx-mirror-maphint b { color: var(--cx-accent); }
+.cx-mirror-ticker { flex: none; }
+
+/* ── MAP GEOINT — sweep, rings, cursor, resonance + network layers ───── */
+/* Radar sweep around the verse site — one slow, quiet rotation. */
+.cx-mark-sweep {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 84px; height: 84px;
+  margin: -42px 0 0 -42px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(from 0deg,
+    color-mix(in oklab, var(--cx-accent) 22%, transparent) 0deg,
+    transparent 70deg, transparent 360deg);
+  animation: cx-map-sweep 6s linear infinite;
+  opacity: 0.5;
+}
+@keyframes cx-map-sweep { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cx-mark-sweep { display: none; } }
+
+/* Live cursor readout in the coords strip */
+.cx-map-cursor {
+  font-family: var(--cx-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--cx-accent);
+  opacity: 0.85;
+  margin-left: auto;
+}
+
+/* Resonance arc — slow dash drift, like a traced route */
+.cx-map-resarc { animation: cx-map-arcflow 2.6s linear infinite; }
+@keyframes cx-map-arcflow { to { stroke-dashoffset: -14; } }
+@media (prefers-reduced-motion: reduce) { .cx-map-resarc { animation: none; } }
+
+/* Resonance event markers */
+.cx-map-res .cx-res-dot {
+  display: block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #7ee0ff;
+  box-shadow: 0 0 10px #7ee0ff, 0 0 2px #fff inset;
+}
+.cx-map-res.is-mod .cx-res-dot { background: #e8b465; box-shadow: 0 0 10px #e8b465, 0 0 2px #fff inset; }
+.cx-map-res .cx-res-lbl {
+  position: absolute;
+  left: 12px; top: -3px;
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #7ee0ff;
+  text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cx-map-res.is-mod .cx-res-lbl { color: #e8b465; }
+.cx-res-pop b { font-size: 12.5px; }
+.cx-res-pop-meta {
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  color: var(--cx-fg-dim);
+  margin: 3px 0 5px;
+}
+.cx-res-pop p { font-size: 11.5px; line-height: 1.5; margin: 0; }
+
+/* Network nodes — the reader's accumulated atlas */
+.cx-map-net .cx-net-dot {
+  display: block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--cx-accent) 75%, white);
+  box-shadow: 0 0 7px var(--cx-accent);
+  opacity: 0.85;
+}
+.cx-map-net .cx-net-n {
+  position: absolute;
+  left: 8px; top: -6px;
+  font-family: var(--cx-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--cx-accent);
+  text-shadow: 0 0 4px rgba(0,0,0,0.9);
+}
+
+/* ── READER · honey-flow refinements ─────────────────────────────────────
+   The scripture column stays serene — instruments live at the edges.
+   Builds on the existing typography pass (21px / 1.62 / 68ch / drop cap). */
+.cx-reader-body {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+.cx-reader-body .cx-vtext,
+.cx-reader-body .cx-verse-text {
+  hanging-punctuation: first allow-end; /* Safari nicety; harmless elsewhere */
+}
+/* Verses breathe in as a chapter lands — one quiet settle, no per-verse
+   stagger circus. Respects reduced motion. */
+.cx-reader-body > .cx-verse,
+.cx-reader-body > .cx-verse-row {
+  animation: cx-verse-settle 340ms ease-out backwards;
+}
+@keyframes cx-verse-settle {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-reader-body { scroll-behavior: auto; }
+  .cx-reader-body > .cx-verse,
+  .cx-reader-body > .cx-verse-row { animation: none; }
+}

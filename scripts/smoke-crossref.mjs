@@ -2,7 +2,7 @@
 // verify the right rail opens, the tab switches, and the panel renders refs.
 import puppeteer from "puppeteer-core";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const URL = process.env.SMOKE_URL || "http://localhost:3000/";
+const URL = process.env.SMOKE_URL || "http://localhost:7777/";
 const log = (...a) => console.log("[xref]", ...a);
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox","--disable-gpu","--disable-dev-shm-usage"] });

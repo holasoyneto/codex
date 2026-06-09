@@ -86,6 +86,9 @@ Rules:
 
 function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
   const key = `codex.maps.${passage.bookId}.${passage.chapter}.${verse?.n}`;
+  // Mirror cache key for the same verse — the RESONANCE layer plots the
+  // Mirror console's geocoded events on this map.
+  const mirrorKey = `codex.mirrors.${passage.bookId}.${passage.chapter}.${verse?.n}`;
   const [data, setData]   = useState(() => {
     try { const raw = localStorage.getItem(key); if (raw) return JSON.parse(raw); }
     catch {}
@@ -99,25 +102,14 @@ function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "claude-haiku-4-5-20251001",
-            system: MAP_PROMPT,
-            messages: [{
-              role: "user",
-              content: `Verse: ${refStr}\nText: ${verseText}\n\nReturn the JSON object.`,
-            }],
-            max_tokens: 2400,
-          }),
+        // Canonical AI pipeline (intel.jsx): engine resolution, fence-strip,
+        // tolerant parse, and — critically — readable error strings instead
+        // of "[object Object]" when the provider returns a structured error.
+        const obj = await window.CODEX_INTEL.intelAI({
+          system: MAP_PROMPT,
+          user: `Verse: ${refStr}\nText: ${verseText}\n\nReturn the JSON object.`,
+          maxTokens: 2400,
         });
-        const body = await r.json();
-        if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
-        const text = (body.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-        const i = text.indexOf("{");
-        if (i === -1) throw new Error("Map response not JSON");
-        const obj = parseMapJSON(text.slice(i));
         if (typeof obj.lat !== "number" || typeof obj.lng !== "number") throw new Error("Map response missing coordinates");
         if (cancelled) return;
         try { localStorage.setItem(key, JSON.stringify(obj)); } catch {}
@@ -167,6 +159,8 @@ function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
         ) : data ? (
           <MapBody
             data={data}
+            mirrorKey={mirrorKey}
+            refStr={refStr}
             onRefresh={() => {
               try { localStorage.removeItem(key); } catch {}
               setData(null);
@@ -180,32 +174,9 @@ function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
   );
 }
 
-// Tolerant JSON parser — same approach as verse-art.jsx. Recovers usable
-// data from a truncated response so partial polities + POI lists still render.
-function parseMapJSON(s) {
-  try { return JSON.parse(s); } catch {}
-  let inString = false, escape = false;
-  const stk = [];
-  let lastSafe = 0, safeStack = [];
-  const mark = (idx) => { lastSafe = idx; safeStack = stk.slice(); };
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (escape) { escape = false; continue; }
-    if (inString) {
-      if (c === "\\") { escape = true; continue; }
-      if (c === "\"") { inString = false; mark(i + 1); }
-      continue;
-    }
-    if (c === "\"") { inString = true; continue; }
-    if (c === "{" || c === "[") stk.push(c === "{" ? "}" : "]");
-    else if (c === "}" || c === "]") { stk.pop(); mark(i + 1); }
-    else if (c === ",") mark(i);
-    else if (/[\d.eE+\-tfn ul]/.test(c)) mark(i + 1);
-  }
-  let head = s.slice(0, lastSafe).replace(/[,\s]+$/, "");
-  head = head.replace(/,?\s*"[^"]*"\s*:\s*$/, "");
-  return JSON.parse(head + safeStack.reverse().join(""));
-}
+// Tolerant JSON parsing now lives in the shared intel layer (intel.jsx) —
+// one canonical implementation for map/mirror/art instead of three copies.
+function parseMapJSON(s) { return window.CODEX_INTEL.intelParseJSON(s); }
 
 // Glyph per POI kind — keeps the map legible without needing icon assets.
 function poiGlyph(kind) {
@@ -224,12 +195,8 @@ function poiGlyph(kind) {
   }
 }
 
-// Format a year integer as "1492 BCE" / "2026 CE" / "12 BCE"
-function fmtYear(y) {
-  if (y === 0 || y == null || Number.isNaN(y)) return "—";
-  const n = Math.abs(y);
-  return `${n} ${y < 0 ? "BCE" : "CE"}`;
-}
+// Year formatting + HTML escaping delegate to the shared intel layer.
+function fmtYear(y) { return window.CODEX_INTEL.intelFmtYear(y); }
 
 // ── Map body — coordinate field on the left, info column on the right ──
 // Bounds (Iberia → Persia, North Africa → Anatolia) + simplified
@@ -291,7 +258,7 @@ const RIVERS = {
   jordan: [[33.3, 35.6], [32.8, 35.55], [32.2, 35.5], [31.7, 35.5]],
 };
 
-function MapBody({ data, onRefresh }) {
+function MapBody({ data, mirrorKey, refStr, onRefresh }) {
   const [px, py] = projXY(data.lat, data.lng);
   const inBounds = px >= 0 && px <= MAP_W && py >= 0 && py <= MAP_H;
   const cx = inBounds ? px : Math.max(8, Math.min(MAP_W - 8, px));
@@ -306,7 +273,7 @@ function MapBody({ data, onRefresh }) {
   const [touristLoading, setTouristLoading] = useState(false);
   const [userPos, setUserPos] = useState(null);   // { lat, lng, accuracy }
   const [selectedPlace, setSelectedPlace] = useState(null);
-  const [overlays, setOverlays] = useState({ biblical: true, pilgrimage: false, manuscripts: false, empires: false, mine: true });
+  const [overlays, setOverlays] = useState({ biblical: true, pilgrimage: false, manuscripts: false, empires: false, mine: true, resonance: false, network: false });
   const [discoveredCount, setDiscoveredCount] = useState(() => {
     try { return Object.keys(JSON.parse(localStorage.getItem("codex.discovered") || "{}")).length; }
     catch { return 0; }
@@ -441,13 +408,16 @@ function MapBody({ data, onRefresh }) {
             <button className={`cx-map-layer ${overlays.manuscripts ? "is-on" : ""}`}  onClick={() => onToggleOverlay("manuscripts")}  title="Manuscript discoveries">⬡</button>
             <button className={`cx-map-layer ${overlays.empires ? "is-on" : ""}`}      onClick={() => onToggleOverlay("empires")}      title="Empire borders (era)" >☰</button>
             <button className={`cx-map-layer ${overlays.mine ? "is-on" : ""}`}         onClick={() => onToggleOverlay("mine")}         title="My discoveries"      >⚐</button>
+            <button className={`cx-map-layer ${overlays.resonance ? "is-on" : ""}`}    onClick={() => onToggleOverlay("resonance")}    title="Resonance — Mirror events plotted with arcs">⌖</button>
+            <button className={`cx-map-layer ${overlays.network ? "is-on" : ""}`}      onClick={() => onToggleOverlay("network")}      title="Known sites — every verse you've mapped">◈</button>
           </div>
           <span className="cx-map-discovered" title="Sites you have discovered">🏛 {discoveredCount}</span>
         </div>
-        <LeafletField data={data} />
+        <LeafletField data={data} mirrorKey={mirrorKey} />
         <div className="cx-map-coords">
           <span><b>LAT</b> {data.lat?.toFixed(3)}°</span>
           <span><b>LNG</b> {data.lng?.toFixed(3)}°</span>
+          <span className="cx-map-cursor" id="cx-map-cursor" aria-hidden="true"></span>
         </div>
         {touristOn ? (
           <TouristPanel
@@ -496,7 +466,7 @@ function MapBody({ data, onRefresh }) {
 // aesthetic. POIs filter by the year slider (via window event from
 // PolityTimeline) so as the user scrubs through history, places that
 // don't yet exist (or no longer exist) fade away.
-function LeafletField({ data }) {
+function LeafletField({ data, mirrorKey }) {
   const wrapRef = useRef(null);
   const mapRef  = useRef(null);
   const layersRef = useRef({ poi: null, marker: null, tile: null });
@@ -521,6 +491,19 @@ function LeafletField({ data }) {
     addTiles(map, dark);
     addMainMarker(map, data);
     redrawPOIs(map, data, year);
+    // Live cursor readout — LAT/LNG under the pointer + great-circle range
+    // from the verse site. Written straight to the DOM (no React re-render
+    // churn at mousemove frequency).
+    map.on("mousemove", (e) => {
+      const el = document.getElementById("cx-map-cursor");
+      if (!el) return;
+      const km = haversineKm(data.lat, data.lng, e.latlng.lat, e.latlng.lng);
+      el.textContent = `⌖ ${e.latlng.lat.toFixed(3)}°, ${e.latlng.lng.toFixed(3)}° · ${km < 10 ? km.toFixed(1) : Math.round(km)} km out`;
+    });
+    map.on("mouseout", () => {
+      const el = document.getElementById("cx-map-cursor");
+      if (el) el.textContent = "";
+    });
     // Force a redraw next frame in case the modal animated in
     requestAnimationFrame(() => map.invalidateSize());
     return () => { map.remove(); mapRef.current = null; };
@@ -633,6 +616,8 @@ function LeafletField({ data }) {
       if (!o.pilgrimage)  clearLayer("pilgrimage"); else drawPilgrimage();
       if (!o.manuscripts) clearLayer("manuscripts"); else drawManuscripts();
       if (!o.empires)     clearLayer("empires"); else drawEmpires(year);
+      if (!o.resonance)   clearLayer("resonance"); else drawResonance();
+      if (!o.network)     clearLayer("network"); else drawNetwork();
       // Biblical = the existing POI layer; toggle visibility.
       if (layers.poi) {
         if (o.biblical) { try { layers.poi.addTo(mapRef.current); } catch {} }
@@ -642,8 +627,8 @@ function LeafletField({ data }) {
       // and report how much it shows. The toggles used to draw far-away data
       // (Holy-Land-centric) off-screen with zero feedback, so they felt dead.
       if (o._changed && o._on && mapRef.current) {
-        const groupKey = { mine:"discovered", pilgrimage:"pilgrimage", manuscripts:"manuscripts", empires:"empires", biblical:"poi" }[o._changed];
-        const label = { mine:"⚐ My discoveries", pilgrimage:"◯ Pilgrimage routes", manuscripts:"⬡ Manuscript sites", empires:"☰ Empire borders", biblical:"✦ Biblical events" }[o._changed];
+        const groupKey = { mine:"discovered", pilgrimage:"pilgrimage", manuscripts:"manuscripts", empires:"empires", biblical:"poi", resonance:"resonance", network:"network" }[o._changed];
+        const label = { mine:"⚐ My discoveries", pilgrimage:"◯ Pilgrimage routes", manuscripts:"⬡ Manuscript sites", empires:"☰ Empire borders", biblical:"✦ Biblical events", resonance:"⌖ Resonance events", network:"◈ Known sites" }[o._changed];
         const toast = (msg, kind="ok") => { try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg, kind } })); } catch {} };
         const fit = () => {
           const grp = layers[groupKey];
@@ -731,6 +716,118 @@ function LeafletField({ data }) {
       } catch {}
     }
 
+    // ⌖ RESONANCE — plot the Mirror console's geocoded events and connect
+    // each back to the verse site with a bowed arc. The cross-domain view:
+    // where this verse has echoed, drawn on the real earth.
+    function drawResonance() {
+      if (!mapRef.current) return;
+      clearLayer("resonance");
+      let mirror = null;
+      try { const raw = localStorage.getItem(mirrorKey); if (raw) mirror = JSON.parse(raw); } catch {}
+      const evs = mirror
+        ? [
+            ...(mirror.historicalParallels || []).map(e => ({ ...e, _kind: "hist" })),
+            ...(mirror.modernResonances  || []).map(e => ({ ...e, _kind: "mod"  })),
+          ].filter(e => typeof e.lat === "number" && typeof e.lng === "number")
+        : [];
+      if (!evs.length) {
+        try {
+          window.dispatchEvent(new CustomEvent("codex:toast", { detail: {
+            msg: mirror
+              ? "⌖ Resonance: this Mirror analysis predates geo intel — reopen MIRROR and tap ⟲ UPGRADE INTEL"
+              : "⌖ Resonance: open MIRROR on this verse first — its analysis feeds this layer",
+            kind: "warn",
+          }}));
+        } catch {}
+        return;
+      }
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.resonance = grp;
+      evs.forEach((ev) => {
+        const color = ev._kind === "mod" ? "#e8b465" : "#7ee0ff";
+        // Bowed arc: interpolate the verse→event line, lifting latitude by a
+        // sine bow proportional to span — reads as a flight-path sweep.
+        const pts = [];
+        const N = 48;
+        const dLat = ev.lat - data.lat, dLng = ev.lng - data.lng;
+        const span = Math.hypot(dLat, dLng);
+        const bow = Math.min(14, span * 0.18);
+        for (let i = 0; i <= N; i++) {
+          const t = i / N;
+          pts.push([
+            data.lat + dLat * t + Math.sin(Math.PI * t) * bow,
+            data.lng + dLng * t,
+          ]);
+        }
+        L.polyline(pts, { color, weight: 1.4, opacity: 0.65, dashArray: "1 6", className: "cx-map-resarc", interactive: false }).addTo(grp);
+        const icon = L.divIcon({
+          className: `cx-map-res ${ev._kind === "mod" ? "is-mod" : ""}`,
+          html: `<span class="cx-res-dot"></span><span class="cx-res-lbl">${escapeHtml(ev.place || ev.event || "")}</span>`,
+          iconSize: [10, 10], iconAnchor: [5, 5],
+        });
+        L.marker([ev.lat, ev.lng], { icon, riseOnHover: true })
+          .bindPopup(
+            `<div class="cx-res-pop"><b>${escapeHtml(ev.event || "")}</b>` +
+            `<div class="cx-res-pop-meta">${escapeHtml(fmtYear(ev.year))} · ${escapeHtml(ev.place || "")}` +
+            `${typeof ev.intensity === "number" ? ` · resonance ${ev.intensity}/100` : ""}</div>` +
+            `<p>${escapeHtml(ev.connection || "")}</p></div>`,
+            { maxWidth: 280, className: "cx-poi-popup" }
+          )
+          .addTo(grp);
+      });
+    }
+
+    // ◈ NETWORK — every verse this reader has ever mapped, joined to the
+    // current site. The picture grows with study: the user's own atlas of
+    // the Word, assembled verse by verse.
+    function drawNetwork() {
+      if (!mapRef.current) return;
+      clearLayer("network");
+      const sites = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k || !k.startsWith("codex.maps.")) continue;
+          try {
+            const d = JSON.parse(localStorage.getItem(k));
+            if (typeof d.lat !== "number" || typeof d.lng !== "number") continue;
+            const ref = k.slice("codex.maps.".length).split(".");
+            sites.push({ lat: d.lat, lng: d.lng, place: d.place || "", ref: `${ref[0]} ${ref[1]}:${ref[2]}` });
+          } catch {}
+        }
+      } catch {}
+      // Dedupe by rounded coordinate so co-located verses stack as one node.
+      const seen = new Map();
+      sites.forEach(s => {
+        const key2 = `${s.lat.toFixed(2)},${s.lng.toFixed(2)}`;
+        if (seen.has(key2)) seen.get(key2).refs.push(s.ref);
+        else seen.set(key2, { ...s, refs: [s.ref] });
+      });
+      const grp = L.layerGroup().addTo(mapRef.current);
+      layers.network = grp;
+      seen.forEach(s => {
+        const isHere = Math.abs(s.lat - data.lat) < 0.05 && Math.abs(s.lng - data.lng) < 0.05;
+        if (!isHere) {
+          L.polyline([[data.lat, data.lng], [s.lat, s.lng]], {
+            color: "#7ee0ff", weight: 0.6, opacity: 0.18, interactive: false,
+          }).addTo(grp);
+        }
+        const icon = L.divIcon({
+          className: "cx-map-net",
+          html: `<span class="cx-net-dot"></span>${s.refs.length > 1 ? `<span class="cx-net-n">${s.refs.length}</span>` : ""}`,
+          iconSize: [8, 8], iconAnchor: [4, 4],
+        });
+        L.marker([s.lat, s.lng], { icon })
+          .bindPopup(
+            `<div class="cx-res-pop"><b>${escapeHtml(s.place)}</b>` +
+            `<div class="cx-res-pop-meta">${s.refs.length} verse${s.refs.length > 1 ? "s" : ""} studied here</div>` +
+            `<p>${escapeHtml(s.refs.slice(0, 8).join(" · "))}${s.refs.length > 8 ? " …" : ""}</p></div>`,
+            { maxWidth: 260, className: "cx-poi-popup" }
+          )
+          .addTo(grp);
+      });
+    }
+
     // Notify the engagement engine of a brand-new discovery without ever
     // throwing or duplicating streak/milestone logic. Prefer the engine's
     // own convenience emitter; otherwise dispatch the canonical bus event
@@ -805,7 +902,7 @@ function LeafletField({ data }) {
       window.removeEventListener("codex:overlays", onOverlays);
       window.removeEventListener("codex:discovered", onDiscovered);
     };
-  }, [data, year]);
+  }, [data, year, mirrorKey]);
 
   if (!window.L) {
     return <div className="cx-map-fallback">Leaflet failed to load — check your network and reload.</div>;
@@ -829,13 +926,28 @@ function LeafletField({ data }) {
     if (layersRef.current.marker) map.removeLayer(layersRef.current.marker);
     const icon = window.L.divIcon({
       className: "cx-map-mark-leaflet",
-      html: `<span class="cx-mark-pulse"></span><span class="cx-mark-core"></span><span class="cx-mark-lbl">${escapeHtml((data.place || "").toUpperCase())}</span>`,
+      html: `<span class="cx-mark-sweep"></span><span class="cx-mark-pulse"></span><span class="cx-mark-core"></span><span class="cx-mark-lbl">${escapeHtml((data.place || "").toUpperCase())}</span>`,
       iconSize: [12, 12],
       iconAnchor: [6, 6],
     });
-    layersRef.current.marker = window.L.marker([data.lat, data.lng], { icon, riseOnHover: true })
+    const grp = window.L.layerGroup().addTo(map);
+    // Range rings — quiet dashed circles so distance reads at a glance.
+    [100, 500, 1500].forEach((km) => {
+      window.L.circle([data.lat, data.lng], {
+        radius: km * 1000,
+        color: "#7ee0ff",
+        weight: 0.7,
+        opacity: 0.28,
+        fill: false,
+        dashArray: "2 7",
+        interactive: false,
+        className: "cx-map-ring",
+      }).addTo(grp);
+    });
+    window.L.marker([data.lat, data.lng], { icon, riseOnHover: true })
       .bindPopup(`<b>${escapeHtml(data.place || "")}</b><br><small>${escapeHtml(data.region || "")}</small>`)
-      .addTo(map);
+      .addTo(grp);
+    layersRef.current.marker = grp;
   }
 
   function redrawPOIs(map, data, currentYear) {
@@ -1019,9 +1131,7 @@ async function poiHydrateEl(popupEl, p) {
   }
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
-}
+function escapeHtml(s) { return window.CODEX_INTEL.intelEscapeHtml(s); }
 // Year slider scrubbing through chronological polities. Default position is
 // the verse's own year. Shows the active polity name in the foreground and a
 // small list of theory / esoteric names below for scholar curiosity.

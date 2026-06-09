@@ -724,6 +724,8 @@
           <span className="cx-dossier-title">{t("cx.dossier.title", "Analyst desk")}</span>
         </div>
 
+        <IntelBanner console="CONTINUITY" scope="READER DOSSIER" note="YOUR OWN RECORD · STORED LOCALLY · NEVER UPLOADED" />
+
         <div className="cx-dossier-section cx-dossier-section--continuity">
           <ContinuityIndicator />
         </div>

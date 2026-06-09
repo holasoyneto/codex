@@ -3,7 +3,7 @@
 // DOM text). Saves PNGs to /tmp for inspection.
 import puppeteer from "puppeteer-core";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const URL = process.env.SMOKE_URL || "http://localhost:3000/";
+const URL = process.env.SMOKE_URL || "http://localhost:7777/";
 const W = Number(process.env.W || 1280), H = Number(process.env.H || 860);
 const log = (...a) => console.log("[diag]", ...a);
 

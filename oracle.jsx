@@ -1733,6 +1733,8 @@ Suggestion policy: when the current passage materially benefits from a translati
         >{fullscreen ? "⤢" : "⛶"}</button>
       </div>
 
+      <IntelBanner console="ORACLE" scope="ASSISTANT" />
+
       {/* Tab strip · only renders when there are 2+ conversations, so a
           single-thread user sees no extra chrome. */}
       {visibleConvs.length > 1 ? (
