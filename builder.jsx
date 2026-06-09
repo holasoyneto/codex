@@ -130,15 +130,8 @@
     study.modified = Date.now();
     saveStore(store);
     window.dispatchEvent(new CustomEvent("codex:studies-changed"));
-    // Brief toast
-    try {
-      const t = document.createElement("div");
-      t.className = "cx-builder-toast";
-      t.textContent = `Added to “${study.title}”`;
-      document.body.appendChild(t);
-      setTimeout(() => t.classList.add("cx-builder-toast--in"), 10);
-      setTimeout(() => { t.classList.remove("cx-builder-toast--in"); setTimeout(() => t.remove(), 400); }, 1800);
-    } catch {}
+    // Brief toast — unified notification dock.
+    try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `Added to “${study.title}”`, kind: "ok" } })); } catch {}
   });
 
   // ── Markdown export ─────────────────────────────────────────────────
@@ -258,7 +251,10 @@
       if (sec) { sec.items.push({ type: "note", body: "New note — click to edit", _id: uid("item") }); st.modified = Date.now(); }
     });
     const addVerseFromContext = (sid) => {
-      if (!ctx || !ctx.bookId || !ctx.chapter) { alert("No active verse — tap a verse in the reader first."); return; }
+      if (!ctx || !ctx.bookId || !ctx.chapter) {
+        try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "No active verse — tap a verse in the reader first.", kind: "warn" } })); } catch {}
+        return;
+      }
       const v = ctx.verse || 1;
       let text = "";
       let translation = ctx.translation || "kjv";
@@ -354,8 +350,8 @@
           const text = await f.text();
           const obj = JSON.parse(text);
           if (importStudyObject(obj)) setStore(loadStore());
-          else alert("That file doesn't look like a CODEX study.");
-        } catch { alert("Couldn't parse that file."); }
+          else { try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "That file isn't a CODEX study", kind: "warn" } })); } catch {} }
+        } catch { try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Couldn't parse that file", kind: "err" } })); } catch {} }
       };
       el.addEventListener("dragover", over);
       el.addEventListener("dragleave", leave);
@@ -379,8 +375,8 @@
     };
     const copyMd = async () => {
       if (!active) return;
-      try { await navigator.clipboard.writeText(studyToMarkdown(active)); alert("Copied as Markdown."); }
-      catch { alert("Clipboard not available."); }
+      try { await navigator.clipboard.writeText(studyToMarkdown(active)); try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Copied as Markdown", kind: "ok" } })); } catch {} }
+      catch { try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Clipboard not available", kind: "err" } })); } catch {} }
     };
     const share = async () => {
       if (!active) return;
@@ -388,7 +384,7 @@
       if (navigator.share) {
         try { await navigator.share({ title: active.title, url }); return; } catch {}
       }
-      try { await navigator.clipboard.writeText(url); alert("Share URL copied to clipboard."); }
+      try { await navigator.clipboard.writeText(url); try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "Share URL copied to clipboard", kind: "ok" } })); } catch {} }
       catch { prompt("Share URL:", url); }
     };
 

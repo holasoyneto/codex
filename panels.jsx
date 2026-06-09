@@ -35,15 +35,17 @@ if (typeof window !== "undefined") window.railTabs = railTabs;
 
 // ── Panel palette ──────────────────────────────────────────────────────
 // A command-palette style picker that replaces the old overflow tab-strip.
-// Opens via the ⌘ button in the rail header or Cmd/Ctrl+K. Tabs are grouped
+// Opens via the Library button in the rail header (Cmd/Ctrl+K is owned by the
+// SEARCH overlay in app.jsx, so the palette no longer binds it). Tabs are grouped
 // into intent-driven sections (READING, STUDY, REFERENCE, DISCOVER)
 // and filterable by typing. The rail itself only shows 3 user-pinned tabs
 // plus the palette button — much calmer at 280px and beyond.
 const PALETTE_SECTIONS = [
   { id: "reading",   label: "READING",   ids: ["trans"] },
   { id: "study",     label: "STUDY",     ids: ["comm", "talmud", "exeg", "txan", "gem", "gnosis", "disarm"] },
-  { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs-tsk:crossrefs", "plugin:word-study:word", "plugin:bible-dictionary:dictionary", "plugin:passage-guide:guide"] },
-  { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:biblical-timeline:timeline", "plugin:jewish-study:torah", "plugin:reading-plans:plans", "plugin:ai-quests:quests", "plugin:sermon-builder:builder", "plugin:module-marketplace:market"] },
+  { id: "reference", label: "REFERENCE", ids: ["plugin:strongs-concordance:strongs", "plugin:crossrefs-tsk:crossrefs", "plugin:word-study:word", "plugin:bible-dictionary:dictionary", "plugin:passage-guide:guide", "plugin:compare:compare"] },
+  { id: "discover",  label: "DISCOVER",  ids: ["plugin:reels:reels", "plugin:vox:vox", "plugin:biblical-timeline:timeline", "plugin:jewish-study:torah", "plugin:reading-plans:plans", "plugin:ai-quests:quests", "plugin:sermon-builder:builder", "plugin:module-marketplace:market"] },
+  { id: "engage",    label: "ENGAGE",    ids: ["plugin:continuity:dossier"] },
 ];
 const PALETTE_DESCRIPTIONS = {
   trans: "Translations and side-by-side compare",
@@ -59,6 +61,9 @@ const PALETTE_DESCRIPTIONS = {
   "plugin:word-study:word": "Deep word studies",
   "plugin:bible-dictionary:dictionary": "Bible dictionary",
   "plugin:passage-guide:guide": "Guided tour of the passage",
+  "plugin:compare:compare": "Side-by-side comparison view",
+  "plugin:vox:vox": "Voice reading and prayer",
+  "plugin:continuity:dossier": "Analyst desk — continuity, mastery, intel log",
   "plugin:reels:reels": "Short-form scripture reels",
   "plugin:biblical-timeline:timeline": "Biblical timeline",
   "plugin:jewish-study:torah": "Torah portions and Jewish lens",
@@ -139,6 +144,7 @@ function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, 
                     return (
                       <button
                         key={tb.id}
+                        data-tab-id={tb.id}
                         className={`cx-palette-card ${isActive ? "is-active" : ""} ${isPinned ? "is-pinned" : ""}`}
                         onClick={() => pick(tb)}
                         title={PALETTE_DESCRIPTIONS[tb.id] || tb.label}
@@ -164,7 +170,7 @@ function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, 
           })}
         </div>
         <footer className="cx-palette-ft">
-          <kbd>Esc</kbd> close · <kbd>⌘K</kbd> open · ★ pins to rail
+          <kbd>Esc</kbd> close · ★ pins to rail
         </footer>
       </div>
     </div>
@@ -197,19 +203,10 @@ function RightRail({
     });
   };
 
-  // Global Cmd/Ctrl+K opens the palette. Esc handled inside the palette.
-  React.useEffect(() => {
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
-        // Don't fight an open text field that already uses ⌘K
-        if (e.target && /input|textarea/i.test(e.target.tagName)) return;
-        e.preventDefault();
-        setPaletteOpen(v => !v);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  // Cmd/Ctrl+K is owned by the SEARCH overlay in app.jsx — the palette no
+  // longer binds it (single owner avoids two overlays opening on one press).
+  // The palette opens via the Library button in the rail header. Esc is
+  // handled inside the palette.
 
   // Resolve pinned ids → live tab objects. Skip any that have been
   // unregistered (e.g. plugin disabled) so we don't render dead chips.
@@ -291,7 +288,7 @@ function RightRail({
           type="button"
           className={`cx-palette-btn ${paletteOpen ? "is-on" : ""}`}
           onClick={() => setPaletteOpen(v => !v)}
-          title="Open panel library (⌘K)"
+          title="Open panel library"
           aria-label="Open panel library"
         >
           <span className="cx-palette-btn-glyph">⌘</span>

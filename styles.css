@@ -13830,19 +13830,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 .cx-builder-exportrow { display: flex; flex-wrap: wrap; gap: 4px; }
 .cx-builder-hint { font-size: 10px; opacity: 0.55; letter-spacing: 0.04em; line-height: 1.5; }
 
-/* Toast for cross-panel additions */
-.cx-builder-toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
-  background: #06080e; color: var(--cx-accent, #7ee0ff);
-  border: 1px solid var(--cx-accent, #7ee0ff);
-  padding: 8px 14px; border-radius: 3px;
-  font-family: var(--cx-font-ui, ui-sans-serif, system-ui); font-size: 12px;
-  letter-spacing: 0.06em; z-index: 99998;
-  opacity: 0; transition: opacity 250ms ease, transform 250ms ease;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-  pointer-events: none;
-}
-.cx-builder-toast--in { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* (Cross-panel-addition toast removed — builder.jsx now emits codex:toast,
+   rendered by the single ToastDock. See .cx-toast-dock.) */
 
 /* Printable export — hidden in normal flow, revealed only during PDF print */
 #cx-builder-printable { display: none; }
@@ -16792,52 +16781,35 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   margin-top: 2px;
 }
 
-/* achievement toast */
-@keyframes cx-toast-in {
-  from { opacity: 0; transform: translateY(40px) scale(.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes cx-toast-out {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to   { opacity: 0; transform: translateY(-20px) scale(.95); }
-}
-.cx-achievement-toast {
-  position: fixed;
-  bottom: 60px; left: 50%; transform: translateX(-50%);
-  z-index: 9999;
+/* Milestone / achievement "mark" — rendered INSIDE the toast dock.
+   Re-skinned from the former .cx-achievement-toast rules; positioning,
+   keyframes, lifetime, z-index and exit class are inherited from .cx-toast
+   so marks live in the one dock (see .cx-toast-dock at ~line 15219). */
+.cx-toast.cx-toast--mark {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 18px;
-  background: var(--cx-panel-2);
-  border: 1px solid var(--cx-accent-2);
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 40px rgba(255,196,107,.15);
-  animation: cx-toast-in .4s ease-out;
-  max-width: 90vw;
-  pointer-events: auto;
+  border-left-color: var(--cx-accent-2, #ffc46b);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45), 0 0 28px rgba(255,196,107,.12);
 }
-.cx-achievement-toast.is-exiting {
-  animation: cx-toast-out .3s ease-in forwards;
-}
-.cx-achievement-toast-icon {
-  font-size: 28px;
+.cx-toast-icon {
+  font-size: 24px;
   line-height: 1;
   flex-shrink: 0;
 }
-.cx-achievement-toast-body { display: flex; flex-direction: column; gap: 2px; }
-.cx-achievement-toast-label {
+.cx-toast-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cx-toast-label {
   font-family: var(--cx-mono);
   font-size: 8px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--cx-accent-2);
 }
-.cx-achievement-toast-title {
+.cx-toast-title {
   font-family: var(--cx-sans);
   font-size: 14px;
   font-weight: 700;
   color: var(--cx-fg);
 }
-.cx-achievement-toast-desc {
+.cx-toast-desc {
   font-family: var(--cx-mono);
   font-size: 10px;
   color: var(--cx-fg-dim);
@@ -17035,7 +17007,7 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   background: rgba(138,74,5,.05);
   border-color: rgba(138,74,5,.15);
 }
-.cx-app.is-light .cx-achievement-toast {
+.cx-app.is-light .cx-toast.cx-toast--mark {
   box-shadow: 0 8px 24px rgba(40,30,10,.18), 0 0 20px rgba(138,74,5,.1);
 }
 .cx-app.is-light .cx-heatmap-cell.is-active {
@@ -17051,7 +17023,7 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   .cx-daily-disc-body { -webkit-line-clamp: 2; }
 }
 @media (max-width: 768px) {
-  .cx-achievement-toast { bottom: 50px; }
+  /* Marks live in .cx-toast-dock, which carries its own mobile positioning. */
   .cx-achievements { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 }
 

@@ -951,24 +951,59 @@ function FirebaseSetupBlock() {
   );
 }
 
-// ── ToastDock — listens for `codex:toast` events and shows them briefly.
-// Stack up to 3, auto-dismiss after 4s, fade.
+// ── Toast emit helper — the single, app-wide way to surface a notification.
+// Plain:  cxToast("Saved", "ok")
+// Mark:   cxToast({ variant:"mark", icon:"▦", label:"Mastery", title, desc, kind })
+// Everything routes through the ONE codex:toast bus rendered by ToastDock.
+function cxToast(msgOrDetail, kind) {
+  try {
+    const detail = (msgOrDetail && typeof msgOrDetail === "object")
+      ? msgOrDetail
+      : { msg: String(msgOrDetail == null ? "" : msgOrDetail), kind };
+    window.dispatchEvent(new CustomEvent("codex:toast", { detail }));
+  } catch {}
+}
+
+// ── ToastDock — the SINGLE notification renderer. Listens for `codex:toast`
+// and shows both plain toasts ({msg,kind}) and rich "mark" variants
+// ({variant:'mark',icon,label,title,desc,kind}) in one bottom-right dock.
+// Stack up to 3, one lifetime (4200ms; 6000ms under reduced-motion), one
+// .is-exiting class, one z-index.
 function ToastDock() {
   const [items, setItems] = useState([]);
   useEffect(() => {
+    const reduced = (() => {
+      try { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+      catch { return false; }
+    })();
+    const LIFETIME = reduced ? 6000 : 4200;
     const onToast = (e) => {
       const d = e.detail || {};
+      const kindRaw = d.kind;
+      const kind = ["ok", "warn", "err"].includes(kindRaw) ? kindRaw : "info";
+      const id = Math.random().toString(36).slice(2);
+      if (d.variant === "mark") {
+        // Rich milestone/achievement mark. Require at least a title or label.
+        const label = String(d.label || "").slice(0, 80);
+        const title = String(d.title || "").slice(0, 160);
+        const desc  = String(d.desc || "").slice(0, 220);
+        if (!label && !title && !desc) return;
+        setItems(prev => [...prev, {
+          id, variant: "mark", kind,
+          icon: d.icon || "▦", label, title, desc,
+        }].slice(-3));
+        setTimeout(() => setItems(prev => prev.filter(x => x.id !== id)), LIFETIME);
+        return;
+      }
+      // Plain toast (back-compatible).
       const msg = String(d.msg || "").slice(0, 220);
       if (!msg) return;
       // Suppress AI / fetch error toasts while offline — they'd fail anyway
       // and the OFFLINE pill already tells the user what's going on.
-      const kindRaw = d.kind;
       const offline = (typeof navigator !== "undefined" && navigator.onLine === false);
       if (offline && kindRaw === "err" && /panel|fetch|network|api|model|oracle|generate/i.test(msg)) return;
-      const id = Math.random().toString(36).slice(2);
-      const kind = ["ok", "warn", "err"].includes(kindRaw) ? kindRaw : "info";
       setItems(prev => [...prev, { id, msg, kind }].slice(-3));
-      setTimeout(() => setItems(prev => prev.filter(x => x.id !== id)), 4200);
+      setTimeout(() => setItems(prev => prev.filter(x => x.id !== id)), LIFETIME);
     };
     window.addEventListener("codex:toast", onToast);
     window.__cxToastListener = true;
@@ -978,7 +1013,18 @@ function ToastDock() {
   return (
     <div className="cx-toast-dock" aria-live="polite">
       {items.map(t => (
-        <div key={t.id} className={`cx-toast cx-toast-${t.kind}`}>{t.msg}</div>
+        t.variant === "mark" ? (
+          <div key={t.id} className={`cx-toast cx-toast--mark cx-toast-${t.kind}`}>
+            <span className="cx-toast-icon" aria-hidden="true">{t.icon || "▦"}</span>
+            <div className="cx-toast-body">
+              <div className="cx-toast-label">{t.label}</div>
+              <div className="cx-toast-title">{t.title}</div>
+              <div className="cx-toast-desc">{t.desc}</div>
+            </div>
+          </div>
+        ) : (
+          <div key={t.id} className={`cx-toast cx-toast-${t.kind}`}>{t.msg}</div>
+        )
       ))}
     </div>
   );
@@ -1286,32 +1332,9 @@ function WelcomeBack({ onContinue, onDismiss, onDiscoveryClick }) {
   );
 }
 
-// ── Engagement: Achievement toast ────────────────────────────────────────
-function AchievementToast({ achievement, onDone }) {
-  const [exiting, setExiting] = useState(false);
-  // Keep the latest onDone in a ref so the dismiss timers run ONCE on mount.
-  // Depending on [onDone] was the bug: the parent passes a fresh arrow every
-  // render and the app re-renders every second (clock), so the timers were
-  // cleared+reset before 4s and the toast never dismissed ("won't go away").
-  const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
-  useEffect(() => {
-    const exitTimer = setTimeout(() => setExiting(true), 3700);
-    const removeTimer = setTimeout(() => { const f = onDoneRef.current; if (f) f(); }, 4000);
-    return () => { clearTimeout(exitTimer); clearTimeout(removeTimer); };
-  }, []);
-  if (!achievement) return null;
-  return (
-    <div className={`cx-achievement-toast ${exiting ? "is-exiting" : ""}`}>
-      <span className="cx-achievement-toast-icon">{achievement.icon || "🏆"}</span>
-      <div className="cx-achievement-toast-body">
-        <div className="cx-achievement-toast-label">Achievement unlocked</div>
-        <div className="cx-achievement-toast-title">{achievement.title}</div>
-        <div className="cx-achievement-toast-desc">{achievement.desc}</div>
-      </div>
-    </div>
-  );
-}
+// ── Engagement: achievement / milestone marks now render through the single
+// ToastDock (codex:toast variant:'mark'). The old standalone AchievementToast
+// component + its queue were removed to eliminate the dual render.
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -1752,7 +1775,7 @@ function App() {
       const idx = window.CODEX_GEMATRIA_INDEX;
       const fire = (matches) => {
         window.dispatchEvent(new CustomEvent("codex:cipher-search", { detail: { value: n, matches } }));
-        if (!matches || !matches.length) { window.alert(`⚯ No verses in your library sum to ${n}.`); return; }
+        if (!matches || !matches.length) { cxToast(`⚯ No verses in your library sum to ${n}.`, "warn"); return; }
         const preview = matches.slice(0, 8).map(m => `• ${m.ref}  (${m.word} · ${m.system})`).join("\n");
         const go = window.confirm(`⚯ ${matches.length} match${matches.length === 1 ? "" : "es"} for ${n}\n\n${preview}\n\nJump to first match?`);
         if (!go) return;
@@ -1867,10 +1890,10 @@ function App() {
       return;
     }
     if (isIOS) {
-      window.alert("To install CODEX on iPhone or iPad:\n\n1. Tap the Share button (the square with an upward arrow)\n2. Scroll down and tap “Add to Home Screen”\n3. Tap Add\n\nCODEX will appear on your home screen and run full-screen, fully offline.");
+      cxToast("Install on iPhone/iPad: tap Share (↑), then “Add to Home Screen”, then Add. CODEX runs full-screen and fully offline.", "info");
       return;
     }
-    window.alert("Your browser hasn't offered an install prompt yet — try refreshing once or twice. CODEX is fully installable in Chrome, Edge, Brave, Arc, Safari (iOS), and Samsung Internet.");
+    cxToast("No install prompt yet — refresh once or twice. CODEX installs in Chrome, Edge, Brave, Arc, Safari (iOS), and Samsung Internet.", "info");
   }, [installed, installPrompt, isIOS]);
 
   // ── Export / import — open-format snapshot of every codex.* localStorage
@@ -1933,12 +1956,12 @@ function App() {
         const text = await f.text();
         const obj  = JSON.parse(text);
         if (obj.format !== "codex.export" || !obj.data || typeof obj.data !== "object") {
-          window.alert("This isn't a CODEX export file (missing format/data).");
+          cxToast("This isn't a CODEX export file (missing format/data).", "err");
           return;
         }
         // Filter out any secrets that might be in a stale export file
         const incoming = Object.keys(obj.data).filter(k => k.startsWith("codex.") && !isSensitive(k));
-        if (!incoming.length) { window.alert("Export contains no codex.* data."); return; }
+        if (!incoming.length) { cxToast("Export contains no codex.* data.", "warn"); return; }
         const summary = obj.summary
           ? `Marks: ${obj.summary.marks ?? "?"}\nPanels: ${obj.summary.panels ?? "?"}\nKeys: ${obj.summary.keys ?? incoming.length}`
           : `Keys: ${incoming.length}`;
@@ -1953,7 +1976,7 @@ function App() {
         }
         window.location.reload();
       } catch (e) {
-        window.alert("Import failed: " + (e.message || e));
+        cxToast("Import failed: " + (e.message || e), "err");
       }
     };
     input.click();
@@ -2025,13 +2048,30 @@ function App() {
   // Phase 1.2 — full-text search modal
   const [searchOpen, setSearchOpen] = useState(false);
 
+  // Cross-reference chain — the host owns the canonical thread of verse keys
+  // (`bookId.chapter.verse`). The crossrefs panel reflects it via
+  // codex:xref-thread; following a ref pushes, Back pops. Seeded to the host
+  // verse when the panel opens.
+  const [xrefThread, setXrefThread] = useState([]);
+
   // ── Engagement state ──────────────────────────────────────────────────
-  const [toastQueue, setToastQueue] = useState([]);
   const [wbDismissed, setWbDismissed] = useState(false);
 
+  // Newly-unlocked achievements surface through the single ToastDock as
+  // calm "mark" variants — no separate queue, no second renderer.
   const showAchievements = useCallback((newlyUnlocked) => {
     if (!newlyUnlocked || !newlyUnlocked.length) return;
-    setToastQueue(q => [...q, ...newlyUnlocked]);
+    newlyUnlocked.forEach((a) => {
+      if (!a) return;
+      cxToast({
+        variant: "mark",
+        icon: a.icon || "▦",
+        label: "Achievement",
+        title: a.title || "",
+        desc: a.desc || "",
+        kind: "ok",
+      });
+    });
   }, []);
 
   // Track session on boot + check for new achievements
@@ -2057,31 +2097,59 @@ function App() {
     } catch {}
   }, [t.continuityThreshold]);
 
-  // Surface engagement milestones through the EXISTING understated achievement
-  // toast (NOT confetti). Continuity-tick + milestone also get a calm terminal
-  // toast from continuity.jsx's IntelToastDock; this hook additionally feeds
-  // mastery-level + quest-complete marks into the shared analyst toast queue so
-  // a single neutral mark appears. Solo-first, no streak-guilt, no fanfare.
+  // The SINGLE milestone/continuity -> notification adapter. Listens to
+  // codex:milestone and codex:continuity-tick and re-emits codex:toast
+  // variant:'mark' so the one ToastDock renders everything (no IntelToastDock,
+  // no separate queue). Mastery level-ups and closed quests are loud;
+  // threshold/first-time milestones and continuity ticks stay terse. Calm
+  // terminal aesthetic, no confetti, no streak-guilt.
   useEffect(() => {
     if (t.continuityEnabled === false) return;
+    const tt2 = (k, f) => { try { const v = window.t && window.t(k); return (v && v !== k) ? v : f; } catch { return f; } };
     const onMilestone = (e) => {
       const d = (e && e.detail) || {};
-      // Only the meaningful, infrequent marks reach the achievement queue —
-      // mastery level-ups and closed quests. First-time/threshold marks stay in
-      // the quieter intel toast (continuity.jsx) to avoid double-announcing.
-      if (d.kind !== "mastery-level" && d.kind !== "quest-complete") return;
-      const tt2 = (k, f) => { try { const v = window.t && window.t(k); return (v && v !== k) ? v : f; } catch { return f; } };
-      const title = d.kind === "mastery-level"
-        ? (tt2("cx.mastery.title", "Mastery") + " · " + (d.domain ? tt2("cx.domain." + d.domain, d.domain) : ""))
-        : tt2("cx.quest.complete", "Closed");
-      setToastQueue(q => [...q, {
-        icon: "▦",
-        title: title,
-        desc: d.label || d.labelEn || "",
-      }]);
+      const label = d.label || d.labelEn || "";
+      if (d.kind === "mastery-level") {
+        cxToast({
+          variant: "mark", icon: "▦",
+          label: tt2("cx.mastery.title", "Mastery"),
+          title: d.domain ? tt2("cx.domain." + d.domain, d.domain) : (label || ""),
+          desc: label, kind: "ok",
+        });
+      } else if (d.kind === "quest-complete") {
+        cxToast({
+          variant: "mark", icon: "✦",
+          label: tt2("cx.quest.title", "Quest"),
+          title: tt2("cx.quest.complete", "Closed"),
+          desc: label, kind: "ok",
+        });
+      } else {
+        // threshold / first-time milestone — terse.
+        cxToast({
+          variant: "mark", icon: "▦",
+          label: tt2("cx.milestone.title", "Milestone"),
+          title: label, desc: "", kind: "info",
+        });
+      }
+    };
+    const onTick = (e) => {
+      const d = (e && e.detail) || {};
+      const statusText = d.statusText || d.status || tt2("cx.continuity.title", "Continuity");
+      const current = (d.current != null) ? d.current : (d.streak != null ? d.streak : "");
+      cxToast({
+        variant: "mark", icon: "⌁",
+        label: tt2("cx.continuity.title", "Continuity"),
+        title: String(statusText),
+        desc: current === "" ? "" : ("streak " + current),
+        kind: "info",
+      });
     };
     window.addEventListener("codex:milestone", onMilestone);
-    return () => window.removeEventListener("codex:milestone", onMilestone);
+    window.addEventListener("codex:continuity-tick", onTick);
+    return () => {
+      window.removeEventListener("codex:milestone", onMilestone);
+      window.removeEventListener("codex:continuity-tick", onTick);
+    };
   }, [t.continuityEnabled]);
 
   // First-run welcome tour (v2). A 4-step modal overlay. Replaces the old
@@ -2366,6 +2434,83 @@ function App() {
     return () => window.removeEventListener("codex:jump-ref", onJump);
   }, [jumpToRef]);
 
+  // Scroll a verse row into view and briefly flash it. Reuses the same
+  // cx-kbd-flash treatment as keyboard verse navigation. Defensive: a missing
+  // row (chapter still loading) is a no-op.
+  const scrollAndFlash = useCallback((n) => {
+    try {
+      const sel = `.cx-verse[data-vn='${n}'], .cx-verse-row[data-vn='${n}']`;
+      const el = document.querySelector(sel)
+        || document.querySelector(".cx-verse.is-hl, .cx-verse-row.is-hl");
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("cx-kbd-flash");
+      setTimeout(() => el.classList.remove("cx-kbd-flash"), 220);
+    } catch {}
+  }, []);
+
+  // Cross-reference chain navigation. The crossrefs panel announces intent on
+  // the canonical bus; the host owns the thread + the reader pivot.
+  //  · codex:xref-jump {key, ref, push} — push the key, navigate, flash.
+  //  · codex:xref-back — pop, navigate to the new top (or seed), flash.
+  // After each mutation the host re-broadcasts codex:xref-thread so the panel
+  // reflects the canonical thread.
+  const parseKeyVerse = (key) => {
+    const parts = String(key || "").split(".");
+    const v = parseInt(parts[2], 10);
+    return Number.isFinite(v) ? v : 1;
+  };
+  // Verse key (`bookId.chapter.verse`) -> human ref ("Book C:V") that
+  // jumpToRef/parseRef understands (parseRef matches on book NAME, not id).
+  const keyToRef = useCallback((key) => {
+    const parts = String(key || "").split(".");
+    const bookId = (parts[0] || "").toLowerCase();
+    const ch = parseInt(parts[1], 10);
+    const v = parseInt(parts[2], 10);
+    if (!bookId || !Number.isFinite(ch)) return null;
+    const book = (data.books || []).find(b => b.id === bookId);
+    if (!book) return null;
+    return `${book.name} ${ch}${Number.isFinite(v) ? ":" + v : ""}`;
+  }, [data.books]);
+  useEffect(() => {
+    const onXrefJump = (e) => {
+      const d = (e && e.detail) || {};
+      const key = d.key || "";
+      if (!key) return;
+      if (d.push !== false) setXrefThread(prev => [...prev, key]);
+      // The host's codex:jump-ref listener routes to jumpToRef — dispatch once
+      // (don't also call jumpToRef directly, or the reader navigates twice).
+      const ref = d.ref || keyToRef(key);
+      if (ref) { try { window.dispatchEvent(new CustomEvent("codex:jump-ref", { detail: { ref, source: "xref" } })); } catch {} }
+      requestAnimationFrame(() => scrollAndFlash(parseKeyVerse(key)));
+    };
+    const onXrefBack = () => {
+      setXrefThread(prev => {
+        if (!prev.length) return prev;
+        const next = prev.slice(0, -1);
+        const top = next.length ? next[next.length - 1] : null;
+        if (top) {
+          const ref = keyToRef(top);
+          if (ref) { try { window.dispatchEvent(new CustomEvent("codex:jump-ref", { detail: { ref, source: "xref" } })); } catch {} }
+          requestAnimationFrame(() => scrollAndFlash(parseKeyVerse(top)));
+        }
+        return next;
+      });
+    };
+    window.addEventListener("codex:xref-jump", onXrefJump);
+    window.addEventListener("codex:xref-back", onXrefBack);
+    return () => {
+      window.removeEventListener("codex:xref-jump", onXrefJump);
+      window.removeEventListener("codex:xref-back", onXrefBack);
+    };
+  }, [scrollAndFlash, keyToRef]);
+
+  // Re-broadcast the canonical thread whenever it changes so the crossrefs
+  // panel breadcrumb stays in sync (the panel is a pure reflector).
+  useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent("codex:xref-thread", { detail: { thread: xrefThread } })); } catch {}
+  }, [xrefThread]);
+
   // Click on the reader title opens the Library. On mobile this slides the
   // left drawer in; on desktop the rail is already visible, so we also
   // un-collapse it and focus its search — otherwise the click looked dead.
@@ -2396,6 +2541,13 @@ function App() {
       if (id.indexOf("plugin:") !== 0) id = `plugin:${id}`;
       const v = d.ctx && (d.ctx.verse || (d.ctx.ref && d.ctx.ref.verse));
       if (v) setCurrentVerse(v);
+      // Opening the cross-references panel for a verse seeds (resets) the
+      // chain thread to that host verse so the breadcrumb starts fresh.
+      if (id === "plugin:crossrefs-tsk:crossrefs") {
+        const c = (d.ctx && (d.ctx.ref || d.ctx)) || {};
+        const bId = c.bookId, ch = c.chapter, vn = c.verse;
+        if (bId && ch) setXrefThread([`${String(bId).toLowerCase()}.${ch}.${vn || 1}`]);
+      }
       setRightOpen(true);
       setRightCollapsed(false);
       setTab(id);
@@ -2539,12 +2691,8 @@ function App() {
           />
         )}
 
-        {toastQueue.length > 0 && (
-          <AchievementToast
-            achievement={toastQueue[0]}
-            onDone={() => setToastQueue(q => q.slice(1))}
-          />
-        )}
+        {/* Achievement / milestone marks render through the single ToastDock
+            (codex:toast variant:'mark') — no separate render here. */}
 
         {/* Continuity & Mastery (Phase 2.5) — ambient analyst surfaces:
             the quiet "⌁ next: …" thread line + understated intel/continuity
@@ -2847,7 +2995,8 @@ function App() {
         />
       ) : null}
 
-      <ShortcutsHelp />
+      {/* Keyboard help is the single inline cx-kbd-overlay above (setShowShortcuts).
+          The duplicate <ShortcutsHelp/> overlay was removed to avoid double-open. */}
 
       {/* Settings panel — only controls that are NOT already reachable as
           prominent first-class buttons. Removed redundancies:
@@ -3338,11 +3487,11 @@ function OfflineBiblesPanel({ bookLookup }) {
     try {
       const text = await file.text();
       const r = await window.BIBLE.storage.importBundle(text);
-      window.alert(`Imported ${r.imported} chapters of ${r.translation}.`);
+      cxToast(`Imported ${r.imported} chapters of ${r.translation}.`, "ok");
       bumpNow();
       refreshDiag();
     } catch (err) {
-      window.alert("Import failed: " + (err.message || err));
+      cxToast("Import failed: " + (err.message || err), "err");
     }
     // reset input so the same file can be re-selected
     e.target.value = "";

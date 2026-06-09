@@ -1145,6 +1145,7 @@ function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSel
     <p
       className={`cx-verse ${isHl ? "is-hl" : ""} ${isLatin ? "is-latin" : ""} ${markColor ? "is-marked" : ""}`}
       data-mark={markColor || ""}
+      data-vn={v.n}
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -1184,6 +1185,7 @@ function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSe
     <div
       className={`cx-verse-row ${isHl ? "is-hl" : ""} ${markColor ? "is-marked" : ""}`}
       data-mark={markColor || ""}
+      data-vn={v.n}
       onClick={() => onSelectVerse(v.n)}
       onContextMenu={onCtx}
       {...longPress}
@@ -1907,61 +1909,9 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
   );
 }
 
-// ── Keyboard shortcuts help · global modal ──────────────────────────────
-// Press `?` (or Shift+/) anywhere outside a text field to open. ESC to close.
-// One source of truth for the app's shortcut surface — keep this list short.
-const CX_SHORTCUTS = [
-  { keys: ["?"],                  label: "Show this help" },
-  { keys: ["F"],                  label: "Toggle Oracle fullscreen" },
-  { keys: ["⌘", "T"],             label: "New Oracle conversation" },
-  { keys: ["⌘", "1-9"],           label: "Switch to conversation 1–9" },
-  { keys: ["⌘", "W"],             label: "Close active conversation" },
-  { keys: ["Esc"],                label: "Close fullscreen / dialogs" },
-  { keys: ["←", "→"],             label: "Previous / next chapter" },
-  { keys: ["⌘", "K"],             label: "Focus the Oracle input" },
-];
-function ShortcutsHelp() {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const onKey = (e) => {
-      const inField = /^(INPUT|TEXTAREA)$/.test((e.target?.tagName || "")) || e.target?.isContentEditable;
-      if (e.key === "Escape" && open) { setOpen(false); return; }
-      if (inField) return;
-      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
-        e.preventDefault(); setOpen(o => !o);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-  if (!open) return null;
-  return (
-    <div className="cx-help-backdrop" onClick={() => setOpen(false)} role="dialog" aria-label="Keyboard shortcuts">
-      <div className="cx-help" onClick={e => e.stopPropagation()}>
-        <header className="cx-help-h">
-          <span className="cx-help-tag">CODEX · SHORTCUTS</span>
-          <button className="cx-help-x" onClick={() => setOpen(false)} aria-label="Close">×</button>
-        </header>
-        <ul className="cx-help-list">
-          {CX_SHORTCUTS.map((s, i) => (
-            <li key={i} className="cx-help-row">
-              <span className="cx-help-keys">
-                {s.keys.map((k, j) => <kbd key={j} className="cx-kbd">{k}</kbd>)}
-              </span>
-              <span className="cx-help-lbl">{s.label}</span>
-            </li>
-          ))}
-        </ul>
-        <footer className="cx-help-foot">press <kbd className="cx-kbd">?</kbd> anytime</footer>
-      </div>
-    </div>
-  );
-}
-
 Object.assign(window, {
   useState, useEffect, useMemo, useRef, useCallback,
   useSolarClock, fmtClock, fmtDate, pad,
   CornerFrame, Pill, Tick,
   StatusBar, LeftRail, Reader,
-  ShortcutsHelp,
 });

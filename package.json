@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "description": "CODEX Bible-study PWA — dev tooling only. End users and deploy need ZERO install and ZERO build; the app ships as plain <script> tags with in-browser Babel.",
-  "type": "module",
   "scripts": {
     "check": "node scripts/check.mjs"
   },

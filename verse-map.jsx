@@ -395,7 +395,7 @@ function MapBody({ data, onRefresh }) {
   const onToggleOverlay = useCallback((k) => {
     setOverlays(prev => {
       const next = { ...prev, [k]: !prev[k] };
-      window.dispatchEvent(new CustomEvent("codex:overlays", { detail: next }));
+      window.dispatchEvent(new CustomEvent("codex:overlays", { detail: { ...next, _changed: k, _on: next[k] } }));
       return next;
     });
   }, []);
@@ -637,6 +637,26 @@ function LeafletField({ data }) {
       if (layers.poi) {
         if (o.biblical) { try { layers.poi.addTo(mapRef.current); } catch {} }
         else { try { mapRef.current.removeLayer(layers.poi); } catch {} }
+      }
+      // When a layer is just ENABLED, reveal it — fit the map to its content
+      // and report how much it shows. The toggles used to draw far-away data
+      // (Holy-Land-centric) off-screen with zero feedback, so they felt dead.
+      if (o._changed && o._on && mapRef.current) {
+        const groupKey = { mine:"discovered", pilgrimage:"pilgrimage", manuscripts:"manuscripts", empires:"empires", biblical:"poi" }[o._changed];
+        const label = { mine:"⚐ My discoveries", pilgrimage:"◯ Pilgrimage routes", manuscripts:"⬡ Manuscript sites", empires:"☰ Empire borders", biblical:"✦ Biblical events" }[o._changed];
+        const toast = (msg, kind="ok") => { try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg, kind } })); } catch {} };
+        const fit = () => {
+          const grp = layers[groupKey];
+          const feats = (grp && typeof grp.getLayers === "function") ? grp.getLayers() : [];
+          if (!feats.length) { toast(`${label}: none in this view`, "warn"); return; }
+          try {
+            const b = L.featureGroup(feats).getBounds();
+            if (b && b.isValid && b.isValid()) mapRef.current.fitBounds(b, { maxZoom: 6, padding: [40, 40] });
+          } catch (_) {}
+          toast(`${label}: ${feats.length} shown`);
+        };
+        if (o._changed === "empires") { toast(`${label}: drawing…`); setTimeout(fit, 600); }
+        else fit();
       }
     };
 

@@ -870,70 +870,15 @@
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  // Continuity tick / milestone → understated terminal toast (NOT confetti).
-  //   A reduced-motion-safe, solo-first, terminal-voice announcement. Uses
-  //   the contract .cx-intel-toast class. One at a time, auto-dismissed.
-  // ════════════════════════════════════════════════════════════════════════
-  function IntelToastDock() {
-    const [items, setItems] = useState([]);
-
-    useEffect(function () {
-      function push(msg, sub) {
-        const id = Math.random().toString(36).slice(2);
-        setItems(function (prev) { return prev.concat([{ id: id, msg: msg, sub: sub }]).slice(-2); });
-        const ttl = reducedMotion() ? 6000 : 4200;
-        setTimeout(function () {
-          setItems(function (prev) { return prev.filter(function (x) { return x.id !== id; }); });
-        }, ttl);
-      }
-      function onMilestone(ev) {
-        const d = (ev && ev.detail) || {};
-        const head = d.kind === "mastery-level"
-          ? t("cx.mastery.title", "Mastery")
-          : t("cx.milestone.unlocked", "Milestone logged");
-        const sub = d.label || d.labelEn || (d.domain ? t("cx.domain." + d.domain, d.domain) : (d.id || ""));
-        push(head, sub);
-      }
-      function onTick(ev) {
-        const s = (ev && ev.detail) || {};
-        // Depth-gated by the engine. Only surface a NEW day's qualifying tick,
-        // and only the calm held / resumed states get a sub-line.
-        push(s.statusText || t("cx.continuity.active", "Continuity active"),
-          s.current != null ? (t("cx.continuity.title", "Continuity") + " · " + s.current) : "");
-      }
-      window.addEventListener("codex:milestone", onMilestone);
-      window.addEventListener("codex:continuity-tick", onTick);
-      return function () {
-        window.removeEventListener("codex:milestone", onMilestone);
-        window.removeEventListener("codex:continuity-tick", onTick);
-      };
-    }, []);
-
-    if (!items.length) return null;
-    return (
-      <div className="cx-intel-toast-dock" aria-live="polite">
-        {items.map(function (it) {
-          return (
-            <div className="cx-intel-toast" key={it.id} data-static={reducedMotion() ? "1" : undefined}>
-              <span className="cx-intel-toast-msg">{it.msg}</span>
-              {it.sub ? <span className="cx-intel-toast-sub">{it.sub}</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
   // A composite mount that the host renders once near the app root. Hosts the
-  // ambient surfaces (next-thread line + intel toast). The dossier itself is a
-  // rail panel registered as a plugin below.
+  // ambient surfaces (next-thread line). Milestones/ticks render through the
+  // host's unified codex:toast adapter + ToastDock — see app.jsx. The dossier
+  // itself is a rail panel registered as a plugin below.
   function ContinuityMount() {
     if (LITE || !ENG()) return null;
     return (
       <div className="cx-continuity-mount">
         <NextThread />
-        <IntelToastDock />
       </div>
     );
   }
@@ -946,7 +891,6 @@
     QuestList: QuestList,
     QuestPlayer: QuestPlayer,
     NextThread: NextThread,
-    IntelToastDock: IntelToastDock,
     lite: LITE,
   };
 
