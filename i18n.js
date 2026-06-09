@@ -230,7 +230,7 @@
       "cx.nextthread.daf":       "Today's daf",
       "cx.nextthread.parsha":    "This week's parsha",
       "cx.nextthread.start":     "Open a new thread",
-      "cx.nextthread.none":      "Open any depth surface to begin a thread",
+      "cx.nextthread.dismiss":   "Dismiss suggestion",
       // Seasons
       "cx.season.title":         "Seasons",
       "cx.season.active":        "In season",

@@ -791,12 +791,18 @@
 
   function NextThread() {
     const [sugg, setSugg] = useState(null);
+    // Session-scoped dismissal — a professional surface must always be
+    // closable. Dismissing hides the thread line until the next session.
+    const [dismissed, setDismissed] = useState(function () {
+      return safe(function () { return sessionStorage.getItem("cx-nextthread-dismissed") === "1"; }, false);
+    });
 
     const refresh = useCallback(function (detail) {
       const e = ENG();
       if (!e) { setSugg(null); return; }
       const s = safe(function () { return e.nextThread(buildCtx(detail)); }, null);
-      setSugg(s && s.kind && s.kind !== "none" ? s : (s && s.kind === "none" ? s : null));
+      // "none" is not a suggestion — render nothing rather than ambient noise.
+      setSugg(s && s.kind && s.kind !== "none" ? s : null);
     }, []);
 
     useEffect(function () {
@@ -816,7 +822,7 @@
       };
     }, [refresh]);
 
-    if (!sugg) return null;
+    if (!sugg || dismissed) return null;
 
     const kindKey = {
       quest: "cx.nextthread.quest",
@@ -825,7 +831,6 @@
       crossref: "cx.nextthread.crossref",
       daf: "cx.nextthread.daf",
       parsha: "cx.nextthread.parsha",
-      none: "cx.nextthread.none",
     }[sugg.kind] || "cx.nextthread.start";
 
     const kindEn = {
@@ -835,7 +840,6 @@
       crossref: "Follow a cross-ref thread from here",
       daf: "Today's daf",
       parsha: "This week's parsha",
-      none: "Open any depth surface to begin a thread",
     }[sugg.kind] || "Open a new thread";
 
     const label = sugg.title || t(kindKey, kindEn);
@@ -852,22 +856,26 @@
       } catch (_) {}
     };
 
-    const clickable = sugg.kind !== "none";
+    const dismiss = function (ev) {
+      if (ev) ev.stopPropagation();
+      safe(function () { sessionStorage.setItem("cx-nextthread-dismissed", "1"); }, null);
+      setDismissed(true);
+    };
 
     return (
       <div className="cx-nextthread" title={t("cx.nextthread.title", "Next thread")}>
-        {clickable ? (
-          <button type="button" className="cx-nextthread-btn" onClick={act}>
-            <span className="cx-nextthread-glyph" aria-hidden="true">⌁</span>
-            <span className="cx-nextthread-label">{label}</span>
-            {sugg.reason ? <span className="cx-nextthread-reason">{sugg.reason}</span> : null}
-          </button>
-        ) : (
-          <span className="cx-nextthread-idle">
-            <span className="cx-nextthread-glyph" aria-hidden="true">⌁</span>
-            <span className="cx-nextthread-label">{label}</span>
-          </span>
-        )}
+        <button type="button" className="cx-nextthread-btn" onClick={act}>
+          <span className="cx-nextthread-glyph" aria-hidden="true">⌁</span>
+          <span className="cx-nextthread-label">{label}</span>
+          {sugg.reason ? <span className="cx-nextthread-reason">{sugg.reason}</span> : null}
+        </button>
+        <button
+          type="button"
+          className="cx-nextthread-x"
+          onClick={dismiss}
+          aria-label={t("cx.nextthread.dismiss", "Dismiss suggestion")}
+          title={t("cx.nextthread.dismiss", "Dismiss suggestion")}
+        >×</button>
       </div>
     );
   }
