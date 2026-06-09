@@ -137,6 +137,13 @@
     try {
       window.dispatchEvent(new CustomEvent("codex:strongs-open", { detail: { strongs: strongsNumber } }));
     } catch (e) { /* no-op */ }
+    if (strongsNumber) {
+      try {
+        window.dispatchEvent(new CustomEvent("codex:depth-action", {
+          detail: { type: "strongs-lookup", ref: strongsNumber, weight: 1, domain: "hebrew-greek" },
+        }));
+      } catch (e) { /* no-op */ }
+    }
   }
 
   // ── React: the Panel ───────────────────────────────────────────────────
@@ -256,7 +263,16 @@
               var entry = lookup(t.strongs);
               return React.createElement("li", {
                 key: t.strongs,
-                onClick: function () { setFocused(t.strongs); setQuery(t.strongs); },
+                onClick: function () {
+                  setFocused(t.strongs); setQuery(t.strongs);
+                  if (entry && t.strongs) {
+                    try {
+                      window.dispatchEvent(new CustomEvent("codex:depth-action", {
+                        detail: { type: "lemma-open", ref: t.strongs, weight: 1, domain: "hebrew-greek" },
+                      }));
+                    } catch (e) { /* no-op */ }
+                  }
+                },
                 style: { padding: "0.3rem 0.4rem", cursor: "pointer", borderBottom: "1px solid var(--cx-border-soft, rgba(128,128,128,0.18))", display: "flex", justifyContent: "space-between", gap: "0.5rem" },
               },
                 React.createElement("span", null,
@@ -315,7 +331,6 @@
         detail: { pluginId: "strongs-concordance", panelId: "strongs", ctx: ctx },
       }));
     } catch (e) { /* no-op */ }
-    console.log("[strongs] verse action invoked", ctx);
   }
 
   // ── Expose globals ─────────────────────────────────────────────────────

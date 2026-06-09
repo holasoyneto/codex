@@ -108,6 +108,18 @@
     } catch (e) { console.warn("jewish-study: jump failed", e); }
   }
 
+  // ── Engagement depth emission (guarded) ───────────────────────────────
+  // Defensive: never throw if the engagement engine / CustomEvent is absent
+  // (Lite mode). Only emits depth types that exist in engagement.js.
+  function emitDepth(type, ref, weight) {
+    try {
+      if (typeof window === "undefined" || typeof window.CustomEvent !== "function") return;
+      window.dispatchEvent(new CustomEvent("codex:depth-action", {
+        detail: { type, ref, weight },
+      }));
+    } catch (e) { /* no-op: engagement is optional */ }
+  }
+
   // ── Holiday-date helpers ──────────────────────────────────────────────
   // Each holiday string like "15 Nisan" → { day, monthN }.
   function parseHolidayDate(date) {
@@ -259,6 +271,22 @@
     }, [cal, heb]);
 
     const todayDaf = useMemo(() => todaysDaf(daf), [daf]);
+
+    // ── Engagement: a daf view ──────────────────────────────────────────
+    // The panel only mounts when the user opens Jewish Study, so a truthy
+    // todayDaf represents an actual Daf Yomi view. De-dupe per daf day so we
+    // emit once per distinct daf (re-opening the same daf won't double-count).
+    const lastDafRef = React.useRef(null);
+    useEffect(() => {
+      if (!todayDaf) return;
+      const dayKey = todayDaf.day != null ? String(todayDaf.day) : null;
+      if (dayKey != null && lastDafRef.current === dayKey) return;
+      lastDafRef.current = dayKey;
+      const ref = dayKey != null
+        ? "daf:" + dayKey
+        : ((todayDaf.readings && todayDaf.readings[0]) || "daf");
+      emitDepth("daf-read", ref, 3);
+    }, [todayDaf]);
 
     // ── Render helpers ──────────────────────────────────────────────────
     const renderRefList = (refs) => {

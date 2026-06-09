@@ -61,13 +61,16 @@
     // If the user has already navigated extensively and most chapters
     // are present, skip — they're effectively cached already.
     try {
-      const stats = window.BIBLE.cacheStats(primary, null);
-      if (stats && stats.fully) {
-        flag.done.push(primary);
-        flag.at = Date.now();
-        saveFlag(flag);
-        emit("codex:autocache-done", { translation: primary, done: stats.have || 0, total: stats.have || 0 });
-        return;
+      const booksForStats = window.CODEX_DATA && window.CODEX_DATA.books;
+      if (booksForStats) {
+        const stats = window.BIBLE.cacheStats(primary, booksForStats);
+        if (stats && stats.fully) {
+          flag.done.push(primary);
+          flag.at = Date.now();
+          saveFlag(flag);
+          emit("codex:autocache-done", { translation: primary, done: stats.cached || 0, total: stats.total || 0 });
+          return;
+        }
       }
     } catch {}
 
@@ -88,6 +91,12 @@
       }
     };
 
+    // Stagger the burst: downloadAll enqueues every chapter (~1189 tasks)
+    // at once. The schedule() idle-gate already waits for first paint, but
+    // give the reader a few extra seconds to settle so this background
+    // warm-up never collides with the user's first navigation/prefetch.
+    await new Promise(r => setTimeout(r, 4000));
+
     try {
       const ctrl = window.BIBLE.downloadAll(primary, books, onProgress);
       // downloadAll returns a controller — wait on its done promise if
@@ -101,7 +110,7 @@
         for (let i = 0; i < 900; i++) {
           await new Promise(r => setTimeout(r, 200));
           try {
-            const s = window.BIBLE.cacheStats(primary, null);
+            const s = window.BIBLE.cacheStats(primary, books);
             if (s && s.fully) break;
           } catch {}
         }

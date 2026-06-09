@@ -166,6 +166,17 @@
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
   }
 
+  // Guarded depth-action emit — no-op if the engine's action type is unknown
+  // or anything is missing, so nothing throws in Lite mode / absent globals.
+  function emitDepth(type, ref, weight) {
+    try {
+      const eng = window.CODEX_ENGAGEMENT;
+      const known = eng && eng.DEPTH_ACTIONS && eng.DEPTH_ACTIONS[type];
+      if (!known) return;
+      window.dispatchEvent(new CustomEvent("codex:depth-action", { detail: { type, ref, weight } }));
+    } catch {}
+  }
+
   function shareUrlFor(study) {
     // utf8-safe base64
     const json = JSON.stringify({
@@ -364,10 +375,11 @@
     }, []);
 
     // ── Exports ──
-    const exportMd = () => { if (active) download(`${(active.title || "study").replace(/[^\w\-]+/g,"_")}.md`, studyToMarkdown(active), "text/markdown"); };
-    const exportJson = () => { if (active) download(`${(active.title || "study").replace(/[^\w\-]+/g,"_")}.codex-study`, JSON.stringify(active, null, 2), "application/json"); };
+    const exportMd = () => { if (active) { download(`${(active.title || "study").replace(/[^\w\-]+/g,"_")}.md`, studyToMarkdown(active), "text/markdown"); emitDepth("study-built", active.id, 5); } };
+    const exportJson = () => { if (active) { download(`${(active.title || "study").replace(/[^\w\-]+/g,"_")}.codex-study`, JSON.stringify(active, null, 2), "application/json"); emitDepth("study-built", active.id, 5); } };
     const exportPdf = () => {
       if (!active) return;
+      emitDepth("study-built", active.id, 5);
       document.body.classList.add("cx-builder-printing");
       const cleanup = () => document.body.classList.remove("cx-builder-printing");
       window.addEventListener("afterprint", cleanup, { once: true });

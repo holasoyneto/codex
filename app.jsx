@@ -2044,6 +2044,33 @@ function App() {
   const toggleTheater = useCallback(() => setTheater(t => !t), []);
   // Keyboard shortcut overlay — `?` opens it, Esc closes.
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // a11y: hold the modal node + the element to restore focus to on close.
+  const kbdModalRef = useRef(null);
+  const kbdReturnFocusRef = useRef(null);
+  // Move focus into the shortcuts modal on open; restore it on close. Tab is
+  // trapped inside the modal while it is open (see keydown handler below).
+  useEffect(() => {
+    if (showShortcuts) {
+      // Capture whatever was focused so we can restore it later.
+      kbdReturnFocusRef.current =
+        (document.activeElement && document.activeElement !== document.body)
+          ? document.activeElement : null;
+      // Defer to the next frame so the modal has mounted.
+      requestAnimationFrame(() => {
+        const modal = kbdModalRef.current;
+        if (!modal) return;
+        const closeBtn = modal.querySelector(".cx-kbd-x");
+        (closeBtn || modal).focus?.();
+      });
+    } else {
+      // Restore focus to the trigger if it's still in the document.
+      const prev = kbdReturnFocusRef.current;
+      kbdReturnFocusRef.current = null;
+      if (prev && typeof prev.focus === "function" && document.contains(prev)) {
+        prev.focus();
+      }
+    }
+  }, [showShortcuts]);
 
   // Phase 1.2 — full-text search modal
   const [searchOpen, setSearchOpen] = useState(false);
@@ -2227,18 +2254,28 @@ function App() {
     const scrollToVerse = (dir) => {
       const nodes = verseNodes();
       if (!nodes.length) return;
-      const mid = window.innerHeight / 2;
-      // Find the verse closest to vertical center; advance from there.
-      let idx = 0, best = Infinity;
-      nodes.forEach((n, i) => {
-        const r = n.getBoundingClientRect();
-        const d = Math.abs((r.top + r.bottom) / 2 - mid);
-        if (d < best) { best = d; idx = i; }
-      });
+      const vnOf = (n) => Number(n.getAttribute("data-vn") || n.dataset?.vn);
+      // Step relative to the currently-selected verse so J/K stays in sync
+      // with the tracked cursor (verse menu, oracle context, etc.).
+      let idx = nodes.findIndex(n => vnOf(n) === currentVerse);
+      if (idx < 0) {
+        // No tracked match in view — fall back to the verse nearest center.
+        const mid = window.innerHeight / 2;
+        let best = Infinity;
+        idx = 0;
+        nodes.forEach((n, i) => {
+          const r = n.getBoundingClientRect();
+          const d = Math.abs((r.top + r.bottom) / 2 - mid);
+          if (d < best) { best = d; idx = i; }
+        });
+      }
       const next = Math.max(0, Math.min(nodes.length - 1, idx + dir));
       const target = nodes[next];
       target.scrollIntoView({ behavior: "smooth", block: "center" });
       flashVerse(target);
+      // Keep state in sync with what J/K just highlighted.
+      const landed = vnOf(target);
+      if (Number.isFinite(landed)) setCurrentVerse(landed);
     };
 
     const focusSearch = () => {
@@ -2270,6 +2307,33 @@ function App() {
         setVerseMenu(null);
         setLeftOpen(false);
         setRightOpen(false);
+        return;
+      }
+      // ── Focus trap for the shortcuts modal ────────────────────────────
+      // While the overlay is open, keep Tab cycling inside the modal so focus
+      // can't escape to the page behind it.
+      if (showShortcuts && e.key === "Tab" && kbdModalRef.current) {
+        const modal = kbdModalRef.current;
+        const focusables = Array.from(
+          modal.querySelectorAll(
+            'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el === document.activeElement);
+        if (focusables.length) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          const active = document.activeElement;
+          if (e.shiftKey && (active === first || !modal.contains(active))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (active === last || !modal.contains(active))) {
+            e.preventDefault();
+            first.focus();
+          }
+        } else {
+          // Nothing tabbable but the modal itself — keep focus pinned.
+          e.preventDefault();
+        }
         return;
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
@@ -2849,7 +2913,7 @@ function App() {
 
       {showShortcuts ? (
         <div className="cx-kbd-overlay" onClick={() => setShowShortcuts(false)} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
-          <div className="cx-kbd-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="cx-kbd-modal" ref={kbdModalRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
             <div className="cx-kbd-hd">
               <b>Keyboard shortcuts</b>
               <button className="cx-kbd-x" onClick={() => setShowShortcuts(false)} aria-label="Close">×</button>

@@ -68,12 +68,57 @@ function VerseMenu({
     setPos({ top, left, side });
   }, [anchor, view]);
 
-  // Close on outside click or Escape.
+  // A11y — remember the element that had focus when the menu opened so we can
+  // restore it on close (Esc / outside-click). Captured once at mount.
+  const triggerRef = useRef(null);
+  if (triggerRef.current === null) {
+    try { triggerRef.current = document.activeElement; } catch (_) { triggerRef.current = false; }
+  }
+  const restoreFocus = () => {
+    try {
+      const el = triggerRef.current;
+      if (el && el !== false && typeof el.focus === "function" && document.contains(el)) {
+        el.focus();
+      }
+    } catch (_) { /* never throw from focus restore */ }
+  };
+
+  // On open, move focus into the menu (first focusable row).
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    try {
+      const root = ref.current;
+      if (!root) return;
+      const first = root.querySelector(".cx-vm-row, .cx-vm-back, button");
+      if (first && typeof first.focus === "function") first.focus();
+    } catch (_) { /* defensive: focusing must never throw */ }
+  }, []);
+
+  // Close on outside click or Escape; trap Tab within the menu; restore focus.
+  useEffect(() => {
+    const close = () => { restoreFocus(); onClose(); };
+    const onKey = (e) => {
+      if (e.key === "Escape") { close(); return; }
+      if (e.key !== "Tab") return;
+      try {
+        const root = ref.current;
+        if (!root) return;
+        const items = Array.prototype.slice.call(
+          root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        ).filter((n) => !n.disabled && n.offsetParent !== null);
+        if (!items.length) return;
+        const firstEl = items[0];
+        const lastEl = items[items.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey) {
+          if (active === firstEl || !root.contains(active)) { e.preventDefault(); lastEl.focus(); }
+        } else {
+          if (active === lastEl || !root.contains(active)) { e.preventDefault(); firstEl.focus(); }
+        }
+      } catch (_) { /* trap is best-effort; never throw */ }
+    };
     const onDown = (e) => {
       if (!ref.current) return;
-      if (!ref.current.contains(e.target)) onClose();
+      if (!ref.current.contains(e.target)) close();
     };
     document.addEventListener("keydown", onKey);
     // Defer so the click that opened the menu doesn't immediately close it.
@@ -141,6 +186,7 @@ function VerseMenu({
         <div className="cx-vm-body">
           <button
             className={`cx-vm-row ${currentHighlight ? "is-on" : ""}`}
+            role="menuitem"
             onClick={() => { onToggleHighlight?.(); onClose(); }}
           >
             <span className="cx-vm-icon" style={currentHighlight && highlightColors?.[currentHighlight] ? { color: highlightColors[currentHighlight].swatch } : null}>
@@ -153,63 +199,64 @@ function VerseMenu({
           </button>
 
           {highlightColors ? (
-            <button className="cx-vm-row" onClick={() => setView("highlight")}>
+            <button className="cx-vm-row" role="menuitem" onClick={() => setView("highlight")}>
               <span className="cx-vm-icon">◐</span>
               <span className="cx-vm-lbl">{vmt("vm.choose.color")}</span>
               <span className="cx-vm-sub">5 hues ▸</span>
             </button>
           ) : null}
 
-          <button className="cx-vm-row" onClick={() => setView("translate")}>
+          <button className="cx-vm-row" role="menuitem" onClick={() => setView("translate")}>
             <span className="cx-vm-icon">↔</span>
             <span className="cx-vm-lbl">{vmt("vm.translate")}</span>
             <span className="cx-vm-sub">switch primary corpus ▸</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { onAskOracle(verse, ref$, verseText); onClose(); }}>
+          <button className="cx-vm-row" role="menuitem" onClick={() => { onAskOracle(verse, ref$, verseText); onClose(); }}>
             <span className="cx-vm-icon">◉</span>
             <span className="cx-vm-lbl">{vmt("vm.ask.oracle")}</span>
             <span className="cx-vm-sub">load into the chatbot</span>
           </button>
 
-          <button className="cx-vm-row" onClick={copy}>
+          <button className="cx-vm-row" role="menuitem" onClick={copy}>
             <span className="cx-vm-icon">⎘</span>
             <span className="cx-vm-lbl">{vmt("vm.copy")}</span>
             <span className="cx-vm-sub">verse + reference</span>
           </button>
 
           <button className={`cx-vm-row ${gnosisOn ? "is-on" : ""}`}
-                  onClick={() => { onToggleGnosis(!gnosisOn); onClose(); }}>
+                  role="menuitem"
+                  onClick={() => { if (!gnosisOn) emitDepth("gnosis-read", 2); onToggleGnosis(!gnosisOn); onClose(); }}>
             <span className="cx-vm-icon">⟁</span>
             <span className="cx-vm-lbl">{vmt("vm.gnosis")}</span>
             <span className="cx-vm-sub">{gnosisOn ? "disengage overlay" : "engage overlay"}</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { emitDepth("map-place-study", 2); onOpenMap?.(verse, ref$, verseText); onClose(); }}>
+          <button className="cx-vm-row" role="menuitem" onClick={() => { emitDepth("map-place-study", 2); onOpenMap?.(verse, ref$, verseText); onClose(); }}>
             <span className="cx-vm-icon">◎</span>
             <span className="cx-vm-lbl">{vmt("vm.map")}</span>
             <span className="cx-vm-sub">place · era · timeline</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { onOpenArt?.(verse, ref$, verseText); onClose(); }}>
+          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenArt?.(verse, ref$, verseText); onClose(); }}>
             <span className="cx-vm-icon">▦</span>
             <span className="cx-vm-lbl">{vmt("vm.art")}</span>
             <span className="cx-vm-sub">paintings · illustrations</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { onOpenCompare?.(verse, ref$); onClose(); }}>
+          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenCompare?.(verse, ref$); onClose(); }}>
             <span className="cx-vm-icon">≡</span>
             <span className="cx-vm-lbl">{vmt("vm.compare")}</span>
             <span className="cx-vm-sub">across all translations</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { onOpenMirror?.(verse, ref$, verseText); onClose(); }}>
+          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenMirror?.(verse, ref$, verseText); onClose(); }}>
             <span className="cx-vm-icon">⌬</span>
             <span className="cx-vm-lbl">{vmt("vm.mirror")}</span>
             <span className="cx-vm-sub">{vmt("vm.mirror.sub")}</span>
           </button>
 
-          <button className="cx-vm-row" onClick={() => { emitDepth("note-written", 2); onOpenNote?.(verse, ref$); onClose(); }}>
+          <button className="cx-vm-row" role="menuitem" onClick={() => { emitDepth("note-written", 2); onOpenNote?.(verse, ref$); onClose(); }}>
             <span className="cx-vm-icon">✎</span>
             <span className="cx-vm-lbl">{vmt("vm.note")}</span>
             <span className="cx-vm-sub">{vmt("vm.note.sub")}</span>
@@ -226,6 +273,7 @@ function VerseMenu({
               <button
                 key={`plugin-${a.pluginId}-${i}`}
                 className="cx-vm-row is-plugin"
+                role="menuitem"
                 onClick={() => {
                   try { a.handler(verseRef); }
                   catch (e) { console.warn(`CODEX plugin "${a.pluginId}" verseAction threw:`, e); }
@@ -247,6 +295,7 @@ function VerseMenu({
               <button
                 key={key}
                 className={`cx-vm-hl-swatch ${currentHighlight === key ? "is-on" : ""}`}
+                role="menuitem"
                 style={{ background: c.swatch }}
                 onClick={() => { onToggleHighlight?.(key); onClose(); }}
                 title={c.name}
@@ -256,6 +305,7 @@ function VerseMenu({
             {currentHighlight ? (
               <button
                 className="cx-vm-hl-clear"
+                role="menuitem"
                 onClick={() => { onClearHighlight?.(); onClose(); }}
                 title="Remove highlight"
               >×</button>
@@ -272,6 +322,7 @@ function VerseMenu({
               <button
                 key={t.id}
                 className={`cx-vm-tr ${isActive ? "is-active" : ""}`}
+                role="menuitem"
                 onClick={() => { onSetPrimary(t.id); onClose(); }}
                 disabled={!text}
                 title={text || "not loaded"}

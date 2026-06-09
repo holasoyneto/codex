@@ -33,6 +33,20 @@ function railTabs() {
 // without re-declaring the canonical list.
 if (typeof window !== "undefined") window.railTabs = railTabs;
 
+// ── Engagement depth emission helper ─────────────────────────────────
+// Guarded: never throws if the engagement engine / window is absent (Lite
+// mode). The depth `type` MUST be a key in engagement.js DEPTH_ACTIONS;
+// the engine resolves the canonical weight, so the weight passed here is
+// only an advisory fallback. Safe to call unconditionally.
+function emitDepth(type, ref, weight) {
+  try {
+    if (typeof window === "undefined" || !type) return;
+    window.dispatchEvent(new CustomEvent("codex:depth-action", {
+      detail: { type, ref: ref == null ? null : String(ref), weight },
+    }));
+  } catch {}
+}
+
 // ── Panel palette ──────────────────────────────────────────────────────
 // A command-palette style picker that replaces the old overflow tab-strip.
 // Opens via the Library button in the rail header (Cmd/Ctrl+K is owned by the
@@ -89,7 +103,15 @@ function savePinned(arr) {
 
 function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, gnosisOn, onToggleGnosis }) {
   const [q, setQ] = React.useState("");
+  // Active index for keyboard navigation across the flat list of visible
+  // cards (in render order). -1 = nothing highlighted yet.
+  const [active, setActive] = React.useState(0);
   const inputRef = React.useRef(null);
+  const bodyRef = React.useRef(null);
+  // Remember the element that had focus when the palette opened (the Library
+  // trigger) so we can restore focus to it on close. Avoids dumping keyboard
+  // users back at the top of the document.
+  const restoreFocusRef = React.useRef(null);
   // Keep onClose in a ref so the open-effect depends ONLY on `open`. Depending
   // on [open, onClose] was the bug: the parent passes a fresh onClose every
   // render and the app re-renders every second (clock), so setQ("") fired
@@ -99,10 +121,22 @@ function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, 
   React.useEffect(() => {
     if (!open) return;
     setQ("");
+    setActive(0);
+    // Capture the opener so focus can return there when we close.
+    restoreFocusRef.current = (typeof document !== "undefined") ? document.activeElement : null;
     const id = requestAnimationFrame(() => inputRef.current?.focus());
     const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onCloseRef.current && onCloseRef.current(); } };
     document.addEventListener("keydown", onKey, true);
-    return () => { cancelAnimationFrame(id); document.removeEventListener("keydown", onKey, true); };
+    return () => {
+      cancelAnimationFrame(id);
+      document.removeEventListener("keydown", onKey, true);
+      // Restore focus to the trigger on close, if it is still in the DOM.
+      try {
+        const el = restoreFocusRef.current;
+        if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
+      } catch {}
+      restoreFocusRef.current = null;
+    };
   }, [open]);
   if (!open) return null;
   const byId = new Map(tabs.map(t => [t.id, t]));
@@ -115,6 +149,33 @@ function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, 
     onPick(tb.id);
     onClose();
   };
+  // Flat list of visible cards in render order — the navigation model.
+  const sections = PALETTE_SECTIONS
+    .map(sec => ({ sec, items: sec.ids.map(id => byId.get(id)).filter(Boolean).filter(matches) }))
+    .filter(s => s.items.length);
+  const flatItems = sections.flatMap(s => s.items);
+  // Clamp active into range whenever the visible set shrinks (e.g. typing).
+  const activeIdx = flatItems.length ? Math.max(0, Math.min(active, flatItems.length - 1)) : -1;
+  const moveActive = (delta) => {
+    if (!flatItems.length) return;
+    setActive(prev => {
+      const base = (prev < 0 || prev >= flatItems.length) ? 0 : prev;
+      const next = (base + delta + flatItems.length) % flatItems.length;
+      requestAnimationFrame(() => {
+        const el = bodyRef.current && bodyRef.current.querySelector(`[data-flat-idx="${next}"]`);
+        if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "nearest" });
+      });
+      return next;
+    });
+  };
+  const onNavKey = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); moveActive(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); moveActive(-1); }
+    else if (e.key === "Enter") {
+      if (activeIdx >= 0 && flatItems[activeIdx]) { e.preventDefault(); pick(flatItems[activeIdx]); }
+    }
+  };
+  let flat = -1; // running index assigned to each card as it renders
   const node = (
     <div className="cx-palette-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="cx-palette" role="dialog" aria-modal="true" aria-label="Panel library">
@@ -126,51 +187,62 @@ function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, 
             type="text"
             placeholder="Search panels…"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => { setQ(e.target.value); setActive(0); }}
+            onKeyDown={onNavKey}
           />
           <button className="cx-palette-x" onClick={onClose} aria-label="Close">×</button>
         </header>
-        <div className="cx-palette-body">
-          {PALETTE_SECTIONS.map(sec => {
-            const items = sec.ids.map(id => byId.get(id)).filter(Boolean).filter(matches);
-            if (!items.length) return null;
-            return (
-              <section key={sec.id} className="cx-palette-sect">
-                <h4>{sec.label}</h4>
-                <div className="cx-palette-grid">
-                  {items.map(tb => {
-                    const isActive = tb.id === currentTab;
-                    const isPinned = pinned.includes(tb.id);
-                    return (
-                      <button
-                        key={tb.id}
-                        data-tab-id={tb.id}
-                        className={`cx-palette-card ${isActive ? "is-active" : ""} ${isPinned ? "is-pinned" : ""}`}
-                        onClick={() => pick(tb)}
-                        title={PALETTE_DESCRIPTIONS[tb.id] || tb.label}
-                      >
-                        <span className="cx-palette-glyph" aria-hidden="true">{tb.glyph}</span>
-                        <span className="cx-palette-meta">
-                          <span className="cx-palette-lbl">{tb.label}</span>
-                          <span className="cx-palette-desc">{PALETTE_DESCRIPTIONS[tb.id] || ""}</span>
-                        </span>
-                        <span
-                          className={`cx-palette-pin ${isPinned ? "is-on" : ""}`}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={isPinned ? "Unpin" : "Pin to rail"}
-                          onClick={(e) => { e.stopPropagation(); onPin(tb.id); }}
-                        >{isPinned ? "★" : "☆"}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
+        <div className="cx-palette-body" ref={bodyRef} onKeyDown={onNavKey}>
+          {sections.map(({ sec, items }) => (
+            <section key={sec.id} className="cx-palette-sect">
+              <h4>{sec.label}</h4>
+              <div className="cx-palette-grid">
+                {items.map(tb => {
+                  const isActive = tb.id === currentTab;
+                  const isPinned = pinned.includes(tb.id);
+                  const myFlat = ++flat;
+                  const isHighlighted = myFlat === activeIdx;
+                  return (
+                    <div
+                      key={tb.id}
+                      data-tab-id={tb.id}
+                      data-flat-idx={myFlat}
+                      role="button"
+                      tabIndex={0}
+                      aria-current={isActive ? "true" : undefined}
+                      className={`cx-palette-card ${isActive ? "is-active" : ""} ${isPinned ? "is-pinned" : ""} ${isHighlighted ? "is-highlighted" : ""}`}
+                      onClick={() => pick(tb)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(tb); }
+                        else onNavKey(e);
+                      }}
+                      onMouseEnter={() => setActive(myFlat)}
+                      title={PALETTE_DESCRIPTIONS[tb.id] || tb.label}
+                    >
+                      <span className="cx-palette-glyph" aria-hidden="true">{tb.glyph}</span>
+                      <span className="cx-palette-meta">
+                        <span className="cx-palette-lbl">{tb.label}</span>
+                        <span className="cx-palette-desc">{PALETTE_DESCRIPTIONS[tb.id] || ""}</span>
+                      </span>
+                      <span
+                        className={`cx-palette-pin ${isPinned ? "is-on" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={isPinned ? "Unpin" : "Pin to rail"}
+                        onClick={(e) => { e.stopPropagation(); onPin(tb.id); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onPin(tb.id); }
+                        }}
+                      >{isPinned ? "★" : "☆"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
         <footer className="cx-palette-ft">
-          <kbd>Esc</kbd> close · ★ pins to rail
+          <kbd>↑</kbd><kbd>↓</kbd> move · <kbd>Enter</kbd> open · <kbd>Esc</kbd> close · ★ pins to rail
         </footer>
       </div>
     </div>
@@ -1719,6 +1791,15 @@ function clickableProps(onActivate, label) {
 // ── Value-detail modal · all verses summing to N + symbolic meaning ──
 function GemValueModal({ value, system, kabMap, onClose, onJump }) {
   const [hits, setHits] = useState(null);
+  // Engagement: a value-detail lookup is a depth action regardless of
+  // which call site opened it (both GematriaLexicalGrid and GematriaDeep
+  // route through this modal). Fire once per opened value.
+  useEffect(() => {
+    emitDepth("gematria-lookup", String(value), 1);
+  }, [value]);
+  // Guard so the cross-match emission fires at most once per opened value.
+  const matchEmittedRef = React.useRef(false);
+  useEffect(() => { matchEmittedRef.current = false; }, [value]);
   useEffect(() => {
     let alive = true;
     const IDX = (typeof window !== "undefined") ? window.CODEX_GEMATRIA_INDEX : null;
@@ -1727,8 +1808,14 @@ function GemValueModal({ value, system, kabMap, onClose, onJump }) {
       try { await IDX.ensure(); }
       catch {}
       if (!alive) return;
-      const list = IDX.find(value);
-      setHits(list || []);
+      const list = IDX.find(value) || [];
+      setHits(list);
+      // Engagement: a library cross-match (the user's own cached verses
+      // sum to this value) is a deeper action than the lookup itself.
+      if (list.length > 0 && !matchEmittedRef.current) {
+        matchEmittedRef.current = true;
+        emitDepth("gematria-match", String(value), 4);
+      }
     })();
     return () => { alive = false; };
   }, [value]);

@@ -34,6 +34,17 @@
   }
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 
+  // Guarded depth-action emit. No-op if the event API is unavailable (Lite mode)
+  // or required fields are missing. Only emit depth types known to engagement.js.
+  function emitDepth(type, ref, weight) {
+    try {
+      if (!type || typeof window.dispatchEvent !== "function" || typeof window.CustomEvent !== "function") return;
+      window.dispatchEvent(new CustomEvent("codex:depth-action", {
+        detail: { type: type, ref: ref, weight: weight }
+      }));
+    } catch (e) {}
+  }
+
   function getTweaks() {
     return (window.CODEX_DATA && window.CODEX_DATA.tweaks) || {};
   }
@@ -188,6 +199,10 @@
     var aiState = useState({ related: null, theology: null, loading: false, err: null });
     var ai = aiState[0]; var setAi = aiState[1];
 
+    // De-dupe set: words for which we've already emitted 'word-study-complete'.
+    var studiedRef = useRef(null);
+    if (!studiedRef.current) studiedRef.current = {};
+
     // Resolve studied word from query — could be a Strong's # or a word.
     var entry = useMemo(function () {
       var q = (query || "").trim();
@@ -205,6 +220,19 @@
       if (!query) return;
       lsSet(LS_LAST, { word: entry && entry.word, strongs: entry && entry.strongs });
     }, [query]);
+
+    // Engagement: emit 'word-study-complete' once per resolved study (de-duped
+    // per word/Strong's so it fires once, not per render). w5, hebrew-greek.
+    useEffect(function () {
+      if (!entry || !entry.word) return;
+      var key = (entry.strongs || entry.word || "").toString().toLowerCase();
+      if (!key) return;
+      var seen = studiedRef.current || {};
+      if (seen[key]) return;
+      seen[key] = true;
+      studiedRef.current = seen;
+      emitDepth("word-study-complete", entry.strongs || entry.word, 5);
+    }, [entry && entry.word, entry && entry.strongs]);
 
     // Listen for cross-feature triggers
     useEffect(function () {

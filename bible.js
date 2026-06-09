@@ -192,7 +192,7 @@ window.BIBLE = (function () {
 
   function _scheduleFlush() {
     if (_flushTimer) return;
-    _flushTimer = setTimeout(() => { _flushTimer = null; _flushDirty(); }, 200);
+    _flushTimer = setTimeout(() => { _flushTimer = null; _flushDirty().catch(() => {}); }, 200);
   }
   async function _flushDirty() {
     if (_dirty.size === 0) return;
@@ -645,7 +645,7 @@ window.BIBLE = (function () {
     Promise.all(workers).then(() => {
       if (aborted) onProgress?.({ done, total, aborted: true });
       else         onProgress?.({ done, total, complete: true });
-    });
+    }).catch(() => {});
     return { abort: () => { aborted = true; } };
   }
 

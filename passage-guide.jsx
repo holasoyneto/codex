@@ -176,6 +176,16 @@ Return ONLY the JSON object as specified.${langDirective}`;
     return m;
   }
 
+  // ── Engagement emission (guarded; no-op if the engine is absent) ──────
+  function emitDepth(type, ref, weight) {
+    if (!type) return;
+    try {
+      window.dispatchEvent(new CustomEvent("codex:depth-action", {
+        detail: { type, ref, weight },
+      }));
+    } catch {}
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────
   function navigateTo(bookId, bookName, chapter, verse) {
     try {
@@ -363,6 +373,7 @@ Return ONLY the JSON object as specified.${langDirective}`;
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const reqIdRef = useRef(0);
+    const emittedRef = useRef(new Set());
 
     // Fetch / load guide whenever chapter changes
     useEffect(() => {
@@ -380,6 +391,16 @@ Return ONLY the JSON object as specified.${langDirective}`;
           setLoading(false);
         });
     }, [bookId, chapter, book]);
+
+    // Emit a depth-action the first time a guide resolves for this chapter.
+    // De-duped per bookId.chapter so re-renders / cache-hits don't double-count.
+    useEffect(() => {
+      if (!guide || !bookId || !chapter) return;
+      const ref = `${bookId}.${chapter}`;
+      if (emittedRef.current.has(ref)) return;
+      emittedRef.current.add(ref);
+      emitDepth("passage-guide-read", ref, 4);
+    }, [guide, bookId, chapter]);
 
     const verseCount = useMemo(() => {
       try {

@@ -218,7 +218,10 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
   return (
     <header className="cx-status">
       <div className="cx-status-l">
-        <button className="cx-mobile-fab cx-status-fab" onClick={onToggleLeft} aria-label="Library">≣</button>
+        {/* Mobile Library FAB removed — it duplicated the footer FAB
+            (app.jsx). The footer ≣/⋮ controls are the canonical mobile
+            panel toggles. onToggleLeft prop kept (harmless) to avoid
+            touching call sites. */}
         <div className="cx-logo">
           <svg viewBox="0 0 32 32" className="cx-sigil cx-sigil-std" aria-hidden>
             <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="1" />
