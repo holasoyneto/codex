@@ -24,6 +24,64 @@ const CONST_OT_HUE = "#7ee0ff";
 const CONST_NT_HUE = "#e8b465";
 const CONST_GOLD   = "#ffd479";
 const CONST_TOP_CHORDS = 6000;
+const CONST_FAMILY_HUES = ["#7ee0ff", "#e8b465", "#b88cff", "#9bd66b", "#ff8291", "#5bd0b0", "#e0a7ff", "#ffd479"];
+
+// ── Graph tools — the wheel is one VIEW of a real graph instrument. ─────
+// Dijkstra with cost 1/weight: paths prefer STRONG threads, so a route is
+// scholarship (heavily-attested links), not trivia.
+function constPath(adj, from, to) {
+  if (from === to) return [from];
+  const dist = new Map([[from, 0]]);
+  const prev = new Map();
+  const done = new Set();
+  // tiny binary-less PQ — fine at ~2k nodes
+  const frontier = new Map([[from, 0]]);
+  while (frontier.size) {
+    let u = -1, best = Infinity;
+    frontier.forEach((d, k) => { if (d < best) { best = d; u = k; } });
+    frontier.delete(u);
+    if (u === to) break;
+    done.add(u);
+    (adj.get(u) || []).forEach(([v, w]) => {
+      if (done.has(v)) return;
+      const nd = best + 1 / (w + 0.0001);
+      if (nd < (dist.has(v) ? dist.get(v) : Infinity)) {
+        dist.set(v, nd); prev.set(v, u); frontier.set(v, nd);
+      }
+    });
+  }
+  if (!prev.has(to)) return null;
+  const path = [to];
+  while (path[path.length - 1] !== from) path.push(prev.get(path[path.length - 1]));
+  return path.reverse();
+}
+
+// Label propagation — the canon's natural families, found in the client.
+// Weighted majority vote per node, a few sweeps; deterministic order.
+function constFamilies(adj, count) {
+  const label = new Array(count);
+  for (let i = 0; i < count; i++) label[i] = i;
+  for (let sweep = 0; sweep < 6; sweep++) {
+    let changed = 0;
+    for (let i = 0; i < count; i++) {
+      const votes = new Map();
+      (adj.get(i) || []).forEach(([v, w]) => {
+        votes.set(label[v], (votes.get(label[v]) || 0) + w);
+      });
+      if (!votes.size) continue;
+      let bestL = label[i], bestV = -1;
+      votes.forEach((v, l) => { if (v > bestV) { bestV = v; bestL = l; } });
+      if (bestL !== label[i]) { label[i] = bestL; changed++; }
+    }
+    if (!changed) break;
+  }
+  // compact to family indices ranked by size
+  const sizes = new Map();
+  label.forEach((l) => sizes.set(l, (sizes.get(l) || 0) + 1));
+  const ranked = [...sizes.entries()].sort((a, b) => b[1] - a[1]).map(([l]) => l);
+  const famOf = new Map(ranked.map((l, i) => [l, i]));
+  return { label: label.map((l) => famOf.get(l)), families: ranked.length };
+}
 
 // ── Canon geometry — global chapter index from the canonical book list ──
 function constCanon() {
@@ -105,6 +163,59 @@ function VerseConstellation({ onClose }) {
   const hoverRef = useRef({ chapter: -1, book: -1 });
   const [hud, setHud] = useState(null); // { label, threads } | null
 
+  // ── Graph-instrument state: query → PATH / NEAR; FAMILIES color mode ──
+  const [query, setQuery] = useState("");
+  const [route, setRoute] = useState(null);   // { path:[idx], labels:[str] } | null
+  const [near, setNear] = useState(null);     // { label, rows:[{idx,label,w}] } | null
+  const [famOn, setFamOn] = useState(false);
+  const famRef = useRef(null);                // { label[], families }
+
+  const labelOf = (idx) => {
+    const c = dataRef.current.canon.chapters[idx];
+    return `${c.bookName} ${c.ch}`;
+  };
+
+  const runQuery = () => {
+    const d = dataRef.current;
+    if (!d) return;
+    const K = window.CODEX_KERNEL;
+    const text = query.trim();
+    setRoute(null); setNear(null);
+    if (!text || !K?.parseRef) return;
+    const idxOf = (s) => {
+      const p = K.parseRef(s.trim());
+      if (!p) return -1;
+      const off = d.canon.offset[p.bookId];
+      return off === undefined ? -1 : off + p.chapter - 1;
+    };
+    const m = text.split(/\s*(?:->|→|>| to )\s*/i);
+    if (m.length >= 2) {
+      const a = idxOf(m[0]), b = idxOf(m[1]);
+      if (a < 0 || b < 0) { setHud({ label: "UNREADABLE REFS", threads: 0 }); return; }
+      const path = constPath(d.adj, a, b);
+      if (!path) { setHud({ label: "NO THREAD PATH", threads: 0 }); return; }
+      setRoute({ path, labels: path.map(labelOf) });
+    } else {
+      const a = idxOf(text);
+      if (a < 0) { setHud({ label: "UNREADABLE REF", threads: 0 }); return; }
+      const rows = (d.adj.get(a) || []).slice().sort((x, y) => y[1] - x[1]).slice(0, 14)
+        .map(([idx, w]) => ({ idx, label: labelOf(idx), w }));
+      setNear({ idx: a, label: labelOf(a), rows });
+    }
+    requestAnimationFrame(blit);
+  };
+
+  const toggleFamilies = () => {
+    const d = dataRef.current;
+    if (!d) return;
+    if (!famRef.current) famRef.current = constFamilies(d.adj, d.canon.count);
+    setFamOn(v => !v);
+  };
+  // re-render the base when the color mode flips
+  useEffect(() => { if (phase === "ready") renderBase(); }, [famOn]);
+  // redraw overlays when route/near change
+  useEffect(() => { if (phase === "ready") requestAnimationFrame(blit); }, [route, near]);
+
   // ── Load + aggregate ───────────────────────────────────────────────────
   useEffect(() => {
     let dead = false;
@@ -159,7 +270,12 @@ function VerseConstellation({ onClose }) {
     const a = g.angles[idx];
     return [g.cx + Math.cos(a) * r, g.cy + Math.sin(a) * r];
   };
-  const hueOf = (idx) => (dataRef.current.canon.chapters[idx].testament === "NT" ? CONST_NT_HUE : CONST_OT_HUE);
+  const hueOf = (idx) => {
+    if (famOn && famRef.current) {
+      return CONST_FAMILY_HUES[famRef.current.label[idx] % CONST_FAMILY_HUES.length];
+    }
+    return dataRef.current.canon.chapters[idx].testament === "NT" ? CONST_NT_HUE : CONST_OT_HUE;
+  };
 
   // One chord — quadratic toward the center, pulled harder for far pairs.
   const chord = (ctx, a, b, color, alpha, width) => {
@@ -198,7 +314,9 @@ function VerseConstellation({ onClose }) {
     for (let i = top.length - 1; i >= 0; i--) {
       const [a, b, wt] = top[i];
       const t = wt / wMax;
-      const color = hueOf(a) === hueOf(b) ? hueOf(a) : CONST_GOLD; // covenant seam glows gold
+      // same hue → that family/testament color; mixed → the gold seam
+      const ha = hueOf(a), hb = hueOf(b);
+      const color = ha === hb ? ha : CONST_GOLD;
       chord(ctx, a, b, color, 0.028 + t * 0.16, 0.5 + t * 0.9);
     }
     ctx.globalAlpha = 1;
@@ -208,7 +326,7 @@ function VerseConstellation({ onClose }) {
       const off = d.canon.offset[b.id];
       const a0 = g.angles[off] - g.per / 2;
       const a1 = g.angles[off + b.chapters - 1] + g.per / 2;
-      ctx.strokeStyle = b.testament === "NT" ? CONST_NT_HUE : CONST_OT_HUE;
+      ctx.strokeStyle = famOn ? hueOf(off) : (b.testament === "NT" ? CONST_NT_HUE : CONST_OT_HUE);
       ctx.globalAlpha = 0.75;
       ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(g.cx, g.cy, g.R + 6, a0, a1); ctx.stroke();
@@ -260,6 +378,39 @@ function VerseConstellation({ onClose }) {
         ctx.shadowBlur = 0;
       });
     } catch {}
+
+    // PATH overlay — the route burns gold over a dimmed field
+    if (route && route.path.length > 1) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      for (let i = 0; i < route.path.length - 1; i++) {
+        chord(ctx, route.path[i], route.path[i + 1], CONST_GOLD, 0.95, 2.2);
+      }
+      ctx.globalAlpha = 1;
+      route.path.forEach((idx, i) => {
+        const [x, y] = xyOf(idx, g.R + 6);
+        ctx.fillStyle = i === 0 || i === route.path.length - 1 ? "#fff" : CONST_GOLD;
+        ctx.shadowColor = CONST_GOLD; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(x, y, i === 0 || i === route.path.length - 1 ? 4 : 2.8, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    }
+
+    // NEAR overlay — the ego-network ignites
+    if (near) {
+      (dataRef.current.adj.get(near.idx) || []).forEach(([other, wt]) => {
+        chord(ctx, near.idx, other, hueOf(other), Math.min(0.8, 0.25 + wt * 0.05), 0.8);
+      });
+      const [x, y] = xyOf(near.idx, g.R + 6);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff";
+      ctx.shadowColor = CONST_GOLD; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
 
     // hover ignition
     const hv = hoverRef.current;
@@ -397,6 +548,51 @@ function VerseConstellation({ onClose }) {
           </div>
         ) : (
           <div className="cx-const-stage">
+            <div className="cx-const-tools">
+              <input
+                className="cx-const-q"
+                placeholder='PATH: "Genesis 1 → Revelation 21" · NEAR: "Isaiah 53" · ↵'
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); runQuery(); } e.stopPropagation(); }}
+                spellCheck={false}
+                aria-label="Graph query — one ref for the neighborhood, two refs for a path"
+              />
+              <button
+                className={`cx-const-fam ${famOn ? "is-on" : ""}`}
+                onClick={toggleFamilies}
+                title="Color the canon by its natural families (label propagation over the thread graph)"
+              >✦ FAMILIES{famOn && famRef.current ? ` · ${Math.min(famRef.current.families, CONST_FAMILY_HUES.length)}` : ""}</button>
+              {(route || near) ? (
+                <button className="cx-const-clear" onClick={() => { setRoute(null); setNear(null); setQuery(""); requestAnimationFrame(blit); }} title="Clear query">×</button>
+              ) : null}
+            </div>
+
+            {route ? (
+              <div className="cx-const-route" aria-label="Thread path">
+                {route.labels.map((l, i) => (
+                  <span key={i} className="cx-const-hop">
+                    <button onClick={() => window.codexJumpToRef && window.codexJumpToRef(l)} title={`Read ${l}`}>{l}</button>
+                    {i < route.labels.length - 1 ? <i aria-hidden="true">→</i> : null}
+                  </span>
+                ))}
+                <small>{route.path.length - 1} hop{route.path.length > 2 ? "s" : ""} through the strongest threads</small>
+              </div>
+            ) : null}
+
+            {near ? (
+              <div className="cx-const-near" aria-label="Strongest neighbors">
+                <b>{near.label} — strongest threads</b>
+                <ul>
+                  {near.rows.map((r) => (
+                    <li key={r.idx}>
+                      <button onClick={() => window.codexJumpToRef && window.codexJumpToRef(r.label)} title={`Read ${r.label}`}>{r.label}</button>
+                      <span>{r.w}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <canvas
               ref={canvasRef}
               className="cx-const-canvas"
