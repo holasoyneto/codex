@@ -1880,6 +1880,10 @@ function App() {
   const openVerseMirror = useCallback((v, refStr, text) => setVerseMirror({ verse: v, refStr, text }), []);
   const closeVerseMirror = useCallback(() => setVerseMirror(null), []);
 
+  const [verseSword, setVerseSword] = useState(null);
+  const openVerseSword = useCallback((v, refStr, text) => setVerseSword({ verse: v, refStr, text }), []);
+  const closeVerseSword = useCallback(() => setVerseSword(null), []);
+
   // ── PWA install — capture the browser's deferred install prompt so the
   // settings button can fire the native dialog with one tap. Falls back to
   // platform-specific guidance on iOS (where no event is fired). The whole
@@ -3001,6 +3005,7 @@ function App() {
           onOpenArt={openVerseArt}
           onOpenCompare={openVerseCompare}
           onOpenMirror={openVerseMirror}
+          onOpenSword={openVerseSword}
           pluginVersion={pluginVersion}
           onOpenNote={(v, refStr) => {
             if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackNote();
@@ -3075,6 +3080,18 @@ function App() {
           passage={passage}
           primary={primary}
           onClose={closeVerseMirror}
+          onJumpRef={jumpToRef}
+        />
+      ) : null}
+
+      {verseSword && window.VerseSword ? (
+        <VerseSword
+          verse={verseSword.verse}
+          refStr={verseSword.refStr}
+          verseText={verseSword.text}
+          passage={passage}
+          primary={primary}
+          onClose={closeVerseSword}
           onJumpRef={jumpToRef}
         />
       ) : null}
