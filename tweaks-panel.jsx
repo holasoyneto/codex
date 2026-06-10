@@ -597,6 +597,16 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
       <TweakToggle key="__deck-rail" label="Thumbnail rail" value={railVisible} onChange={toggleRail} />,
     );
   }
+  // Shell — OS·7 "Nocturne" desktop surface toggle. Self-injected (like
+  // Personalization below) so it's always reachable; gated on the host
+  // actually exposing window.codexOS7 so no orphan section header renders
+  // when the os7 module isn't loaded.
+  if (typeof window.codexOS7 === 'function') {
+    buckets.system.push(
+      <TweakSection key="__os7" label="Shell" />,
+      <TweakOS7 key="__os7-ctl" />,
+    );
+  }
   // Personalization — lets the user wipe the learned taste profile and Oracle
   // context. Injected here (rather than supplied as a child by the consumer)
   // so it's always present regardless of how the panel is composed.
@@ -1190,6 +1200,45 @@ function LightThemePicker() {
   );
 }
 
+// ── TweakOS7 (OS·7 "Nocturne" shell toggle) ─────────────────────────────────
+// One settings row controlling the OS·7 desktop surface (body.cx-os7,
+// persisted under localStorage "codex.os7", default ON). Mirrors the
+// TweakToggle row markup exactly, plus a dim sub-line describing the shell.
+// Defensive: renders nothing when window.codexOS7 isn't installed, and reads
+// truth from the live <body> class (falling back to the storage key) so the
+// switch never drifts from what's actually on screen.
+function TweakOS7() {
+  const read = () => {
+    try {
+      if (document.body) return document.body.classList.contains('cx-os7');
+    } catch (e) { /* fall through */ }
+    try { return localStorage.getItem('codex.os7') !== '0'; } catch (e) { return true; }
+  };
+  const [on, setOn] = React.useState(read);
+  if (typeof window.codexOS7 !== 'function') return null;
+  const flip = (next) => {
+    try { window.codexOS7(next); } catch (e) { /* never throw from settings */ }
+    setOn(read());
+  };
+  const lbl = 'OS·7 Nocturne shell';
+  return (
+    <div className="twk-row twk-row-h" onClick={() => flip(!on)}>
+      <div className="twk-lbl">
+        <span>
+          {lbl}
+          <span style={{ display: 'block', fontWeight: 400, fontSize: 11,
+                         color: 'var(--cx-fg-dim, rgba(41,38,27,.6))', lineHeight: 1.4 }}>
+            desktop, glass windows, starfield — turn off for the classic layout
+          </span>
+        </span>
+      </div>
+      <button type="button" className="twk-toggle" data-on={on ? '1' : '0'}
+              role="switch" aria-checked={!!on} aria-label={lbl}
+              onClick={(e) => { e.stopPropagation(); flip(!on); }}><i /></button>
+    </div>
+  );
+}
+
 // ── Schizo Mode toggle (easter egg) ────────────────────────────────────
 // Renders nothing unless `eligible` is true — eligibility is set by App
 // once the user has actually landed on Acts 16:26 (the prison earthquake —
@@ -1318,6 +1367,6 @@ Object.assign(window, {
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
   TweakText, TweakNumber, TweakColor, TweakButton,
   TweakPersonalization,
-  TweakSchizoToggle, TweakContinuity,
+  TweakSchizoToggle, TweakContinuity, TweakOS7,
   AIModelSection, LightThemePicker,
 });

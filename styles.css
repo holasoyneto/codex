@@ -19377,3 +19377,450 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 .cx-palette-card:hover .cx-palette-pin.is-on,
 .cx-palette-pin.is-on:hover { color: var(--cx-accent); }
 .cx-palette-pin:focus-visible { outline: 1px solid var(--cx-accent); outline-offset: 2px; }
+
+/* ═══ OS·7 NOCTURNE ═══════════════════════════════════════════════════════
+   A 2030 operating-system shell. You boot into a desktop: slow starfield,
+   floating glass windows, one slim system bar, one launcher dock.
+   Every rule below is scoped under body.cx-os7 (toggle: codex.os7).
+   Desktop-layout rules are additionally scoped @media (min-width:881px);
+   under 881px only the surface/theme tokens apply — mobile rails, footer
+   and slide-overs keep their existing behavior. Additive overrides only:
+   no class, export, key or event is renamed; the old shell survives intact
+   beneath this layer.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── OS7 §0 · SURFACE TOKENS — deep-space glass vocabulary ─────────────── */
+body.cx-os7 {
+  --os7-bg: #05070d;
+  --os7-bg-deep: #03040a;
+  --os7-glass: rgba(13, 18, 28, 0.72);
+  --os7-glass-2: rgba(17, 24, 38, 0.6);
+  --os7-glass-hi: rgba(24, 33, 50, 0.8);
+  --os7-bar: rgba(9, 13, 22, 0.62);
+  --os7-line: rgba(168, 198, 235, 0.13);
+  --os7-line-soft: rgba(168, 198, 235, 0.08);
+  --os7-line-strong: rgba(126, 224, 255, 0.36);
+  --os7-glow: rgba(126, 224, 255, 0.2);
+  --os7-glow-hot: rgba(126, 224, 255, 0.34);
+  --os7-radius: 16px;
+  --os7-radius-sm: 10px;
+  --os7-blur: blur(16px) saturate(1.25);
+  --os7-blur-bar: blur(14px) saturate(1.2);
+  /* Layered shadow recipe: inner hairline highlight (key) + contact + ambient. */
+  --os7-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 6px rgba(0, 0, 0, 0.45),
+    0 24px 70px -18px rgba(0, 0, 0, 0.72);
+  --os7-shadow-soft:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 14px 44px -14px rgba(0, 0, 0, 0.6);
+  --os7-shadow-focus:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px var(--os7-line-strong),
+    0 0 28px var(--os7-glow),
+    0 30px 90px -20px rgba(0, 0, 0, 0.78);
+  --os7-chip-bg: rgba(8, 12, 20, 0.85);
+  background: var(--os7-bg);
+}
+/* Parchment-light adaptation — glass goes frosted ivory, lines go ink. */
+body.cx-os7:has(.cx-app.is-light) {
+  --os7-bg: #d8d2c2;
+  --os7-bg-deep: #cbc4b0;
+  --os7-glass: rgba(248, 243, 230, 0.72);
+  --os7-glass-2: rgba(242, 235, 218, 0.6);
+  --os7-glass-hi: rgba(252, 248, 238, 0.84);
+  --os7-bar: rgba(246, 240, 226, 0.62);
+  --os7-line: rgba(24, 42, 64, 0.16);
+  --os7-line-soft: rgba(24, 42, 64, 0.09);
+  --os7-line-strong: rgba(10, 104, 132, 0.4);
+  --os7-glow: rgba(10, 104, 132, 0.16);
+  --os7-glow-hot: rgba(10, 104, 132, 0.26);
+  --os7-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 2px 6px rgba(40, 30, 10, 0.14),
+    0 24px 70px -18px rgba(40, 30, 10, 0.3);
+  --os7-shadow-soft:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 1px 3px rgba(40, 30, 10, 0.12),
+    0 14px 44px -14px rgba(40, 30, 10, 0.24);
+  --os7-shadow-focus:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 1px var(--os7-line-strong),
+    0 0 28px var(--os7-glow),
+    0 30px 90px -20px rgba(40, 30, 10, 0.34);
+  --os7-chip-bg: rgba(250, 245, 232, 0.9);
+}
+
+/* ── OS7 §1 · WALLPAPER HOOKS — starfield behind everything ───────────── */
+body.cx-os7 #cx-wall {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+@media (min-width: 881px) {
+  /* The shell goes transparent so the wallpaper shows through every gap. */
+  body.cx-os7 .cx-app {
+    z-index: 1;
+    background: transparent;
+  }
+  /* Vignette softens — the desktop should read as open space, not a CRT. */
+  body.cx-os7 .cx-app::before { opacity: 0.3; }
+  body.cx-os7 .cx-app.is-light::before { opacity: 0.18; }
+}
+
+/* ── OS7 §2 · SYSTEM BAR — one slim translucent strip (desktop) ───────── */
+@media (min-width: 881px) {
+  /* 34px bar, no footer row: the dock + omnibar absorb its controls. */
+  body.cx-os7 .cx-app { grid-template-rows: 34px 1fr 0px; }
+
+  body.cx-os7 .cx-status {
+    background: var(--os7-bar);
+    -webkit-backdrop-filter: var(--os7-blur-bar);
+    backdrop-filter: var(--os7-blur-bar);
+    border-bottom: 1px solid var(--os7-line);
+    padding: 0 14px;
+    gap: 10px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 6px 24px -12px rgba(0, 0, 0, 0.5);
+  }
+  /* The old accent scanline under the header is the old language — out. */
+  body.cx-os7 .cx-status::before { opacity: 0; }
+
+  /* Keep ONLY: logo · clock · theme toggle · ⌘K pill. Everything else is
+     omnibar-reachable (quests, bookmark tick, streak, sun strip, divider). */
+  body.cx-os7 .cx-status .cx-sq-trigger,
+  body.cx-os7 .cx-status-l .cx-tick,
+  body.cx-os7 .cx-status .cx-streak-pill,
+  body.cx-os7 .cx-status .cx-status-sep,
+  body.cx-os7 .cx-status-c { display: none !important; }
+
+  /* Wordmark compresses to a sigil + tight monogram; subtitle goes quiet. */
+  body.cx-os7 .cx-logo { gap: 7px; }
+  body.cx-os7 .cx-sigil {
+    width: 17px; height: 17px;
+    filter: drop-shadow(0 0 5px var(--os7-glow));
+  }
+  body.cx-os7 .cx-logo-txt span { display: none; }
+  body.cx-os7 .cx-logo-txt b {
+    font-size: 10.5px;
+    letter-spacing: 0.26em;
+    font-weight: 600;
+  }
+
+  /* Clock flattens to a single line that fits the 34px strip. */
+  body.cx-os7 .cx-clock {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+  }
+  body.cx-os7 .cx-clock-time { font-size: 11.5px; letter-spacing: 0.12em; }
+  body.cx-os7 .cx-clock-date { font-size: 9px; letter-spacing: 0.14em; opacity: 0.8; }
+
+  /* ⌘K pill — the one visible door. Glass capsule, always present. */
+  body.cx-os7 .cx-omni-launch {
+    height: 22px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: var(--os7-glass-2);
+    border: 1px solid var(--os7-line);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+  }
+  body.cx-os7 .cx-omni-launch:hover {
+    background: var(--os7-glass-hi);
+    border-color: var(--os7-line-strong);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 0 16px var(--os7-glow);
+    transform: none;
+  }
+  body.cx-os7 .cx-omni-launch::before { letter-spacing: 0.14em; }
+
+  /* Theme toggle sits a touch smaller so the capsule clears the 34px bar. */
+  body.cx-os7 .cx-theme-toggle { transform: scale(0.92); transform-origin: right center; }
+}
+
+/* ── OS7 §3 · FOOTER — gone on the desktop, intact on mobile ──────────── */
+@media (min-width: 881px) {
+  body.cx-os7 .cx-footer { display: none !important; }
+  /* Theater exit + slide scrim keep working; rails no longer reserve the
+     36px footer band that no longer exists. */
+}
+
+/* ── OS7 §4 · GLASS PRIMITIVE — every frame becomes a 2030 pane ───────── */
+body.cx-os7 .cx-frame {
+  background: var(--os7-glass);
+  border: 1px solid var(--os7-line);
+  border-radius: var(--os7-radius);
+  -webkit-backdrop-filter: var(--os7-blur);
+  backdrop-filter: var(--os7-blur);
+  box-shadow: var(--os7-shadow-soft);
+}
+body.cx-os7 .cx-frame.is-glow {
+  box-shadow: var(--os7-shadow-focus);
+}
+/* Corner brackets are the old language — hidden everywhere in os7. */
+body.cx-os7 .cx-corner { display: none !important; }
+/* Frame labels become floating glass chips instead of bg-patched tags. */
+body.cx-os7 .cx-frame-label {
+  background: var(--os7-chip-bg);
+  border: 1px solid var(--os7-line);
+  border-radius: 999px;
+  padding: 1px 9px;
+  top: -9px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* WM windows + console cards: translucent surface, 16px radius, inner
+   hairline, soft outer glow on focus, transparent headers. */
+body.cx-os7 .cx-wm-win,
+body.cx-os7 .cx-mirror,
+body.cx-os7 .cx-map,
+body.cx-os7 .cx-sword,
+body.cx-os7 .cx-ops,
+body.cx-os7 .cx-const,
+body.cx-os7 .cx-art,
+body.cx-os7 .cx-cmp,
+body.cx-os7 .cx-help {
+  background: var(--os7-glass);
+  -webkit-backdrop-filter: var(--os7-blur);
+  backdrop-filter: var(--os7-blur);
+  border: 1px solid var(--os7-line);
+  border-radius: var(--os7-radius);
+  box-shadow: var(--os7-shadow);
+}
+body.cx-os7 .cx-wm-win.cx-wm-focus {
+  border-color: var(--os7-line-strong);
+  box-shadow: var(--os7-shadow-focus);
+}
+/* Headers go transparent — the pane is one continuous sheet of glass. */
+body.cx-os7 .cx-wm-head,
+body.cx-os7 .cx-mirror-h,
+body.cx-os7 .cx-map-h,
+body.cx-os7 .cx-art-h,
+body.cx-os7 .cx-cmp-h,
+body.cx-os7 .cx-help-head {
+  background: transparent;
+  border-bottom-color: var(--os7-line-soft);
+}
+/* Snap preview matches the new window geometry. */
+body.cx-os7 .cx-wm-preview {
+  border-radius: var(--os7-radius);
+  border-color: var(--os7-line-strong);
+  background: var(--os7-glow);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+/* ── OS7 §5 · RAILS — floating glass overlays, not full-height slabs ──── */
+@media (min-width: 881px) {
+  /* Each rail panel already wraps its content in .cx-frame, which §4 turned
+     into a detached glass pane. The rail column itself breathes: wider gaps,
+     inset top/bottom so panes float clear of the bar and the dock. */
+  body.cx-os7 .cx-rail { gap: 14px; padding: 6px 0 52px; }
+  body.cx-os7 .cx-rail .cx-frame { flex: 0 1 auto; }
+  body.cx-os7 .cx-rail-l > .cx-frame:only-child,
+  body.cx-os7 .cx-rail-r > .cx-frame:only-child { flex: 1 1 auto; }
+
+  /* Collapsed spines: slim floating glass slivers, vertically centered. */
+  body.cx-os7 .cx-rail-spine {
+    align-self: center;
+    height: min(46vh, 340px);
+    border: 1px solid var(--os7-line);
+    border-radius: 999px;
+    background: var(--os7-glass-2);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--os7-shadow-soft);
+  }
+  body.cx-os7 .cx-rail-spine:hover {
+    border-color: var(--os7-line-strong);
+    background: var(--os7-glass-hi);
+    box-shadow: 0 0 18px var(--os7-glow), var(--os7-shadow-soft);
+  }
+}
+
+/* ── OS7 §6 · READER — the anchor window of the desktop ───────────────── */
+@media (min-width: 881px) {
+  /* Desktop canvas: wider gutters so the starfield shows between panes. */
+  body.cx-os7 .cx-grid {
+    gap: 18px;
+    padding: 18px 22px 56px; /* bottom clears the dock capsule */
+  }
+  body.cx-os7 .cx-reader {
+    justify-self: center;
+    width: 100%;
+    max-width: 1080px;
+  }
+  body.cx-os7 .cx-reader > .cx-frame {
+    border-radius: calc(var(--os7-radius) + 2px);
+    box-shadow: var(--os7-shadow);
+    padding: 18px 24px 16px;
+  }
+  body.cx-os7 .cx-reader > .cx-frame:focus-within {
+    border-color: var(--os7-line-strong);
+  }
+}
+
+/* ── OS7 §7 · DOCK v2 — glass capsule launcher, glyph tiles ───────────── */
+@media (min-width: 881px) {
+  body.cx-os7 .cx-wm-dock {
+    bottom: 12px;
+    gap: 7px;
+    padding: 7px 9px;
+    background: var(--os7-bar);
+    -webkit-backdrop-filter: var(--os7-blur-bar);
+    backdrop-filter: var(--os7-blur-bar);
+    border: 1px solid var(--os7-line);
+    border-radius: 14px;
+    box-shadow: var(--os7-shadow);
+    z-index: 9990; /* above where the footer used to live */
+  }
+  /* Chips become square glyph tiles: text labels collapse (font-size:0),
+     the glyph carries identity, a running-dot ::after carries state. */
+  body.cx-os7 .cx-wm-dock-chip {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    gap: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 0;
+    letter-spacing: 0;
+    border: 1px solid var(--os7-line-soft);
+    border-radius: 10px;
+    background: var(--os7-glass-2);
+    color: var(--cx-fg-dim);
+  }
+  body.cx-os7 .cx-wm-dock-chip i {
+    font-size: 15px;
+    line-height: 1;
+  }
+  body.cx-os7 .cx-wm-dock-chip:hover {
+    color: var(--cx-fg);
+    border-color: var(--os7-line);
+    background: var(--os7-glass-hi);
+    box-shadow: 0 0 14px var(--os7-glow);
+  }
+  /* Running dot — every chip owns one; state drives its presence/color. */
+  body.cx-os7 .cx-wm-dock-chip::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 2px;
+    width: 3px;
+    height: 3px;
+    margin-left: -1.5px;
+    border-radius: 50%;
+    background: var(--cx-fg-dim);
+    opacity: 0;
+    color: transparent;
+  }
+  body.cx-os7 .cx-wm-dock-chip.is-focus {
+    color: var(--cx-accent);
+    border-color: var(--os7-line-strong);
+    background: var(--os7-glass-hi);
+    box-shadow: 0 0 16px var(--os7-glow-hot), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  body.cx-os7 .cx-wm-dock-chip.is-focus::after {
+    opacity: 1;
+    background: var(--cx-accent);
+    box-shadow: 0 0 6px var(--os7-glow-hot);
+  }
+  body.cx-os7 .cx-wm-dock-chip.is-min { opacity: 0.6; }
+  body.cx-os7 .cx-wm-dock-chip.is-min::after {
+    content: "";
+    opacity: 0.8;
+    background: var(--cx-fg-dim);
+  }
+}
+/* The dock never overlaps the mobile footer band. */
+@media (max-width: 880px) {
+  body.cx-os7 .cx-wm-dock { display: none !important; }
+}
+
+/* ── OS7 §8 · OMNIBAR — the one door, reskinned in glass ──────────────── */
+body.cx-os7 .cx-omni {
+  background: var(--os7-glass-hi);
+  -webkit-backdrop-filter: var(--os7-blur);
+  backdrop-filter: var(--os7-blur);
+  border: 1px solid var(--os7-line-strong);
+  border-radius: var(--os7-radius);
+  box-shadow: var(--os7-shadow-focus);
+}
+body.cx-os7 .cx-omni-scrim {
+  background: rgba(2, 4, 9, 0.42);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+  backdrop-filter: blur(8px) saturate(1.1);
+}
+body.cx-os7:has(.cx-app.is-light) .cx-omni-scrim {
+  background: rgba(60, 50, 30, 0.22);
+}
+
+/* Side-quest portal menu + palette surfaces pick up the glass voice too
+   (they portal onto body, outside .cx-app). */
+body.cx-os7 .cx-sq-menu {
+  background: var(--os7-glass-hi);
+  -webkit-backdrop-filter: var(--os7-blur);
+  backdrop-filter: var(--os7-blur);
+  border-radius: var(--os7-radius-sm);
+  border-color: var(--os7-line);
+  box-shadow: var(--os7-shadow);
+}
+
+/* ── OS7 §9 · QUIET DETAILS — ticks, pills, scrollbars, motion ────────── */
+/* Status ticks / pills that remain visible anywhere adopt hairline glass. */
+body.cx-os7 .cx-tick {
+  border-color: var(--os7-line);
+  background: var(--os7-glass-2);
+  border-radius: 999px;
+}
+/* Mobile keeps the full footer, but it inherits the glass voice (surface
+   token only — geometry untouched). */
+body.cx-os7 .cx-footer {
+  background: var(--os7-bar);
+  -webkit-backdrop-filter: var(--os7-blur-bar);
+  backdrop-filter: var(--os7-blur-bar);
+  border-top-color: var(--os7-line);
+}
+body.cx-os7 .cx-footer::before { opacity: 0.18; }
+/* Mobile slide-over rails: glass sheets instead of opaque slabs. */
+@media (max-width: 880px) {
+  body.cx-os7 .cx-rail-l,
+  body.cx-os7 .cx-rail-r {
+    background: var(--os7-glass-hi);
+    -webkit-backdrop-filter: var(--os7-blur);
+    backdrop-filter: var(--os7-blur);
+  }
+  body.cx-os7 .cx-status {
+    background: var(--os7-bar);
+    -webkit-backdrop-filter: var(--os7-blur-bar);
+    backdrop-filter: var(--os7-blur-bar);
+    border-bottom-color: var(--os7-line);
+  }
+}
+/* Hairline scrollbars inside glass panes. */
+body.cx-os7 ::-webkit-scrollbar { width: 8px; height: 8px; }
+body.cx-os7 ::-webkit-scrollbar-track { background: transparent; }
+body.cx-os7 ::-webkit-scrollbar-thumb {
+  background: var(--os7-line);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+body.cx-os7 ::-webkit-scrollbar-thumb:hover { background: var(--os7-line-strong); background-clip: padding-box; }
+
+/* Reduced motion: the wallpaper holds still; glass keeps no animation. */
+@media (prefers-reduced-motion: reduce) {
+  body.cx-os7 #cx-wall,
+  body.cx-os7 #cx-wall * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+/* ═══ END OS·7 NOCTURNE ═══ */

@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v250";
+const VERSION = "v251";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -59,6 +59,7 @@ const SHELL_FILES = [
   r("mark-search.js"),
   r("search.js"),
   r("kernel.js"),
+  r("shell.js"),
   r("wm.js"),
   // ── UI components ────────────────────────────────────────────────
   r("intel.jsx"),

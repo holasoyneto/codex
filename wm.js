@@ -45,9 +45,35 @@
   var dockEl = null;
   var dockWins = []; // [{ key, id, backdrop, card, front }]
 
+  // ── Dock v2 (OS·7 NOCTURNE) — while body.cx-os7 is on, the dock doubles
+  // as the LAUNCHER: always rendered on desktop, fixed launch chips first,
+  // a hairline divider, then the running-window chips. With os7 off the
+  // dock keeps the original behavior exactly (windows-only, no launchers).
+  function os7on() {
+    return !!(document.body && document.body.classList.contains("cx-os7"));
+  }
+  var DOCK_LAUNCH = [
+    { glyph: "⌘", label: "OMNI", title: "Omnibar (⌘K)", run: function () {
+      if (typeof window.codexOpenOmni === "function") window.codexOpenOmni();
+    } },
+    { glyph: "❖", label: "OPS", title: "Open OPS console", run: function () {
+      if (typeof window.codexOpenOps === "function") window.codexOpenOps("");
+    } },
+    { glyph: "❂", label: "CANON", title: "Open canon constellation", run: function () {
+      if (typeof window.codexOpenConstellation === "function") window.codexOpenConstellation();
+    } },
+    { glyph: "◬", label: "ORACLE", title: "Open library · Oracle", run: function () {
+      try {
+        window.dispatchEvent(new CustomEvent("codex:open-library"));
+        window.dispatchEvent(new CustomEvent("codex:shortcut", { detail: { action: "toggle-oracle" } }));
+      } catch (_) {}
+    } }
+  ];
+
   function dockRender() {
     dockWins = dockWins.filter(function (w) { return w.backdrop.isConnected; });
-    if (!dockWins.length) { if (dockEl) { dockEl.remove(); dockEl = null; } return; }
+    var launcher = os7on() && active();
+    if (!dockWins.length && !launcher) { if (dockEl) { dockEl.remove(); dockEl = null; } return; }
     if (!dockEl || !dockEl.isConnected) {
       dockEl = document.createElement("div");
       dockEl.className = "cx-wm-dock";
@@ -56,6 +82,23 @@
       document.body.appendChild(dockEl);
     }
     dockEl.textContent = "";
+    if (launcher) {
+      DOCK_LAUNCH.forEach(function (l) {
+        var chip = document.createElement("button");
+        chip.className = "cx-wm-dock-chip cx-wm-dock-launch";
+        chip.innerHTML = '<i>' + l.glyph + '</i><span>' + l.label + '</span>';
+        chip.title = l.title;
+        chip.addEventListener("click", function () { try { l.run(); } catch (_) {} });
+        dockEl.appendChild(chip);
+      });
+      if (dockWins.length) {
+        var div = document.createElement("span");
+        div.className = "cx-wm-dock-sep";
+        div.setAttribute("aria-hidden", "true");
+        div.style.cssText = "align-self:stretch;width:1px;margin:4px 4px;background:currentColor;opacity:.18;";
+        dockEl.appendChild(div);
+      }
+    }
     dockWins.forEach(function (w) {
       var chip = document.createElement("button");
       var minimized = w.backdrop.style.display === "none";
@@ -366,10 +409,14 @@
     }
   });
 
+  // OS·7 mode flips (shell.js) re-render the dock so launchers appear/retire.
+  window.addEventListener("codex:os7", function () { dockRender(); });
+
   function boot() {
     try {
       mo.observe(document.body, { childList: true, subtree: true });
       scan(document.body);
+      dockRender();
     } catch (_) {}
   }
   if (document.body) boot();
