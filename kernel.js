@@ -181,6 +181,147 @@
     },
   });
 
+  // ── Lexicon & study tools — Strong's, Easton's, timeline, notes ────────
+  var strongsCache = {}; // "H"|"G" → Promise<entries>
+  function strongsEntries(prefix) {
+    var id = prefix === "H" ? "strongs-hebrew" : "strongs-greek";
+    if (!strongsCache[prefix]) {
+      if (!window.CODEX_MODULES || typeof window.CODEX_MODULES.loadModule !== "function") {
+        return Promise.reject(new Error("Strong's lexicon unavailable (module loader missing)"));
+      }
+      strongsCache[prefix] = window.CODEX_MODULES.loadModule(id).then(function (json) {
+        var entries = json && json.entries;
+        if (!entries) throw new Error("Strong's module " + id + " has no entries");
+        return entries;
+      });
+      strongsCache[prefix].catch(function () { delete strongsCache[prefix]; });
+    }
+    return strongsCache[prefix];
+  }
+  function fmtStrongs(key, e) {
+    var head = key + " " + (e.word || "") + (e.translit ? " (" + e.translit + ")" : "");
+    var bits = [];
+    if (e.pos) bits.push(e.pos);
+    if (e.gloss) bits.push("gloss: " + e.gloss);
+    if (e.def) bits.push("def: " + clip(String(e.def), 400));
+    if (e.kjv) bits.push("KJV renderings: " + clip(String(e.kjv), 160));
+    return head + " — " + bits.join(" · ");
+  }
+
+  register({
+    name: "strongs_lookup",
+    description: "Strong's lexicon entry (Hebrew/Greek). args: {number?: 'H7225' or 'G3056', word?: english/translit/lemma to search}. Returns lemma, transliteration, definition.",
+    run: async function (args) {
+      var num = String((args && args.number) || "").trim().toUpperCase();
+      var word = String((args && args.word) || "").trim();
+      if (!num && !word) throw new Error("Provide a Strong's number (e.g. H7225) or a word to search");
+      if (num) {
+        if (!/^[HG]\d+$/.test(num)) throw new Error("Bad Strong's number: " + num + " (expected H#### or G####)");
+        var entry = null;
+        if (typeof window.CODEX_StrongsLookup === "function") {
+          try { entry = window.CODEX_StrongsLookup(num); } catch (_) { entry = null; }
+        }
+        if (!entry) entry = (await strongsEntries(num.charAt(0)))[num] || null;
+        if (!entry) return "No Strong's entry for " + num + ".";
+        return clip(fmtStrongs(num, entry), 900);
+      }
+      var needle = word.toLowerCase();
+      var out = [], loadedAny = false, prefixes = ["H", "G"];
+      for (var i = 0; i < prefixes.length && out.length < 6; i++) {
+        var entries;
+        try { entries = await strongsEntries(prefixes[i]); loadedAny = true; } catch (_) { continue; }
+        var keys = Object.keys(entries);
+        for (var j = 0; j < keys.length && out.length < 6; j++) {
+          var e = entries[keys[j]];
+          var hay = ((e.word || "") + " " + (e.translit || "") + " " + (e.gloss || "")).toLowerCase();
+          if (hay.indexOf(needle) !== -1) out.push(fmtStrongs(keys[j], e));
+        }
+      }
+      if (!loadedAny) throw new Error("Strong's lexicon modules unavailable");
+      if (!out.length) return "No Strong's entries match '" + word + "'.";
+      return clip(out.join("\n"), 2000);
+    },
+  });
+
+  register({
+    name: "dictionary_lookup",
+    description: "Easton's Bible Dictionary entry for a term. args: {term: e.g. 'alpha'}. Returns the entry text with scripture refs.",
+    run: async function (args) {
+      var term = String((args && args.term) || "").trim().toLowerCase();
+      if (!term) throw new Error("Need a term to look up");
+      if (!window.CODEX_MODULES || typeof window.CODEX_MODULES.loadModule !== "function") throw new Error("Dictionary unavailable (module loader missing)");
+      var mod;
+      try { mod = await window.CODEX_MODULES.loadModule("easton-sample"); }
+      catch (e) { throw new Error("Dictionary module unavailable: " + String((e && e.message) || e)); }
+      var entries = (mod && mod.entries) || {};
+      var entry = entries[term];
+      if (!entry) {
+        var near = Object.keys(entries).filter(function (k) { return k.indexOf(term) === 0; }).slice(0, 6);
+        return "No Easton's entry for '" + term + "'." + (near.length ? " Near matches: " + near.join(", ") : "");
+      }
+      var refs = Array.isArray(entry.refs) && entry.refs.length ? "\nRefs: " + entry.refs.slice(0, 10).join(" · ") : "";
+      return clip((entry.title || term) + " — " + String(entry.body || "").trim(), 1200) + refs;
+    },
+  });
+
+  register({
+    name: "timeline_events",
+    description: "Biblical timeline events. args: {yearFrom?: number (negative = BC, e.g. -1000), yearTo?: number, query?: title/people/places keyword}. Returns up to 12 'year — title' lines.",
+    run: async function (args) {
+      var events = null;
+      if (window.CODEX_Timeline && typeof window.CODEX_Timeline.loadEvents === "function") {
+        events = await window.CODEX_Timeline.loadEvents();
+      } else if (window.CODEX_MODULES && typeof window.CODEX_MODULES.loadModule === "function") {
+        var mod = await window.CODEX_MODULES.loadModule("timeline-events").catch(function () { return null; });
+        events = (mod && mod.events && mod.events.slice().sort(function (a, b) { return (a.year || 0) - (b.year || 0); })) || null;
+      }
+      if (!Array.isArray(events) || !events.length) throw new Error("Timeline module unavailable");
+      var q = String((args && args.query) || "").trim().toLowerCase();
+      var from = args && args.yearFrom != null && args.yearFrom !== "" ? parseInt(args.yearFrom, 10) : null;
+      var to = args && args.yearTo != null && args.yearTo !== "" ? parseInt(args.yearTo, 10) : null;
+      if (from != null && isNaN(from)) from = null;
+      if (to != null && isNaN(to)) to = null;
+      var hits = events.filter(function (ev) {
+        if (from != null && ev.year < from) return false;
+        if (to != null && ev.year > to) return false;
+        if (q) {
+          var hay = ((ev.title || "") + " " + (ev.summary || "") + " " + (ev.era || "") + " " +
+            (ev.people || []).join(" ") + " " + (ev.places || []).join(" ")).toLowerCase();
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+      if (!hits.length) return "No timeline events match.";
+      function yearLabel(y) { return y < 0 ? (-y) + " BC" : (y === 0 ? "1 BC/AD" : "AD " + y); }
+      return hits.slice(0, 12).map(function (ev) {
+        return yearLabel(ev.year) + " — " + ev.title +
+          (Array.isArray(ev.scripture) && ev.scripture.length ? " (" + ev.scripture[0] + ")" : "");
+      }).join("\n");
+    },
+  });
+
+  register({
+    name: "save_note",
+    description: "Save a study note for the reader — it appears in the Notes panel (side-effect). args: {ref: display ref like 'John 1:14' (may be ''), title?: short heading, body: the note text}.",
+    sideEffect: true,
+    run: async function (args) {
+      var body = String((args && args.body) || "").trim();
+      if (!body) throw new Error("Note body is empty");
+      var title = String((args && args.title) || "").trim();
+      var ref = String((args && args.ref) || "").trim();
+      var note = { id: "n_" + Date.now(), text: clip(title ? title + "\n" + body : body, 4000), ref: ref, ts: Date.now() };
+      var notes;
+      try { notes = JSON.parse(localStorage.getItem("codex.notes.v1") || "[]"); } catch (_) { notes = []; }
+      if (!Array.isArray(notes)) notes = [];
+      try {
+        localStorage.setItem("codex.notes.v1", JSON.stringify([note].concat(notes)));
+        localStorage.setItem("codex.notes.visible", "1");
+      } catch (e) { throw new Error("Could not persist note: " + String((e && e.message) || e)); }
+      try { window.dispatchEvent(new CustomEvent("codex:notes:show")); } catch (_) {}
+      return "Note saved" + (ref ? " on " + ref : "") + " (" + (notes.length + 1) + " total) — visible in the Notes panel.";
+    },
+  });
+
   // Optional semantic search — registered only if the engine ships it.
   if (window.CODEX_SEARCH && typeof window.CODEX_SEARCH.searchSemantic === "function") {
     register({
@@ -340,9 +481,16 @@
     return { id: id, abort: function () { aborted = true; } };
   }
 
+  function call(name, args) {
+    var tool = TOOLS[name];
+    if (!tool) throw new Error("Unknown tool: " + name);
+    return Promise.resolve(tool.run(args || {}));
+  }
+
   window.CODEX_KERNEL = {
     register: register,
     tools: function () { return Object.keys(TOOLS); },
+    call: call,
     run: run,
     missions: loadMissions,
     parseRef: parseRef,

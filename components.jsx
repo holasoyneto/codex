@@ -242,7 +242,7 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
           </svg>
           <div className="cx-logo-txt">
             <b className="cx-logo-name"><span className="cx-logo-std">CODEX</span><span className="cx-logo-drift">CODƎX</span></b>
-            <span className="cx-logo-sub"><span className="cx-logo-std">AGENTIC OS · v5.0</span><span className="cx-logo-drift">VEILED.GLYPH · NIHIL OBSTAT</span></span>
+            <span className="cx-logo-sub"><span className="cx-logo-std">AGENTIC OS · v6.0</span><span className="cx-logo-drift">VEILED.GLYPH · NIHIL OBSTAT</span></span>
           </div>
         </div>
 
@@ -323,6 +323,15 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
             </span>
           </span>
         </button>
+
+        {/* Mobile omnibar door — touch users have no ⌘K, so the glass gets
+            a handle. Hidden on desktop via CSS (v6 mobile door block). */}
+        <button
+          className="cx-omni-launch"
+          onClick={() => window.codexOpenOmni?.()}
+          aria-label="Open omnibar"
+          title="Omnibar"
+        >⌘</button>
       </div>
     </header>
   );

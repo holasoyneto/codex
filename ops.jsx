@@ -96,6 +96,53 @@ function VerseOps({ seed, onClose, onJumpRef }) {
     try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "◎ Artifact copied as markdown", kind: "ok" } })); } catch {}
   };
 
+  // Convert the artifact into a saved study (builder.jsx shape, codex.studies.v1).
+  const saveAsStudy = () => {
+    const a = mission?.artifact;
+    if (!a) return;
+    const uid = (prefix) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    const now = Date.now();
+    const sections = [];
+    if (a.summary) {
+      sections.push({ id: uid("section"), heading: "Summary", items: [{ type: "note", body: String(a.summary), _id: uid("item") }] });
+    }
+    for (const s of (a.sections || [])) {
+      sections.push({ id: uid("section"), heading: s.heading || "Section", items: [{ type: "note", body: String(s.body || ""), _id: uid("item") }] });
+    }
+    if (!sections.length) sections.push({ id: uid("section"), heading: "I. ", items: [] });
+    const study = {
+      id: uid("study"),
+      title: a.title || mission.intent || "Untitled study",
+      created: now,
+      modified: now,
+      sections,
+    };
+    try {
+      let store;
+      try {
+        const parsed = JSON.parse(localStorage.getItem("codex.studies.v1") || "null");
+        store = (parsed && Array.isArray(parsed.studies)) ? parsed : { studies: [], activeStudyId: null };
+      } catch { store = { studies: [], activeStudyId: null }; }
+      store.studies.push(study);
+      localStorage.setItem("codex.studies.v1", JSON.stringify(store));
+      try { window.dispatchEvent(new CustomEvent("codex:studies-changed")); } catch {}
+      try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "✦ Saved to Studies", kind: "ok" } })); } catch {}
+    } catch {}
+  };
+
+  // Narrate the artifact (title, summary, then sections) via codexSpeak.
+  const readArtifact = () => {
+    const a = mission?.artifact;
+    if (!a || typeof window.codexSpeak !== "function") return;
+    const text = [a.title || mission.intent, a.summary, ...(a.sections || []).map(s => `${s.heading || ""}. ${s.body || ""}`)]
+      .filter(Boolean).join(". ");
+    window.codexSpeak(text);
+  };
+  const stopReading = () => {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch {}
+  };
+  const canSpeak = typeof window.codexSpeak === "function";
+
   const running = mission?.status === "running";
   const keyHint = !window.CODEX_KERNEL ? "kernel not loaded" : null;
 
@@ -173,6 +220,9 @@ function VerseOps({ seed, onClose, onJumpRef }) {
               {mission.status === "done" ? (
                 <div className="cx-ops-art-actions">
                   <button onClick={copyArtifact} title="Copy the artifact as markdown">⎘ COPY MARKDOWN</button>
+                  <button onClick={saveAsStudy} title="Save the artifact to the Studies tab">✦ SAVE AS STUDY</button>
+                  {canSpeak ? <button onClick={readArtifact} title="Read the artifact aloud">▶ READ</button> : null}
+                  {canSpeak ? <button onClick={stopReading} title="Stop reading">■</button> : null}
                 </div>
               ) : null}
               {mission.status === "error" ? <div className="cx-ops-error"><b>KERNEL FAULT</b><code>{mission.error}</code></div> : null}

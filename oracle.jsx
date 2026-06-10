@@ -1084,6 +1084,58 @@ function deriveTitle(msgs) {
   return (u.text || "").trim().replace(/\s+/g, " ").slice(0, 36) || "New chat";
 }
 
+// ── Agentic tool protocol ────────────────────────────────────────────────
+// When the ⚒ TOOLS toggle is on, the model MAY reply with a bare JSON object
+// {"tool":"name","args":{...}} instead of prose. We parse tolerantly (strip
+// code fences, find the first "{"), execute via the kernel, and feed the
+// result back as a user turn. Max 4 tool steps per user message.
+const ORACLE_TOOL_STEP_MAX = 4;
+function parseOracleToolCall(text) {
+  if (!text) return null;
+  let s = String(text).trim()
+    .replace(/^```[a-zA-Z]*\s*/, "")
+    .replace(/```\s*$/, "")
+    .trim();
+  const a = s.indexOf("{");
+  const b = s.lastIndexOf("}");
+  if (a < 0 || b <= a) return null;
+  try {
+    const o = JSON.parse(s.slice(a, b + 1));
+    if (o && typeof o.tool === "string" && o.tool.trim()) {
+      return { tool: o.tool.trim(), args: (o.args && typeof o.args === "object") ? o.args : {} };
+    }
+  } catch {}
+  return null;
+}
+function oracleToolDirective() {
+  // Built live from the kernel registry. The kernel only exposes names via
+  // .tools() today; if a future kernel returns {name, description} objects
+  // we render those too — no kernel edits required on our side.
+  let names = [];
+  try {
+    const K = window.CODEX_KERNEL;
+    names = (K && typeof K.tools === "function" && K.tools()) || [];
+  } catch {}
+  const lines = names
+    .map(n => (n && typeof n === "object")
+      ? `  ${n.name}${n.description ? ` — ${n.description}` : ""}`
+      : `  ${n}`)
+    .filter(l => l.trim());
+  if (!lines.length) return "";
+  return `\n\nIN-APP TOOLS (executed locally inside the reader):\n${lines.join("\n")}\n\nTo call a tool, reply with ONLY a single JSON object — no prose, no code fences:\n{"tool":"<name>","args":{...}}\nThe result comes back as a user message "RESULT of <name>: …". You may chain at most ${ORACLE_TOOL_STEP_MAX} tool calls per question, then you MUST answer in prose. If no tool is needed, answer normally in prose.`;
+}
+// Mirrors kernel execution without touching kernel.js: dispatch through the
+// duck-typed public CODEX_KERNEL.call(name, args) if the kernel owner ships
+// one; otherwise degrade to a "tool unavailable" result the model can route
+// around in prose.
+async function runOracleTool(name, args) {
+  const K = window.CODEX_KERNEL;
+  if (K && typeof K.call === "function") {
+    return String((await K.call(name, args || {})) ?? "");
+  }
+  throw new Error("tool unavailable");
+}
+
 function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLetter, driftMode, provider, model, availableProviders }) {
   // Effective engine: fall back to anthropic/sonnet if the parent didn't plumb
   // it (keeps the component renderable in isolation / older callers).
@@ -1161,6 +1213,9 @@ function Oracle({ passage, currentVerse, onAddBookmark, onJumpTo, primary, redLe
     return () => window.removeEventListener("oracle:prefill", onPrefill);
   }, []);
   const [busy, setBusy] = useState(false);
+  // ⚒ TOOLS — agentic turn toggle. Default ON when the kernel is present;
+  // when OFF (or no kernel) the send path is byte-identical to before.
+  const [toolsOn, setToolsOn] = useState(() => !!window.CODEX_KERNEL);
   const [hasKey, setHasKey] = useState(true); // optimistic; verified on mount
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
@@ -1501,72 +1556,121 @@ Suggestion policy: when the current passage materially benefits from a translati
       { role: "user", content: `${driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM}${langDirective}\n\n${context}\n\nConversation so far:\n${next.slice(-8).map(m => `${m.role === "user" ? "User" : "Oracle"}: ${m.text}`).join("\n")}\n\nReply as Oracle.` },
     ];
 
+    // ⚒ TOOLS — agentic turn. Only changes the request when the toggle is
+    // ON and the kernel is loaded; otherwise the body below is byte-identical
+    // to the pre-agentic send path.
+    const toolsActive = toolsOn && !!window.CODEX_KERNEL;
+    const toolDirective = toolsActive ? oracleToolDirective() : "";
+
     try {
-      const chatBody = JSON.stringify({
-        // Sonnet for Oracle (anthropic default): prompt caching kicks in
-        // for any system block ≥1024 tokens. Multi-provider override comes
-        // from the AI Model selector in Settings.
-        provider: _provider,
-        model: _model || "claude-sonnet-4-6",
-        system: [
-          { type: "text", text: (driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM) + langDirective, cache_control: { type: "ephemeral" } },
-        ],
-        messages: [
-          // Hoist any memory entries to the front as an assistant note so
-          // the model has compacted context without paying for full history.
-          ...next.filter(m => m.role === "memory").map(m => ({
-            role: "assistant",
-            content: `[CONDENSED MEMORY OF EARLIER TURNS]\n${m.text}`,
-          })),
-          ...next.filter(m => m.role !== "memory").slice(-12).map(m => ({
-            role: m.role === "user" ? "user" : "assistant",
-            content: m.text,
-          })),
-          // Include the live context as a trailing user note so it's the
-          // freshest signal the model sees.
-          { role: "user", content: `[CONTEXT — read silently]\n${context}\n\nReply as Oracle to the prior message.` },
-        ],
-        max_tokens: 1024,
-      });
-      const postChat = () => fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: chatBody,
-      });
-      let r = await postChat();
-      let data = await r.json();
-      // Self-healing: if the backend rejected the key but we have a sane
-      // one in localStorage, re-assert a trimmed copy via /api/key and
-      // retry the chat exactly once. Covers both direct mode (in-browser
-      // shim) and server mode (Node persists to .env). Without this, a
-      // stray newline in the stored key forced the user to manually open
-      // Settings → API keys → Apply on every page load.
-      if (!r.ok && (r.status === 401 || r.status === 403)) {
-        let stored = null;
-        try { stored = JSON.parse(localStorage.getItem("codex.api.keys.v1") || "null"); } catch {}
-        const active = stored && stored.active === "grok" ? "grok" : "anthropic";
-        const fresh = String((stored && (active === "grok" ? stored.grok : stored.anthropic)) || "").trim();
-        if (fresh) {
-          try {
-            await fetch("/api/key", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ key: fresh, provider: active === "grok" ? "xai" : "anthropic" }),
-            });
-          } catch {}
-          // Persist the trimmed value back so future loads skip the retry.
-          if (stored) {
+      const apiMsgs = [
+        // Hoist any memory entries to the front as an assistant note so
+        // the model has compacted context without paying for full history.
+        ...next.filter(m => m.role === "memory").map(m => ({
+          role: "assistant",
+          content: `[CONDENSED MEMORY OF EARLIER TURNS]\n${m.text}`,
+        })),
+        ...next.filter(m => m.role !== "memory" && m.role !== "toolcall").slice(-12).map(m => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.text,
+        })),
+        // Include the live context as a trailing user note so it's the
+        // freshest signal the model sees.
+        { role: "user", content: `[CONTEXT — read silently]\n${context}\n\nReply as Oracle to the prior message.` },
+      ];
+      let healed = false;
+      const callChat = async (msgs) => {
+        const chatBody = JSON.stringify({
+          // Sonnet for Oracle (anthropic default): prompt caching kicks in
+          // for any system block ≥1024 tokens. Multi-provider override comes
+          // from the AI Model selector in Settings.
+          provider: _provider,
+          model: _model || "claude-sonnet-4-6",
+          system: [
+            { type: "text", text: (driftMode ? ORACLE_SYSTEM_DRIFT : ORACLE_SYSTEM) + langDirective + toolDirective, cache_control: { type: "ephemeral" } },
+          ],
+          messages: msgs,
+          max_tokens: 1024,
+        });
+        const postChat = () => fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: chatBody,
+        });
+        let r = await postChat();
+        let data = await r.json();
+        // Self-healing: if the backend rejected the key but we have a sane
+        // one in localStorage, re-assert a trimmed copy via /api/key and
+        // retry the chat exactly once. Covers both direct mode (in-browser
+        // shim) and server mode (Node persists to .env). Without this, a
+        // stray newline in the stored key forced the user to manually open
+        // Settings → API keys → Apply on every page load.
+        if (!r.ok && (r.status === 401 || r.status === 403) && !healed) {
+          healed = true;
+          let stored = null;
+          try { stored = JSON.parse(localStorage.getItem("codex.api.keys.v1") || "null"); } catch {}
+          const active = stored && stored.active === "grok" ? "grok" : "anthropic";
+          const fresh = String((stored && (active === "grok" ? stored.grok : stored.anthropic)) || "").trim();
+          if (fresh) {
             try {
-              const fixed = { ...stored, anthropic: String(stored.anthropic || "").trim(), grok: String(stored.grok || "").trim(), active };
-              localStorage.setItem("codex.api.keys.v1", JSON.stringify(fixed));
+              await fetch("/api/key", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ key: fresh, provider: active === "grok" ? "xai" : "anthropic" }),
+              });
             } catch {}
+            // Persist the trimmed value back so future loads skip the retry.
+            if (stored) {
+              try {
+                const fixed = { ...stored, anthropic: String(stored.anthropic || "").trim(), grok: String(stored.grok || "").trim(), active };
+                localStorage.setItem("codex.api.keys.v1", JSON.stringify(fixed));
+              } catch {}
+            }
+            r = await postChat();
+            data = await r.json();
           }
-          r = await postChat();
-          data = await r.json();
+        }
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        return (data.text || "").trim();
+      };
+
+      let reply = await callChat(apiMsgs);
+
+      if (toolsActive) {
+        // Tool loop: while the model answers with {"tool":…}, execute, show
+        // a chip, feed the result back, and ask again — at most 4 steps.
+        for (let step = 0; step < ORACLE_TOOL_STEP_MAX; step++) {
+          const call = parseOracleToolCall(reply);
+          if (!call) break;
+          let result, failed = false;
+          try {
+            result = await runOracleTool(call.tool, call.args);
+          } catch (e) {
+            result = String((e && e.message) || e || "tool unavailable");
+            failed = true;
+          }
+          const preview = String(result).replace(/\s+/g, " ").trim().slice(0, 96) || "(empty)";
+          setMessages(m => [...m, { role: "toolcall", tool: call.tool, text: preview, error: failed }]);
+          apiMsgs.push({ role: "assistant", content: reply });
+          apiMsgs.push({
+            role: "user",
+            content: `RESULT of ${call.tool}: ${String(result).slice(0, 2600)}` +
+              (step === ORACLE_TOOL_STEP_MAX - 1
+                ? "\n\n(Tool budget exhausted — answer the user in prose now. Do NOT emit another JSON tool call.)"
+                : ""),
+          });
+          reply = await callChat(apiMsgs);
+        }
+        // Budget note usually lands; if the model still emits a tool call,
+        // force one final prose pass so the user always gets an answer.
+        if (parseOracleToolCall(reply)) {
+          apiMsgs.push({ role: "assistant", content: reply });
+          apiMsgs.push({ role: "user", content: "Stop calling tools. Answer the user's question in prose now." });
+          reply = await callChat(apiMsgs);
         }
       }
-      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-      const cleaned = (data.text || "").trim();
+
+      const cleaned = reply;
       const wrote = handleBookmarkDirective(cleaned);
       const display = cleaned.replace(/\[\[BOOKMARK\]\][^\n]*/g, "").trim() ||
                       (wrote ? `Saved ${wrote} bookmark${wrote>1?"s":""} for you.` : "—");
@@ -1714,6 +1818,17 @@ Suggestion policy: when the current passage materially benefits from a translati
           disabled={compacting || busy}
           title="Compact this conversation into a memory line"
         >{compacting ? "…" : "⊟"}</button>
+        {window.CODEX_KERNEL ? (
+          <button
+            className="cx-oracle-act"
+            style={{ width: "auto", padding: "0 6px", opacity: toolsOn ? 1 : 0.4 }}
+            onClick={() => setToolsOn(v => !v)}
+            aria-pressed={toolsOn}
+            title={toolsOn
+              ? "Agent tools ON — the Oracle may call in-app tools (passages, search, cross-refs…). Click to disable."
+              : "Agent tools OFF — prose-only replies. Click to enable."}
+          >⚒ TOOLS</button>
+        ) : null}
         <button
           className="cx-oracle-act"
           onClick={exportNow}
@@ -1800,6 +1915,18 @@ Suggestion policy: when the current passage materially benefits from a translati
                 <span className="cx-msg-r">MEM</span>
                 <p className="cx-msg-t">{m.text}</p>
                 <span className="cx-msg-flag">⊟ COMPACTED · earlier turns folded into this memory</span>
+              </div>
+            );
+          }
+          if (m.role === "toolcall") {
+            // Compact agent-step chip: tool name stamp + one-line result preview.
+            return (
+              <div key={i} className="cx-msg is-memory">
+                <span className="cx-msg-r">⚒</span>
+                <p className="cx-msg-t">
+                  <span className={`cx-intel-stamp ${m.error ? "is-red" : "is-dim"}`}>{m.tool}</span>
+                  {" "}{m.text}
+                </p>
               </div>
             );
           }
