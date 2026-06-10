@@ -1691,6 +1691,24 @@ function App() {
     if (window.CODEX_PLUGINS_API) window.CODEX_PLUGINS_API.onVerseSelect(ref);
   }, [passage.bookId, passage.chapter, passage.book, currentVerse, primary]);
 
+  // v7.5 ACTION — expose the live cursor to non-React chrome (wm.js dock).
+  // window.CODEX_NOW always reflects "where the reader is"; 'codex:now' fires
+  // on every change so the dock can re-render. Defensive: never throws.
+  useEffect(() => {
+    if (!passage.book || !passage.chapter) return;
+    try {
+      const v = currentVerse || 1;
+      window.CODEX_NOW = {
+        ref: `${passage.book} ${passage.chapter}:${v}`,
+        book: passage.book,
+        bookId: passage.bookId,
+        chapter: passage.chapter,
+        verse: v,
+      };
+      window.dispatchEvent(new CustomEvent("codex:now", { detail: window.CODEX_NOW }));
+    } catch {}
+  }, [passage.bookId, passage.chapter, passage.book, currentVerse]);
+
   // Update passage title once panels finish generating, so the header reflects the AI title.
   useEffect(() => {
     if (panelData && (!passage.title || passage.title === `${passage.book} ${passage.chapter}`)) {

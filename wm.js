@@ -70,6 +70,80 @@
     } }
   ];
 
+  // ── Dock v3 (OS·7 ACTION) — the launcher row becomes an ACTION BAR bound
+  // to the current verse. app.jsx keeps window.CODEX_NOW fresh and fires
+  // 'codex:now'; the chips act on that ref via the existing 'codex:os-open'
+  // app listener. OPS/ORACLE/CANON retire from the dock (⌘K owns them —
+  // lazy users need fewer, stronger buttons). os7-off keeps the original
+  // windows-only dock exactly. DOCK_LAUNCH stays defined (never rendered
+  // when os7 is off; kept for API stability).
+  function dockNow() {
+    try {
+      var n = window.CODEX_NOW;
+      return (n && n.ref) ? n : null;
+    } catch (_) { return null; }
+  }
+  function dockTrailRef() {
+    try {
+      var t = JSON.parse(localStorage.getItem("codex.trail") || "[]");
+      var last = t.length ? t[t.length - 1] : null;
+      return (last && last.ref) ? String(last.ref) : null;
+    } catch (_) { return null; }
+  }
+  var DOCK_VERBS = [
+    { glyph: "⚔", label: "SWORD",  name: "Sword",  kind: "sword" },
+    { glyph: "⌬", label: "MIRROR", name: "Mirror", kind: "mirror" },
+    { glyph: "◎", label: "MAP",    name: "Map",    kind: "map" }
+  ];
+  function dockChip(cls, glyph, label, title, run) {
+    var chip = document.createElement("button");
+    chip.className = cls;
+    chip.innerHTML = '<i>' + glyph + '</i><span>' + label + '</span>';
+    chip.title = title;
+    chip.addEventListener("click", function () { try { run(); } catch (_) {} });
+    return chip;
+  }
+  function dockSep() {
+    var div = document.createElement("span");
+    div.className = "cx-wm-dock-sep";
+    div.setAttribute("aria-hidden", "true");
+    div.style.cssText = "align-self:stretch;width:1px;margin:4px 4px;background:currentColor;opacity:.18;";
+    return div;
+  }
+  function dockActionChips(el) {
+    var now = dockNow();
+    var trailRef = dockTrailRef();
+    var ACT = "cx-wm-dock-chip cx-wm-dock-launch cx-wm-dock-act";
+    el.appendChild(dockChip(ACT, "⌘", "OMNI", "Omnibar (⌘K)", function () {
+      if (typeof window.codexOpenOmni === "function") window.codexOpenOmni();
+    }));
+    if (trailRef) {
+      el.appendChild(dockChip(ACT + " cx-wm-dock-continue", "⟳", "CONTINUE", "Continue — " + trailRef, function () {
+        var r = dockTrailRef();
+        if (r && typeof window.codexJumpToRef === "function") {
+          try { window.codexJumpToRef(r); } catch (_) {}
+        }
+      }));
+    }
+    el.appendChild(dockSep());
+    DOCK_VERBS.forEach(function (v) {
+      var ref = (now && now.ref) || trailRef;
+      el.appendChild(dockChip(
+        ACT + (now ? "" : " is-idle"),
+        v.glyph, v.label,
+        v.name + (ref ? " — " + ref : ""),
+        function () {
+          var n = dockNow();
+          var r = (n && n.ref) || dockTrailRef();
+          if (!r) return;
+          try {
+            window.dispatchEvent(new CustomEvent("codex:os-open", { detail: { kind: v.kind, ref: r } }));
+          } catch (_) {}
+        }
+      ));
+    });
+  }
+
   function dockRender() {
     dockWins = dockWins.filter(function (w) { return w.backdrop.isConnected; });
     var launcher = os7on() && active();
@@ -83,21 +157,8 @@
     }
     dockEl.textContent = "";
     if (launcher) {
-      DOCK_LAUNCH.forEach(function (l) {
-        var chip = document.createElement("button");
-        chip.className = "cx-wm-dock-chip cx-wm-dock-launch";
-        chip.innerHTML = '<i>' + l.glyph + '</i><span>' + l.label + '</span>';
-        chip.title = l.title;
-        chip.addEventListener("click", function () { try { l.run(); } catch (_) {} });
-        dockEl.appendChild(chip);
-      });
-      if (dockWins.length) {
-        var div = document.createElement("span");
-        div.className = "cx-wm-dock-sep";
-        div.setAttribute("aria-hidden", "true");
-        div.style.cssText = "align-self:stretch;width:1px;margin:4px 4px;background:currentColor;opacity:.18;";
-        dockEl.appendChild(div);
-      }
+      dockActionChips(dockEl);
+      if (dockWins.length) dockEl.appendChild(dockSep());
     }
     dockWins.forEach(function (w) {
       var chip = document.createElement("button");
@@ -411,6 +472,16 @@
 
   // OS·7 mode flips (shell.js) re-render the dock so launchers appear/retire.
   window.addEventListener("codex:os7", function () { dockRender(); });
+
+  // Verse cursor moves (app.jsx 'codex:now') re-render the action chips so
+  // titles track the current ref and CONTINUE appears after boot without a
+  // reload. Debounced — J/K scrubbing fires this on every landed verse.
+  var dockNowTimer = 0;
+  window.addEventListener("codex:now", function () {
+    if (!os7on()) return;
+    clearTimeout(dockNowTimer);
+    dockNowTimer = setTimeout(function () { try { dockRender(); } catch (_) {} }, 250);
+  });
 
   function boot() {
     try {

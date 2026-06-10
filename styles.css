@@ -19824,3 +19824,242 @@ body.cx-os7 ::-webkit-scrollbar-thumb:hover { background: var(--os7-line-strong)
   }
 }
 /* ═══ END OS·7 NOCTURNE ═══ */
+
+/* v7.5 DECK ════════════════════════════════════════════════════════════
+   OS·7 desktop right-rail Deck: the pinned panels become a vertical
+   scroll stack of live glass cards. Engages ONLY through the additive
+   .is-deck class the rail sets when body.cx-os7 + min-width:881px (and
+   no focused panel). Classic shell, mobile, and os7-off are untouched —
+   no existing selector is modified, only new rules appended.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (min-width: 881px) {
+  /* 1 · The pinned tab strip yields to the stack (palette stays reachable
+     via the + PANELS button at the bottom of the deck). */
+  body.cx-os7 .cx-rail-r.is-deck .cx-tabs.is-pinned { display: none; }
+
+  /* 2 · The body becomes the scroll column for the cards: classic panel
+     chrome (opaque bg, hairline border, corner ticks) is neutralized so
+     each card supplies its own glass. Scroll, not click. */
+  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 2px 2px 12px;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    scroll-behavior: smooth;
+  }
+  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck::before,
+  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck::after { display: none; }
+
+  /* 3 · The card: detached glass pane, os7 vocabulary. NO overflow clip on
+     the card itself — sticky headers need a visible-overflow ancestor
+     chain up to the scrolling .cx-deck. */
+  body.cx-os7 .cx-deck-card {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--os7-line);
+    border-radius: var(--os7-radius);
+    background: var(--os7-glass-2);
+    -webkit-backdrop-filter: var(--os7-blur);
+    backdrop-filter: var(--os7-blur);
+    box-shadow: var(--os7-shadow-soft);
+  }
+  body.cx-os7 .cx-deck-card.is-open {
+    box-shadow: var(--os7-shadow);
+    border-color: var(--os7-line);
+  }
+  body.cx-os7 .cx-deck-card.is-open:focus-within {
+    border-color: var(--os7-line-strong);
+  }
+  body.cx-os7 .cx-deck-card.is-temp { border-style: dashed; }
+
+  /* 4 · Slim header — sticky while the stack scrolls. */
+  body.cx-os7 .cx-deck-card-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 8px 8px 11px;
+    border-radius: var(--os7-radius) var(--os7-radius) 0 0;
+    border-bottom: 1px solid var(--os7-line-soft);
+    background: var(--os7-glass-hi);
+    -webkit-backdrop-filter: var(--os7-blur);
+    backdrop-filter: var(--os7-blur);
+  }
+  body.cx-os7 .cx-deck-card.is-closed .cx-deck-card-head {
+    border-bottom: 0;
+    border-radius: var(--os7-radius);
+  }
+  body.cx-os7 .cx-deck-card-toggle {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--cx-fg-dim);
+    font-family: var(--cx-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+  }
+  body.cx-os7 .cx-deck-card-toggle:hover { color: var(--cx-fg); }
+  body.cx-os7 .cx-deck-card.is-open .cx-deck-card-toggle { color: var(--cx-fg); }
+  body.cx-os7 .cx-deck-card.is-locked .cx-deck-card-toggle { opacity: 0.65; }
+  body.cx-os7 .cx-deck-caret {
+    flex: 0 0 auto;
+    width: 10px;
+    font-size: 9px;
+    opacity: 0.7;
+  }
+  body.cx-os7 .cx-deck-glyph {
+    flex: 0 0 auto;
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  body.cx-os7 .cx-deck-lbl {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  body.cx-os7 .cx-deck-focus {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--os7-line-soft);
+    border-radius: 7px;
+    background: var(--os7-glass-2);
+    color: var(--cx-fg-dim);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  body.cx-os7 .cx-deck-focus:hover {
+    color: var(--cx-fg);
+    border-color: var(--os7-line-strong);
+    background: var(--os7-glass-hi);
+    box-shadow: 0 0 12px var(--os7-glow);
+  }
+
+  /* 5 · Card body — each card owns its scroll; panels size to content
+     instead of filling the rail (the classic `.cx-tab-body > .cx-pane`
+     fill rules don't reach here: panes are no longer direct children). */
+  body.cx-os7 .cx-deck-card-body {
+    max-height: min(52vh, 480px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 0 0 var(--os7-radius) var(--os7-radius);
+    animation: cx-deck-reveal 0.22s ease both;
+  }
+  body.cx-os7 .cx-deck-card-body .cx-pane {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  @keyframes cx-deck-reveal {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* 6 · "+ PANELS" — the palette stays one tap away at stack bottom. */
+  body.cx-os7 .cx-deck-add {
+    flex: 0 0 auto;
+    align-self: stretch;
+    padding: 9px 12px;
+    border: 1px dashed var(--os7-line);
+    border-radius: var(--os7-radius);
+    background: transparent;
+    color: var(--cx-fg-dim);
+    font-family: var(--cx-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    cursor: pointer;
+  }
+  body.cx-os7 .cx-deck-add:hover {
+    color: var(--cx-fg);
+    border-color: var(--os7-line-strong);
+    background: var(--os7-glass-2);
+    box-shadow: 0 0 14px var(--os7-glow);
+  }
+
+  /* 7 · Focused (⤢) classic view: the back strip above the single panel. */
+  body.cx-os7 .cx-deck-backbar {
+    flex: 0 0 auto;
+    display: flex;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--os7-line-soft);
+  }
+  body.cx-os7 .cx-deck-back {
+    padding: 4px 10px;
+    border: 1px solid var(--os7-line);
+    border-radius: 999px;
+    background: var(--os7-glass-2);
+    color: var(--cx-fg-dim);
+    font-family: var(--cx-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    cursor: pointer;
+  }
+  body.cx-os7 .cx-deck-back:hover {
+    color: var(--cx-fg);
+    border-color: var(--os7-line-strong);
+    box-shadow: 0 0 12px var(--os7-glow);
+  }
+}
+/* Reduced motion: the deck expands without animation or smooth-scroll. */
+@media (prefers-reduced-motion: reduce) {
+  body.cx-os7 .cx-deck-card-body { animation: none !important; }
+  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck { scroll-behavior: auto; }
+}
+/* end v7.5 DECK */
+
+/* v7.5 ACTION DOCK */
+/* Dock v3 — the OS·7 launcher row is an ACTION BAR bound to the current
+   verse. Additive, scoped to body.cx-os7 desktop only. */
+@media (min-width: 881px) {
+  /* Verse verbs before the cursor exists — present but visibly dormant. */
+  body.cx-os7 .cx-wm-dock-chip.cx-wm-dock-act.is-idle {
+    opacity: 0.4;
+  }
+  body.cx-os7 .cx-wm-dock-chip.cx-wm-dock-act.is-idle:hover {
+    opacity: 0.65;
+    box-shadow: none;
+  }
+  /* CONTINUE — the one-click resume; slightly accented so the lazy eye
+     lands on it first. */
+  body.cx-os7 .cx-wm-dock-chip.cx-wm-dock-continue {
+    color: var(--cx-accent);
+    border-color: var(--os7-line);
+    background: var(--os7-glass-hi);
+  }
+  body.cx-os7 .cx-wm-dock-chip.cx-wm-dock-continue:hover {
+    box-shadow: 0 0 16px var(--os7-glow-hot);
+  }
+  body.cx-os7 .cx-wm-dock-chip.cx-wm-dock-continue::after {
+    opacity: 0.9;
+    background: var(--cx-accent);
+  }
+}

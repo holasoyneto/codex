@@ -314,6 +314,109 @@ function RightRail({
     });
   };
 
+  /* v7.5 DECK — desktop-OS·7 stacked-card state. All additive: when the
+     deck is off (classic shell / mobile / os7-off) none of this renders. */
+  const deckOn = useDeckMode();
+  // Temporary "focus" escape hatch: ⤢ on a card flips to the classic
+  // single-panel body for deep work; ‹ DECK returns to the stack.
+  const [focusedPanel, setFocusedPanel] = React.useState(null);
+  // Collapsed-card ids; null = no stored value → default first two pinned
+  // expanded, the rest collapsed (header-only, content unmounted).
+  const [deckCollapsed, setDeckCollapsed] = React.useState(loadDeckCollapsed);
+  const collapsedIds = deckCollapsed != null ? deckCollapsed : pinned.slice(2);
+  React.useEffect(() => { if (!deckOn) setFocusedPanel(null); }, [deckOn]);
+  // Programmatic openers (codexOpenPanel / open-builtin-tab) only set `tab`;
+  // in deck mode make the targeted card visible by auto-expanding it.
+  const deckPrevTabRef = React.useRef(tab);
+  React.useEffect(() => {
+    if (deckPrevTabRef.current === tab) return;
+    deckPrevTabRef.current = tab;
+    if (!deckOn || !tab) return;
+    setDeckCollapsed((prev) => {
+      const base = prev != null ? prev : pinned.slice(2);
+      if (!base.includes(tab)) return prev;
+      const next = base.filter((x) => x !== tab);
+      saveDeckCollapsed(next);
+      return next;
+    });
+  }, [tab, deckOn, pinned]);
+  const toggleDeckCard = (tb) => {
+    if (tb.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
+    const base = collapsedIds;
+    const next = base.includes(tb.id) ? base.filter((x) => x !== tb.id) : [...base, tb.id];
+    saveDeckCollapsed(next);
+    setDeckCollapsed(next);
+  };
+  const focusDeckCard = (tb) => {
+    if (tb.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
+    onTab(tb.id);
+    setFocusedPanel(tb.id);
+  };
+  // Per-id panel body for a deck card. Same components + same shared props
+  // as the classic single-body chain below — builtins are pure prop
+  // consumers (no singleton ids/refs), so multiple bodies coexist safely.
+  // Plugin panels render at most once each (pinned ids are unique) and
+  // ONLY while their card is expanded (mount-on-expand), so plugins with
+  // module-level state/listeners never run hidden.
+  const renderDeckPanel = (tb) => {
+    if (tb.isPlugin) {
+      return (
+        <PluginPanelHost
+          panel={tb.plugin}
+          book={passage.book}
+          bookId={passage.bookId}
+          chapter={passage.chapter}
+          verse={currentVerse}
+          translation={translation || primary}
+        />
+      );
+    }
+    switch (tb.id) {
+      case "trans":
+        return (
+          <TranslationsPanel primary={primary} onPrimary={onPrimary}
+                             compareSet={compareSet} onToggleCompare={onToggleCompare}
+                             passage={passage} currentVerse={currentVerse} />
+        );
+      case "talmud":
+        return (
+          <TalmudPanel panelData={panelData} status={panelStatus} meta={panelMeta}
+                       passage={passage} onRegenerate={onRegeneratePanels} />
+        );
+      case "comm":
+        return (
+          <CommentaryPanel panelData={panelData} status={panelStatus} meta={panelMeta}
+                           passage={passage} onRegenerate={onRegeneratePanels} onJumpRef={onJumpRef} />
+        );
+      case "gem":
+        return (
+          <GematriaPanel panelData={panelData} status={panelStatus} meta={panelMeta}
+                         passage={passage} onRegenerate={onRegeneratePanels} />
+        );
+      case "gnosis":
+        return (
+          <GnosisPanel panelData={panelData} status={panelStatus} meta={panelMeta}
+                       passage={passage} gnosisOn={gnosisOn} onToggleGnosis={onToggleGnosis}
+                       onRegenerate={onRegeneratePanels} />
+        );
+      case "disarm":
+        return (
+          <DisarmPanel panelData={disarmData} status={disarmStatus} meta={disarmMeta}
+                       passage={passage} currentVerse={currentVerse} onRegenerate={onRegenerateDisarm} />
+        );
+      case "exeg":
+        return <ExegesisPanel passage={passage} currentVerse={currentVerse} />;
+      case "txan":
+        return (
+          <TranslationAnalysisPanel passage={passage} currentVerse={currentVerse}
+                                    primary={primary} compareSet={compareSet} onJumpRef={onJumpRef} />
+        );
+      default:
+        return null;
+    }
+  };
+  /* end v7.5 DECK state */
+
   // Companion to window.codexOpenPanel for BUILTIN tab ids: the app-level
   // codex:open-panel listener force-prefixes "plugin:", so codexOpenPanel
   // fires it once purely to surface the rail, then this rail-local event
@@ -400,7 +503,7 @@ function RightRail({
   }, [onClose]);
 
   return (
-    <aside ref={railRef} className="cx-rail cx-rail-r">
+    <aside ref={railRef} className={`cx-rail cx-rail-r${deckOn && !focusedPanel ? " is-deck" : ""}`}>
       <RightRailResizer />
       <button className="cx-rail-close" onClick={onClose} aria-label="Close panels">×</button>
       {onCollapse ? (
@@ -457,7 +560,48 @@ function RightRail({
         onToggleGnosis={onToggleGnosis}
       />
 
+      {deckOn && !focusedPanel ? (
+        /* v7.5 DECK — pinned panels as a vertical stack of live glass
+           cards, auto-bound to the current passage. Collapsed cards mount
+           NO content (header only) — the safe default for every card. */
+        <div className="cx-tab-body cx-deck">
+          {pinnedTabs.map((tb) => {
+            const locked = tb.id === "gnosis" && !gnosisOn;
+            const expanded = !locked && !collapsedIds.includes(tb.id);
+            return (
+              <DeckCard
+                key={tb.id}
+                tab={tb}
+                expanded={expanded}
+                locked={locked}
+                onToggle={() => toggleDeckCard(tb)}
+                onFocus={() => focusDeckCard(tb)}
+              >
+                {expanded ? renderDeckPanel(tb) : null}
+              </DeckCard>
+            );
+          })}
+          <button
+            type="button"
+            className="cx-deck-add"
+            onClick={() => setPaletteOpen(true)}
+            title="All panels — open the panel library"
+            aria-label="Open panel library"
+          >+ PANELS</button>
+        </div>
+      ) : (
       <div className="cx-tab-body">
+        {deckOn && focusedPanel ? (
+          <div className="cx-deck-backbar">
+            <button
+              type="button"
+              className="cx-deck-back"
+              onClick={() => setFocusedPanel(null)}
+              title="Back to the deck"
+              aria-label="Back to the deck"
+            >‹ DECK</button>
+          </div>
+        ) : null}
         {tab === "trans" && (
           <TranslationsPanel
             primary={primary}
@@ -512,6 +656,7 @@ function RightRail({
           />
         ) : null}
       </div>
+      )}
     </aside>
   );
 }
@@ -2926,3 +3071,99 @@ function LeftRailResizer() {
 }
 
 Object.assign(window, { RightRail, LeftRailResizer });
+
+/* v7.5 DECK ════════════════════════════════════════════════════════════
+   Desktop OS·7 right-rail "Deck": the pinned panels render as a vertical
+   scroll stack of glass cards instead of a tab strip. Everything below is
+   additive and file-local — no existing class/export/key/event renamed.
+   The deck engages ONLY when body.cx-os7 is set AND viewport >= 881px;
+   classic shell, mobile, and os7-off keep today's tab behavior exactly.
+   (Function declarations hoist, so RightRail above sees these.)
+   ══════════════════════════════════════════════════════════════════════ */
+
+// Collapsed-card persistence: array of tab ids whose cards are folded.
+// null (nothing stored yet) → caller derives the default: first two
+// pinned cards expanded, the rest collapsed.
+const DECK_COLLAPSED_KEY = "codex.deck.collapsed.v1";
+function loadDeckCollapsed() {
+  try {
+    const raw = localStorage.getItem(DECK_COLLAPSED_KEY);
+    if (raw == null) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : null;
+  } catch {}
+  return null;
+}
+function saveDeckCollapsed(arr) {
+  try { localStorage.setItem(DECK_COLLAPSED_KEY, JSON.stringify(arr)); } catch {}
+}
+
+// Deck mode = OS·7 shell active AND desktop width. Re-evaluated on the
+// "codex:os7" toggle event (shell.js dispatches it) and on viewport
+// crossings of the 881px desktop breakpoint.
+function useDeckMode() {
+  const compute = () => {
+    try {
+      return typeof document !== "undefined" &&
+        document.body.classList.contains("cx-os7") &&
+        !!(window.matchMedia && window.matchMedia("(min-width: 881px)").matches);
+    } catch { return false; }
+  };
+  const [on, setOn] = React.useState(compute);
+  React.useEffect(() => {
+    const update = () => setOn(compute());
+    window.addEventListener("codex:os7", update);
+    let mq = null;
+    try { mq = window.matchMedia ? window.matchMedia("(min-width: 881px)") : null; } catch {}
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener("change", update);
+      else if (mq.addListener) mq.addListener(update);
+    }
+    return () => {
+      window.removeEventListener("codex:os7", update);
+      if (mq) {
+        if (mq.removeEventListener) mq.removeEventListener("change", update);
+        else if (mq.removeListener) mq.removeListener(update);
+      }
+    };
+  }, []);
+  return on;
+}
+
+// One glass card in the deck: slim sticky header (caret + glyph + label +
+// ⤢ focus) over an optionally-mounted body. Mount-on-expand is the safe
+// default for ALL cards — collapsed means header only, zero content
+// mounted, so plugins holding module-level state / window listeners
+// (e.g. reels' media + intervals) only ever live while visible.
+function DeckCard({ tab, expanded, locked, onToggle, onFocus, children }) {
+  return (
+    <section
+      className={`cx-deck-card ${expanded ? "is-open" : "is-closed"}${tab.isPlugin ? " is-plugin" : ""}${locked ? " is-locked" : ""}${tab.isTemp ? " is-temp" : ""}`}
+      data-deck-id={tab.id}
+    >
+      <header className="cx-deck-card-head">
+        <button
+          type="button"
+          className="cx-deck-card-toggle"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          title={locked ? "Unlock and expand" : expanded ? "Collapse" : "Expand"}
+        >
+          <span className="cx-deck-caret" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
+          <span className="cx-deck-glyph" aria-hidden="true">{tab.glyph}</span>
+          <span className="cx-deck-lbl">{tab.label}</span>
+          {locked ? <span className="cx-tab-lock" aria-hidden="true">⌬</span> : null}
+        </button>
+        <button
+          type="button"
+          className="cx-deck-focus"
+          onClick={onFocus}
+          title={`Focus ${tab.label} — full single-panel view`}
+          aria-label={`Focus ${tab.label}`}
+        >⤢</button>
+      </header>
+      {expanded ? <div className="cx-deck-card-body">{children}</div> : null}
+    </section>
+  );
+}
+/* end v7.5 DECK */
