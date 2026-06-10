@@ -70,6 +70,11 @@ const PANEL_INDEX = [
 // Each opens through an existing global/event — no new plumbing invented.
 const OMNI_COMMANDS = [
   {
+    id: "constellation", icon: "❂", aliases: ["constellation", "canon", "threads"],
+    title: "Open the Constellation", sub: "the whole canon as one body — every cross-reference, live",
+    action: () => { window.codexOpenConstellation && window.codexOpenConstellation(); },
+  },
+  {
     id: "oracle", icon: "◬", aliases: ["oracle"],
     title: "Open the Oracle", sub: "AI conversation in the left rail",
     action: () => {

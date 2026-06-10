@@ -1884,6 +1884,13 @@ function App() {
   const openVerseSword = useCallback((v, refStr, text) => setVerseSword({ verse: v, refStr, text }), []);
   const closeVerseSword = useCallback(() => setVerseSword(null), []);
 
+  // ── CONSTELLATION — the canon as one body. ─────────────────────────────
+  const [constOpen, setConstOpen] = useState(false);
+  useEffect(() => {
+    window.codexOpenConstellation = () => setConstOpen(true);
+    return () => { delete window.codexOpenConstellation; };
+  }, []);
+
   // ── OMNIBAR — ⌘K, the one door. ───────────────────────────────────────
   const [omniOpen, setOmniOpen] = useState(false);
   useEffect(() => {
@@ -3175,6 +3182,10 @@ function App() {
 
       {omniOpen && window.Omnibar ? (
         <Omnibar onClose={() => setOmniOpen(false)} />
+      ) : null}
+
+      {constOpen && window.VerseConstellation ? (
+        <VerseConstellation onClose={() => setConstOpen(false)} />
       ) : null}
 
       {/* Keyboard help is the single inline cx-kbd-overlay above (setShowShortcuts).

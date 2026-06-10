@@ -33,14 +33,15 @@
     { id: "art",    backdrop: "cx-art-backdrop",    card: ".cx-art",    head: ".cx-art-h",    min: [500, 380] },
     { id: "cmp",    backdrop: "cx-cmp-backdrop",    card: ".cx-cmp",    head: ".cx-cmp-h",    min: [500, 340] },
     { id: "sword",  backdrop: "cx-sword-backdrop",  card: ".cx-sword",  head: ".cx-sword-h",  min: [640, 460] },
-    { id: "ops",    backdrop: "cx-ops-backdrop",    card: ".cx-ops",    head: ".cx-ops-h",    min: [720, 480] }
+    { id: "ops",    backdrop: "cx-ops-backdrop",    card: ".cx-ops",    head: ".cx-ops-h",    min: [720, 480] },
+    { id: "const",  backdrop: "cx-const-backdrop",  card: ".cx-const",  head: ".cx-const-h",  min: [720, 600] }
   ];
 
   // ── Dock — the running-windows strip. Renders only while ≥1 window is
   // open (no idle ambient chrome — ambient surfaces must be closable, and
   // the cleanest closable is one that isn't there). Click: focus; click the
   // focused window's chip: minimize; click a minimized chip: restore.
-  var DOCK_GLYPH = { mirror: "⌬", map: "◎", art: "▦", cmp: "≡", sword: "⚔", ops: "❖" };
+  var DOCK_GLYPH = { mirror: "⌬", map: "◎", art: "▦", cmp: "≡", sword: "⚔", ops: "❖", const: "❂" };
   var dockEl = null;
   var dockWins = []; // [{ key, id, backdrop, card, front }]
 

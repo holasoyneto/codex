@@ -12,7 +12,7 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v248";
+const VERSION = "v249";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -76,6 +76,7 @@ const SHELL_FILES = [
   r("sword.jsx"),
   r("ops.jsx"),
   r("omnibar.jsx"),
+  r("constellation.jsx"),
   r("notes.jsx"),
   r("help.jsx"),
   r("repo-add.jsx"),
