@@ -186,44 +186,58 @@ function VerseMenu({
 
       {view === "root" ? (
         <div className="cx-vm-body">
-          <button
-            className={`cx-vm-row ${currentHighlight ? "is-on" : ""}`}
-            role="menuitem"
-            onClick={() => { onToggleHighlight?.(); onClose(); }}
-          >
-            <span className="cx-vm-icon" style={currentHighlight && highlightColors?.[currentHighlight] ? { color: highlightColors[currentHighlight].swatch } : null}>
-              {currentHighlight ? "✓" : "✦"}
-            </span>
-            <span className="cx-vm-lbl">{currentHighlight ? vmt("vm.unmark") : vmt("vm.mark")}</span>
-            <span className="cx-vm-sub">
-              {currentHighlight ? `clear ${currentHighlight}` : `highlight in ${highlightColor || "amber"}`}
-            </span>
-          </button>
-
-          {highlightColors ? (
-            <button className="cx-vm-row" role="menuitem" onClick={() => setView("highlight")}>
-              <span className="cx-vm-icon">◐</span>
-              <span className="cx-vm-lbl">{vmt("vm.choose.color")}</span>
-              <span className="cx-vm-sub">5 hues ▸</span>
+          {/* v6.1 — MARK / CHOOSE COLOR / TRANSLATE / COPY compressed into a
+              compact icon strip. Handlers identical to the old full rows. */}
+          <div className="cx-vm-strip" role="group" aria-label="Quick actions">
+            <button
+              className={`cx-vm-strip-btn ${currentHighlight ? "is-on" : ""}`}
+              role="menuitem"
+              onClick={() => { onToggleHighlight?.(); onClose(); }}
+              title={currentHighlight ? `${vmt("vm.unmark")} — clear ${currentHighlight}` : `${vmt("vm.mark")} — highlight in ${highlightColor || "amber"}`}
+              aria-label={currentHighlight ? vmt("vm.unmark") : vmt("vm.mark")}
+            >
+              <span className="cx-vm-icon" style={currentHighlight && highlightColors?.[currentHighlight] ? { color: highlightColors[currentHighlight].swatch } : null}>
+                {currentHighlight ? "✓" : "✦"}
+              </span>
             </button>
-          ) : null}
 
-          <button className="cx-vm-row" role="menuitem" onClick={() => setView("translate")}>
-            <span className="cx-vm-icon">↔</span>
-            <span className="cx-vm-lbl">{vmt("vm.translate")}</span>
-            <span className="cx-vm-sub">switch primary corpus ▸</span>
-          </button>
+            {highlightColors ? (
+              <button
+                className="cx-vm-strip-btn"
+                role="menuitem"
+                onClick={() => setView("highlight")}
+                title={`${vmt("vm.choose.color")} — 5 hues`}
+                aria-label={vmt("vm.choose.color")}
+              >
+                <span className="cx-vm-icon">◐</span>
+              </button>
+            ) : null}
+
+            <button
+              className="cx-vm-strip-btn"
+              role="menuitem"
+              onClick={() => setView("translate")}
+              title={`${vmt("vm.translate")} — switch primary corpus`}
+              aria-label={vmt("vm.translate")}
+            >
+              <span className="cx-vm-icon">↔</span>
+            </button>
+
+            <button
+              className="cx-vm-strip-btn"
+              role="menuitem"
+              onClick={copy}
+              title={`${vmt("vm.copy")} — verse + reference`}
+              aria-label={vmt("vm.copy")}
+            >
+              <span className="cx-vm-icon">⎘</span>
+            </button>
+          </div>
 
           <button className="cx-vm-row" role="menuitem" onClick={() => { onAskOracle(verse, ref$, verseText); onClose(); }}>
             <span className="cx-vm-icon">◉</span>
             <span className="cx-vm-lbl">{vmt("vm.ask.oracle")}</span>
             <span className="cx-vm-sub">load into the chatbot</span>
-          </button>
-
-          <button className="cx-vm-row" role="menuitem" onClick={copy}>
-            <span className="cx-vm-icon">⎘</span>
-            <span className="cx-vm-lbl">{vmt("vm.copy")}</span>
-            <span className="cx-vm-sub">verse + reference</span>
           </button>
 
           <button className={`cx-vm-row ${gnosisOn ? "is-on" : ""}`}

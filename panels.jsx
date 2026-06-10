@@ -33,6 +33,32 @@ function railTabs() {
 // without re-declaring the canonical list.
 if (typeof window !== "undefined") window.railTabs = railTabs;
 
+// ── Programmatic panel opener ─────────────────────────────────────────
+// window.codexOpenPanel("comm") / ("plugin:strongs-concordance:strongs")
+// surfaces the right rail and activates that tab (a one-off temp chip if it
+// isn't pinned). Plugin ids ride the existing `codex:open-panel` listener in
+// app.jsx unchanged. Builtin ids ALSO fire that event — purely because it
+// owns setRightOpen/setRightCollapsed — then immediately fire a rail-local
+// event that swaps the dead "plugin:<id>" tab for the real builtin one
+// (dispatchEvent is synchronous, so the user only ever sees the final tab).
+if (typeof window !== "undefined") {
+  window.codexOpenPanel = function (id) {
+    try {
+      id = String(id == null ? "" : id).trim();
+      if (!id) return;
+      if (id.indexOf("plugin:") === 0) {
+        const parts = id.split(":");
+        window.dispatchEvent(new CustomEvent("codex:open-panel", {
+          detail: { pluginId: parts[1], panelId: parts.slice(2).join(":") },
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent("codex:open-panel", { detail: { panelId: id } }));
+        window.dispatchEvent(new CustomEvent("codex:open-builtin-tab", { detail: { tabId: id } }));
+      }
+    } catch {}
+  };
+}
+
 // ── Engagement depth emission helper ─────────────────────────────────
 // Guarded: never throws if the engagement engine / window is absent (Lite
 // mode). The depth `type` MUST be a key in engagement.js DEPTH_ACTIONS;
@@ -49,11 +75,11 @@ function emitDepth(type, ref, weight) {
 
 // ── Panel palette ──────────────────────────────────────────────────────
 // A command-palette style picker that replaces the old overflow tab-strip.
-// Opens via the Library button in the rail header (Cmd/Ctrl+K is owned by the
-// SEARCH overlay in app.jsx, so the palette no longer binds it). Tabs are grouped
-// into intent-driven sections (READING, STUDY, REFERENCE, DISCOVER)
-// and filterable by typing. The rail itself only shows 3 user-pinned tabs
-// plus the palette button — much calmer at 280px and beyond.
+// Opens via the "+" button at the end of the pinned strip (Cmd/Ctrl+K is owned
+// by the SEARCH overlay in app.jsx, so the palette no longer binds it). Tabs are
+// grouped into intent-driven sections (READING, STUDY, REFERENCE, DISCOVER)
+// and filterable by typing. The rail itself only shows up to 7 user-pinned
+// tabs plus the "+" button — much calmer at 280px and beyond.
 const PALETTE_SECTIONS = [
   { id: "reading",   label: "READING",   ids: ["trans"] },
   { id: "study",     label: "STUDY",     ids: ["comm", "talmud", "exeg", "txan", "gem", "gnosis", "disarm"] },
@@ -86,19 +112,24 @@ const PALETTE_DESCRIPTIONS = {
   "plugin:sermon-builder:builder": "Sermon & study builder",
   "plugin:module-marketplace:market": "Plugin marketplace",
 };
-const DEFAULT_PINNED = ["trans", "comm", "plugin:strongs-concordance:strongs"];
-const PINNED_KEY = "codex.rail.pinned";
+// v6.1 bench: the 4 most essential panels by default; user pins cap at 7.
+const DEFAULT_PINNED = ["trans", "plugin:crossrefs-tsk:crossrefs", "plugin:strongs-concordance:strongs", "comm"];
+const MAX_PINNED = 7;
+const PINNED_KEY = "codex.panels.pinned.v1";
+// Pre-bench pins lived under "codex.rail.pinned" (max 3) — read once as a
+// migration fallback so upgraders keep their chips; never written again.
+const LEGACY_PINNED_KEY = "codex.rail.pinned";
 function loadPinned() {
   try {
-    const raw = localStorage.getItem(PINNED_KEY);
+    const raw = localStorage.getItem(PINNED_KEY) || localStorage.getItem(LEGACY_PINNED_KEY);
     if (!raw) return DEFAULT_PINNED.slice();
     const arr = JSON.parse(raw);
-    if (Array.isArray(arr) && arr.length) return arr.slice(0, 3);
+    if (Array.isArray(arr) && arr.length) return arr.slice(0, MAX_PINNED);
   } catch {}
   return DEFAULT_PINNED.slice();
 }
 function savePinned(arr) {
-  try { localStorage.setItem(PINNED_KEY, JSON.stringify(arr.slice(0, 3))); } catch {}
+  try { localStorage.setItem(PINNED_KEY, JSON.stringify(arr.slice(0, MAX_PINNED))); } catch {}
 }
 
 function PanelPalette({ open, onClose, tabs, currentTab, onPick, pinned, onPin, gnosisOn, onToggleGnosis }) {
@@ -269,25 +300,50 @@ function RightRail({
     setPinned(prev => {
       let next;
       if (prev.includes(id)) next = prev.filter(x => x !== id);
-      else next = [...prev, id].slice(-3); // newest stays, max 3
+      else if (prev.length >= MAX_PINNED) {
+        try {
+          window.dispatchEvent(new CustomEvent("codex:toast", {
+            detail: { msg: `Pin limit is ${MAX_PINNED} — unpin a panel first`, kind: "warn" },
+          }));
+        } catch {}
+        return prev;
+      }
+      else next = [...prev, id];
       savePinned(next);
       return next;
     });
   };
 
+  // Companion to window.codexOpenPanel for BUILTIN tab ids: the app-level
+  // codex:open-panel listener force-prefixes "plugin:", so codexOpenPanel
+  // fires it once purely to surface the rail, then this rail-local event
+  // sets the real builtin tab (gnosis unlock included).
+  React.useEffect(() => {
+    const onBuiltin = (e) => {
+      const id = e && e.detail && e.detail.tabId;
+      if (!id) return;
+      if (id === "gnosis" && !gnosisOn) onToggleGnosis(true);
+      onTab(id);
+    };
+    window.addEventListener("codex:open-builtin-tab", onBuiltin);
+    return () => window.removeEventListener("codex:open-builtin-tab", onBuiltin);
+  }, [onTab, gnosisOn, onToggleGnosis]);
+
   // Cmd/Ctrl+K is owned by the SEARCH overlay in app.jsx — the palette no
   // longer binds it (single owner avoids two overlays opening on one press).
-  // The palette opens via the Library button in the rail header. Esc is
-  // handled inside the palette.
+  // The palette opens via the "+" button at the end of the pinned strip.
+  // Esc is handled inside the palette.
 
   // Resolve pinned ids → live tab objects. Skip any that have been
   // unregistered (e.g. plugin disabled) so we don't render dead chips.
   const byId = new Map(tabs.map(t => [t.id, t]));
   const pinnedTabs = pinned.map(id => byId.get(id)).filter(Boolean);
   // Always include the currently-active tab as a chip if it isn't pinned,
-  // so users see what panel they're on without opening the palette.
+  // so users see what panel they're on without opening the palette. It's a
+  // one-off view: marked isTemp (dimmed/italic chip) and it disappears as
+  // soon as the user switches away.
   if (tab && !pinned.includes(tab) && byId.get(tab)) {
-    pinnedTabs.push(byId.get(tab));
+    pinnedTabs.push(Object.assign({}, byId.get(tab), { isTemp: true }));
   }
   // Mobile-only bottom-sheet drag-to-close. Captures touches in the top
   // 28px of the rail (visual handle area) and translates the sheet down.
@@ -356,16 +412,6 @@ function RightRail({
         >▶</button>
       ) : null}
       <div className="cx-tabs is-pinned" role="tablist" aria-label="Panel tabs">
-        <button
-          type="button"
-          className={`cx-palette-btn ${paletteOpen ? "is-on" : ""}`}
-          onClick={() => setPaletteOpen(v => !v)}
-          title="Open panel library"
-          aria-label="Open panel library"
-        >
-          <span className="cx-palette-btn-glyph">⌘</span>
-          <span className="cx-palette-btn-lbl">Library</span>
-        </button>
         <div className="cx-tabs-pinned">
           {pinnedTabs.map((tb) => {
             const disabled = tb.id === "gnosis" && !gnosisOn;
@@ -376,7 +422,7 @@ function RightRail({
                 aria-selected={tab === tb.id}
                 data-tab-id={tb.id}
                 title={tb.label}
-                className={`cx-tab ${tab === tb.id ? "is-active" : ""} ${disabled ? "is-locked" : ""} ${tb.isPlugin ? "is-plugin" : ""}`}
+                className={`cx-tab ${tab === tb.id ? "is-active" : ""} ${disabled ? "is-locked" : ""} ${tb.isPlugin ? "is-plugin" : ""} ${tb.isTemp ? "is-temp" : ""}`}
                 onClick={() => {
                   if (tb.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
                   onTab(tb.id);
@@ -388,6 +434,15 @@ function RightRail({
               </button>
             );
           })}
+          <button
+            type="button"
+            className={`cx-tab cx-tab-add ${paletteOpen ? "is-on" : ""}`}
+            onClick={() => setPaletteOpen(v => !v)}
+            title="All panels — open the panel library"
+            aria-label="Open panel library"
+          >
+            <span className="cx-tab-glyph" aria-hidden="true">+</span>
+          </button>
         </div>
       </div>
       <PanelPalette

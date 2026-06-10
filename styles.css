@@ -19076,3 +19076,66 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   /* 16px input defeats iOS Safari's zoom-on-focus. */
   .cx-omni-input { font-size: 16px; }
 }
+
+/* v6.1 compact menu */
+/* Quick-action strip at the top of the verse menu — MARK, CHOOSE COLOR,
+   TRANSLATE, COPY compressed into 40px icon buttons. Hairline below
+   separates the strip from the full rows. */
+.cx-vm-strip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cx-line);
+}
+.cx-vm-strip-btn {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 35%, transparent);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease;
+}
+.cx-vm-strip-btn:hover {
+  background: color-mix(in oklab, var(--cx-accent) 8%, transparent);
+  border-color: var(--cx-accent);
+}
+.cx-vm-strip-btn .cx-vm-icon {
+  font-family: var(--cx-mono);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--cx-accent);
+}
+.cx-vm-strip-btn.is-on .cx-vm-icon { text-shadow: 0 0 6px var(--cx-accent-glow); }
+
+/* v6.1 bench */
+/* "+" tab — the last chip in the pinned strip; opens the panel library.
+   Matches the .cx-tab look but stays narrow and quietly dashed. */
+.cx-tabs.is-pinned .cx-tab.cx-tab-add {
+  flex: 0 0 40px;
+  border-style: dashed;
+  color: var(--cx-fg-dim);
+}
+.cx-tab.cx-tab-add .cx-tab-glyph { font-size: 16px; }
+.cx-tabs.is-pinned .cx-tab.cx-tab-add:hover,
+.cx-tabs.is-pinned .cx-tab.cx-tab-add.is-on {
+  color: var(--cx-bg); background: var(--cx-accent);
+  border-color: var(--cx-accent); border-style: solid;
+}
+/* One-off (active-but-unpinned) tab — temporary chip, dimmed + italic.
+   Disappears as soon as the user switches to another tab. */
+.cx-tabs.is-pinned .cx-tab.is-temp { opacity: .6; border-style: dotted; }
+.cx-tabs.is-pinned .cx-tab.is-temp .cx-tab-lbl { font-style: italic; }
+.cx-tabs.is-pinned .cx-tab.is-temp.is-active { opacity: .85; }
+/* Palette pin star — keep the pin affordance visible without stealing the
+   row's open-action (the star already stopPropagation()s its clicks). */
+.cx-palette-card:hover .cx-palette-pin { color: var(--cx-fg); }
+.cx-palette-card:hover .cx-palette-pin.is-on,
+.cx-palette-pin.is-on:hover { color: var(--cx-accent); }
+.cx-palette-pin:focus-visible { outline: 1px solid var(--cx-accent); outline-offset: 2px; }

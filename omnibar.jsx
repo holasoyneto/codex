@@ -37,6 +37,96 @@ function omniParseRef(s) {
   return K && K.parseRef ? K.parseRef(s) : null;
 }
 
+// ── Universal index — every rail panel, one flat static list. Ids/labels
+// mirror panels.jsx builtins + the plugin register calls; icons are the
+// rail glyphs. Static by design: the bar must answer even before plugins load.
+const PANEL_INDEX = [
+  { id: "trans",  label: "TRANSLATIONS", icon: "Α/Ω" },
+  { id: "talmud", label: "TALMUD",       icon: "ת" },
+  { id: "comm",   label: "COMMENTARY",   icon: "§" },
+  { id: "gem",    label: "GEMATRIA",     icon: "Σn" },
+  { id: "gnosis", label: "GNOSIS",       icon: "⟁" },
+  { id: "disarm", label: "DISARM",       icon: "⚔" },
+  { id: "exeg",   label: "EXEGESIS",     icon: "✎" },
+  { id: "txan",   label: "TX·ANALYSIS",  icon: "⟷" },
+  { id: "plugin:crossrefs-tsk:crossrefs",     label: "CROSS-REFS",   icon: "✝" },
+  { id: "plugin:strongs-concordance:strongs", label: "STRONG'S",     icon: "ℋ" },
+  { id: "plugin:word-study:word",             label: "WORD",         icon: "Λ" },
+  { id: "plugin:bible-dictionary:dictionary", label: "DICT",         icon: "ℵ" },
+  { id: "plugin:passage-guide:guide",         label: "GUIDE",        icon: "❖" },
+  { id: "plugin:compare:compare",             label: "COMPARE",      icon: "⚖" },
+  { id: "plugin:jewish-study:torah",          label: "TORAH",        icon: "ה" },
+  { id: "plugin:reading-plans:plans",         label: "PLANS",        icon: "⥁" },
+  { id: "plugin:biblical-timeline:timeline",  label: "TIMELINE",     icon: "⏳" },
+  { id: "plugin:reels:reels",                 label: "REELS",        icon: "▶" },
+  { id: "plugin:vox:vox",                     label: "VOX",          icon: "◉" },
+  { id: "plugin:continuity:dossier",          label: "ANALYST DESK", icon: "▦" },
+  { id: "plugin:module-marketplace:market",   label: "MARKET",       icon: "⊞" },
+  { id: "plugin:sermon-builder:builder",      label: "STUDIES",      icon: "❡" },
+  { id: "plugin:ai-quests:quests",            label: "QUESTS",       icon: "⚔" },
+];
+
+// Top-level commands ride the same index: consoles the rail doesn't hold.
+// Each opens through an existing global/event — no new plumbing invented.
+const OMNI_COMMANDS = [
+  {
+    id: "oracle", icon: "◬", aliases: ["oracle"],
+    title: "Open the Oracle", sub: "AI conversation in the left rail",
+    action: () => {
+      // open-library raises the left rail; the shortcut bus lands on the tab
+      window.dispatchEvent(new CustomEvent("codex:open-library"));
+      window.dispatchEvent(new CustomEvent("codex:shortcut", { detail: { action: "toggle-oracle" } }));
+    },
+  },
+  {
+    id: "ops", icon: "❖", aliases: ["ops"],
+    title: "Open OPS — task the kernel", sub: "mission cockpit, blank slate",
+    action: () => { window.codexOpenOps && window.codexOpenOps(""); },
+  },
+  {
+    id: "settings", icon: "⚙", aliases: ["settings", "tweaks"],
+    title: "Open Settings", sub: "theme, language, API keys, every tweak",
+    action: () => { window.dispatchEvent(new CustomEvent("codex:open-settings", { detail: {} })); },
+  },
+];
+
+const omniNorm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+function omniOpenPanel(id) {
+  if (window.codexOpenPanel) { window.codexOpenPanel(id); return; }
+  if (id.indexOf("plugin:") === 0) {
+    // existing door for plugin tabs — app.jsx normalizes + surfaces the rail
+    window.dispatchEvent(new CustomEvent("codex:open-panel", { detail: { panelId: id } }));
+    return;
+  }
+  // builtin tabs have no open event yet — say so instead of guessing
+  window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: "panel API not available", kind: "err" } }));
+}
+
+// Fuzzy-match the query against panel labels + command aliases.
+// strong = label starts with the query (ranks above search hits);
+// weak   = label merely contains it (ranks below search hits).
+function omniIndexRows(text) {
+  const nq = omniNorm(text);
+  const strong = [], weak = [];
+  if (nq.length < 2) return { strong, weak };
+  PANEL_INDEX.forEach((p) => {
+    const nl = omniNorm(p.label);
+    if (nl.indexOf(nq) === -1) return;
+    const row = {
+      id: "panel-" + p.id, icon: p.icon, title: `Open ${p.label} panel`,
+      sub: "in the study rail",
+      action: () => omniOpenPanel(p.id),
+    };
+    (nl.indexOf(nq) === 0 ? strong : weak).push(row);
+  });
+  OMNI_COMMANDS.forEach((c) => {
+    if (!c.aliases.some((a) => omniNorm(a).indexOf(nq) === 0)) return;
+    strong.push({ id: "cmd-" + c.id, icon: c.icon, title: c.title, sub: c.sub, action: c.action });
+  });
+  return { strong, weak };
+}
+
 function Omnibar({ onClose }) {
   const [q, setQ] = useState("");
   const [items, setItems] = useState([]);
@@ -150,6 +240,9 @@ function Omnibar({ onClose }) {
       action: () => { window.codexOpenOps && window.codexOpenOps(text); },
     };
     if (isQuestion) rows.push(missionRow);
+    // universal index: panel/command rows — strong matches sit above hits
+    const idx = omniIndexRows(text);
+    idx.strong.forEach((r) => rows.push(r));
     finish();
     if (text.length >= 2 && window.CODEX_SEARCH?.search) {
       const t = setTimeout(async () => {
@@ -172,12 +265,14 @@ function Omnibar({ onClose }) {
               action: () => { window.codexJumpToRef && window.codexJumpToRef(fmt(ref)); },
             };
           });
-          finish([...hitRows, ...(isQuestion ? [] : [missionRow])]);
+          finish([...hitRows, ...idx.weak, ...(isQuestion ? [] : [missionRow])]);
         } catch { /* keep whatever rows we had */ }
       }, 200);
       return () => clearTimeout(t);
     } else if (!isQuestion) {
-      finish([missionRow]);
+      finish([...idx.weak, missionRow]);
+    } else if (idx.weak.length) {
+      finish([...idx.weak]);
     }
   }, [q]);
 
@@ -247,6 +342,7 @@ function Omnibar({ onClose }) {
               <span><i>Α</i> shepherd</span>
               <span><i>❖</i> how do the prophets use fire?</span>
               <span><i>⟐</i> weave</span>
+              <span><i>▤</i> plans · timeline · strong's…</span>
             </div>
             <p className="cx-omni-epigraph">“For now we see through a glass, darkly; but then face to face.” — 1 Cor 13:12</p>
           </div>
