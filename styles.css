@@ -19109,6 +19109,23 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 
 .cx-const-stage { position: relative; flex: 1; min-height: 0; }
 .cx-const-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+.cx-const-canvas.is-galaxy { cursor: grab; touch-action: none; }
+.cx-const-canvas.is-galaxy:active { cursor: grabbing; }
+.cx-const-laying {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--cx-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--cx-fg-dim);
+  background: color-mix(in oklab, var(--cx-bg) 70%, black 30%);
+  z-index: 3;
+}
 .cx-const-stats {
   position: absolute;
   top: 10px; left: 14px;

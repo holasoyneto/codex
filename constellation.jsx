@@ -56,6 +56,86 @@ function constPath(adj, from, to) {
   return path.reverse();
 }
 
+// ── 3D galaxy layout — family-seeded clusters relaxed by edge springs. ──
+// Families sit on a fibonacci sphere; chapters jitter around their family
+// center; then edge springs pull linked chapters together while a coarse
+// spatial grid keeps neighbors from collapsing. Chunked for a progress
+// readout; the result caches (codex.galaxy.v1) so reopen is instant.
+function constGalaxyLayout(adj, pairs, count, famLabel, onProgress) {
+  return new Promise((resolve) => {
+    const R = 320;
+    const pos = new Float32Array(count * 3);
+    // family centers — fibonacci sphere
+    const famCount = Math.max(1, famLabel ? Math.max.apply(null, famLabel) + 1 : 1);
+    const centers = [];
+    const GA = Math.PI * (3 - Math.sqrt(5));
+    for (let f = 0; f < famCount; f++) {
+      const y = famCount === 1 ? 0 : 1 - (f / (famCount - 1)) * 2;
+      const r = Math.sqrt(Math.max(0, 1 - y * y));
+      const th = GA * f;
+      centers.push([Math.cos(th) * r * R, y * R, Math.sin(th) * r * R]);
+    }
+    // deterministic per-node jitter (no Math.random → stable layouts)
+    const jit = (i, k) => {
+      const s = Math.sin(i * 374761.393 + k * 668265.263) * 43758.5453;
+      return (s - Math.floor(s)) * 2 - 1;
+    };
+    for (let i = 0; i < count; i++) {
+      const c = centers[famLabel ? famLabel[i] % famCount : 0];
+      pos[i * 3] = c[0] + jit(i, 1) * R * 0.38;
+      pos[i * 3 + 1] = c[1] + jit(i, 2) * R * 0.38;
+      pos[i * 3 + 2] = c[2] + jit(i, 3) * R * 0.38;
+    }
+    const springs = pairs.slice(0, 9000);
+    const wMax = springs.length ? springs[0][2] : 1;
+    const ITER = 90;
+    let it = 0;
+    const step = () => {
+      const end = Math.min(it + 6, ITER);
+      for (; it < end; it++) {
+        const t = 1 - it / ITER; // cooling
+        // springs
+        for (let s = 0; s < springs.length; s++) {
+          const [a, b, w] = springs[s];
+          const ax = a * 3, bx = b * 3;
+          let dx = pos[bx] - pos[ax], dy = pos[bx + 1] - pos[ax + 1], dz = pos[bx + 2] - pos[ax + 2];
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+          const want = 60 + 180 * (1 - Math.min(1, w / wMax));
+          const f = ((dist - want) / dist) * 0.012 * t * (0.4 + 0.6 * (w / wMax));
+          dx *= f; dy *= f; dz *= f;
+          pos[ax] += dx; pos[ax + 1] += dy; pos[ax + 2] += dz;
+          pos[bx] -= dx; pos[bx + 1] -= dy; pos[bx + 2] -= dz;
+        }
+        // coarse grid repulsion — only same-cell neighbors push apart
+        const cell = 46;
+        const grid = new Map();
+        for (let i = 0; i < count; i++) {
+          const k = (Math.round(pos[i * 3] / cell)) + "," + (Math.round(pos[i * 3 + 1] / cell)) + "," + (Math.round(pos[i * 3 + 2] / cell));
+          if (!grid.has(k)) grid.set(k, []);
+          grid.get(k).push(i);
+        }
+        grid.forEach((bucket) => {
+          for (let x = 0; x < bucket.length; x++) for (let y = x + 1; y < bucket.length; y++) {
+            const a = bucket[x] * 3, b = bucket[y] * 3;
+            let dx = pos[b] - pos[a], dy = pos[b + 1] - pos[a + 1], dz = pos[b + 2] - pos[a + 2];
+            const d2 = dx * dx + dy * dy + dz * dz || 1;
+            if (d2 > cell * cell) continue;
+            const f = (cell * cell) / d2 * 0.6 * t;
+            const d = Math.sqrt(d2);
+            dx = dx / d * f; dy = dy / d * f; dz = dz / d * f;
+            pos[a] -= dx; pos[a + 1] -= dy; pos[a + 2] -= dz;
+            pos[b] += dx; pos[b + 1] += dy; pos[b + 2] += dz;
+          }
+        });
+      }
+      if (onProgress) onProgress(Math.round((it / ITER) * 100));
+      if (it < ITER) { setTimeout(step, 0); return; }
+      resolve(pos);
+    };
+    step();
+  });
+}
+
 // Label propagation — the canon's natural families, found in the client.
 // Weighted majority vote per node, a few sweeps; deterministic order.
 function constFamilies(adj, count) {
@@ -201,8 +281,9 @@ function VerseConstellation({ onClose }) {
       const rows = (d.adj.get(a) || []).slice().sort((x, y) => y[1] - x[1]).slice(0, 14)
         .map(([idx, w]) => ({ idx, label: labelOf(idx), w }));
       setNear({ idx: a, label: labelOf(a), rows });
+      if (view === "galaxy" && galaxyRef.current) { selRef.current = a; flyTo(a); }
     }
-    requestAnimationFrame(blit);
+    if (view !== "galaxy") requestAnimationFrame(blit);
   };
 
   const toggleFamilies = () => {
@@ -210,6 +291,272 @@ function VerseConstellation({ onClose }) {
     if (!d) return;
     if (!famRef.current) famRef.current = constFamilies(d.adj, d.canon.count);
     setFamOn(v => !v);
+  };
+
+  // ── GALAXY — the same graph as navigable 3D space ─────────────────────
+  const [view, setView] = useState("ring");           // ring | galaxy
+  const [galaxyPct, setGalaxyPct] = useState(-1);     // -1 idle · 0-99 laying out · 100 ready
+  const galaxyRef = useRef(null);                     // Float32Array positions
+  const camRef = useRef({ yaw: 0.6, pitch: 0.25, dist: 760, tx: 0, ty: 0, tz: 0 });
+  const dragRef = useRef(null);
+  const selRef = useRef(-1);                          // selected node
+  const rafRef = useRef(0);
+  const degRef = useRef(null);                        // node degree (sizes)
+  const spriteRef = useRef({});                       // hue → glow sprite canvas
+
+  const enterGalaxy = async () => {
+    const d = dataRef.current;
+    if (!d) return;
+    if (!famRef.current) famRef.current = constFamilies(d.adj, d.canon.count);
+    if (!degRef.current) {
+      const deg = new Float32Array(d.canon.count);
+      d.adj.forEach((edges, i) => { deg[i] = edges.length; });
+      degRef.current = deg;
+    }
+    if (!galaxyRef.current) {
+      // cached layout?
+      try {
+        const raw = localStorage.getItem("codex.galaxy.v1");
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr) && arr.length === d.canon.count * 3) galaxyRef.current = Float32Array.from(arr);
+        }
+      } catch {}
+    }
+    setView("galaxy");
+    if (!galaxyRef.current) {
+      setGalaxyPct(0);
+      const pos = await constGalaxyLayout(d.adj, d.pairs, d.canon.count, famRef.current.label, setGalaxyPct);
+      galaxyRef.current = pos;
+      try { localStorage.setItem("codex.galaxy.v1", JSON.stringify(Array.from(pos).map(n => Math.round(n)))); } catch {}
+    }
+    setGalaxyPct(100);
+  };
+
+  const glowSprite = (hue) => {
+    if (spriteRef.current[hue]) return spriteRef.current[hue];
+    const s = document.createElement("canvas");
+    s.width = s.height = 32;
+    const c = s.getContext("2d");
+    const grad = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, hue);
+    grad.addColorStop(0.35, hue + "99");
+    grad.addColorStop(1, hue + "00");
+    c.fillStyle = grad;
+    c.fillRect(0, 0, 32, 32);
+    spriteRef.current[hue] = s;
+    return s;
+  };
+
+  // project a node → [sx, sy, scale] or null when behind the camera
+  const project = (i, w, h) => {
+    const p = galaxyRef.current, cam = camRef.current;
+    let x = p[i * 3] - cam.tx, y = p[i * 3 + 1] - cam.ty, z = p[i * 3 + 2] - cam.tz;
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    const cx2 = Math.cos(cam.pitch), sx2 = Math.sin(cam.pitch);
+    let x1 = x * cy - z * sy, z1 = x * sy + z * cy;
+    let y1 = y * cx2 - z1 * sx2, z2 = y * sx2 + z1 * cx2;
+    const zc = z2 + cam.dist;
+    if (zc < 40) return null;
+    const f = 620 / zc;
+    return [w / 2 + x1 * f, h / 2 + y1 * f, f];
+  };
+
+  const drawGalaxy = () => {
+    const canvas = canvasRef.current, d = dataRef.current;
+    if (!canvas || !d || !galaxyRef.current) return;
+    const { w, h } = I.intelCanvas.fit(canvas);
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, w, h);
+    const proj = new Array(d.canon.count);
+    for (let i = 0; i < d.canon.count; i++) proj[i] = project(i, w, h);
+
+    // edges — top set, depth + weight faded; NEAR/selection ignites its own
+    const edges = d.pairs.slice(0, 3800);
+    const wMax = edges.length ? edges[0][2] : 1;
+    ctx.lineWidth = 0.6;
+    for (let s = edges.length - 1; s >= 0; s--) {
+      const [a, b, wt] = edges[s];
+      const pa = proj[a], pb = proj[b];
+      if (!pa || !pb) continue;
+      const depth = Math.min(pa[2], pb[2]);
+      const al = (0.025 + (wt / wMax) * 0.1) * Math.min(1, depth * 1.6);
+      if (al < 0.015) continue;
+      const ha = hueOf(a), hb = hueOf(b);
+      ctx.strokeStyle = ha === hb ? ha : CONST_GOLD;
+      ctx.globalAlpha = al;
+      ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+    }
+
+    // ignition overlays (NEAR / selection / PATH)
+    const igniteFrom = (idx, bright) => {
+      (d.adj.get(idx) || []).forEach(([other, wt]) => {
+        const pa = proj[idx], pb = proj[other];
+        if (!pa || !pb) return;
+        ctx.strokeStyle = hueOf(other);
+        ctx.globalAlpha = Math.min(0.85, (bright ? 0.3 : 0.2) + wt * 0.05);
+        ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+      });
+    };
+    if (near) igniteFrom(near.idx, true);
+    if (selRef.current >= 0) igniteFrom(selRef.current, true);
+    if (route && route.path.length > 1) {
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = CONST_GOLD;
+      ctx.globalAlpha = 0.95;
+      ctx.beginPath();
+      let started = false;
+      route.path.forEach((idx) => {
+        const p = proj[idx];
+        if (!p) { started = false; return; }
+        if (!started) { ctx.moveTo(p[0], p[1]); started = true; }
+        else ctx.lineTo(p[0], p[1]);
+      });
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // nodes — painter order by depth; glow sprites sized by degree
+    const order = [];
+    for (let i = 0; i < d.canon.count; i++) if (proj[i]) order.push(i);
+    order.sort((a, b2) => proj[a][2] - proj[b2][2]);
+    let trailSet = null;
+    try {
+      trailSet = new Set(JSON.parse(localStorage.getItem("codex.trail") || "[]").map((t) => {
+        const p = window.CODEX_KERNEL && window.CODEX_KERNEL.parseRef(t.ref);
+        return p ? d.canon.offset[p.bookId] + p.chapter - 1 : -1;
+      }));
+    } catch {}
+    const deg = degRef.current;
+    order.forEach((i) => {
+      const [sx, sy, f] = proj[i];
+      const base = 2.2 + Math.sqrt(deg[i] || 1) * 0.5;
+      const size = Math.max(1.6, base * f * 1.6);
+      const hue = trailSet && trailSet.has(i) ? CONST_GOLD : hueOf(i);
+      ctx.globalAlpha = Math.min(1, 0.35 + f);
+      ctx.drawImage(glowSprite(hue), sx - size, sy - size, size * 2, size * 2);
+      if (i === selRef.current) {
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(sx, sy, size + 3, 0, Math.PI * 2); ctx.stroke();
+      }
+    });
+    // proximity labels — the ~14 biggest on screen
+    ctx.globalAlpha = 1;
+    ctx.font = "600 9px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    order.slice(-90).filter((i) => proj[i][2] > 0.85).slice(-14).forEach((i) => {
+      const [sx, sy, f] = proj[i];
+      const c = d.canon.chapters[i];
+      ctx.fillStyle = hueOf(i);
+      ctx.fillText(`${c.bookName.toUpperCase()} ${c.ch}`, sx, sy - (3 + Math.sqrt(deg[i] || 1) * f));
+    });
+    ctx.globalAlpha = 1;
+  };
+
+  // wheel dolly — attached non-passively so the page never scroll-fights
+  useEffect(() => {
+    if (view !== "galaxy") return;
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = onGalaxyPointer.wheel;
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [view, galaxyPct]);
+
+  // galaxy render loop — slow idle orbit, stops on unmount / view switch
+  useEffect(() => {
+    if (view !== "galaxy" || galaxyPct < 100) return;
+    let live = true;
+    const reduced = I.intelReducedMotion();
+    const tick = () => {
+      if (!live) return;
+      if (!dragRef.current && !reduced) camRef.current.yaw += 0.0007;
+      drawGalaxy();
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { live = false; cancelAnimationFrame(rafRef.current); };
+  }, [view, galaxyPct, famOn, near, route]);
+
+  const galaxyHit = (mx, my) => {
+    const canvas = canvasRef.current, d = dataRef.current;
+    if (!canvas || !d || !galaxyRef.current) return -1;
+    const r = canvas.getBoundingClientRect();
+    let best = -1, bestD = 14;
+    for (let i = 0; i < d.canon.count; i++) {
+      const p = project(i, r.width, r.height);
+      if (!p) continue;
+      const dx = p[0] - mx, dy = p[1] - my;
+      const dd = Math.hypot(dx, dy);
+      if (dd < bestD) { bestD = dd; best = i; }
+    }
+    return best;
+  };
+
+  const flyTo = (idx) => {
+    const p = galaxyRef.current, cam = camRef.current;
+    if (!p) return;
+    const from = { tx: cam.tx, ty: cam.ty, tz: cam.tz, dist: cam.dist };
+    const to = { tx: p[idx * 3], ty: p[idx * 3 + 1], tz: p[idx * 3 + 2], dist: 300 };
+    const T0 = performance.now();
+    const DUR = I.intelReducedMotion() ? 0 : 700;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const stepFly = (now) => {
+      const t = DUR ? Math.min(1, (now - T0) / DUR) : 1;
+      const e = ease(t);
+      cam.tx = from.tx + (to.tx - from.tx) * e;
+      cam.ty = from.ty + (to.ty - from.ty) * e;
+      cam.tz = from.tz + (to.tz - from.tz) * e;
+      cam.dist = from.dist + (to.dist - from.dist) * e;
+      if (t < 1) requestAnimationFrame(stepFly);
+    };
+    requestAnimationFrame(stepFly);
+  };
+
+  const onGalaxyPointer = {
+    down: (e) => {
+      dragRef.current = { x: e.clientX, y: e.clientY, yaw: camRef.current.yaw, pitch: camRef.current.pitch, moved: false };
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+    move: (e) => {
+      const dr = dragRef.current;
+      if (dr) {
+        const dx = e.clientX - dr.x, dy = e.clientY - dr.y;
+        if (Math.abs(dx) + Math.abs(dy) > 3) dr.moved = true;
+        camRef.current.yaw = dr.yaw + dx * 0.005;
+        camRef.current.pitch = Math.max(-1.4, Math.min(1.4, dr.pitch + dy * 0.005));
+      }
+    },
+    up: (e) => {
+      const dr = dragRef.current;
+      dragRef.current = null;
+      if (dr && !dr.moved) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const hit = galaxyHit(e.clientX - rect.left, e.clientY - rect.top);
+        selRef.current = hit;
+        if (hit >= 0) {
+          const d = dataRef.current;
+          const edges = d.adj.get(hit) || [];
+          setHud({ label: labelOf(hit).toUpperCase(), threads: edges.reduce((s, [, w2]) => s + w2, 0) });
+          flyTo(hit);
+        } else setHud(null);
+      }
+    },
+    dbl: (e) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const hit = galaxyHit(e.clientX - rect.left, e.clientY - rect.top);
+      if (hit >= 0 && window.codexJumpToRef) {
+        window.codexJumpToRef(labelOf(hit));
+        try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `❂ ${labelOf(hit)}`, kind: "ok" } })); } catch {}
+      }
+    },
+    wheel: (e) => {
+      e.preventDefault();
+      camRef.current.dist = Math.max(120, Math.min(2400, camRef.current.dist * (1 + e.deltaY * 0.0011)));
+    },
   };
   // re-render the base when the color mode flips
   useEffect(() => { if (phase === "ready") renderBase(); }, [famOn]);
@@ -549,6 +896,14 @@ function VerseConstellation({ onClose }) {
         ) : (
           <div className="cx-const-stage">
             <div className="cx-const-tools">
+              <button
+                className="cx-const-fam"
+                onClick={() => {
+                  if (view === "ring") enterGalaxy();
+                  else { setView("ring"); requestAnimationFrame(renderBase); }
+                }}
+                title={view === "ring" ? "Galaxy — fly the canon in 3D" : "Ring — the chord wheel"}
+              >{view === "ring" ? "❂ GALAXY" : "◐ RING"}</button>
               <input
                 className="cx-const-q"
                 placeholder='PATH: "Genesis 1 → Revelation 21" · NEAR: "Isaiah 53" · ↵'
@@ -593,14 +948,23 @@ function VerseConstellation({ onClose }) {
                 </ul>
               </div>
             ) : null}
+            {view === "galaxy" && galaxyPct >= 0 && galaxyPct < 100 ? (
+              <div className="cx-const-laying">
+                <div className="cx-const-loading-ring" aria-hidden="true" />
+                <span>LAYING OUT THE GALAXY · {galaxyPct}%</span>
+              </div>
+            ) : null}
             <canvas
               ref={canvasRef}
-              className="cx-const-canvas"
-              onMouseMove={onMove}
-              onMouseLeave={() => { hoverRef.current = { chapter: -1, book: -1 }; setHud(null); requestAnimationFrame(blit); }}
-              onClick={onClick}
+              className={`cx-const-canvas ${view === "galaxy" ? "is-galaxy" : ""}`}
+              onMouseMove={view === "ring" ? onMove : onGalaxyPointer.move}
+              onMouseLeave={view === "ring" ? () => { hoverRef.current = { chapter: -1, book: -1 }; setHud(null); requestAnimationFrame(blit); } : undefined}
+              onClick={view === "ring" ? onClick : undefined}
+              onPointerDown={view === "galaxy" ? onGalaxyPointer.down : undefined}
+              onPointerUp={view === "galaxy" ? onGalaxyPointer.up : undefined}
+              onDoubleClick={view === "galaxy" ? onGalaxyPointer.dbl : undefined}
               role="img"
-              aria-label="Chord wheel of all cross-references in the canon"
+              aria-label={view === "galaxy" ? "Galaxy — the canon as navigable 3D space" : "Chord wheel of all cross-references in the canon"}
             />
             <div className="cx-const-stats" aria-hidden="true">
               <span>{d ? d.canon.count.toLocaleString() : "—"} CHAPTERS</span>
@@ -614,7 +978,9 @@ function VerseConstellation({ onClose }) {
               </div>
             ) : (
               <div className="cx-const-hud is-idle">
-                <span>hover the ring · OT speaks cyan, NT amber, the covenant seam gold · your trail burns gold on the rim</span>
+                <span>{view === "galaxy"
+                  ? "drag to orbit · scroll to dive · click a star to approach · double-click to read · your trail burns gold"
+                  : "hover the ring · OT speaks cyan, NT amber, the covenant seam gold · your trail burns gold on the rim"}</span>
               </div>
             )}
           </div>
