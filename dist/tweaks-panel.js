@@ -1,0 +1,1375 @@
+// GENERATED from tweaks-panel.jsx by scripts/build-jsx.mjs — do not edit; edit the .jsx and run `npm run build`.
+(function () {
+
+// tweaks-panel.jsx
+// Reusable Tweaks shell + form-control helpers.
+//
+// Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
+// posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
+// individual prototypes don't re-roll it. Ships a consistent set of controls so you
+// don't hand-draw <input type="range">, segmented radios, steppers, etc.
+//
+// Usage (in an HTML file that loads React + Babel):
+//
+//   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+//     "primaryColor": "#D97757",
+//     "palette": ["#D97757", "#29261b", "#f6f4ef"],
+//     "fontSize": 16,
+//     "density": "regular",
+//     "dark": false
+//   }/*EDITMODE-END*/;
+//
+//   function App() {
+//     const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+//     return (
+//       <div style={{ fontSize: t.fontSize, color: t.primaryColor }}>
+//         Hello
+//         <TweaksPanel>
+//           <TweakSection label="Typography" />
+//           <TweakSlider label="Font size" value={t.fontSize} min={10} max={32} unit="px"
+//                        onChange={(v) => setTweak('fontSize', v)} />
+//           <TweakRadio  label="Density" value={t.density}
+//                        options={['compact', 'regular', 'comfy']}
+//                        onChange={(v) => setTweak('density', v)} />
+//           <TweakSection label="Theme" />
+//           <TweakColor  label="Primary" value={t.primaryColor}
+//                        options={['#D97757', '#2A6FDB', '#1F8A5B', '#7A5AE0']}
+//                        onChange={(v) => setTweak('primaryColor', v)} />
+//           <TweakColor  label="Palette" value={t.palette}
+//                        options={[['#D97757', '#29261b', '#f6f4ef'],
+//                                  ['#475569', '#0f172a', '#f1f5f9']]}
+//                        onChange={(v) => setTweak('palette', v)} />
+//           <TweakToggle label="Dark mode" value={t.dark}
+//                        onChange={(v) => setTweak('dark', v)} />
+//         </TweaksPanel>
+//       </div>
+//     );
+//   }
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    min-width:44px;min-height:44px;border-radius:6px;cursor:default;font-size:13px;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px;
+    min-height:44px;cursor:pointer}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+
+  .twk-sect{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+
+  .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:10px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:28px;height:28px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+
+  /* Subtle, CODEX-aesthetic toggle. Used to be a chunky iOS-green capsule;
+     now a thin track with a hairline border at rest, accent fill when on.
+     The 44×44 hit area is preserved via padding (the user wins the tap;
+     the visible footprint is just the 26×12 track). */
+  /* Proper PILL switch (was rendering as a full 46x46 circle: a 26x12 track
+     with 16/9 content-box padding squared the button, and border-radius:999px
+     on a square is a circle). Now a clean 42x24 horizontal pill with a sliding
+     thumb — professional, unmistakably a toggle. */
+  .twk-toggle{position:relative;flex:0 0 auto;width:42px;height:24px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.14);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);
+    transition:background .14s ease,box-shadow .14s ease;
+    cursor:pointer;padding:0;box-sizing:border-box;opacity:.9}
+  .twk-toggle:hover{opacity:1}
+  .twk-toggle[data-on="1"]{background:var(--cx-accent,#34c759);box-shadow:none;opacity:1}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+    background:#fff;
+    box-shadow:0 1px 2px rgba(0,0,0,.25);
+    transition:transform .16s cubic-bezier(.3,.7,.4,1)}
+  .twk-toggle[data-on="1"] i{transform:translateX(18px);background:#fff}
+
+  .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+
+  .twk-btn{appearance:none;min-height:44px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .cx-mini-btn{min-height:44px}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+
+  .twk-chips{display:flex;gap:6px}
+  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:46px;
+    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:default;
+    box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.06);
+    transition:transform .12s cubic-bezier(.3,.7,.4,1),box-shadow .12s}
+  .twk-chip:hover{transform:translateY(-1px);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+  .twk-chip[data-on="1"]{box-shadow:0 0 0 1.5px rgba(0,0,0,.85),
+    0 2px 6px rgba(0,0,0,.15)}
+  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;
+    display:flex;flex-direction:column;box-shadow:-1px 0 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i{flex:1;box-shadow:0 -1px 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i:first-child{box-shadow:none}
+  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+
+  /* ── Fullscreen tabbed mode (default for CODEX) ──────────────── */
+  .twk-scrim{position:fixed;inset:0;z-index:2147483645;
+    background:rgba(8,10,14,.55);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    animation:twk-scrim-in 180ms ease}
+  @keyframes twk-scrim-in{from{opacity:0}to{opacity:1}}
+  @keyframes twk-panel-in{
+    from{opacity:0;transform:translateY(8px) scale(.985)}
+    to{opacity:1;transform:none}
+  }
+  .twk-fullscreen{
+    /* override the floating-card defaults. Sized dynamically so the
+       panel breathes on a Studio Display (5K) and stays usable on a
+       laptop — was previously hard-capped at 960×720, making the Help
+       wiki feel cramped and unscrollable on huge monitors. */
+    right:auto !important;bottom:auto !important;
+    top:50% !important;left:50% !important;
+    transform:translate(-50%,-50%) scale(var(--dc-inv-zoom,1)) !important;
+    transform-origin:center !important;
+    width:clamp(720px, 78vw, 1600px) !important;
+    height:clamp(560px, 84dvh, 1200px) !important;
+    max-width:96vw !important;
+    max-height:92dvh !important;
+    border-radius:18px;
+    animation:twk-panel-in 220ms cubic-bezier(.3,.7,.4,1)
+  }
+  .twk-fullscreen .twk-hd{cursor:default;padding:14px 14px 10px 20px;
+    border-bottom:.5px solid rgba(0,0,0,.08)}
+  .twk-fullscreen .twk-hd b{font-size:14px;letter-spacing:.005em}
+  .twk-fullscreen .twk-x{min-width:44px;min-height:44px;font-size:15px}
+  .twk-shell{display:grid;grid-template-columns:180px 1fr;flex:1;min-height:0}
+  .twk-tabs{display:flex;flex-direction:column;gap:2px;padding:14px 8px;
+    border-right:.5px solid rgba(0,0,0,.08);
+    background:rgba(0,0,0,.025);overflow-y:auto;min-height:0}
+  .twk-tab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    appearance:none;border:0;background:transparent;color:inherit;
+    padding:9px 12px;border-radius:8px;font:inherit;font-weight:500;
+    cursor:default;transition:background .12s,color .12s;
+    -webkit-tap-highlight-color:transparent}
+  .twk-tab:hover{background:rgba(0,0,0,.04)}
+  .twk-tab.is-active{background:rgba(0,0,0,.08);color:#000}
+  .twk-tab-icon{display:inline-flex;align-items:center;justify-content:center;
+    width:18px;font-size:13px;opacity:.55}
+  .twk-tab.is-active .twk-tab-icon{opacity:1}
+  .twk-tab-label{flex:1;font-size:12.5px}
+  .twk-fullscreen .twk-body{padding:18px 22px 22px;gap:12px}
+
+  /* Mobile: top-row wrapping tabs instead of sidebar; true fullscreen.
+     Wraps to 2 rows on phones so System / Help don't hide off-screen
+     behind a horizontal scroll the user never thinks to swipe. */
+  @media (max-width: 700px){
+    .twk-fullscreen{
+      width:100vw !important;height:100dvh !important;
+      max-width:100vw !important;
+      max-height:100dvh !important;
+      min-height:100dvh !important;
+      border-radius:0 !important;
+      top:0 !important;left:0 !important;right:auto !important;bottom:auto !important;
+      transform:none !important;
+      padding-bottom:env(safe-area-inset-bottom,0) !important;
+    }
+    .twk-shell{grid-template-columns:1fr;grid-template-rows:auto 1fr;min-height:0}
+    .twk-tabs{flex-direction:row;flex-wrap:wrap;border-right:0;
+      border-bottom:.5px solid rgba(0,0,0,.08);
+      padding:8px;gap:4px;overflow-x:visible;overflow-y:visible;
+      scrollbar-width:none}
+    .twk-tabs::-webkit-scrollbar{display:none}
+    .twk-tab{flex:1 1 auto;flex-shrink:0;padding:7px 10px;min-height:44px;
+      justify-content:center;min-width:64px}
+    .twk-tab-label{font-size:12px;flex:0 1 auto}
+    .twk-fullscreen .twk-body{padding:14px 16px calc(env(safe-area-inset-bottom,16px) + 16px);
+      overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
+  }
+  @media (max-width: 380px){
+    .twk-tab{padding:7px 8px;min-width:56px}
+    .twk-tab-label{font-size:11px}
+    .twk-tab-icon{width:14px;font-size:12px}
+  }
+`;
+
+// ── useTweaks ───────────────────────────────────────────────────────────────
+// Single source of truth for tweak values. setTweak persists via the host
+// (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
+// CODEX_TWEAKS_KEY — persisted user settings. Rides the codex.* export so
+// switching browsers/devices restores font, theme, accent, default mark
+// colour, distraction-free preference, etc.
+const CODEX_TWEAKS_KEY = 'codex.tweaks.v1';
+
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(() => {
+    try {
+      const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
+      if (raw) return { ...defaults, ...JSON.parse(raw) };
+    } catch (e) {/* fall through */}
+    return defaults;
+  });
+
+  // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
+  // useState-style call doesn't write a "[object Object]" key into the persisted
+  // JSON block.
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null ?
+    keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => {
+      const next = { ...prev, ...edits };
+      try {localStorage.setItem(CODEX_TWEAKS_KEY, JSON.stringify(next));} catch (e) {/* quota */}
+      return next;
+    });
+    // Still post to the host so author-time editing keeps working in the
+    // omelette frame; harmless when running standalone.
+    try {window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');} catch (e) {}
+    window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+// ── TweaksPanel ─────────────────────────────────────────────────────────────
+// Floating shell. Registers the protocol listener BEFORE announcing
+// availability — if the announce ran first, the host's activate could land
+// before our handler exists and the toolbar toggle would silently no-op.
+// The close button posts __edit_mode_dismissed so the host's toolbar toggle
+// flips off in lockstep; the host echoes __deactivate_edit_mode back which
+// is what actually hides the panel.
+function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  // Auto-inject a rail toggle when a <deck-stage> is on the page. The
+  // toggle drives the deck's per-viewer _railVisible via window message;
+  // state is mirrored from the same localStorage key the deck reads so
+  // the control reflects reality across reloads. The mechanism is the
+  // message — authors who want custom placement can post it directly
+  // and pass noDeckControls to suppress this one.
+  const hasDeckStage = React.useMemo(
+    () => typeof document !== 'undefined' && !!document.querySelector('deck-stage'),
+    []
+  );
+  // Hide the toggle until the host has actually enabled the rail (the
+  // __omelette_rail_enabled window message, posted only when the
+  // omelette_deck_rail_enabled flag is on for this user). The initial read
+  // covers TweaksPanel mounting after the message already arrived; the
+  // listener covers the common case of mounting first.
+  const [railEnabled, setRailEnabled] = React.useState(
+    () => hasDeckStage && !!document.querySelector('deck-stage')?._railEnabled
+  );
+  React.useEffect(() => {
+    if (!hasDeckStage || railEnabled) return undefined;
+    const onMsg = (e) => {
+      if (e.data && e.data.type === '__omelette_rail_enabled') setRailEnabled(true);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [hasDeckStage, railEnabled]);
+  const [railVisible, setRailVisible] = React.useState(() => {
+    try {return localStorage.getItem('deck-stage.railVisible') !== '0';} catch (e) {return true;}
+  });
+  const toggleRail = (on) => {
+    setRailVisible(on);
+    window.postMessage({ type: '__deck_rail_visible', on }, '*');
+  };
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth,h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y))
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);else
+      if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX,sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy)
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  // Outside-click + Escape close, with a tiny defer so the click that
+  // OPENED the panel doesn't immediately close it.
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      const panel = dragRef.current;
+      if (!panel) return;
+      if (panel.contains(e.target)) return;
+      // Ignore clicks on the very button that opens settings to avoid
+      // an open→close→open flicker.
+      if (e.target.closest && e.target.closest('[data-tweaks-trigger]')) return;
+      dismiss();
+    };
+    const onKey = (e) => {if (e.key === 'Escape') dismiss();};
+    const t = setTimeout(() => document.addEventListener('mousedown', onDown), 0);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  // Tab state has to live ABOVE the early-return below — React's
+  // rules-of-hooks require the same hook count every render.
+  const [activeTab, setActiveTab] = React.useState("reading");
+
+  // Filter state ALSO must live above the early-return. The previous
+  // location (post-`if (!open) return null`) caused "Rendered more
+  // hooks than during the previous render" the first time the panel
+  // was opened (hook count jumped from 8 → 11).
+  const [twkQuery, setTwkQuery] = React.useState("");
+  const twkBodyRef = React.useRef(null);
+
+  // The two effects that filter the rendered tweak rows and reset
+  // the query on tab change ALSO must be called unconditionally on
+  // every render. They early-bail internally when the panel is closed
+  // or the body isn't mounted yet, but the hook count stays constant.
+  React.useEffect(() => {
+    if (!open) return;
+    const body = twkBodyRef.current;
+    if (!body) return;
+    const q = twkQuery.trim().toLowerCase();
+    const rows = body.querySelectorAll(".twk-row");
+    if (!q) {
+      rows.forEach((r) => r.classList.remove("twk-hidden"));
+      body.querySelectorAll(".twk-sect").forEach((s) => s.classList.remove("twk-hidden"));
+      return;
+    }
+    rows.forEach((r) => {
+      const text = (r.textContent || "").toLowerCase();
+      const aria = (r.getAttribute("aria-label") || "").toLowerCase();
+      const match = text.includes(q) || aria.includes(q);
+      r.classList.toggle("twk-hidden", !match);
+    });
+    const nodes = Array.from(body.children);
+    nodes.forEach((n, i) => {
+      if (!n.classList || !n.classList.contains("twk-sect")) return;
+      let anyVisible = false;
+      for (let j = i + 1; j < nodes.length; j++) {
+        const next = nodes[j];
+        if (next.classList && next.classList.contains("twk-sect")) break;
+        if (next.classList && next.classList.contains("twk-row") && !next.classList.contains("twk-hidden")) {
+          anyVisible = true;break;
+        }
+      }
+      n.classList.toggle("twk-hidden", !anyVisible);
+    });
+  }, [twkQuery, activeTab, open]);
+  // Reset query when switching tabs so each tab starts fresh.
+  React.useEffect(() => {setTwkQuery("");}, [activeTab]);
+
+  // App-wide "open settings" intent — the welcome tour and Oracle's
+  // [[do:open-settings]] one-tap action both dispatch this. This panel IS
+  // the settings surface, so honor it here; detail.section routes to the
+  // matching tab (e.g. "api-keys" / "ai" → AI).
+  React.useEffect(() => {
+    const onOpen = (e) => {
+      setOpen(true);
+      const sect = String(e?.detail?.section || "").toLowerCase();
+      if (!sect) return;
+      if (/api|ai|model|engine|infer/.test(sect)) setActiveTab("ai");else
+      if (/sync|cache|offline|data|export|import/.test(sect)) setActiveTab("sync");else
+      if (/read|look|mark|font|theme/.test(sect)) setActiveTab("reading");else
+      if (/help|wiki/.test(sect)) setActiveTab("help");else
+      setActiveTab("system");
+    };
+    window.addEventListener("codex:open-settings", onOpen);
+    return () => window.removeEventListener("codex:open-settings", onOpen);
+  }, []);
+
+  if (!open) return null;
+
+  // ── Tab grouping ───────────────────────────────────────────────────
+  // Walk children, partition by <TweakSection label="X" /> markers, and
+  // route each label into a high-level tab. Anything between a section
+  // marker and the next is that section's "rows." Result: a tabbed
+  // fullscreen panel instead of a single scrolling list of 13 sections.
+  const TAB_OF = {
+    // Reading & visual
+    "Look": "reading",
+    "Marks": "reading",
+    "Reading": "reading",
+    "First impression": "reading",
+    // AI & engines
+    "AI Engines": "ai",
+    "AI Model": "ai",
+    "Advanced inference": "ai",
+    // Cross-device sync + data
+    "Cross-device sync": "sync",
+    "Offline · Bibles": "sync",
+    "Cache": "sync",
+    "Data · portable": "sync",
+    // System / app-level
+    "Language": "system",
+    "Idioma": "system",
+    "Langue": "system",
+    "Sprache": "system",
+    "Install": "system",
+    "Instalar": "system",
+    "Installer": "system",
+    "Installation": "system",
+    "Modules": "system",
+    "Keyboard": "system",
+    "Danger zone": "system",
+    // i18n strings (Spanish/etc translations of canonical labels)
+    "Look · Apariencia": "reading",
+    "AI · Motores": "ai",
+    "Lectura": "reading",
+    "Leitura": "reading",
+    "Lecture": "reading",
+    "Lesen": "reading",
+    "Marcas": "reading",
+    "Marques": "reading",
+    "Markierungen": "reading",
+    "Caché": "sync",
+    "Datos · portátiles": "sync",
+    "Dados · portáteis": "sync",
+    "Données · portables": "sync",
+    "Daten · portabel": "sync"
+  };
+  // Catch-all unmapped labels fall into "system" so nothing disappears.
+  function tabFor(label) {
+    if (TAB_OF[label]) return TAB_OF[label];
+    // Heuristic fallback for translated labels — covers ES/DE/PT/FR/LA/HE/HI
+    const lc = String(label || "").toLowerCase();
+    if (/look|reading|marks|first|fuente|tipograf|marcas|lectura|apari|aparê|erschein|apparen|aspect|markier|marque|notae|lesen|leitur|lectur|impres|מראה|रूप|glamour/.test(lc)) return "reading";
+    if (/ai|engine|drift|infer|motor/.test(lc)) return "ai";
+    if (/sync|sincron|cache|caché|offline|export|import|bibles|biblias|portab|dados|daten|données/.test(lc)) return "sync";
+    if (/language|idioma|langue|sprache|install|instalar|installation|module|keyboard|teclado|tastatur|clavier|danger|peligro|gefahr|zone/.test(lc)) return "system";
+    return "system";
+  }
+
+  const TABS = [
+  { id: "reading", label: "Reading", icon: "✎" },
+  { id: "ai", label: "AI", icon: "✦" },
+  { id: "sync", label: "Sync", icon: "↔" },
+  { id: "system", label: "System", icon: "⚙" },
+  { id: "help", label: "Help", icon: "?" }];
+
+  // Children come in as a flat array of nodes — partition into tabs.
+  const childArr = React.Children.toArray(children);
+  const buckets = { reading: [], ai: [], sync: [], system: [], help: [] };
+  // Help tab: pre-fill with the wiki component if it's been loaded. Help is
+  // driven by data/help/articles.json so the content updates with each
+  // release without touching this file. Marker entry keeps the tab visible
+  // even if HelpWiki hasn't registered yet (rare race during cold boot).
+  if (window.CODEX_HelpWiki) {
+    buckets.help.push(/*#__PURE__*/React.createElement(window.CODEX_HelpWiki, { key: "__help" }));
+  } else {
+    buckets.help.push(/*#__PURE__*/React.createElement("div", { key: "__help-pending", style: { padding: "24px 12px", textAlign: "center", color: "var(--cx-fg-dim)", fontFamily: "var(--cx-mono)", fontSize: 12 } }, "Help wiki loading\u2026"));
+  }
+  // Replay the first-run welcome tour — app.jsx listens for codex:open-tour
+  // (this was the intended Help-tab trigger; it never got wired).
+  buckets.help.push(/*#__PURE__*/
+    React.createElement("div", { key: "__help-tour", style: { padding: "8px 12px 16px", textAlign: "center" } }, /*#__PURE__*/
+    React.createElement("button", {
+      type: "button",
+      className: "twk-btn",
+      onClick: () => {
+        dismiss();
+        try {window.dispatchEvent(new CustomEvent("codex:open-tour"));} catch (e) {}
+      } },
+    "\u21BB Replay the welcome tour")
+    )
+  );
+  let currentTab = "system"; // anything before the first TweakSection goes to system
+  for (const node of childArr) {
+    if (node && node.type === TweakSection) {
+      currentTab = tabFor(node.props.label);
+    }
+    buckets[currentTab].push(node);
+  }
+  if (hasDeckStage && railEnabled && !noDeckControls) {
+    buckets.system.push(/*#__PURE__*/
+      React.createElement(TweakSection, { key: "__deck", label: "Deck" }), /*#__PURE__*/
+      React.createElement(TweakToggle, { key: "__deck-rail", label: "Thumbnail rail", value: railVisible, onChange: toggleRail })
+    );
+  }
+  // Shell — OS·7 "Nocturne" desktop surface toggle. Self-injected (like
+  // Personalization below) so it's always reachable; gated on the host
+  // actually exposing window.codexOS7 so no orphan section header renders
+  // when the os7 module isn't loaded.
+  if (typeof window.codexOS7 === 'function') {
+    buckets.system.push(/*#__PURE__*/
+      React.createElement(TweakSection, { key: "__os7", label: "Shell" }), /*#__PURE__*/
+      React.createElement(TweakOS7, { key: "__os7-ctl" })
+    );
+  }
+  // Personalization — lets the user wipe the learned taste profile and Oracle
+  // context. Injected here (rather than supplied as a child by the consumer)
+  // so it's always present regardless of how the panel is composed.
+  buckets.system.push(/*#__PURE__*/
+    React.createElement(TweakSection, { key: "__personalization", label: "Personalization" }), /*#__PURE__*/
+    React.createElement(TweakPersonalization, { key: "__personalization-ctl" })
+  );
+  // Continuity — the Phase 2.5 engagement layer (continuity / mastery / quests).
+  // Self-injected (like Personalization) so it's always present regardless of
+  // how the host composes the panel. Label resolves via i18n ("Continuity"),
+  // which tabFor() routes to the System tab.
+  buckets.system.push(/*#__PURE__*/
+    React.createElement(TweakSection, { key: "__continuity", label: window.t && window.t("cx.tweak.section") || "Continuity" }), /*#__PURE__*/
+    React.createElement(TweakContinuity, { key: "__continuity-ctl" })
+  );
+  // If the currently-selected tab is empty (because children changed),
+  // silently fall back to the first non-empty tab without re-rendering.
+  const firstNonEmpty = TABS.find((t) => buckets[t.id].length)?.id || "reading";
+  const effectiveTab = buckets[activeTab]?.length ? activeTab : firstNonEmpty;
+
+  // (Filter effects live above the early-return so the hook count is
+  // stable across open/closed renders — see comment above.)
+
+  return (/*#__PURE__*/
+    React.createElement(React.Fragment, null, /*#__PURE__*/
+    React.createElement("style", null, __TWEAKS_STYLE), /*#__PURE__*/
+    React.createElement("div", { className: "twk-scrim", "data-noncommentable": "", onMouseDown: dismiss }), /*#__PURE__*/
+    React.createElement("div", { ref: dragRef, className: "twk-panel twk-fullscreen", "data-noncommentable": "",
+      role: "dialog", "aria-modal": "true", "aria-label": title }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-hd" }, /*#__PURE__*/
+    React.createElement("b", null, title), /*#__PURE__*/
+    React.createElement("button", { className: "twk-x", "aria-label": "Close tweaks", onClick: dismiss }, "\u2715")
+    ), /*#__PURE__*/
+    React.createElement("div", { className: "twk-shell" }, /*#__PURE__*/
+    React.createElement("nav", { className: "twk-tabs", role: "tablist", "aria-label": "Settings sections" },
+    TABS.map((t) => {
+      const count = buckets[t.id].filter((n) => n && n.type !== TweakSection).length;
+      if (!buckets[t.id].length) return null;
+      const isActive = effectiveTab === t.id;
+      return (/*#__PURE__*/
+        React.createElement("button", {
+          key: t.id,
+          className: `twk-tab ${isActive ? "is-active" : ""}`,
+          role: "tab",
+          "aria-selected": isActive,
+          onClick: () => setActiveTab(t.id) }, /*#__PURE__*/
+
+        React.createElement("span", { className: "twk-tab-icon", "aria-hidden": "true" }, t.icon), /*#__PURE__*/
+        React.createElement("span", { className: "twk-tab-label" }, t.label)
+        ));
+
+    })
+    ), /*#__PURE__*/
+    React.createElement("div", { className: "twk-body", role: "tabpanel", "aria-label": effectiveTab, ref: twkBodyRef }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-filter" }, /*#__PURE__*/
+    React.createElement("input", {
+      type: "text",
+      value: twkQuery,
+      onChange: (e) => setTwkQuery(e.target.value),
+      placeholder: "search settings\u2026",
+      "aria-label": "Search settings",
+      spellCheck: false }
+    ),
+    twkQuery ? /*#__PURE__*/React.createElement("button", { className: "twk-x", style: { position: "static", fontSize: 14 }, onClick: () => setTwkQuery(""), "aria-label": "Clear" }, "\xD7") : null
+    ),
+    buckets[effectiveTab]
+    )
+    )
+    )
+    ));
+
+}
+
+// ── Layout helpers ──────────────────────────────────────────────────────────
+
+function TweakSection({ label, children }) {
+  return (/*#__PURE__*/
+    React.createElement(React.Fragment, null, /*#__PURE__*/
+    React.createElement("div", { className: "twk-sect" }, label),
+    children
+    ));
+
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (/*#__PURE__*/
+    React.createElement("div", { className: inline ? 'twk-row twk-row-h' : 'twk-row' }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-lbl" }, /*#__PURE__*/
+    React.createElement("span", null, label),
+    value != null && /*#__PURE__*/React.createElement("span", { className: "twk-val" }, value)
+    ),
+    children
+    ));
+
+}
+
+// ── Controls ────────────────────────────────────────────────────────────────
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (/*#__PURE__*/
+    React.createElement(TweakRow, { label: label, value: `${value}${unit}` }, /*#__PURE__*/
+    React.createElement("input", { type: "range", className: "twk-slider", min: min, max: max, step: step,
+      value: value, onChange: (e) => onChange(Number(e.target.value)) })
+    ));
+
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "twk-row twk-row-h", onClick: () => onChange(!value) }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-lbl" }, /*#__PURE__*/React.createElement("span", null, label)), /*#__PURE__*/
+    React.createElement("button", { type: "button", className: "twk-toggle", "data-on": value ? '1' : '0',
+      role: "switch", "aria-checked": !!value, "aria-label": label,
+      onClick: (e) => {e.stopPropagation();onChange(!value);} }, /*#__PURE__*/React.createElement("i", null))
+    ));
+
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  // The active value is read by pointer-move handlers attached for the lifetime
+  // of a drag — ref it so a stale closure doesn't fire onChange for every move.
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+
+  // Segments wrap mid-word once per-segment width runs out. The track is
+  // ~248px (280 panel − 28 body pad − 4 seg pad), each button loses 12px
+  // to its own padding, and 11.5px system-ui averages ~6.3px/char — so 2
+  // options fit ~16 chars each, 3 fit ~10. Past that (or >3 options), fall
+  // back to a dropdown rather than wrap.
+  const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+  const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+  if (!fitsAsSegments) {
+    // <select> emits strings — map back to the original option value so the
+    // fallback stays type-preserving (numbers, booleans) like the segment path.
+    const resolve = (s) => {
+      const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === s);
+      return m === undefined ? s : typeof m === 'object' ? m.value : m;
+    };
+    return /*#__PURE__*/React.createElement(TweakSelect, { label: label, value: value, options: options,
+      onChange: (s) => onChange(resolve(s)) });
+  }
+  const opts = options.map((o) => typeof o === 'object' ? o : { value: o, label: o });
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor((clientX - r.left - 2) / inner * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (/*#__PURE__*/
+    React.createElement(TweakRow, { label: label }, /*#__PURE__*/
+    React.createElement("div", { ref: trackRef, role: "radiogroup", onPointerDown: onPointerDown,
+      className: dragging ? 'twk-seg dragging' : 'twk-seg' }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-seg-thumb",
+      style: { left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+        width: `calc((100% - 4px) / ${n})` } }),
+    opts.map((o) => /*#__PURE__*/
+    React.createElement("button", { key: o.value, type: "button", role: "radio", "aria-checked": o.value === value },
+    o.label
+    )
+    )
+    )
+    ));
+
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (/*#__PURE__*/
+    React.createElement(TweakRow, { label: label }, /*#__PURE__*/
+    React.createElement("select", { className: "twk-field", value: value, onChange: (e) => onChange(e.target.value) },
+    options.map((o) => {
+      const v = typeof o === 'object' ? o.value : o;
+      const l = typeof o === 'object' ? o.label : o;
+      return /*#__PURE__*/React.createElement("option", { key: v, value: v }, l);
+    })
+    )
+    ));
+
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (/*#__PURE__*/
+    React.createElement(TweakRow, { label: label }, /*#__PURE__*/
+    React.createElement("input", { className: "twk-field", type: "text", value: value, placeholder: placeholder,
+      onChange: (e) => onChange(e.target.value) })
+    ));
+
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => {
+    if (min != null && n < min) return min;
+    if (max != null && n > max) return max;
+    return n;
+  };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => {
+      const dx = ev.clientX - startRef.current.x;
+      const raw = startRef.current.val + dx * step;
+      const snapped = Math.round(raw / step) * step;
+      onChange(clamp(Number(snapped.toFixed(decimals))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "twk-num" }, /*#__PURE__*/
+    React.createElement("span", { className: "twk-num-lbl", onPointerDown: onScrubStart }, label), /*#__PURE__*/
+    React.createElement("input", { type: "number", value: value, min: min, max: max, step: step,
+      onChange: (e) => onChange(clamp(Number(e.target.value))) }),
+    unit && /*#__PURE__*/React.createElement("span", { className: "twk-num-unit" }, unit)
+    ));
+
+}
+
+// Relative-luminance contrast pick — checkmarks drawn over a swatch need to
+// read on both #111 and #fafafa without per-option configuration. Hex input
+// only (#rgb / #rrggbb); named or rgb()/hsl() colors fall through to "light".
+function __twkIsLight(hex) {
+  const h = String(hex).replace('#', '');
+  const x = h.length === 3 ? h.replace(/./g, (c) => c + c) : h.padEnd(6, '0');
+  const n = parseInt(x.slice(0, 6), 16);
+  if (Number.isNaN(n)) return true;
+  const r = n >> 16 & 255,g = n >> 8 & 255,b = n & 255;
+  return r * 299 + g * 587 + b * 114 > 148000;
+}
+
+const __TwkCheck = ({ light }) => /*#__PURE__*/
+React.createElement("svg", { viewBox: "0 0 14 14", "aria-hidden": "true" }, /*#__PURE__*/
+React.createElement("path", { d: "M3 7.2 5.8 10 11 4.2", fill: "none", strokeWidth: "2.2",
+  strokeLinecap: "round", strokeLinejoin: "round",
+  stroke: light ? 'rgba(0,0,0,.78)' : '#fff' })
+);
+
+
+// TweakColor — curated color/palette picker. Each option is either a single
+// hex string or an array of 1-5 hex strings; the card adapts — a lone color
+// renders solid, a palette renders colors[0] as the hero (left ~2/3) with the
+// rest stacked in a sharp column on the right. onChange emits the
+// option in the shape it was passed (string stays string, array stays array).
+// Without options it falls back to the native color input for back-compat.
+function TweakColor({ label, value, options, onChange }) {
+  if (!options || !options.length) {
+    return (/*#__PURE__*/
+      React.createElement("div", { className: "twk-row twk-row-h" }, /*#__PURE__*/
+      React.createElement("div", { className: "twk-lbl" }, /*#__PURE__*/React.createElement("span", null, label)), /*#__PURE__*/
+      React.createElement("input", { type: "color", className: "twk-swatch", value: value,
+        onChange: (e) => onChange(e.target.value) })
+      ));
+
+  }
+  // Native <input type=color> emits lowercase hex per the HTML spec, so
+  // compare case-insensitively. String() guards JSON.stringify(undefined),
+  // which returns the primitive undefined (no .toLowerCase).
+  const key = (o) => String(JSON.stringify(o)).toLowerCase();
+  const cur = key(value);
+  return (/*#__PURE__*/
+    React.createElement(TweakRow, { label: label }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-chips", role: "radiogroup" },
+    options.map((o, i) => {
+      const colors = Array.isArray(o) ? o : [o];
+      const [hero, ...rest] = colors;
+      const sup = rest.slice(0, 4);
+      const on = key(o) === cur;
+      return (/*#__PURE__*/
+        React.createElement("button", { key: i, type: "button", className: "twk-chip", role: "radio",
+          "aria-checked": on, "data-on": on ? '1' : '0',
+          "aria-label": colors.join(', '), title: colors.join(' · '),
+          style: { background: hero },
+          onClick: () => onChange(o) },
+        sup.length > 0 && /*#__PURE__*/
+        React.createElement("span", null,
+        sup.map((c, j) => /*#__PURE__*/React.createElement("i", { key: j, style: { background: c } }))
+        ),
+
+        on && /*#__PURE__*/React.createElement(__TwkCheck, { light: __twkIsLight(hero) })
+        ));
+
+    })
+    )
+    ));
+
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (/*#__PURE__*/
+    React.createElement("button", { type: "button", className: secondary ? 'twk-btn secondary' : 'twk-btn',
+      onClick: onClick }, label));
+
+}
+
+// TweakPersonalization — clears the CODEX taste profile (likes + Oracle topics
+// learned for Reels tailoring) and resets the Oracle conversation context.
+// Everything is wrapped in try/catch so a missing engine never throws and
+// breaks the settings panel render.
+function TweakPersonalization() {
+  const [done, setDone] = React.useState(false);
+  const onClear = () => {
+    try {
+      if (window.CODEX_ENGAGE && window.CODEX_ENGAGE.clearProfile) {
+        window.CODEX_ENGAGE.clearProfile();
+      }
+    } catch (e) {/* never throw from settings */}
+    try {
+      window.dispatchEvent(new CustomEvent("codex:oracle-reset"));
+    } catch (e) {/* ignore */}
+    try {
+      window.dispatchEvent(new CustomEvent("codex:toast",
+      { detail: { msg: "Personalization cleared", kind: "ok" } }));
+    } catch (e) {/* ignore */}
+    try {setDone(true);} catch (e) {/* ignore */}
+  };
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "twk-row" }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-lbl", style: { display: 'block' } }, /*#__PURE__*/
+    React.createElement("span", { style: { display: 'block', fontWeight: 400, color: 'rgba(41,38,27,.6)', lineHeight: 1.4 } }, "CODEX learns from your likes, Oracle questions, and highlights to tailor Reels."
+
+    )
+    ), /*#__PURE__*/
+    React.createElement(TweakButton, { label: "Clear profile & Oracle context", secondary: true, onClick: onClear }),
+    done && /*#__PURE__*/
+    React.createElement("span", { className: "twk-val", style: { marginTop: 2 } }, "Personalization cleared")
+
+    ));
+
+}
+
+// ── AIModelSection ─────────────────────────────────────────────────────────
+// Provider + model selector used in the CODEX Settings panel. Reads the live
+// /providers map (passed in from /api/health) so the segmented control can
+// grey out engines we can't reach (no key for anthropic/xai, no daemon for
+// ollama). Persists the user's pick via the parent's setTweak("provider"/
+// "model") so it lives in codex.tweaks.v1.
+function AIModelSection({ provider, model, availableProviders, onChange }) {
+  const [keyInput, setKeyInput] = React.useState("");
+  const [keyBusy, setKeyBusy] = React.useState(false);
+  const [keyMsg, setKeyMsg] = React.useState("");
+  const [testMsg, setTestMsg] = React.useState("");
+  const [testBusy, setTestBusy] = React.useState(false);
+
+  const PROVIDERS = [
+  { id: "anthropic", label: "Anthropic", sub: "Claude" },
+  { id: "xai", label: "xAI", sub: "Grok" },
+  { id: "groq", label: "Groq", sub: "free" },
+  { id: "gemini", label: "Gemini", sub: "Google" },
+  { id: "ollama", label: "Local", sub: "Ollama" }];
+
+
+  const reg = availableProviders || {};
+  const curReg = reg[provider] || { available: false, models: [] };
+  // Model list: prefer the live /api/health list (Node mode, includes Ollama's
+  // runtime models); fall back to the client-side catalog (window.CODEX_MODELS)
+  // so the picker works on GitHub Pages where there is no server. The catalog
+  // is keyed by the internal routing id ("grok", not "xai").
+  const catalogKey = provider === "xai" ? "grok" : provider;
+  const catalog = typeof window !== "undefined" && window.CODEX_MODELS && window.CODEX_MODELS[catalogKey] || [];
+  const models = curReg.models && curReg.models.length ? curReg.models : catalog;
+  const needsKey = (provider === "anthropic" || provider === "xai" || provider === "groq" || provider === "gemini") && !curReg.available;
+
+  // When the user flips provider, snap model to the first available one so
+  // we never POST a stale model id from a different provider.
+  const pickProvider = (p) => {
+    const r = reg[p];
+    const ck = p === "xai" ? "grok" : p;
+    const cat = typeof window !== "undefined" && window.CODEX_MODELS && window.CODEX_MODELS[ck] || [];
+    // First model from /api/health if present, else from the client catalog.
+    const first = r && r.models && r.models[0] && r.models[0].id || cat[0] && cat[0].id || "";
+    onChange({ provider: p, model: first });
+  };
+
+  const tooltipFor = (p) => {
+    const r = reg[p];
+    if (r && r.available) return `Use ${p}`;
+    if (p === "ollama") return "Local: no Ollama detected (start the daemon)";
+    if (p === "xai") return "xAI: no key configured";
+    if (p === "groq") return "Groq: no key configured — get a free key at console.groq.com";
+    if (p === "gemini") return "Gemini: no key configured — get a free key at aistudio.google.com/apikey";
+    if (p === "anthropic") return "Anthropic: no key configured";
+    return "";
+  };
+
+  const submitKey = async () => {
+    const key = keyInput.trim();
+    if (!key) return;
+    setKeyBusy(true);setKeyMsg("");
+    try {
+      const r = await fetch("/api/key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, provider })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setKeyMsg("✓ saved");
+      setKeyInput("");
+      // Tell the rest of the app to re-probe /api/health.
+      try {window.dispatchEvent(new CustomEvent("codex:engine-change"));} catch {}
+    } catch (e) {
+      setKeyMsg(String(e.message || e));
+    } finally {
+      setKeyBusy(false);
+    }
+  };
+
+  const runTest = async () => {
+    setTestBusy(true);setTestMsg("");
+    const t0 = performance.now();
+    try {
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider, model,
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 5
+        })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const ms = Math.round(performance.now() - t0);
+      const u = d.usage || {};
+      const toks = (u.input_tokens || 0) + (u.output_tokens || 0);
+      setTestMsg(`✓ ${ms}ms · ${toks} tok`);
+    } catch (e) {
+      setTestMsg("✗ " + String(e.message || e).slice(0, 60));
+    } finally {
+      setTestBusy(false);
+    }
+  };
+
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "cx-tp-provider" }, /*#__PURE__*/
+    React.createElement("div", { className: "cx-tp-provider-seg", role: "radiogroup", "aria-label": "AI provider" },
+    PROVIDERS.map((p) => {
+      const r = reg[p.id] || { available: false };
+      const on = provider === p.id;
+      const off = !r.available;
+      return (/*#__PURE__*/
+        React.createElement("button", {
+          key: p.id,
+          type: "button",
+          role: "radio",
+          "aria-checked": on,
+          className: `cx-tp-provider-btn ${on ? "is-on" : ""} ${off ? "is-off" : ""}`,
+          title: tooltipFor(p.id),
+          onClick: () => pickProvider(p.id) }, /*#__PURE__*/
+
+        React.createElement("b", null, p.label), /*#__PURE__*/
+        React.createElement("i", null, p.sub, off ? " · off" : "")
+        ));
+
+    })
+    ), /*#__PURE__*/
+
+    React.createElement("div", { className: "cx-tp-model-row" }, /*#__PURE__*/
+    React.createElement("label", { className: "cx-tp-model-lbl" }, "Model"), /*#__PURE__*/
+    React.createElement("select", {
+      className: "cx-tp-model-sel",
+      value: model || "",
+      onChange: (e) => onChange({ provider, model: e.target.value }),
+      disabled: !models.length },
+
+    !models.length && /*#__PURE__*/React.createElement("option", { value: "" }, "\u2014 none available \u2014"),
+    models.map((m) => /*#__PURE__*/
+    React.createElement("option", { key: m.id, value: m.id },
+    m.label, m.tier ? `  · ${m.tier}` : ""
+    )
+    )
+    )
+    ),
+
+    needsKey && /*#__PURE__*/
+    React.createElement("div", { className: "cx-tp-key" }, /*#__PURE__*/
+    React.createElement("label", { className: "cx-tp-key-lbl" },
+    provider === "xai" ? "xAI API key (xai-…)" :
+    provider === "groq" ? "Groq API key (gsk_…)" :
+    provider === "gemini" ? "Gemini API key (AIza… / aistudio.google.com)" :
+    "Anthropic API key (sk-ant-…)",
+    keyMsg ? /*#__PURE__*/React.createElement("em", { className: `cx-tp-key-msg ${keyMsg.startsWith("✓") ? "is-ok" : "is-err"}` }, keyMsg) : null
+    ), /*#__PURE__*/
+    React.createElement("div", { className: "cx-tp-key-row" }, /*#__PURE__*/
+    React.createElement("input", {
+      className: "cx-tp-key-input",
+      type: "password",
+      value: keyInput,
+      placeholder: provider === "xai" ? "xai-…" : provider === "groq" ? "gsk_…" : provider === "gemini" ? "AIza…" : "sk-ant-…",
+      onChange: (e) => setKeyInput(e.target.value),
+      autoComplete: "off",
+      spellCheck: false }
+    ), /*#__PURE__*/
+    React.createElement("button", {
+      className: "cx-tp-key-btn",
+      onClick: submitKey,
+      disabled: keyBusy || !keyInput.trim() },
+    keyBusy ? "…" : "Save")
+    )
+    ), /*#__PURE__*/
+
+
+    React.createElement("div", { className: "cx-tp-test-row" }, /*#__PURE__*/
+    React.createElement("button", {
+      className: "cx-tp-test-btn",
+      onClick: runTest,
+      disabled: testBusy || !model || needsKey,
+      title: "Send a 1-token ping to verify connectivity" },
+    testBusy ? "Testing…" : "Test"),
+    testMsg ? /*#__PURE__*/
+    React.createElement("span", { className: `cx-tp-test-msg ${testMsg.startsWith("✓") ? "is-ok" : "is-err"}` }, testMsg) :
+    null
+    )
+    ));
+
+}
+
+// Day-mode theme picker — 9 light palettes selectable as swatches.
+// Reads/writes via the window.CODEX_LIGHT_THEMES global from light-themes.js.
+// Renders as a grid of mini swatches inside the Theme section of the tweaks
+// panel. Visible regardless of dark/light state so user can preview, but the
+// chosen variant only visibly applies when the app is in light mode.
+function LightThemePicker() {
+  const [current, setCurrent] = React.useState(
+    window.CODEX_LIGHT_THEMES && window.CODEX_LIGHT_THEMES.get() || "parchment"
+  );
+  React.useEffect(() => {
+    const onChange = (e) => setCurrent(e.detail?.theme || current);
+    window.addEventListener("codex:light-theme-change", onChange);
+    return () => window.removeEventListener("codex:light-theme-change", onChange);
+  }, [current]);
+  if (!window.CODEX_LIGHT_THEMES) return null;
+  const themes = window.CODEX_LIGHT_THEMES.list();
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "cx-tp-theme-grid" },
+    themes.map((t) => {
+      const isActive = current === t.id;
+      return (/*#__PURE__*/
+        React.createElement("button", {
+          key: t.id,
+          type: "button",
+          className: `cx-tp-theme-swatch ${isActive ? "is-active" : ""}`,
+          onClick: () => window.CODEX_LIGHT_THEMES.set(t.id),
+          title: `Day mode: ${t.label}`,
+          "aria-label": `Day mode theme: ${t.label}${isActive ? " (active)" : ""}`,
+          "aria-pressed": isActive }, /*#__PURE__*/
+
+        React.createElement("div", {
+          className: "cx-tp-theme-swatch-preview",
+          style: { background: t.bg, color: t.fg } },
+        "Aa"), /*#__PURE__*/
+        React.createElement("span", {
+          className: "cx-tp-theme-swatch-accent",
+          style: { background: t.accent },
+          "aria-hidden": "true" }
+        ), /*#__PURE__*/
+        React.createElement("span", { className: "cx-tp-theme-swatch-name" }, t.label)
+        ));
+
+    })
+    ));
+
+}
+
+// ── TweakOS7 (OS·7 "Nocturne" shell toggle) ─────────────────────────────────
+// One settings row controlling the OS·7 desktop surface (body.cx-os7,
+// persisted under localStorage "codex.os7", default ON). Mirrors the
+// TweakToggle row markup exactly, plus a dim sub-line describing the shell.
+// Defensive: renders nothing when window.codexOS7 isn't installed, and reads
+// truth from the live <body> class (falling back to the storage key) so the
+// switch never drifts from what's actually on screen.
+function TweakOS7() {
+  const read = () => {
+    try {
+      if (document.body) return document.body.classList.contains('cx-os7');
+    } catch (e) {/* fall through */}
+    try {return localStorage.getItem('codex.os7') !== '0';} catch (e) {return true;}
+  };
+  const [on, setOn] = React.useState(read);
+  if (typeof window.codexOS7 !== 'function') return null;
+  const flip = (next) => {
+    try {window.codexOS7(next);} catch (e) {/* never throw from settings */}
+    setOn(read());
+  };
+  const lbl = 'OS·7 Nocturne shell';
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "twk-row twk-row-h", onClick: () => flip(!on) }, /*#__PURE__*/
+    React.createElement("div", { className: "twk-lbl" }, /*#__PURE__*/
+    React.createElement("span", null,
+    lbl, /*#__PURE__*/
+    React.createElement("span", { style: { display: 'block', fontWeight: 400, fontSize: 11,
+        color: 'var(--cx-fg-dim, rgba(41,38,27,.6))', lineHeight: 1.4 } }, "desktop, glass windows, starfield \u2014 turn off for the classic layout"
+
+    )
+    )
+    ), /*#__PURE__*/
+    React.createElement("button", { type: "button", className: "twk-toggle", "data-on": on ? '1' : '0',
+      role: "switch", "aria-checked": !!on, "aria-label": lbl,
+      onClick: (e) => {e.stopPropagation();flip(!on);} }, /*#__PURE__*/React.createElement("i", null))
+    ));
+
+}
+
+// ── Schizo Mode toggle (easter egg) ────────────────────────────────────
+// Renders nothing unless `eligible` is true — eligibility is set by App
+// once the user has actually landed on Acts 16:26 (the prison earthquake —
+// "every one's bands were loosed"). The label inherits
+// a faint glitch animation from .cx-schizo-toggle in styles.css so it's
+// easy to miss unless you're looking. Kept here so the gating logic
+// lives next to the other Tweak primitives.
+function TweakSchizoToggle({ eligible, value, onChange }) {
+  if (!eligible) return null;
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "cx-schizo-toggle" }, /*#__PURE__*/
+    React.createElement(TweakToggle, { label: "Schizo Mode", value: !!value, onChange: onChange })
+    ));
+
+}
+
+// ── TweakContinuity (Phase 2.5 engagement layer) ───────────────────────────
+// Self-contained "Continuity" settings group for the engagement engine
+// (window.CODEX_ENGAGEMENT). Injected by TweaksPanel into the System tab the
+// same way TweakPersonalization is, so it is present regardless of how the
+// host composes the panel and never requires touching app.jsx.
+//
+// Controls (grace-shaped, conservative defaults):
+//   · engageEnabled        — turn the layer on/off (default ON)
+//   · engageDailyThreshold — qualifying depth actions to count a day; ALSO
+//                            pushed to the engine via setConfig({dailyThreshold})
+//   · engageNotifyCadence  — announcement cadence: off | milestones | all
+//                            (conservative default: "milestones")
+//   · engageReduceMotion   — static form for every engagement "celebration"
+//
+// Reads/writes the same persisted blob (codex.tweaks.v1) the rest of the app
+// uses, merge-preserving so it never clobbers other keys, and listens for
+// 'tweakchange' so it stays in sync if the host edits the same keys. Every
+// engine call is wrapped in try/catch — settings must never throw.
+const __CX_ENGAGE_DEFAULTS = {
+  engageEnabled: true,
+  engageDailyThreshold: 1,
+  engageNotifyCadence: 'milestones',
+  engageReduceMotion: false
+};
+
+function __cxReadEngageTweaks() {
+  let stored = {};
+  try {
+    const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
+    if (raw) stored = JSON.parse(raw) || {};
+  } catch (e) {/* fall through to defaults */}
+  return { ...__CX_ENGAGE_DEFAULTS, ...stored };
+}
+
+function __cxWriteEngageTweak(key, value) {
+  let stored = {};
+  try {
+    const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
+    if (raw) stored = JSON.parse(raw) || {};
+  } catch (e) {/* start fresh */}
+  const next = { ...stored, [key]: value };
+  try {localStorage.setItem(CODEX_TWEAKS_KEY, JSON.stringify(next));} catch (e) {/* quota */}
+  // Keep author-time editing + the rest of the app in sync (same channel
+  // useTweaks/setTweak use), so the host's tweak state mirrors ours.
+  try {window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: value } }, '*');} catch (e) {}
+  try {window.dispatchEvent(new CustomEvent('tweakchange', { detail: { [key]: value } }));} catch (e) {}
+}
+
+function TweakContinuity() {
+  const tt = (k, fb) => {try {return window.t && window.t(k) || fb;} catch (e) {return fb;}};
+  const [v, setV] = React.useState(__cxReadEngageTweaks);
+
+  // Stay in sync if the host (or another surface) edits the same keys.
+  React.useEffect(() => {
+    const onChange = (e) => {
+      const d = e && e.detail || {};
+      if (Object.keys(d).some((k) => k.startsWith('engage'))) setV(__cxReadEngageTweaks());
+    };
+    window.addEventListener('tweakchange', onChange);
+    return () => window.removeEventListener('tweakchange', onChange);
+  }, []);
+
+  const set = (key, value) => {
+    __cxWriteEngageTweak(key, value);
+    setV((prev) => ({ ...prev, [key]: value }));
+    // engageDailyThreshold is the one tweak the engine itself consumes.
+    if (key === 'engageDailyThreshold') {
+      try {
+        if (window.CODEX_ENGAGEMENT && window.CODEX_ENGAGEMENT.setConfig) {
+          window.CODEX_ENGAGEMENT.setConfig({ dailyThreshold: value });
+        }
+      } catch (e) {/* never throw from settings */}
+    }
+  };
+
+  return (/*#__PURE__*/
+    React.createElement(React.Fragment, null, /*#__PURE__*/
+    React.createElement(TweakToggle, {
+      label: tt('cx.tweak.enable', 'Engagement layer'),
+      value: !!v.engageEnabled,
+      onChange: (val) => set('engageEnabled', val) }),
+    v.engageEnabled && /*#__PURE__*/
+    React.createElement(React.Fragment, null, /*#__PURE__*/
+    React.createElement(TweakSlider, {
+      label: tt('cx.tweak.threshold', 'Depth actions per day'),
+      value: v.engageDailyThreshold,
+      min: 1, max: 5, step: 1,
+      onChange: (val) => set('engageDailyThreshold', val) }), /*#__PURE__*/
+    React.createElement(TweakRadio, {
+      label: tt('cx.tweak.cadence', 'Announcements'),
+      value: v.engageNotifyCadence,
+      options: [
+      { value: 'off', label: tt('cx.tweak.cadence.off', 'Off') },
+      { value: 'milestones', label: tt('cx.tweak.cadence.milestones', 'Milestones') },
+      { value: 'all', label: tt('cx.tweak.cadence.all', 'All') }],
+
+      onChange: (val) => set('engageNotifyCadence', val) }), /*#__PURE__*/
+    React.createElement(TweakToggle, {
+      label: tt('cx.tweak.motion', 'Reduce motion'),
+      value: !!v.engageReduceMotion,
+      onChange: (val) => set('engageReduceMotion', val) })
+    )
+
+    ));
+
+}
+
+Object.assign(window, {
+  useTweaks, TweaksPanel, TweakSection, TweakRow,
+  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+  TweakText, TweakNumber, TweakColor, TweakButton,
+  TweakPersonalization,
+  TweakSchizoToggle, TweakContinuity, TweakOS7,
+  AIModelSection, LightThemePicker
+});
+})();

@@ -4,7 +4,8 @@
   "private": true,
   "description": "CODEX Bible-study PWA — dev tooling only. End users and deploy need ZERO install and ZERO build; the app ships as plain <script> tags with in-browser Babel.",
   "scripts": {
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build-jsx.mjs"
   },
   "devDependencies": {
     "@babel/standalone": "7.29.0",

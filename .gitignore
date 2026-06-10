@@ -30,7 +30,7 @@ Thumbs.db
 .sublime-workspace
 
 # Build output
-dist/
+# dist/ is COMMITTED since v7.6 — pre-transpiled JSX the app ships (scripts/build-jsx.mjs)
 build/
 *.bundle.js
 

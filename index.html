@@ -35,11 +35,13 @@
     });
     window.addEventListener('load', function () {
       try {
-        if (typeof window.Babel === 'undefined' || typeof window.React === 'undefined') {
+        // Babel no longer ships — JSX is pre-transpiled (dist/, built by
+        // scripts/build-jsx.mjs). Only React remains boot-critical.
+        if (typeof window.React === 'undefined') {
           push({
             when: Date.now(),
             type: 'cdn-missing',
-            message: 'Babel/React absent — CDN unreachable or SRI mismatch',
+            message: 'React absent — CDN unreachable or SRI mismatch',
             src: ''
           });
         }
@@ -78,9 +80,10 @@
         crossorigin=""></script>
 <link rel="stylesheet" href="styles.css" />
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<!-- SPEED foundation (v7.6): production React, and NO in-browser Babel —
+     every .jsx ships pre-transpiled from dist/ (scripts/build-jsx.mjs). -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <style>
 /* ── Cold-boot terminal overlay ──────────────────────────────────────
    Renders instantly (inline) so the user has something beautiful to
@@ -330,41 +333,41 @@
 <script src="kernel.js"></script>
 <script src="shell.js"></script>
 <script src="wm.js"></script>
-<script type="text/babel" src="intel.jsx"></script>
-<script type="text/babel" src="tweaks-panel.jsx"></script>
-<script type="text/babel" src="help.jsx"></script>
-<script type="text/babel" src="components.jsx"></script>
-<script type="text/babel" src="panels.jsx"></script>
-<script type="text/babel" src="oracle.jsx"></script>
-<script type="text/babel" src="library.jsx"></script>
-<script type="text/babel" src="verse-menu.jsx"></script>
-<script type="text/babel" src="verse-map.jsx"></script>
-<script type="text/babel" src="verse-art.jsx"></script>
-<script type="text/babel" src="verse-compare.jsx"></script>
-<script type="text/babel" src="verse-mirror.jsx"></script>
-<script type="text/babel" src="sword.jsx"></script>
-<script type="text/babel" src="ops.jsx"></script>
-<script type="text/babel" src="omnibar.jsx"></script>
-<script type="text/babel" src="constellation.jsx"></script>
-<script type="text/babel" src="repo-add.jsx"></script>
-<script type="text/babel" src="notes.jsx"></script>
-<script type="text/babel" src="quest-messiah.jsx"></script>
-<script type="text/babel" src="ai-quests.jsx"></script>
-<script type="text/babel" src="crossref.jsx"></script>
-<script type="text/babel" src="strongs.jsx"></script>
-<script type="text/babel" src="word-study.jsx"></script>
-<script type="text/babel" src="reels.jsx"></script>
-<script type="text/babel" src="continuity.jsx"></script>
-<script type="text/babel" src="dictionary.jsx"></script>
-<script type="text/babel" src="plans.jsx"></script>
-<script type="text/babel" src="passage-guide.jsx"></script>
-<script type="text/babel" src="builder.jsx"></script>
-<script type="text/babel" src="timeline.jsx"></script>
-<script type="text/babel" src="jewish-study.jsx"></script>
-<script type="text/babel" src="marketplace.jsx"></script>
-<script type="text/babel" src="compare.jsx"></script>
-<script type="text/babel" src="vox.jsx"></script>
-<script type="text/babel" src="app.jsx"></script>
+<script src="dist/intel.js"></script>
+<script src="dist/tweaks-panel.js"></script>
+<script src="dist/help.js"></script>
+<script src="dist/components.js"></script>
+<script src="dist/panels.js"></script>
+<script src="dist/oracle.js"></script>
+<script src="dist/library.js"></script>
+<script src="dist/verse-menu.js"></script>
+<script src="dist/verse-map.js"></script>
+<script src="dist/verse-art.js"></script>
+<script src="dist/verse-compare.js"></script>
+<script src="dist/verse-mirror.js"></script>
+<script src="dist/sword.js"></script>
+<script src="dist/ops.js"></script>
+<script src="dist/omnibar.js"></script>
+<script src="dist/constellation.js"></script>
+<script src="dist/repo-add.js"></script>
+<script src="dist/notes.js"></script>
+<script src="dist/quest-messiah.js"></script>
+<script src="dist/ai-quests.js"></script>
+<script src="dist/crossref.js"></script>
+<script src="dist/strongs.js"></script>
+<script src="dist/word-study.js"></script>
+<script src="dist/reels.js"></script>
+<script src="dist/continuity.js"></script>
+<script src="dist/dictionary.js"></script>
+<script src="dist/plans.js"></script>
+<script src="dist/passage-guide.js"></script>
+<script src="dist/builder.js"></script>
+<script src="dist/timeline.js"></script>
+<script src="dist/jewish-study.js"></script>
+<script src="dist/marketplace.js"></script>
+<script src="dist/compare.js"></script>
+<script src="dist/vox.js"></script>
+<script src="dist/app.js"></script>
 
 <script>
 // Register the offline-first service worker. The SW pre-caches the app shell
