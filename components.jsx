@@ -242,7 +242,7 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
           </svg>
           <div className="cx-logo-txt">
             <b className="cx-logo-name"><span className="cx-logo-std">CODEX</span><span className="cx-logo-drift">CODƎX</span></b>
-            <span className="cx-logo-sub"><span className="cx-logo-std">NEW.WORLD STUDY · v4.12</span><span className="cx-logo-drift">VEILED.GLYPH · NIHIL OBSTAT</span></span>
+            <span className="cx-logo-sub"><span className="cx-logo-std">AGENTIC OS · v5.0</span><span className="cx-logo-drift">VEILED.GLYPH · NIHIL OBSTAT</span></span>
           </div>
         </div>
 
