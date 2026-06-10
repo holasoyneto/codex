@@ -18871,3 +18871,152 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 }
 .cx-wm-dock-chip.is-min { opacity: 0.55; }
 .cx-wm-dock-chip.is-min::after { content: "·"; color: var(--cx-fg-dim); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   ⌘ OMNIBAR — the one door. Top-third floating bar; rows say exactly
+   what ↵ will do; refs preview their verse before the jump.
+   ════════════════════════════════════════════════════════════════════════ */
+.cx-omni-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 9800;
+  background: color-mix(in oklab, var(--cx-bg) 75%, black 25%);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(48px, 14vh, 140px) 18px 18px;
+  animation: cx-omni-fade 120ms ease-out;
+}
+@keyframes cx-omni-fade { from { opacity: 0; } to { opacity: 1; } }
+.cx-omni {
+  width: min(680px, 100%);
+  background: var(--cx-bg);
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 34%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 30px 90px -20px rgba(0,0,0,0.7), 0 0 0 1px color-mix(in oklab, var(--cx-accent) 14%, transparent);
+  overflow: hidden;
+  animation: cx-omni-pop 150ms ease-out;
+}
+@keyframes cx-omni-pop { from { opacity: 0; transform: translateY(-6px) scale(0.99); } to { opacity: 1; transform: none; } }
+.cx-omni-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid color-mix(in oklab, var(--cx-fg-dim) 16%, transparent);
+}
+.cx-omni-sigil { color: var(--cx-accent); font-size: 14px; }
+.cx-omni-input {
+  flex: 1;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: var(--cx-mono);
+  font-size: 14px;
+  color: var(--cx-fg);
+}
+.cx-omni-input::placeholder { color: color-mix(in oklab, var(--cx-fg-dim) 65%, transparent); }
+.cx-omni-esc {
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: var(--cx-fg-dim);
+  border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 28%, transparent);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+/* the dim glass becomes clear — verse preview before the jump */
+.cx-omni-preview {
+  padding: 10px 16px;
+  border-bottom: 1px solid color-mix(in oklab, var(--cx-fg-dim) 14%, transparent);
+  background: color-mix(in oklab, var(--cx-accent) 4%, transparent);
+  animation: cx-intel-tick-in 200ms ease-out;
+}
+.cx-omni-preview-ref {
+  font-family: var(--cx-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--cx-accent);
+}
+.cx-omni-preview p {
+  margin: 5px 0 0;
+  font-family: var(--cx-serif);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--cx-fg);
+}
+
+.cx-omni-list { list-style: none; margin: 0; padding: 6px; max-height: 46vh; overflow-y: auto; }
+.cx-omni-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.cx-omni-row.is-sel { background: color-mix(in oklab, var(--cx-accent) 9%, transparent); }
+.cx-omni-row.is-dead { opacity: 0.45; cursor: default; }
+.cx-omni-row-icon {
+  font-style: normal;
+  width: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--cx-accent);
+  flex: none;
+}
+.cx-omni-row-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cx-omni-row-txt b { font-size: 13px; font-weight: 600; color: var(--cx-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cx-omni-row-txt span { font-size: 11px; color: var(--cx-fg-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cx-omni-row.is-primary .cx-omni-row-txt b { color: var(--cx-accent); }
+.cx-omni-row kbd {
+  font-family: var(--cx-mono);
+  font-size: 9px;
+  color: var(--cx-accent);
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 35%, transparent);
+  border-radius: 3px;
+  padding: 1px 6px;
+  flex: none;
+}
+
+.cx-omni-idle { padding: 18px 16px 16px; }
+.cx-omni-idle-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  font-family: var(--cx-mono);
+  font-size: 10.5px;
+  color: var(--cx-fg-dim);
+  margin-bottom: 14px;
+}
+.cx-omni-idle-rows i { font-style: normal; color: var(--cx-accent); margin-right: 6px; }
+.cx-omni-epigraph {
+  margin: 0;
+  font-family: var(--cx-serif);
+  font-style: italic;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--cx-fg-dim);
+  opacity: 0.85;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .cx-omni-scrim { padding: 14px 10px; }
+  .cx-omni-list { max-height: 56vh; }
+}
+
+/* verse-menu strata labels */
+.cx-vm-group {
+  font-family: var(--cx-mono);
+  font-size: 7.5px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: color-mix(in oklab, var(--cx-accent) 70%, var(--cx-fg-dim));
+  padding: 7px 12px 3px;
+  user-select: none;
+}

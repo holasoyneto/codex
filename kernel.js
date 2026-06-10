@@ -164,6 +164,23 @@
     },
   });
 
+  register({
+    name: "session_trail",
+    description: "The reader's recent reading trail (passages visited, most recent last). args: {hours?: number — window to include, default 12}. Use this for 'weave my session' style missions.",
+    run: async function (args) {
+      var hours = Math.max(1, Math.min((args && args.hours) || 12, 168));
+      var cutoff = Date.now() - hours * 3600 * 1000;
+      var trail;
+      try { trail = JSON.parse(localStorage.getItem("codex.trail") || "[]"); } catch (_) { trail = []; }
+      var recent = trail.filter(function (t) { return t.at >= cutoff; });
+      if (!recent.length) return "The trail is empty for the last " + hours + "h — the reader hasn't moved between passages yet. Ask them to read first, or weave from the current passage alone.";
+      return recent.map(function (t) {
+        var d = new Date(t.at);
+        return t.ref + "  (" + d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0") + ")";
+      }).join("\n");
+    },
+  });
+
   // Optional semantic search — registered only if the engine ships it.
   if (window.CODEX_SEARCH && typeof window.CODEX_SEARCH.searchSemantic === "function") {
     register({

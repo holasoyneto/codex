@@ -234,6 +234,8 @@ function VerseMenu({
             <span className="cx-vm-sub">{gnosisOn ? "disengage overlay" : "engage overlay"}</span>
           </button>
 
+          <div className="cx-vm-group" aria-hidden="true">DEPTH CONSOLES</div>
+
           <button className="cx-vm-row" role="menuitem" onClick={() => { emitDepth("map-place-study", 2); onOpenMap?.(verse, ref$, verseText); onClose(); }}>
             <span className="cx-vm-icon">◎</span>
             <span className="cx-vm-lbl">{vmt("vm.map")}</span>
@@ -269,6 +271,8 @@ function VerseMenu({
             <span className="cx-vm-lbl">OPS</span>
             <span className="cx-vm-sub">task the kernel · build a study</span>
           </button>
+
+          <div className="cx-vm-group" aria-hidden="true">STUDY TOOLS</div>
 
           <button className="cx-vm-row" role="menuitem" onClick={() => { emitDepth("note-written", 2); onOpenNote?.(verse, ref$); onClose(); }}>
             <span className="cx-vm-icon">✎</span>

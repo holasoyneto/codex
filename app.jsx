@@ -1884,6 +1884,28 @@ function App() {
   const openVerseSword = useCallback((v, refStr, text) => setVerseSword({ verse: v, refStr, text }), []);
   const closeVerseSword = useCallback(() => setVerseSword(null), []);
 
+  // ── OMNIBAR — ⌘K, the one door. ───────────────────────────────────────
+  const [omniOpen, setOmniOpen] = useState(false);
+  useEffect(() => {
+    window.codexOpenOmni = () => setOmniOpen(true);
+    return () => { delete window.codexOpenOmni; };
+  }, []);
+
+  // ── Reading trail — a quiet ring of the passages visited (ring of 100,
+  // local only). The kernel's session_trail tool reads it so the LOOM can
+  // weave a session into a study. Coarse (book+chapter) by design.
+  useEffect(() => {
+    if (!passage?.bookId || !passage?.chapter) return;
+    try {
+      const book = CODEX_DATA.books.find(b => b.id === passage.bookId);
+      const ref = `${book ? book.name : passage.bookId} ${passage.chapter}`;
+      const trail = JSON.parse(localStorage.getItem("codex.trail") || "[]");
+      if (trail.length && trail[trail.length - 1].ref === ref) return;
+      trail.push({ ref, at: Date.now() });
+      localStorage.setItem("codex.trail", JSON.stringify(trail.slice(-100)));
+    } catch {}
+  }, [passage?.bookId, passage?.chapter]);
+
   // ── OPS — the mission cockpit (agentic OS). Opened from the verse menu
   // (seeded with the verse) or programmatically via window.codexOpenOps.
   const [opsOpen, setOpsOpen] = useState(null); // null | { seed }
@@ -2406,7 +2428,9 @@ function App() {
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
-        focusSearch();
+        // ⌘K is the OMNIBAR — the one door. (It used to focus the search
+        // box; the omnibar's search mode subsumes that entirely.)
+        setOmniOpen(o => !o);
         return;
       }
 
@@ -3147,6 +3171,10 @@ function App() {
           onClose={closeOps}
           onJumpRef={jumpToRef}
         />
+      ) : null}
+
+      {omniOpen && window.Omnibar ? (
+        <Omnibar onClose={() => setOmniOpen(false)} />
       ) : null}
 
       {/* Keyboard help is the single inline cx-kbd-overlay above (setShowShortcuts).
