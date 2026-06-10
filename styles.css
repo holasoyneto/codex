@@ -19046,8 +19046,26 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 /* Invisible halo extends the tap target to ~44px without inflating the
    compact status bar (mobile pass #2 keeps it at 32px). */
 .cx-omni-launch::after { content: ""; position: absolute; inset: -6px; }
+/* Desktop: the door must be VISIBLE, not a secret keystroke. The launcher
+   becomes a slim "⌘ K · ask anything" pill (the ::before carries the hint
+   so the same element serves both form factors). */
 @media (min-width: 881px) {
-  .cx-omni-launch { display: none !important; }
+  .cx-omni-launch {
+    display: inline-flex;
+    width: auto;
+    height: 26px;
+    padding: 0 10px;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--cx-fg-dim);
+  }
+  .cx-omni-launch::before {
+    content: "K · ask anything";
+    order: 2;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+  .cx-omni-launch::after { content: none; }
 }
 @media (max-width: 880px) {
   .cx-omni-launch { display: inline-flex; }
