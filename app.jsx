@@ -1884,6 +1884,50 @@ function App() {
   const openVerseSword = useCallback((v, refStr, text) => setVerseSword({ verse: v, refStr, text }), []);
   const closeVerseSword = useCallback(() => setVerseSword(null), []);
 
+  // ── OPS — the mission cockpit (agentic OS). Opened from the verse menu
+  // (seeded with the verse) or programmatically via window.codexOpenOps.
+  const [opsOpen, setOpsOpen] = useState(null); // null | { seed }
+  const openOps = useCallback((seed) => setOpsOpen({ seed: seed || "" }), []);
+  const closeOps = useCallback(() => setOpsOpen(null), []);
+  useEffect(() => {
+    window.codexOpenOps = openOps;
+    return () => { if (window.codexOpenOps === openOps) delete window.codexOpenOps; };
+  }, [openOps]);
+
+  // The kernel's open_console tool lands here: navigate the reader, resolve
+  // the verse text, then open the requested depth console — exactly as if
+  // the reader had clicked the verse-menu row themselves.
+  useEffect(() => {
+    const onOsOpen = (e) => {
+      const { kind, ref } = e.detail || {};
+      if (!kind || !ref) return;
+      const p = parseRef(ref, CODEX_DATA.books);
+      if (!p) return;
+      try { window.codexJumpToRef && window.codexJumpToRef(ref); } catch {}
+      // Let navigation commit so the consoles read the right passage state.
+      setTimeout(async () => {
+        let text = "";
+        try {
+          const data = await BIBLE.loadChapter(p.bookId, p.chapter, primary);
+          const vs = (data && data.verses) || data || [];
+          const v = Array.isArray(vs) ? vs.find(x => (x.verse || x.n) === p.verse) : null;
+          text = v ? String(v.text || "").trim() : "";
+        } catch {}
+        const verse = { n: p.verse };
+        const open = {
+          map: () => openVerseMap(verse, ref, text),
+          mirror: () => openVerseMirror(verse, ref, text),
+          sword: () => openVerseSword(verse, ref, text),
+          art: () => openVerseArt(verse, ref, text),
+          compare: () => openVerseCompare(verse, ref),
+        }[kind];
+        if (open) open();
+      }, 700);
+    };
+    window.addEventListener("codex:os-open", onOsOpen);
+    return () => window.removeEventListener("codex:os-open", onOsOpen);
+  }, [primary, openVerseMap, openVerseMirror, openVerseSword, openVerseArt, openVerseCompare]);
+
   // ── PWA install — capture the browser's deferred install prompt so the
   // settings button can fire the native dialog with one tap. Falls back to
   // platform-specific guidance on iOS (where no event is fired). The whole
@@ -3006,6 +3050,7 @@ function App() {
           onOpenCompare={openVerseCompare}
           onOpenMirror={openVerseMirror}
           onOpenSword={openVerseSword}
+          onOpenOps={(v, refStr) => openOps(`Build a cited study of ${refStr} — context, cross-references, original language, and what this verse divides.`)}
           pluginVersion={pluginVersion}
           onOpenNote={(v, refStr) => {
             if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackNote();
@@ -3092,6 +3137,14 @@ function App() {
           passage={passage}
           primary={primary}
           onClose={closeVerseSword}
+          onJumpRef={jumpToRef}
+        />
+      ) : null}
+
+      {opsOpen && window.VerseOps ? (
+        <VerseOps
+          seed={opsOpen.seed}
+          onClose={closeOps}
           onJumpRef={jumpToRef}
         />
       ) : null}

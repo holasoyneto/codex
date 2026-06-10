@@ -36,6 +36,7 @@ function VerseMenu({
   onOpenNote,
   onOpenMirror,
   onOpenSword,
+  onOpenOps,
   pluginVersion,
 }) {
   const ref = useRef(null);
@@ -261,6 +262,12 @@ function VerseMenu({
             <span className="cx-vm-icon">⚔</span>
             <span className="cx-vm-lbl">SWORD</span>
             <span className="cx-vm-sub">fourfold edge · pardes × quadriga</span>
+          </button>
+
+          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenOps?.(verse, ref$, verseText); onClose(); }}>
+            <span className="cx-vm-icon">◎</span>
+            <span className="cx-vm-lbl">OPS</span>
+            <span className="cx-vm-sub">task the kernel · build a study</span>
           </button>
 
           <button className="cx-vm-row" role="menuitem" onClick={() => { emitDepth("note-written", 2); onOpenNote?.(verse, ref$); onClose(); }}>

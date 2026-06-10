@@ -32,8 +32,50 @@
     { id: "map",    backdrop: "cx-map-backdrop",    card: ".cx-map",    head: ".cx-map-h",    min: [600, 440] },
     { id: "art",    backdrop: "cx-art-backdrop",    card: ".cx-art",    head: ".cx-art-h",    min: [500, 380] },
     { id: "cmp",    backdrop: "cx-cmp-backdrop",    card: ".cx-cmp",    head: ".cx-cmp-h",    min: [500, 340] },
-    { id: "sword",  backdrop: "cx-sword-backdrop",  card: ".cx-sword",  head: ".cx-sword-h",  min: [640, 460] }
+    { id: "sword",  backdrop: "cx-sword-backdrop",  card: ".cx-sword",  head: ".cx-sword-h",  min: [640, 460] },
+    { id: "ops",    backdrop: "cx-ops-backdrop",    card: ".cx-ops",    head: ".cx-ops-h",    min: [720, 480] }
   ];
+
+  // ── Dock — the running-windows strip. Renders only while ≥1 window is
+  // open (no idle ambient chrome — ambient surfaces must be closable, and
+  // the cleanest closable is one that isn't there). Click: focus; click the
+  // focused window's chip: minimize; click a minimized chip: restore.
+  var DOCK_GLYPH = { mirror: "⌬", map: "◎", art: "▦", cmp: "≡", sword: "⚔", ops: "❖" };
+  var dockEl = null;
+  var dockWins = []; // [{ key, id, backdrop, card, front }]
+
+  function dockRender() {
+    dockWins = dockWins.filter(function (w) { return w.backdrop.isConnected; });
+    if (!dockWins.length) { if (dockEl) { dockEl.remove(); dockEl = null; } return; }
+    if (!dockEl || !dockEl.isConnected) {
+      dockEl = document.createElement("div");
+      dockEl.className = "cx-wm-dock";
+      dockEl.setAttribute("role", "toolbar");
+      dockEl.setAttribute("aria-label", "Open windows");
+      document.body.appendChild(dockEl);
+    }
+    dockEl.textContent = "";
+    dockWins.forEach(function (w) {
+      var chip = document.createElement("button");
+      var minimized = w.backdrop.style.display === "none";
+      var focused = w.card.classList.contains("cx-wm-focus");
+      chip.className = "cx-wm-dock-chip" + (minimized ? " is-min" : "") + (focused && !minimized ? " is-focus" : "");
+      chip.innerHTML = '<i>' + (DOCK_GLYPH[w.id] || "▣") + '</i><span>' + w.id.toUpperCase() + '</span>';
+      chip.title = minimized ? "Restore " + w.id : (focused ? "Minimize " + w.id : "Focus " + w.id);
+      chip.addEventListener("click", function () {
+        if (w.backdrop.style.display === "none") {
+          w.backdrop.style.display = "";
+          w.front();
+        } else if (w.card.classList.contains("cx-wm-focus")) {
+          w.backdrop.style.display = "none";
+        } else {
+          w.front();
+        }
+        dockRender();
+      });
+      dockEl.appendChild(chip);
+    });
+  }
 
   var zTop = 9500;          // shared z ladder across all WM windows
   var SNAP = 14;            // px from a viewport edge that arms snapping
@@ -283,9 +325,18 @@
       }
     };
     window.addEventListener("resize", onWinResize);
+    // Register with the dock; chips re-render on focus so the active chip
+    // tracks the focused window.
+    var dockEntry = { key: spec.id + ":" + Date.now(), id: spec.id, backdrop: backdrop, card: card, front: front };
+    dockWins.push(dockEntry);
+    card.addEventListener("pointerdown", function () { dockRender(); }, true);
+    dockRender();
+
     backdrop.__cxwmCleanup = function () {
       window.removeEventListener("resize", onWinResize);
       saveGeo(spec.id, state.geo);
+      dockWins = dockWins.filter(function (w) { return w !== dockEntry; });
+      dockRender();
     };
   }
 
