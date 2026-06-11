@@ -3072,7 +3072,10 @@ function LeftRailResizer() {
   return /*#__PURE__*/React.createElement("div", { className: "cx-rail-resize is-left", onMouseDown: onDown, title: "Drag to resize", "aria-label": "Resize panel" });
 }
 
-Object.assign(window, { RightRail, LeftRailResizer });
+// PluginPanelHost is exported for the MONAD window host (winhost.jsx):
+// plugin panels are pure (ctx)=>element renderers, so they mount equally
+// well inside a floating window as inside the rail/deck.
+Object.assign(window, { RightRail, LeftRailResizer, PluginPanelHost });
 
 /* v7.5 DECK ════════════════════════════════════════════════════════════
    Desktop OS·7 right-rail "Deck": the pinned panels render as a vertical

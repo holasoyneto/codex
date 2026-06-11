@@ -34,7 +34,10 @@
     { id: "cmp",    backdrop: "cx-cmp-backdrop",    card: ".cx-cmp",    head: ".cx-cmp-h",    min: [500, 340] },
     { id: "sword",  backdrop: "cx-sword-backdrop",  card: ".cx-sword",  head: ".cx-sword-h",  min: [640, 460] },
     { id: "ops",    backdrop: "cx-ops-backdrop",    card: ".cx-ops",    head: ".cx-ops-h",    min: [720, 480] },
-    { id: "const",  backdrop: "cx-const-backdrop",  card: ".cx-const",  head: ".cx-const-h",  min: [720, 600] }
+    { id: "const",  backdrop: "cx-const-backdrop",  card: ".cx-const",  head: ".cx-const-h",  min: [720, 600] },
+    // v8 MONAD — the generic window class (winhost.jsx): any plugin panel
+    // floats here; instance identity rides data-wm-id on the backdrop.
+    { id: "win",    backdrop: "cx-win-backdrop",    card: ".cx-win",    head: ".cx-win-h",    min: [380, 320] }
   ];
 
   // ── Dock — the running-windows strip. Renders only while ≥1 window is
@@ -165,7 +168,7 @@
       var minimized = w.backdrop.style.display === "none";
       var focused = w.card.classList.contains("cx-wm-focus");
       chip.className = "cx-wm-dock-chip" + (minimized ? " is-min" : "") + (focused && !minimized ? " is-focus" : "");
-      chip.innerHTML = '<i>' + (DOCK_GLYPH[w.id] || "▣") + '</i><span>' + w.id.toUpperCase() + '</span>';
+      chip.innerHTML = '<i>' + (w.glyph || DOCK_GLYPH[w.id] || "▣") + '</i><span>' + String(w.label || w.id).toUpperCase().slice(0, 12) + '</span>';
       chip.title = minimized ? "Restore " + w.id : (focused ? "Minimize " + w.id : "Focus " + w.id);
       chip.addEventListener("click", function () {
         if (w.backdrop.style.display === "none") {
@@ -248,7 +251,12 @@
     backdrop.__cxwm = true;
 
     var head = card.querySelector(spec.head);
-    var state = { id: spec.id, min: spec.min, maximized: false, restore: null };
+    // v8 MONAD: generic windows carry their instance identity on the
+    // backdrop (data-wm-id) so each persists its own geometry + dock chip;
+    // classic consoles fall through to the spec id unchanged.
+    var wid = backdrop.getAttribute("data-wm-id") || spec.id;
+    var wglyph = backdrop.getAttribute("data-wm-glyph") || DOCK_GLYPH[spec.id] || "▣";
+    var state = { id: wid, min: spec.min, maximized: false, restore: null };
 
     // Measure the natural (CSS-centered) rect BEFORE window-mode classes
     // change the card's positioning — this is the first-open geometry.
@@ -279,7 +287,7 @@
 
     // ── Initial geometry: saved → clamped; else derive from the card's
     //    natural (CSS-centered) rect so the first open looks identical.
-    var saved = loadGeo(spec.id);
+    var saved = loadGeo(wid);
     var geo = saved
       ? clampGeo({ x: saved.x, y: saved.y, w: saved.w, h: saved.h }, spec.min)
       : clampGeo({ x: Math.round(rect.left), y: Math.round(rect.top), w: Math.round(rect.width), h: Math.round(rect.height) }, spec.min);
@@ -327,7 +335,7 @@
       } else {
         state.maximized = false;
       }
-      saveGeo(spec.id, state.geo);
+      saveGeo(wid, state.geo);
       pokeLayout();
       drag = null;
       window.removeEventListener("pointermove", onDragMove);
@@ -369,7 +377,7 @@
         state.maximized = true;
       }
       setTimeout(function () { card.classList.remove("cx-wm-snapping"); }, 220);
-      saveGeo(spec.id, state.geo);
+      saveGeo(wid, state.geo);
       pokeLayout();
     }
 
@@ -403,7 +411,7 @@
         rs = null;
         card.classList.remove("cx-wm-resizing");
         state.maximized = false;
-        saveGeo(spec.id, state.geo);
+        saveGeo(wid, state.geo);
         pokeLayout();
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
@@ -432,14 +440,14 @@
     window.addEventListener("resize", onWinResize);
     // Register with the dock; chips re-render on focus so the active chip
     // tracks the focused window.
-    var dockEntry = { key: spec.id + ":" + Date.now(), id: spec.id, backdrop: backdrop, card: card, front: front };
+    var dockEntry = { key: wid + ":" + Date.now(), id: wid, glyph: wglyph, label: (backdrop.querySelector(".cx-win-h-title") || {}).textContent || wid.replace(/^win:plugin:[^:]+:/, ""), backdrop: backdrop, card: card, front: front };
     dockWins.push(dockEntry);
     card.addEventListener("pointerdown", function () { dockRender(); }, true);
     dockRender();
 
     backdrop.__cxwmCleanup = function () {
       window.removeEventListener("resize", onWinResize);
-      saveGeo(spec.id, state.geo);
+      saveGeo(wid, state.geo);
       dockWins = dockWins.filter(function (w) { return w !== dockEntry; });
       dockRender();
     };

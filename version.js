@@ -9,12 +9,12 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "7.7",      // user-facing app version (header badge: NOCTURNE · v7.7)
-  sw: "v254",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "8.0",      // user-facing app version (header badge: NOCTURNE · v7.7)
+  sw: "v255",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "The app now updates itself — no more double reload",
-    "Live version badge that cannot lie",
-    "What's-new appears once per update",
+    "MONAD: panels float as real windows — drag, stack, minimize; they remember where you put them",
+    "Cross-refs, Plans, Strong's, Timeline… every plugin panel can live on your desk",
+    "⌘K panel commands now open windows on the desktop",
   ],
 };
 
