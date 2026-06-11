@@ -1393,6 +1393,31 @@ function DeskWin({ id, glyph, title, ctx, onClose, onFocusMode, focusOn, bodyCla
 
 }
 
+// v9.1 PROPHET — the system bar is gone under the desk. What remains is a
+// trace: time · theme · ⌘K, top-right, nearly transparent until you reach
+// for it. Everything else the bar carried lives in the dock and the omnibar.
+function DeskTrace({ now, dark, autoTheme, onToggleTheme }) {
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "cx-trace", role: "toolbar", "aria-label": "System" }, /*#__PURE__*/
+    React.createElement("span", { className: "cx-trace-time", title: now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) }, hh, ":", mm), /*#__PURE__*/
+    React.createElement("button", {
+      className: "cx-trace-btn",
+      onClick: onToggleTheme,
+      "aria-label": dark ? "Switch to light theme" : "Switch to dark theme",
+      title: (autoTheme ? "Auto theme · " : "") + (dark ? "Lights on" : "Lights off") },
+    dark ? "◐" : "◑"), /*#__PURE__*/
+    React.createElement("button", {
+      className: "cx-trace-btn",
+      onClick: () => {if (window.codexOpenOmni) window.codexOpenOmni();},
+      "aria-label": "Open omnibar",
+      title: "Ask anything \xB7 \u2318K" },
+    "\u2318")
+    ));
+
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   // Push the persisted language into the global i18n module so window.t()
@@ -2931,7 +2956,16 @@ function App() {
       className: "cx-rail-scrim",
       onClick: () => {setLeftOpen(false);setRightOpen(false);},
       "aria-hidden": true }
-    ), /*#__PURE__*/
+    ),
+    deskMode ? /*#__PURE__*/
+    React.createElement(DeskTrace, {
+      now: now, dark: dark, autoTheme: t.autoTheme,
+      onToggleTheme: () => {
+        if (t.autoTheme) setTweak("autoTheme", false);
+        setTweak("manualDark", !dark);
+      } }
+    ) : /*#__PURE__*/
+
     React.createElement(StatusBar, {
       now: now, solar: solar, dark: dark,
       autoTheme: t.autoTheme,
@@ -2947,6 +2981,7 @@ function App() {
       primary: primary,
       onSelectPrimary: setPrimaryAndPersist }
     ),
+
 
     tourOpen ? /*#__PURE__*/React.createElement(WelcomeTour, { onClose: closeTour }) : null,
 

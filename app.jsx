@@ -1391,6 +1391,31 @@ function DeskWin({ id, glyph, title, ctx, onClose, onFocusMode, focusOn, bodyCla
   );
 }
 
+// v9.1 PROPHET — the system bar is gone under the desk. What remains is a
+// trace: time · theme · ⌘K, top-right, nearly transparent until you reach
+// for it. Everything else the bar carried lives in the dock and the omnibar.
+function DeskTrace({ now, dark, autoTheme, onToggleTheme }) {
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return (
+    <div className="cx-trace" role="toolbar" aria-label="System">
+      <span className="cx-trace-time" title={now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}>{hh}:{mm}</span>
+      <button
+        className="cx-trace-btn"
+        onClick={onToggleTheme}
+        aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+        title={(autoTheme ? "Auto theme · " : "") + (dark ? "Lights on" : "Lights off")}
+      >{dark ? "◐" : "◑"}</button>
+      <button
+        className="cx-trace-btn"
+        onClick={() => { if (window.codexOpenOmni) window.codexOpenOmni(); }}
+        aria-label="Open omnibar"
+        title="Ask anything · ⌘K"
+      >⌘</button>
+    </div>
+  );
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   // Push the persisted language into the global i18n module so window.t()
@@ -2930,21 +2955,31 @@ function App() {
         onClick={() => { setLeftOpen(false); setRightOpen(false); }}
         aria-hidden
       />
-      <StatusBar
-        now={now} solar={solar} dark={dark}
-        autoTheme={t.autoTheme}
-        onToggleTheme={() => {
-          if (t.autoTheme) setTweak("autoTheme", false);
-          setTweak("manualDark", !dark);
-        }}
-        onToggleAuto={() => setTweak("autoTheme", !t.autoTheme)}
-        bookmarkCount={marks.length}
-        gnosisOn={gnosisOn}
-        onToggleLeft={() => setLeftOpen(o => !o)}
-        onToggleRight={() => setRightOpen(o => !o)}
-        primary={primary}
-        onSelectPrimary={setPrimaryAndPersist}
-      />
+      {deskMode ? (
+        <DeskTrace
+          now={now} dark={dark} autoTheme={t.autoTheme}
+          onToggleTheme={() => {
+            if (t.autoTheme) setTweak("autoTheme", false);
+            setTweak("manualDark", !dark);
+          }}
+        />
+      ) : (
+        <StatusBar
+          now={now} solar={solar} dark={dark}
+          autoTheme={t.autoTheme}
+          onToggleTheme={() => {
+            if (t.autoTheme) setTweak("autoTheme", false);
+            setTweak("manualDark", !dark);
+          }}
+          onToggleAuto={() => setTweak("autoTheme", !t.autoTheme)}
+          bookmarkCount={marks.length}
+          gnosisOn={gnosisOn}
+          onToggleLeft={() => setLeftOpen(o => !o)}
+          onToggleRight={() => setRightOpen(o => !o)}
+          primary={primary}
+          onSelectPrimary={setPrimaryAndPersist}
+        />
+      )}
 
       {tourOpen ? <WelcomeTour onClose={closeTour} /> : null}
 

@@ -16923,12 +16923,21 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   border-color: rgba(10,104,132,.4);
 }
 
-/* responsive: collapse welcome-back on tiny screens */
+/* responsive: compact briefing on phones — scripture must never start
+   below the fold. Greeting, streak and CONTINUE stay; the discovery
+   folds to its tappable title (full text one tap away in the reader). */
+@media (max-width: 880px) {
+  .cx-welcome-back { padding: 10px 12px; gap: 7px; }
+  .cx-wb-greeting { font-size: 14px; }
+  .cx-wb-continue { padding: 7px 10px; }
+  .cx-daily-disc { padding: 8px 10px; }
+  .cx-daily-disc-body { display: none; }
+  .cx-streak-warn { padding: 6px 10px; font-size: 11px; }
+}
 @media (max-width: 320px) {
   .cx-welcome-back { padding: 10px 12px; gap: 8px; }
   .cx-wb-greeting { font-size: 12px; }
   .cx-wb-continue { padding: 6px 10px; }
-  .cx-daily-disc-body { -webkit-line-clamp: 2; }
 }
 /* (mobile achievements grid rule removed with the achievements gallery.) */
 
@@ -20175,19 +20184,19 @@ body.cx-os7 ::-webkit-scrollbar-thumb:hover { background: var(--os7-line-strong)
    floating above the wallpaper. On an ultrawide this is a centered column
    of light, not a stretched pane. */
 [data-desk="sys:reader"] .cx-win {
-  left: 50%; top: 52px;
+  left: 50%; top: 24px;
   width: clamp(640px, 52vw, 1080px);
-  height: calc(100vh - 128px);
+  height: calc(100vh - 104px);
 }
 /* LIBRARY — a window, not a rail. Lands left by default; lives anywhere. */
 [data-desk="sys:library"] .cx-win {
-  left: 20px; top: 64px; transform: none;
-  width: 316px; height: calc(100vh - 190px);
+  left: 20px; top: 36px; transform: none;
+  width: 316px; height: calc(100vh - 164px);
 }
 /* STUDY — the deck as a window. Lands right by default; lives anywhere. */
 [data-desk="sys:study"] .cx-win {
-  left: calc(100vw - 436px); top: 64px; transform: none;
-  width: 416px; height: calc(100vh - 190px);
+  left: calc(100vw - 436px); top: 36px; transform: none;
+  width: 416px; height: calc(100vh - 164px);
 }
 
 /* Window bodies hosting full surfaces: the surface fills, no double padding */
@@ -20258,7 +20267,7 @@ body.cx-focus .cx-wm-dock:focus-within { opacity: 1; }
    never inside the Word. Dismiss = gone; CONTINUE also lives in the dock. */
 .cx-desk-brief {
   position: fixed;
-  top: 56px; right: 20px;
+  top: 48px; right: 20px;
   width: min(440px, calc(100vw - 40px));
   z-index: 9460;
   max-height: calc(100vh - 140px);
@@ -20266,3 +20275,34 @@ body.cx-focus .cx-wm-dock:focus-within { opacity: 1; }
   border-radius: var(--os7-radius, 14px);
 }
 .cx-desk-brief > * { margin: 0 !important; width: 100% !important; max-width: none !important; }
+
+/* ── v9.1 PROPHET · the trace ───────────────────────────────────────────
+   The system bar retires under the desk. Its survivors: time · theme · ⌘K
+   as a near-invisible cluster top-right — opacity rises when you reach
+   for it (hover or keyboard focus). Hit targets stay HIG-size. */
+.cx-trace {
+  position: fixed;
+  top: 10px; right: 16px;
+  z-index: 9470;
+  display: flex; align-items: center; gap: 6px;
+  opacity: 0.38;
+  transition: opacity 220ms ease;
+}
+.cx-trace:hover, .cx-trace:focus-within { opacity: 1; }
+.cx-trace-time {
+  font-family: var(--cx-mono);
+  font-size: 11px; letter-spacing: 0.14em;
+  color: var(--cx-fg-dim);
+  padding-right: 4px;
+  user-select: none;
+}
+.cx-trace-btn {
+  appearance: none; background: transparent; border: 1px solid transparent;
+  color: var(--cx-fg-dim); font-size: 13px;
+  width: 28px; height: 28px; border-radius: 6px;
+  cursor: pointer; position: relative;
+}
+.cx-trace-btn::after { content: ""; position: absolute; inset: -8px; }
+.cx-trace-btn:hover { color: var(--cx-fg); border-color: color-mix(in oklab, var(--cx-fg-dim) 30%, transparent); }
+.cx-trace-btn:focus-visible { outline: 2px solid var(--cx-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .cx-trace { transition: none; } }

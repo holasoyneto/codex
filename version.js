@@ -9,13 +9,13 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "9.0",      // user-facing app version (header badge: NOCTURNE · v7.7)
-  sw: "v257",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "9.1",      // user-facing app version (header badge: NOCTURNE · v7.7)
+  sw: "v258",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "FACE TO FACE: the grid is gone — the reader floats front and center; Library and Study are real windows you place anywhere, on any monitor",
-    "Focus mode: press F (or ⛶ in the reader chrome) and everything but the Word disappears; Esc brings your desk back",
-    "First open is just the reader. Open Library (O) and Study (T) from the keyboard, the dock, or ⌘K",
-    "THE ORIGINALS: full Hebrew Tanakh (WLC) + Greek NT (SBLGNT) now ship inside the app, fully offline",
+    "PROPHET: the top bar is gone — time, theme and ⌘K live in a near-invisible trace, top-right; the Word gets the whole sky",
+    "The morning briefing now floats over the desk like a notification — never inside the reader",
+    "One voice per window: no more doubled labels clipping under the chrome",
+    "Dark mode reads everywhere — every panel audited, every text above contrast",
   ],
 };
 
