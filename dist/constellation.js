@@ -1,31 +1,28 @@
 // GENERATED from constellation.jsx by scripts/build-jsx.mjs — do not edit; edit the .jsx and run `npm run build`.
 (function () {
-// CODEX — constellation.jsx · ◉ THE CONSTELLATION — the canon as one body.
+// CODEX — constellation.jsx · ❂ THE CONSTELLATION — the canon as one galaxy.
 //
-// Every cross-reference in the Treasury of Scripture Knowledge — three
-// hundred and forty thousand threads — drawn at once: the whole Bible as
-// a ring of 1,189 chapters, every connection a chord of light through the
-// center. The famous arc-diagram poster, except alive:
+// Every cross-reference in the Treasury of Scripture Knowledge — hundreds
+// of thousands of threads — as navigable 3D space. 1,189 chapters are
+// stars, clustered by their natural families, linked by every thread.
+// Since v9.3 the galaxy is the ONLY view ("constellation only needs the
+// galaxy") — the 2D chord wheel is gone:
 //
-//   · hover any chapter  → its every thread IGNITES; the count reads out
-//   · hover a book arc   → the whole book's web lights together
-//   · click              → the reader flies to that chapter
-//   · your reading trail → burns gold on the ring (local, never uploaded)
-//   · the open passage   → pulses where you stand
+//   · drag to orbit · scroll to dive · click a star to approach
+//   · double-click a star      → the reader flies to that chapter
+//   · PATH "Gen 1 → Rev 21"    → the route burns gold through space
+//   · NEAR "Isaiah 53"         → the ego-network ignites, camera flies in
+//   · FAMILIES                 → stars recolor by label-propagation clusters
+//   · your reading trail       → burns gold (local, never uploaded)
 //
-// Honest plumbing: the chords are the REAL TSK adjacency (public domain),
+// Honest plumbing: the threads are the REAL TSK adjacency (public domain),
 // aggregated verse→chapter in front of you with a progress readout — no
-// precomputed mystery blob. OT chapters speak cyan, NT amber; a chord
-// between testaments blends both — the seam of the covenants, visible.
-//
-// Performance: the full wheel renders ONCE into an offscreen layer (top
-// ~6,000 chords by weight, alpha-scaled); pointer work only re-blits the
-// base and draws the ignited set — silk at 60fps on a laptop.
+// precomputed mystery blob. OT stars speak cyan, NT amber; a thread
+// between testaments goes gold — the seam of the covenants, visible.
 
 const CONST_OT_HUE = "#7ee0ff";
 const CONST_NT_HUE = "#e8b465";
 const CONST_GOLD = "#ffd479";
-const CONST_TOP_CHORDS = 6000;
 const CONST_FAMILY_HUES = ["#7ee0ff", "#e8b465", "#b88cff", "#9bd66b", "#ff8291", "#5bd0b0", "#e0a7ff", "#ffd479"];
 
 // ── Graph tools — the wheel is one VIEW of a real graph instrument. ─────
@@ -235,14 +232,11 @@ function constAggregate(tsk, canon, onProgress) {
 function VerseConstellation({ onClose }) {
   const I = window.CODEX_INTEL;
   const wrapRef = useRef(null);
-  const baseRef = useRef(null); // offscreen base layer
   const canvasRef = useRef(null);
   const [phase, setPhase] = useState("loading"); // loading | ready | error
   const [progress, setProgress] = useState({ pct: 0, threads: 0 });
   const [err, setErr] = useState(null);
   const dataRef = useRef(null); // { canon, pairs, adj, threads }
-  const geoRef = useRef(null); // { cx, cy, R, angles[] }
-  const hoverRef = useRef({ chapter: -1, book: -1 });
   const [hud, setHud] = useState(null); // { label, threads } | null
 
   // ── Graph-instrument state: query → PATH / NEAR; FAMILIES color mode ──
@@ -277,15 +271,16 @@ function VerseConstellation({ onClose }) {
       const path = constPath(d.adj, a, b);
       if (!path) {setHud({ label: "NO THREAD PATH", threads: 0 });return;}
       setRoute({ path, labels: path.map(labelOf) });
+      // fly the camera to the route's origin so the gold thread is in view
+      if (galaxyRef.current) {selRef.current = a;flyTo(a);}
     } else {
       const a = idxOf(text);
       if (a < 0) {setHud({ label: "UNREADABLE REF", threads: 0 });return;}
       const rows = (d.adj.get(a) || []).slice().sort((x, y) => y[1] - x[1]).slice(0, 14).
       map(([idx, w]) => ({ idx, label: labelOf(idx), w }));
       setNear({ idx: a, label: labelOf(a), rows });
-      if (view === "galaxy" && galaxyRef.current) {selRef.current = a;flyTo(a);}
+      if (galaxyRef.current) {selRef.current = a;flyTo(a);}
     }
-    if (view !== "galaxy") requestAnimationFrame(blit);
   };
 
   const toggleFamilies = () => {
@@ -295,8 +290,8 @@ function VerseConstellation({ onClose }) {
     setFamOn((v) => !v);
   };
 
-  // ── GALAXY — the same graph as navigable 3D space ─────────────────────
-  const [view, setView] = useState("ring"); // ring | galaxy
+  // ── GALAXY — the canon as navigable 3D space. The ONLY view since v9.3:
+  // the 2D chord wheel is gone ("constellation only needs the galaxy").
   const [galaxyPct, setGalaxyPct] = useState(-1); // -1 idle · 0-99 laying out · 100 ready
   const galaxyRef = useRef(null); // Float32Array positions
   const camRef = useRef({ yaw: 0.6, pitch: 0.25, dist: 760, tx: 0, ty: 0, tz: 0 });
@@ -325,7 +320,6 @@ function VerseConstellation({ onClose }) {
         }
       } catch {}
     }
-    setView("galaxy");
     if (!galaxyRef.current) {
       setGalaxyPct(0);
       const pos = await constGalaxyLayout(d.adj, d.pairs, d.canon.count, famRef.current.label, setGalaxyPct);
@@ -460,17 +454,17 @@ function VerseConstellation({ onClose }) {
 
   // wheel dolly — attached non-passively so the page never scroll-fights
   useEffect(() => {
-    if (view !== "galaxy") return;
+    if (phase !== "ready") return;
     const el = canvasRef.current;
     if (!el) return;
     const onWheel = onGalaxyPointer.wheel;
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [view, galaxyPct]);
+  }, [phase, galaxyPct]);
 
-  // galaxy render loop — slow idle orbit, stops on unmount / view switch
+  // galaxy render loop — slow idle orbit, stops on unmount
   useEffect(() => {
-    if (view !== "galaxy" || galaxyPct < 100) return;
+    if (phase !== "ready" || galaxyPct < 100) return;
     let live = true;
     const reduced = I.intelReducedMotion();
     const tick = () => {
@@ -481,7 +475,7 @@ function VerseConstellation({ onClose }) {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => {live = false;cancelAnimationFrame(rafRef.current);};
-  }, [view, galaxyPct, famOn, near, route]);
+  }, [phase, galaxyPct, famOn, near, route]);
 
   const galaxyHit = (mx, my) => {
     const canvas = canvasRef.current,d = dataRef.current;
@@ -560,10 +554,7 @@ function VerseConstellation({ onClose }) {
       camRef.current.dist = Math.max(120, Math.min(2400, camRef.current.dist * (1 + e.deltaY * 0.0011)));
     }
   };
-  // re-render the base when the color mode flips
-  useEffect(() => {if (phase === "ready") renderBase();}, [famOn]);
-  // redraw overlays when route/near change
-  useEffect(() => {if (phase === "ready") requestAnimationFrame(blit);}, [route, near]);
+  // (famOn / route / near redraw via the galaxy render-loop deps above)
 
   // ── Load + aggregate ───────────────────────────────────────────────────
   useEffect(() => {
@@ -595,30 +586,7 @@ function VerseConstellation({ onClose }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // ── Geometry: chapter → angle (gaps between books), xy on the ring ─────
-  const computeGeo = (w, h) => {
-    const d = dataRef.current;
-    if (!d) return null;
-    const cx = w / 2,cy = h / 2;
-    const R = Math.min(w, h) / 2 - 44;
-    const BOOK_GAP = Math.PI * 2 * 0.0016;
-    const total = d.canon.count;
-    const gaps = d.canon.books.length * BOOK_GAP;
-    const per = (Math.PI * 2 - gaps) / total;
-    const angles = new Array(total);
-    let a = -Math.PI / 2; // start at 12 o'clock, Genesis
-    d.canon.books.forEach((b) => {
-      const off = d.canon.offset[b.id];
-      for (let c = 0; c < b.chapters; c++) {angles[off + c] = a + per / 2;a += per;}
-      a += BOOK_GAP;
-    });
-    return { cx, cy, R, angles, per };
-  };
-  const xyOf = (idx, r) => {
-    const g = geoRef.current;
-    const a = g.angles[idx];
-    return [g.cx + Math.cos(a) * r, g.cy + Math.sin(a) * r];
-  };
+  // ── Color: testament hues, or natural families when FAMILIES is on ─────
   const hueOf = (idx) => {
     if (famOn && famRef.current) {
       return CONST_FAMILY_HUES[famRef.current.label[idx] % CONST_FAMILY_HUES.length];
@@ -626,246 +594,9 @@ function VerseConstellation({ onClose }) {
     return dataRef.current.canon.chapters[idx].testament === "NT" ? CONST_NT_HUE : CONST_OT_HUE;
   };
 
-  // One chord — quadratic toward the center, pulled harder for far pairs.
-  const chord = (ctx, a, b, color, alpha, width) => {
-    const g = geoRef.current;
-    const [x1, y1] = xyOf(a, g.R),[x2, y2] = xyOf(b, g.R);
-    const da = Math.abs(g.angles[a] - g.angles[b]);
-    const span = Math.min(da, Math.PI * 2 - da) / Math.PI; // 0..1
-    const k = 1 - (0.15 + span * 0.8); // far pairs dive deep
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.quadraticCurveTo(g.cx + ((x1 + x2) / 2 - g.cx) * k, g.cy + ((y1 + y2) / 2 - g.cy) * k, x2, y2);
-    ctx.stroke();
-  };
-
-  // ── Base layer: ring + book arcs + top chords — rendered once ──────────
-  const renderBase = () => {
-    const canvas = canvasRef.current,d = dataRef.current;
-    if (!canvas || !d) return;
-    const { w, h } = I.intelCanvas.fit(canvas);
-    geoRef.current = computeGeo(w, h);
-    const g = geoRef.current;
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    if (!baseRef.current) baseRef.current = document.createElement("canvas");
-    const base = baseRef.current;
-    base.width = w * dpr;base.height = h * dpr;
-    const ctx = base.getContext("2d");
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-
-    // chords — heaviest first so fine threads sit on top of the glow mass
-    const top = d.pairs.slice(0, CONST_TOP_CHORDS);
-    const wMax = top.length ? top[0][2] : 1;
-    for (let i = top.length - 1; i >= 0; i--) {
-      const [a, b, wt] = top[i];
-      const t = wt / wMax;
-      // same hue → that family/testament color; mixed → the gold seam
-      const ha = hueOf(a),hb = hueOf(b);
-      const color = ha === hb ? ha : CONST_GOLD;
-      chord(ctx, a, b, color, 0.028 + t * 0.16, 0.5 + t * 0.9);
-    }
-    ctx.globalAlpha = 1;
-
-    // ring: book arcs + chapter ticks
-    d.canon.books.forEach((b) => {
-      const off = d.canon.offset[b.id];
-      const a0 = g.angles[off] - g.per / 2;
-      const a1 = g.angles[off + b.chapters - 1] + g.per / 2;
-      ctx.strokeStyle = famOn ? hueOf(off) : b.testament === "NT" ? CONST_NT_HUE : CONST_OT_HUE;
-      ctx.globalAlpha = 0.75;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();ctx.arc(g.cx, g.cy, g.R + 6, a0, a1);ctx.stroke();
-      // label books with enough arc to carry text
-      if ((a1 - a0) * g.R > 26) {
-        const mid = (a0 + a1) / 2;
-        ctx.save();
-        ctx.translate(g.cx + Math.cos(mid) * (g.R + 18), g.cy + Math.sin(mid) * (g.R + 18));
-        let rot = mid + Math.PI / 2;
-        if (mid > 0 && mid < Math.PI) rot += Math.PI; // keep text upright
-        ctx.rotate(rot);
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = b.testament === "NT" ? CONST_NT_HUE : CONST_OT_HUE;
-        ctx.font = "600 8.5px ui-monospace, monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(b.name.toUpperCase().slice(0, 14), 0, 0);
-        ctx.restore();
-      }
-    });
-    ctx.globalAlpha = 1;
-    blit();
-  };
-
-  // ── Frame: base + overlays (hover ignite, trail, current passage) ──────
-  const blit = () => {
-    const canvas = canvasRef.current,d = dataRef.current,g = geoRef.current;
-    if (!canvas || !d || !g) return;
-    const ctx = canvas.getContext("2d");
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    const w = canvas.width / dpr,h = canvas.height / dpr;
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(baseRef.current, 0, 0, w, h);
-
-    // gold trail — the chapters this reader has walked
-    try {
-      const trail = JSON.parse(localStorage.getItem("codex.trail") || "[]");
-      const seen = new Set();
-      trail.forEach((t) => {
-        const p = window.CODEX_KERNEL && window.CODEX_KERNEL.parseRef(t.ref);
-        if (!p) return;
-        const idx = d.canon.offset[p.bookId] + p.chapter - 1;
-        if (seen.has(idx)) return;
-        seen.add(idx);
-        const [x, y] = xyOf(idx, g.R + 6);
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = CONST_GOLD;
-        ctx.shadowColor = CONST_GOLD;ctx.shadowBlur = 6;
-        ctx.beginPath();ctx.arc(x, y, 2, 0, Math.PI * 2);ctx.fill();
-        ctx.shadowBlur = 0;
-      });
-    } catch {}
-
-    // PATH overlay — the route burns gold over a dimmed field
-    if (route && route.path.length > 1) {
-      ctx.save();
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
-      ctx.fillRect(0, 0, w, h);
-      ctx.restore();
-      for (let i = 0; i < route.path.length - 1; i++) {
-        chord(ctx, route.path[i], route.path[i + 1], CONST_GOLD, 0.95, 2.2);
-      }
-      ctx.globalAlpha = 1;
-      route.path.forEach((idx, i) => {
-        const [x, y] = xyOf(idx, g.R + 6);
-        ctx.fillStyle = i === 0 || i === route.path.length - 1 ? "#fff" : CONST_GOLD;
-        ctx.shadowColor = CONST_GOLD;ctx.shadowBlur = 12;
-        ctx.beginPath();ctx.arc(x, y, i === 0 || i === route.path.length - 1 ? 4 : 2.8, 0, Math.PI * 2);ctx.fill();
-        ctx.shadowBlur = 0;
-      });
-    }
-
-    // NEAR overlay — the ego-network ignites
-    if (near) {
-      (dataRef.current.adj.get(near.idx) || []).forEach(([other, wt]) => {
-        chord(ctx, near.idx, other, hueOf(other), Math.min(0.8, 0.25 + wt * 0.05), 0.8);
-      });
-      const [x, y] = xyOf(near.idx, g.R + 6);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = "#fff";
-      ctx.shadowColor = CONST_GOLD;ctx.shadowBlur = 12;
-      ctx.beginPath();ctx.arc(x, y, 4, 0, Math.PI * 2);ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-
-    // hover ignition
-    const hv = hoverRef.current;
-    const ignite = [];
-    if (hv.chapter >= 0) ignite.push(hv.chapter);else
-    if (hv.book >= 0) {
-      const b = d.canon.books[hv.book];
-      const off = d.canon.offset[b.id];
-      for (let c = 0; c < b.chapters; c++) ignite.push(off + c);
-    }
-    if (ignite.length) {
-      let threadCount = 0;
-      ctx.save();
-      ignite.forEach((idx) => {
-        const edges = d.adj.get(idx) || [];
-        threadCount += edges.length;
-        edges.forEach(([other, wt]) => {
-          chord(ctx, idx, other, hueOf(other), Math.min(0.85, 0.3 + wt * 0.06), 0.8);
-        });
-      });
-      ctx.restore();
-      // endpoint markers
-      ctx.globalAlpha = 1;
-      ignite.forEach((idx) => {
-        const [x, y] = xyOf(idx, g.R + 6);
-        ctx.fillStyle = "#fff";
-        ctx.shadowColor = hueOf(idx);ctx.shadowBlur = 10;
-        ctx.beginPath();ctx.arc(x, y, 2.6, 0, Math.PI * 2);ctx.fill();
-        ctx.shadowBlur = 0;
-      });
-    }
-    ctx.globalAlpha = 1;
-  };
-
-  // pointer → chapter / book band
-  const hitTest = (mx, my) => {
-    const g = geoRef.current,d = dataRef.current;
-    if (!g || !d) return { chapter: -1, book: -1 };
-    const dx = mx - g.cx,dy = my - g.cy;
-    const r = Math.hypot(dx, dy);
-    if (r < g.R - 26 || r > g.R + 30) return { chapter: -1, book: -1 };
-    let ang = Math.atan2(dy, dx);
-    // nearest chapter by angle
-    let best = -1,bestD = Infinity;
-    for (let i = 0; i < g.angles.length; i++) {
-      let da = Math.abs(ang - g.angles[i]);
-      if (da > Math.PI) da = Math.PI * 2 - da;
-      if (da < bestD) {bestD = da;best = i;}
-    }
-    if (bestD > g.per * 4) return { chapter: -1, book: -1 };
-    if (r > g.R + 10) {
-      // label band → whole book
-      const bId = d.canon.chapters[best].bookId;
-      return { chapter: -1, book: d.canon.books.findIndex((b) => b.id === bId) };
-    }
-    return { chapter: best, book: -1 };
-  };
-
-  const onMove = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
-    const prev = hoverRef.current;
-    if (hit.chapter === prev.chapter && hit.book === prev.book) return;
-    hoverRef.current = hit;
-    const d = dataRef.current;
-    if (hit.chapter >= 0) {
-      const c = d.canon.chapters[hit.chapter];
-      const edges = d.adj.get(hit.chapter) || [];
-      const threads = edges.reduce((s, [, w]) => s + w, 0);
-      setHud({ label: `${c.bookName.toUpperCase()} ${c.ch}`, threads });
-    } else if (hit.book >= 0) {
-      const b = d.canon.books[hit.book];
-      const off = d.canon.offset[b.id];
-      let threads = 0;
-      for (let c = 0; c < b.chapters; c++) (d.adj.get(off + c) || []).forEach(([, w]) => {threads += w;});
-      setHud({ label: b.name.toUpperCase(), threads });
-    } else setHud(null);
-    requestAnimationFrame(blit);
-  };
-
-  const onClick = () => {
-    const hv = hoverRef.current,d = dataRef.current;
-    if (!d) return;
-    let target = null;
-    if (hv.chapter >= 0) {
-      const c = d.canon.chapters[hv.chapter];
-      target = `${c.bookName} ${c.ch}`;
-    } else if (hv.book >= 0) {
-      target = `${d.canon.books[hv.book].name} 1`;
-    }
-    if (target && window.codexJumpToRef) {
-      window.codexJumpToRef(target);
-      try {window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `◉ ${target}`, kind: "ok" } }));} catch {}
-    }
-  };
-
-  // render base once ready; re-render on resize
+  // the moment the canon is woven, enter the galaxy — there is no other view
   useEffect(() => {
-    if (phase !== "ready") return;
-    renderBase();
-    const canvas = canvasRef.current;
-    if (!canvas || typeof ResizeObserver === "undefined") return;
-    let t = 0;
-    const ro = new ResizeObserver(() => {clearTimeout(t);t = setTimeout(renderBase, 120);});
-    ro.observe(canvas);
-    return () => {ro.disconnect();clearTimeout(t);};
+    if (phase === "ready") enterGalaxy();
   }, [phase]);
 
   const d = dataRef.current;
@@ -877,7 +608,7 @@ function VerseConstellation({ onClose }) {
 
     React.createElement("header", { className: "cx-const-h" }, /*#__PURE__*/
     React.createElement("span", { className: "cx-const-h-tag" }, "CODEX \xB7 CONSTELLATION"), /*#__PURE__*/
-    React.createElement("span", { className: "cx-const-h-sub" }, "the canon as one body \u2014 every thread of the Treasury, drawn live"), /*#__PURE__*/
+    React.createElement("span", { className: "cx-const-h-sub" }, "the canon as one galaxy \u2014 every thread of the Treasury, navigable space"), /*#__PURE__*/
     React.createElement("button", { className: "cx-const-x", onClick: onClose, "aria-label": "Close", title: "Close (ESC)" }, "\xD7")
     ), /*#__PURE__*/
 
@@ -898,14 +629,6 @@ function VerseConstellation({ onClose }) {
 
     React.createElement("div", { className: "cx-const-stage" }, /*#__PURE__*/
     React.createElement("div", { className: "cx-const-tools" }, /*#__PURE__*/
-    React.createElement("button", {
-      className: "cx-const-fam",
-      onClick: () => {
-        if (view === "ring") enterGalaxy();else
-        {setView("ring");requestAnimationFrame(renderBase);}
-      },
-      title: view === "ring" ? "Galaxy — fly the canon in 3D" : "Ring — the chord wheel" },
-    view === "ring" ? "❂ GALAXY" : "◐ RING"), /*#__PURE__*/
     React.createElement("input", {
       className: "cx-const-q",
       placeholder: "PATH: \"Genesis 1 \u2192 Revelation 21\" \xB7 NEAR: \"Isaiah 53\" \xB7 \u21B5",
@@ -921,7 +644,7 @@ function VerseConstellation({ onClose }) {
       title: "Color the canon by its natural families (label propagation over the thread graph)" },
     "\u2726 FAMILIES", famOn && famRef.current ? ` · ${Math.min(famRef.current.families, CONST_FAMILY_HUES.length)}` : ""),
     route || near ? /*#__PURE__*/
-    React.createElement("button", { className: "cx-const-clear", onClick: () => {setRoute(null);setNear(null);setQuery("");requestAnimationFrame(blit);}, title: "Clear query" }, "\xD7") :
+    React.createElement("button", { className: "cx-const-clear", onClick: () => {setRoute(null);setNear(null);setQuery("");}, title: "Clear query" }, "\xD7") :
     null
     ),
 
@@ -950,7 +673,7 @@ function VerseConstellation({ onClose }) {
     )
     ) :
     null,
-    view === "galaxy" && galaxyPct >= 0 && galaxyPct < 100 ? /*#__PURE__*/
+    galaxyPct >= 0 && galaxyPct < 100 ? /*#__PURE__*/
     React.createElement("div", { className: "cx-const-laying" }, /*#__PURE__*/
     React.createElement("div", { className: "cx-const-loading-ring", "aria-hidden": "true" }), /*#__PURE__*/
     React.createElement("span", null, "LAYING OUT THE GALAXY \xB7 ", galaxyPct, "%")
@@ -958,31 +681,27 @@ function VerseConstellation({ onClose }) {
     null, /*#__PURE__*/
     React.createElement("canvas", {
       ref: canvasRef,
-      className: `cx-const-canvas ${view === "galaxy" ? "is-galaxy" : ""}`,
-      onMouseMove: view === "ring" ? onMove : onGalaxyPointer.move,
-      onMouseLeave: view === "ring" ? () => {hoverRef.current = { chapter: -1, book: -1 };setHud(null);requestAnimationFrame(blit);} : undefined,
-      onClick: view === "ring" ? onClick : undefined,
-      onPointerDown: view === "galaxy" ? onGalaxyPointer.down : undefined,
-      onPointerUp: view === "galaxy" ? onGalaxyPointer.up : undefined,
-      onDoubleClick: view === "galaxy" ? onGalaxyPointer.dbl : undefined,
+      className: "cx-const-canvas is-galaxy",
+      onMouseMove: onGalaxyPointer.move,
+      onPointerDown: onGalaxyPointer.down,
+      onPointerUp: onGalaxyPointer.up,
+      onDoubleClick: onGalaxyPointer.dbl,
       role: "img",
-      "aria-label": view === "galaxy" ? "Galaxy — the canon as navigable 3D space" : "Chord wheel of all cross-references in the canon" }
+      "aria-label": "Galaxy \u2014 the canon as navigable 3D space" }
     ), /*#__PURE__*/
     React.createElement("div", { className: "cx-const-stats", "aria-hidden": "true" }, /*#__PURE__*/
-    React.createElement("span", null, d ? d.canon.count.toLocaleString() : "—", " CHAPTERS"), /*#__PURE__*/
+    React.createElement("span", null, d ? d.canon.count.toLocaleString() : "—", " STARS"), /*#__PURE__*/
     React.createElement("span", null, d ? d.threads.toLocaleString() : "—", " THREADS"), /*#__PURE__*/
-    React.createElement("span", null, "TOP ", CONST_TOP_CHORDS.toLocaleString(), " DRAWN \xB7 ALL IGNITE ON HOVER")
+    React.createElement("span", null, "STARS SIZED BY THREAD-WEIGHT \xB7 YOUR TRAIL BURNS GOLD")
     ),
     hud ? /*#__PURE__*/
     React.createElement("div", { className: "cx-const-hud" }, /*#__PURE__*/
     React.createElement("b", null, hud.label), /*#__PURE__*/
-    React.createElement("span", null, hud.threads.toLocaleString(), " threads \xB7 click to read")
+    React.createElement("span", null, hud.threads.toLocaleString(), " threads \xB7 double-click to read")
     ) : /*#__PURE__*/
 
     React.createElement("div", { className: "cx-const-hud is-idle" }, /*#__PURE__*/
-    React.createElement("span", null, view === "galaxy" ?
-    "drag to orbit · scroll to dive · click a star to approach · double-click to read · your trail burns gold" :
-    "hover the ring · OT speaks cyan, NT amber, the covenant seam gold · your trail burns gold on the rim")
+    React.createElement("span", null, "drag to orbit \xB7 scroll to dive \xB7 click a star to approach \xB7 double-click to read \xB7 your trail burns gold")
     )
 
     )

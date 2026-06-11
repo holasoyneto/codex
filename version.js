@@ -9,12 +9,12 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "9.2",      // user-facing app version
-  sw: "v259",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "9.3",      // user-facing app version
+  sw: "v260",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "SHED: the old app is gone — no classic mode, no toggle back, no folded rails, no theater. The desk IS the app",
-    "One reading state: Focus (F). One desktop layout: windows. Phones keep their drawers",
-    "~6KB of dead chrome CSS removed; one breakpoint (881px) everywhere",
+    "THE GALAXY IS THE CONSTELLATION: ❂ now opens straight into the canon as navigable 3D space — the 2D wheel is gone",
+    "PATH burns gold through space, NEAR flies the camera to the verse's neighborhood, FAMILIES recolors the clusters",
+    "EXOGRAMMAR: a new design law for every panel — instruments, not documents (the remakes have begun)",
   ],
 };
 
