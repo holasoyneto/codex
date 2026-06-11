@@ -9,11 +9,13 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "8.1",      // user-facing app version (header badge: NOCTURNE · v7.7)
-  sw: "v256",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "9.0",      // user-facing app version (header badge: NOCTURNE · v7.7)
+  sw: "v257",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "THE ORIGINALS: the complete Hebrew Tanakh (Westminster Leningrad) and Greek NT (SBLGNT) now live inside the app — full text, fully offline",
-    "Pick WLC or SBL from the translation picker; the library shelf scopes itself to the testament the corpus contains",
+    "FACE TO FACE: the grid is gone — the reader floats front and center; Library and Study are real windows you place anywhere, on any monitor",
+    "Focus mode: press F (or ⛶ in the reader chrome) and everything but the Word disappears; Esc brings your desk back",
+    "First open is just the reader. Open Library (O) and Study (T) from the keyboard, the dock, or ⌘K",
+    "THE ORIGINALS: full Hebrew Tanakh (WLC) + Greek NT (SBLGNT) now ship inside the app, fully offline",
   ],
 };
 

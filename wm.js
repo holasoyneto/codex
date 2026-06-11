@@ -120,6 +120,28 @@
     el.appendChild(dockChip(ACT, "⌘", "OMNI", "Omnibar (⌘K)", function () {
       if (typeof window.codexOpenOmni === "function") window.codexOpenOmni();
     }));
+    // v9 FACE TO FACE — closed desk windows launch from the dock; open ones
+    // already have a running-window chip (focus/minimize), so no duplicates.
+    // Nothing is unclosable, but the way back is always one tap.
+    var desk = window.codexDesk;
+    if (desk && desk.on && desk.on()) {
+      var ds = desk.state();
+      if (!ds.reader) {
+        el.appendChild(dockChip(ACT, "✦", "READER", "Reopen the reader", function () {
+          window.codexDesk && window.codexDesk.open("reader");
+        }));
+      }
+      if (!ds.library) {
+        el.appendChild(dockChip(ACT, "☰", "LIB", "Open the library window (O)", function () {
+          window.codexDesk && window.codexDesk.open("library");
+        }));
+      }
+      if (!ds.study) {
+        el.appendChild(dockChip(ACT, "▤", "STUDY", "Open the study window (T)", function () {
+          window.codexDesk && window.codexDesk.open("study");
+        }));
+      }
+    }
     if (trailRef) {
       el.appendChild(dockChip(ACT + " cx-wm-dock-continue", "⟳", "CONTINUE", "Continue — " + trailRef, function () {
         var r = dockTrailRef();
@@ -480,6 +502,9 @@
 
   // OS·7 mode flips (shell.js) re-render the dock so launchers appear/retire.
   window.addEventListener("codex:os7", function () { dockRender(); });
+  // Desk window opens/closes (app.jsx codexDesk) re-render the LIB/STUDY/
+  // READER chips so their active state tracks the desk.
+  window.addEventListener("codex:desk", function () { dockRender(); });
 
   // Verse cursor moves (app.jsx 'codex:now') re-render the action chips so
   // titles track the current ref and CONTINUE appears after boot without a

@@ -2,10 +2,13 @@
 // codexOpenWindow spawns a window bound to the reader; drag moves it;
 // geometry + the open set persist across reload; × closes; omnibar panel
 // rows route plugins to windows under os7 desktop. Zero pageerrors.
+// v9 note: the desk windows (reader/library/study) are ALSO .cx-win — every
+// query here scopes to [data-wm-id^="win:plugin:"] so we test plugins only.
 import puppeteer from "puppeteer-core";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const URL = process.env.SMOKE_URL || "http://localhost:7777/";
 const log = (...a) => console.log("[monad]", ...a);
+const PW = '[data-wm-id^="win:plugin:"]'; // plugin-window backdrop scope
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox","--disable-gpu","--disable-dev-shm-usage"] });
 try {
@@ -23,8 +26,8 @@ try {
 
   const opened = await page.evaluate(() => window.codexOpenWindow && window.codexOpenWindow({ id: "plugin:crossrefs-tsk:crossrefs", title: "CROSS-REFS", glyph: "✝" }));
   await new Promise(r => setTimeout(r, 1500));
-  const state = await page.evaluate(() => {
-    const card = document.querySelector(".cx-win");
+  const state = await page.evaluate((PW) => {
+    const card = document.querySelector(`${PW} .cx-win`);
     const r = card ? card.getBoundingClientRect() : null;
     return {
       opened: !!card,
@@ -34,39 +37,39 @@ try {
       rect: r ? { x: Math.round(r.x), y: Math.round(r.y) } : null,
       dockChips: document.querySelectorAll(".cx-wm-dock-chip").length,
     };
-  });
+  }, PW);
   log("spawn:", JSON.stringify({ opened, ...state }));
 
   // drag the window by its header
-  const head = await page.$(".cx-win-h");
+  const head = await page.$(`${PW} .cx-win-h`);
   const hb = await head.boundingBox();
   await page.mouse.move(hb.x + 60, hb.y + 10);
   await page.mouse.down();
   await page.mouse.move(hb.x + 60 + 140, hb.y + 10 + 90, { steps: 8 });
   await page.mouse.up();
   await new Promise(r => setTimeout(r, 400));
-  const afterDrag = await page.evaluate(() => {
-    const r = document.querySelector(".cx-win").getBoundingClientRect();
+  const afterDrag = await page.evaluate((PW) => {
+    const r = document.querySelector(`${PW} .cx-win`).getBoundingClientRect();
     return { x: Math.round(r.x), y: Math.round(r.y) };
-  });
+  }, PW);
   const dragged = Math.abs(afterDrag.x - state.rect.x - 140) < 12 && Math.abs(afterDrag.y - state.rect.y - 90) < 12;
   log("drag:", JSON.stringify({ before: state.rect, after: afterDrag, dragged }));
 
   // persistence: reload → window reopens at the dragged geometry
   await boot();
-  const persisted = await page.evaluate(() => {
-    const card = document.querySelector(".cx-win");
+  const persisted = await page.evaluate((PW) => {
+    const card = document.querySelector(`${PW} .cx-win`);
     if (!card) return { reopened: false };
     const r = card.getBoundingClientRect();
     return { reopened: true, x: Math.round(r.x), y: Math.round(r.y) };
-  });
+  }, PW);
   const geoHeld = persisted.reopened && Math.abs(persisted.x - afterDrag.x) < 12 && Math.abs(persisted.y - afterDrag.y) < 12;
   log("persist:", JSON.stringify({ ...persisted, geoHeld }));
 
   // close + omnibar routing
-  await page.evaluate(() => document.querySelector(".cx-win-x").click());
+  await page.evaluate((PW) => document.querySelector(`${PW} .cx-win-x`).click(), PW);
   await new Promise(r => setTimeout(r, 400));
-  const closed = await page.evaluate(() => !document.querySelector(".cx-win"));
+  const closed = await page.evaluate((PW) => !document.querySelector(PW), PW);
   await page.keyboard.down("Meta"); await page.keyboard.press("k"); await page.keyboard.up("Meta");
   await new Promise(r => setTimeout(r, 250));
   await page.evaluate(() => {
@@ -81,10 +84,10 @@ try {
     if (row) row.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
   });
   await new Promise(r => setTimeout(r, 1200));
-  const viaOmni = await page.evaluate(() => {
-    const card = document.querySelector(".cx-win");
+  const viaOmni = await page.evaluate((PW) => {
+    const card = document.querySelector(`${PW} .cx-win`);
     return { win: !!card, title: card ? (card.querySelector(".cx-win-h-title") || {}).textContent : "" };
-  });
+  }, PW);
   log("closed:", closed, "· omnibar→window:", JSON.stringify(viaOmni));
   log("jsErrors:", JSON.stringify(jsErrors.slice(0, 4)));
 

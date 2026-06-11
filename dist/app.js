@@ -1338,6 +1338,61 @@ function WelcomeBack({ onContinue, onDismiss, onDiscoveryClick }) {
 // ToastDock (codex:toast variant:'mark'). The old standalone AchievementToast
 // component + its queue were removed to eliminate the dual render.
 
+// ── v9 FACE TO FACE · the desk ────────────────────────────────────────
+// Under OS·7 on a desktop pointer, the three-column grid is gone. The app
+// is windows: the READER is the main window (front and center, alone on
+// first open); LIBRARY and STUDY are free windows the user places anywhere
+// — left, right, another monitor. wm.js supplies drag/resize/snap/dock and
+// per-window geometry persistence (data-wm-id); codex.desk.v1 remembers
+// which windows are open. Focus mode (F / ⛶ / Esc) hides everything but
+// the Word.
+const DESK_KEY = "codex.desk.v1";
+function deskLoad() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DESK_KEY) || "null");
+    if (d && typeof d === "object") {
+      return { reader: d.reader !== false, library: !!d.library, study: !!d.study, focus: !!d.focus };
+    }
+  } catch {}
+  // First open: the reader, front and center, and nothing else.
+  return { reader: true, library: false, study: false, focus: false };
+}
+function deskSave(d) {try {localStorage.setItem(DESK_KEY, JSON.stringify(d));} catch {}}
+function deskCapable() {
+  try {
+    return document.body.classList.contains("cx-os7") &&
+    window.matchMedia("(min-width: 900px) and (pointer: fine)").matches;
+  } catch {return false;}
+}
+
+// One desk window. Mirrors the v8 MONAD cx-win chrome exactly so wm.js
+// treats it like every other window (drag, resize, snap, dock chip,
+// persisted geometry under cx-wm-geo:win:sys:*).
+function DeskWin({ id, glyph, title, ctx, onClose, onFocusMode, focusOn, bodyClass, children }) {
+  return (/*#__PURE__*/
+    React.createElement("div", { className: "cx-win-backdrop cx-desk-bd", "data-wm-id": `win:${id}`, "data-wm-glyph": glyph, "data-desk": id }, /*#__PURE__*/
+    React.createElement("div", { className: "cx-win cx-desk-win", role: "region", "aria-label": title }, /*#__PURE__*/
+    React.createElement("header", { className: "cx-win-h" }, /*#__PURE__*/
+    React.createElement("span", { className: "cx-win-h-glyph", "aria-hidden": "true" }, glyph), /*#__PURE__*/
+    React.createElement("span", { className: "cx-win-h-title" }, title), /*#__PURE__*/
+    React.createElement("span", { className: "cx-win-h-ctx" }, ctx || ""),
+    onFocusMode ? /*#__PURE__*/
+    React.createElement("button", {
+      className: "cx-win-focus",
+      onClick: onFocusMode,
+      "aria-pressed": !!focusOn,
+      "aria-label": focusOn ? "Exit focus mode" : "Focus — hide everything but the reader",
+      title: focusOn ? "Exit focus (Esc)" : "Focus — hide everything else (F)" },
+    "\u26F6") :
+    null, /*#__PURE__*/
+    React.createElement("button", { className: "cx-win-x", onClick: onClose, "aria-label": `Close ${title}`, title: "Close" }, "\xD7")
+    ), /*#__PURE__*/
+    React.createElement("div", { className: `cx-win-body ${bodyClass || ""}` }, children)
+    )
+    ));
+
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   // Push the persisted language into the global i18n module so window.t()
@@ -2177,6 +2232,57 @@ function App() {
   // Not persisted — it's a per-session reading state, not a setting.
   const [theater, setTheater] = useState(false);
   const toggleTheater = useCallback(() => setTheater((t) => !t), []);
+
+  // ── v9 FACE TO FACE · desk mode ───────────────────────────────────────
+  // deskMode: OS·7 + desktop pointer → the app is windows, no grid.
+  const [deskMode, setDeskMode] = useState(deskCapable);
+  useEffect(() => {
+    const sync = () => setDeskMode(deskCapable());
+    window.addEventListener("codex:os7", sync);
+    let mq = null;
+    try {mq = window.matchMedia("(min-width: 900px) and (pointer: fine)");mq.addEventListener("change", sync);} catch {}
+    return () => {
+      window.removeEventListener("codex:os7", sync);
+      try {mq && mq.removeEventListener("change", sync);} catch {}
+    };
+  }, []);
+
+  const [desk, setDesk] = useState(deskLoad);
+  useEffect(() => {
+    deskSave(desk);
+    try {window.dispatchEvent(new CustomEvent("codex:desk", { detail: { ...desk } }));} catch {}
+  }, [desk]);
+  // Focus mode is a body class so CSS can hide every non-reader window
+  // (including consoles + plugin windows) without unmounting them.
+  useEffect(() => {
+    document.body.classList.toggle("cx-focus", !!(deskMode && desk.focus && desk.reader));
+  }, [deskMode, desk.focus, desk.reader]);
+  // Public desk API — dock chips (wm.js) and the omnibar drive this.
+  useEffect(() => {
+    window.codexDesk = {
+      on: () => deskMode,
+      state: () => ({ ...desk }),
+      open: (k) => setDesk((d) => ({ ...d, [k]: true })),
+      close: (k) => setDesk((d) => ({ ...d, [k]: false })),
+      toggle: (k) => setDesk((d) => ({ ...d, [k]: !d[k] })),
+      focus: (v) => setDesk((d) => ({ ...d, focus: v === undefined ? !d.focus : !!v, reader: true }))
+    };
+    return () => {delete window.codexDesk;};
+  }, [deskMode, desk]);
+  // Legacy rail-open calls (codex:open-library, codex:open-panel, status/footer
+  // buttons, plugins) keep working: under the desk they become window opens.
+  useEffect(() => {
+    if (deskMode && leftOpen) {
+      setLeftOpen(false);
+      setDesk((d) => d.library ? d : { ...d, library: true, focus: false });
+    }
+  }, [deskMode, leftOpen]);
+  useEffect(() => {
+    if (deskMode && rightOpen) {
+      setRightOpen(false);
+      setDesk((d) => d.study ? d : { ...d, study: true, focus: false });
+    }
+  }, [deskMode, rightOpen]);
   // Keyboard shortcut overlay — `?` opens it, Esc closes.
   const [showShortcuts, setShowShortcuts] = useState(false);
   // a11y: hold the modal node + the element to restore focus to on close.
@@ -2436,6 +2542,7 @@ function App() {
       if (e.key === "Escape") {
         if (searchOpen) {setSearchOpen(false);e.preventDefault();return;}
         if (showShortcuts) {setShowShortcuts(false);e.preventDefault();return;}
+        if (deskMode && desk.focus) {setDesk((d) => ({ ...d, focus: false }));e.preventDefault();return;}
         if (theater) {setTheater(false);e.preventDefault();return;}
         // Generic escape — let listeners (verse menu, popovers, etc.) close.
         window.dispatchEvent(new CustomEvent("codex:escape"));
@@ -2542,17 +2649,23 @@ function App() {
             return;
           }
         case "o":case "O":
-          // Oracle lives in the left rail — open it.
+          // Oracle lives in the library — window under the desk, rail in classic.
           e.preventDefault();
-          setLeftOpen((o) => !o);
-          if (leftCollapsed) setLeftCollapsed(false);
+          if (deskMode) setDesk((d) => ({ ...d, library: !d.library, focus: false }));else
+          {
+            setLeftOpen((o) => !o);
+            if (leftCollapsed) setLeftCollapsed(false);
+          }
           dispatchShortcut("toggle-oracle");
           return;
         case "b":case "B":
-          // Bookmarks rail (left). Just open the left rail where marks live.
+          // Bookmarks live in the library (window under the desk, rail in classic).
           e.preventDefault();
-          setLeftOpen((o) => !o);
-          if (leftCollapsed) setLeftCollapsed(false);
+          if (deskMode) setDesk((d) => ({ ...d, library: !d.library, focus: false }));else
+          {
+            setLeftOpen((o) => !o);
+            if (leftCollapsed) setLeftCollapsed(false);
+          }
           dispatchShortcut("toggle-bookmarks");
           return;
         case "n":case "N":{
@@ -2581,10 +2694,13 @@ function App() {
           return;
         case "t":case "T":
           e.preventDefault();
-          // Open the right rail on the translations tab.
+          // Translations live in the study window (deck) under the desk.
           setTab("trans");
-          setRightOpen(true);
-          if (rightCollapsed) setRightCollapsed(false);
+          if (deskMode) setDesk((d) => ({ ...d, study: !d.study, focus: false }));else
+          {
+            setRightOpen(true);
+            if (rightCollapsed) setRightCollapsed(false);
+          }
           dispatchShortcut("open-translations");
           return;
         case "s":case "S":{
@@ -2596,6 +2712,8 @@ function App() {
           }
         case "f":case "F":
           e.preventDefault();
+          // Under the desk, F is FOCUS: hide everything but the reader.
+          if (deskMode) setDesk((d) => ({ ...d, focus: !d.focus, reader: true }));else
           setTheater((v) => !v);
           return;
         default:
@@ -2606,7 +2724,8 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
     // Re-bind whenever the closures' captured state changes.
   }, [theater, showShortcuts, searchOpen, passage, currentVerse, sideBySide, gnosisOn,
-  leftCollapsed, rightCollapsed, data, loadPassage, openVerseMenu, t.notesEnabled]);
+  leftCollapsed, rightCollapsed, data, loadPassage, openVerseMenu, t.notesEnabled,
+  deskMode, desk.focus]);
 
   useEffect(() => {setPrimary(t.primaryTranslation);}, [t.primaryTranslation]);
   useEffect(() => {setSideBySide(!!t.sideBySide);}, [t.sideBySide]);
@@ -2805,7 +2924,7 @@ function App() {
 
   return (/*#__PURE__*/
     React.createElement("div", {
-      className: `cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${leftOpen ? "left-open" : ""} ${rightOpen ? "right-open" : ""} ${distractionFree ? "is-distraction-free" : ""} ${theater ? "is-theater" : ""} ${leftCollapsed ? "is-l-collapsed" : ""} ${rightCollapsed ? "is-r-collapsed" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""} ${schizoEligible && t.schizo ? "is-schizo" : ""}`,
+      className: `cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${leftOpen ? "left-open" : ""} ${rightOpen ? "right-open" : ""} ${distractionFree ? "is-distraction-free" : ""} ${theater ? "is-theater" : ""} ${!deskMode && leftCollapsed ? "is-l-collapsed" : ""} ${!deskMode && rightCollapsed ? "is-r-collapsed" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""} ${schizoEligible && t.schizo ? "is-schizo" : ""}`,
       style: themeStyle }, /*#__PURE__*/
 
     React.createElement("div", {
@@ -2827,69 +2946,65 @@ function App() {
       onToggleRight: () => setRightOpen((o) => !o),
       primary: primary,
       onSelectPrimary: setPrimaryAndPersist }
-    ), /*#__PURE__*/
-
-    React.createElement("div", { className: "cx-grid" },
-    leftCollapsed ? /*#__PURE__*/
-    React.createElement("button", {
-      className: "cx-rail-spine cx-rail-spine-l",
-      onClick: () => setLeftCollapsed(false),
-      title: "Show library + oracle + marks",
-      "aria-label": "Expand left rail" }, /*#__PURE__*/
-
-    React.createElement("span", { className: "cx-rail-spine-glyph" }, "\u2263"), /*#__PURE__*/
-    React.createElement("span", { className: "cx-rail-spine-arr" }, "\u25B6")
-    ) :
-    null, /*#__PURE__*/
-
-    React.createElement(LeftRail, {
-      isCollapsed: leftCollapsed,
-      onCollapse: () => setLeftCollapsed(true),
-      activeBookId: passage.bookId,
-      activeChapter: passage.chapter,
-      marks: marks,
-      highlightColors: HIGHLIGHT_COLORS,
-      onSelectMark: onSelectMark,
-      onClearMark: onClearMark,
-      onTogglePinMark: togglePinMark,
-      onMarkCurrent: onMarkCurrent,
-      onSelectChapter: (bookId, ch) => {loadPassage(bookId, ch, 1);setLeftOpen(false);},
-      currentRef: `${passage.book} ${passage.chapter}:${currentVerse}`,
-      onClose: () => setLeftOpen(false),
-      oracleProps: {
-        passage, currentVerse, primary, gnosisOn,
-        driftMode: !!t.hermeneuticDriftCompensation,
-        provider: t.provider || "anthropic",
-        model: t.model || "claude-haiku-4-5-20251001",
-        availableProviders,
-        onAddBookmark: ({ ref }) => jumpToRef(ref), // legacy hook → just jump
-        onJumpTo: ({ ref }) => jumpToRef(ref)
-      } }
     ),
 
-    tourOpen ? /*#__PURE__*/React.createElement(WelcomeTour, { onClose: closeTour }) : null, /*#__PURE__*/
+    tourOpen ? /*#__PURE__*/React.createElement(WelcomeTour, { onClose: closeTour }) : null,
 
 
 
 
-    React.createElement("div", { className: "cx-center-col" },
-    !wbDismissed && /*#__PURE__*/
-    React.createElement(WelcomeBack, {
-      onContinue: (session) => {
-        loadPassage(session.bookId, session.chapter, 1);
-        setWbDismissed(true);
-      },
-      onDismiss: () => setWbDismissed(true),
-      onDiscoveryClick: (disc) => {
-        if (disc.ref) {
-          // Handle compound refs like "Gen 3:8 ↔ John 20:15" — take the first
-          const firstRef = disc.ref.split(/\s*[↔→←]\s*/)[0].trim();
-          const loc = parseRef(firstRef, data.books);
-          if (loc) loadPassage(loc.bookId, loc.chapter, loc.verse || 1);
-        }
-        setWbDismissed(true);
-      } }
-    ),
+    (() => {
+      const leftRailEl = /*#__PURE__*/
+      React.createElement(LeftRail, {
+        isCollapsed: deskMode ? false : leftCollapsed,
+        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, library: false })) : () => setLeftCollapsed(true),
+        activeBookId: passage.bookId,
+        activeChapter: passage.chapter,
+        marks: marks,
+        highlightColors: HIGHLIGHT_COLORS,
+        onSelectMark: onSelectMark,
+        onClearMark: onClearMark,
+        onTogglePinMark: togglePinMark,
+        onMarkCurrent: onMarkCurrent,
+        onSelectChapter: (bookId, ch) => {loadPassage(bookId, ch, 1);setLeftOpen(false);},
+        currentRef: `${passage.book} ${passage.chapter}:${currentVerse}`,
+        onClose: () => setLeftOpen(false),
+        oracleProps: {
+          passage, currentVerse, primary, gnosisOn,
+          driftMode: !!t.hermeneuticDriftCompensation,
+          provider: t.provider || "anthropic",
+          model: t.model || "claude-haiku-4-5-20251001",
+          availableProviders,
+          onAddBookmark: ({ ref }) => jumpToRef(ref), // legacy hook → just jump
+          onJumpTo: ({ ref }) => jumpToRef(ref)
+        } }
+      );
+
+
+
+      // Center column wrapper. The WelcomeBack banner and the Reader share
+      // grid column 2 — without this wrapper the in-flow WelcomeBack stole a
+      // grid track and shoved the reader + right rail into the wrong cells.
+      // Under the desk this same column is the reader window's body.
+      const centerColEl = /*#__PURE__*/
+      React.createElement("div", { className: "cx-center-col" },
+      !wbDismissed && /*#__PURE__*/
+      React.createElement(WelcomeBack, {
+        onContinue: (session) => {
+          loadPassage(session.bookId, session.chapter, 1);
+          setWbDismissed(true);
+        },
+        onDismiss: () => setWbDismissed(true),
+        onDiscoveryClick: (disc) => {
+          if (disc.ref) {
+            // Handle compound refs like "Gen 3:8 ↔ John 20:15" — take the first
+            const firstRef = disc.ref.split(/\s*[↔→←]\s*/)[0].trim();
+            const loc = parseRef(firstRef, data.books);
+            if (loc) loadPassage(loc.bookId, loc.chapter, loc.verse || 1);
+          }
+          setWbDismissed(true);
+        } }
+      ),
 
 
 
@@ -2901,102 +3016,155 @@ function App() {
 
 
 
-    t.continuityEnabled !== false && window.CODEX_CONTINUITY && window.CODEX_CONTINUITY.Mount ?
-    React.createElement(window.CODEX_CONTINUITY.Mount) :
-    null, /*#__PURE__*/
+      t.continuityEnabled !== false && window.CODEX_CONTINUITY && window.CODEX_CONTINUITY.Mount ?
+      React.createElement(window.CODEX_CONTINUITY.Mount) :
+      null, /*#__PURE__*/
 
-    React.createElement(Reader, {
-      schizo: !!(schizoEligible && t.schizo),
-      passage: passage,
-      primary: primary,
-      compareTranslations: compareSet,
-      sideBySide: sideBySide,
-      onToggleSideBySide: () => {const v = !sideBySide;setSideBySide(v);setTweak("sideBySide", v);},
-      gnosisOn: gnosisOn,
-      redLetter: redLetter,
-      onToggleRedLetter: () => {const v = !redLetter;setRedLetter(v);setTweak("redLetter", v);},
-      fontScale: t.fontScale,
-      onCycleFontSize: () => {
-        const sizes = [16, 19, 22, 26, 30];
-        const idx = sizes.indexOf(t.fontScale);
-        const next = sizes[(idx + 1) % sizes.length] || 22;
-        setTweak("fontScale", next);
-      },
-      highlightedVerse: currentVerse,
-      onSelectVerse: (n) => setCurrentVerse(n),
-      onSelectPrimary: setPrimaryAndPersist,
-      yhwhMode: !!t.yhwhMode,
-      onToggleYHWH: () => setTweak("yhwhMode", !t.yhwhMode),
-      highlights: highlights,
-      highlightColor: t.highlightColor,
-      onToggleHighlight: (n, color) => {
-        const v = passage.verses.find((x) => x.n === n);
-        const text = v ? v[primary] || v.kjv || v.web || "" : "";
-        toggleHighlight(passage.bookId, passage.chapter, n, color, text);
-      },
-      onOpenVerseMenu: openVerseMenu,
-      panelData: panelData,
-      onPrevChapter: () => {
-        const book = data.books.find((b) => b.id === passage.bookId);
-        if (passage.chapter > 1) loadPassage(passage.bookId, passage.chapter - 1, 1);else
-        {
-          const idx = data.books.findIndex((b) => b.id === passage.bookId);
-          if (idx > 0) loadPassage(data.books[idx - 1].id, data.books[idx - 1].chapters, 1);
-        }
-      },
-      onNextChapter: () => {
-        const book = data.books.find((b) => b.id === passage.bookId);
-        if (passage.chapter < book.chapters) loadPassage(passage.bookId, passage.chapter + 1, 1);else
-        {
-          const idx = data.books.findIndex((b) => b.id === passage.bookId);
-          if (idx < data.books.length - 1) loadPassage(data.books[idx + 1].id, 1, 1);
-        }
-      } }
-    )
-    ), /*#__PURE__*/
-
-
+      React.createElement(Reader, {
+        schizo: !!(schizoEligible && t.schizo),
+        passage: passage,
+        primary: primary,
+        compareTranslations: compareSet,
+        sideBySide: sideBySide,
+        onToggleSideBySide: () => {const v = !sideBySide;setSideBySide(v);setTweak("sideBySide", v);},
+        gnosisOn: gnosisOn,
+        redLetter: redLetter,
+        onToggleRedLetter: () => {const v = !redLetter;setRedLetter(v);setTweak("redLetter", v);},
+        fontScale: t.fontScale,
+        onCycleFontSize: () => {
+          const sizes = [16, 19, 22, 26, 30];
+          const idx = sizes.indexOf(t.fontScale);
+          const next = sizes[(idx + 1) % sizes.length] || 22;
+          setTweak("fontScale", next);
+        },
+        highlightedVerse: currentVerse,
+        onSelectVerse: (n) => setCurrentVerse(n),
+        onSelectPrimary: setPrimaryAndPersist,
+        yhwhMode: !!t.yhwhMode,
+        onToggleYHWH: () => setTweak("yhwhMode", !t.yhwhMode),
+        highlights: highlights,
+        highlightColor: t.highlightColor,
+        onToggleHighlight: (n, color) => {
+          const v = passage.verses.find((x) => x.n === n);
+          const text = v ? v[primary] || v.kjv || v.web || "" : "";
+          toggleHighlight(passage.bookId, passage.chapter, n, color, text);
+        },
+        onOpenVerseMenu: openVerseMenu,
+        panelData: panelData,
+        onPrevChapter: () => {
+          const book = data.books.find((b) => b.id === passage.bookId);
+          if (passage.chapter > 1) loadPassage(passage.bookId, passage.chapter - 1, 1);else
+          {
+            const idx = data.books.findIndex((b) => b.id === passage.bookId);
+            if (idx > 0) loadPassage(data.books[idx - 1].id, data.books[idx - 1].chapters, 1);
+          }
+        },
+        onNextChapter: () => {
+          const book = data.books.find((b) => b.id === passage.bookId);
+          if (passage.chapter < book.chapters) loadPassage(passage.bookId, passage.chapter + 1, 1);else
+          {
+            const idx = data.books.findIndex((b) => b.id === passage.bookId);
+            if (idx < data.books.length - 1) loadPassage(data.books[idx + 1].id, 1, 1);
+          }
+        } }
+      )
+      );
 
 
-    React.createElement(RightRail, {
-      isCollapsed: rightCollapsed,
-      onCollapse: () => setRightCollapsed(true),
-      tab: tab,
-      onTab: setTab,
-      gnosisOn: gnosisOn,
-      onToggleGnosis: setGnosisOn,
-      primary: primary,
-      onPrimary: setPrimaryAndPersist,
-      compareSet: compareSet,
-      onToggleCompare: onToggleCompare,
-      passage: passage,
-      currentVerse: currentVerse,
-      panelData: panelData,
-      panelStatus: panelStatus,
-      panelMeta: panelMeta,
-      onRegeneratePanels: regeneratePanels,
-      disarmData: disarmData,
-      disarmStatus: disarmStatus,
-      disarmMeta: disarmMeta,
-      onRegenerateDisarm: regenerateDisarm,
-      onClose: () => setRightOpen(false),
-      onJumpRef: jumpToRef,
-      pluginVersion: pluginVersion,
-      translation: primary }
-    ),
+      // Reels launcher moved out of the reading area into the footer
+      // (see FooterBar onOpenReels) — the floating circle was intrusive.
 
-    rightCollapsed ? /*#__PURE__*/
-    React.createElement("button", {
-      className: "cx-rail-spine cx-rail-spine-r",
-      onClick: () => setRightCollapsed(false),
-      title: "Show translations + panels",
-      "aria-label": "Expand right rail" }, /*#__PURE__*/
+      const rightRailEl = /*#__PURE__*/
+      React.createElement(RightRail, {
+        isCollapsed: deskMode ? false : rightCollapsed,
+        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, study: false })) : () => setRightCollapsed(true),
+        tab: tab,
+        onTab: setTab,
+        gnosisOn: gnosisOn,
+        onToggleGnosis: setGnosisOn,
+        primary: primary,
+        onPrimary: setPrimaryAndPersist,
+        compareSet: compareSet,
+        onToggleCompare: onToggleCompare,
+        passage: passage,
+        currentVerse: currentVerse,
+        panelData: panelData,
+        panelStatus: panelStatus,
+        panelMeta: panelMeta,
+        onRegeneratePanels: regeneratePanels,
+        disarmData: disarmData,
+        disarmStatus: disarmStatus,
+        disarmMeta: disarmMeta,
+        onRegenerateDisarm: regenerateDisarm,
+        onClose: () => setRightOpen(false),
+        onJumpRef: jumpToRef,
+        pluginVersion: pluginVersion,
+        translation: primary }
+      );
 
-    React.createElement("span", { className: "cx-rail-spine-arr" }, "\u25C0"), /*#__PURE__*/
-    React.createElement("span", { className: "cx-rail-spine-glyph" }, "\u22EE")
-    ) :
-    null
-    ), /*#__PURE__*/
+
+      if (deskMode) {
+        return (/*#__PURE__*/
+          React.createElement("div", { className: "cx-desk" },
+          desk.library ? /*#__PURE__*/
+          React.createElement(DeskWin, {
+            id: "sys:library", glyph: "\u2630", title: "Library",
+            onClose: () => setDesk((d) => ({ ...d, library: false })),
+            bodyClass: "cx-desk-body-rail" },
+          leftRailEl) :
+          null,
+          desk.reader ? /*#__PURE__*/
+          React.createElement(DeskWin, {
+            id: "sys:reader", glyph: "\u2726",
+            title: `${passage.book || "Scripture"} ${passage.chapter}`,
+            ctx: (primary || "").toUpperCase(),
+            onClose: () => setDesk((d) => ({ ...d, reader: false, focus: false })),
+            onFocusMode: () => setDesk((d) => ({ ...d, focus: !d.focus })),
+            focusOn: desk.focus,
+            bodyClass: "cx-desk-body-reader" },
+          centerColEl) :
+          null,
+          desk.study ? /*#__PURE__*/
+          React.createElement(DeskWin, {
+            id: "sys:study", glyph: "\u25A4", title: "Study",
+            onClose: () => setDesk((d) => ({ ...d, study: false })),
+            bodyClass: "cx-desk-body-rail" },
+          rightRailEl) :
+          null
+          ));
+
+      }
+
+      return (/*#__PURE__*/
+        React.createElement("div", { className: "cx-grid" },
+        leftCollapsed ? /*#__PURE__*/
+        React.createElement("button", {
+          className: "cx-rail-spine cx-rail-spine-l",
+          onClick: () => setLeftCollapsed(false),
+          title: "Show library + oracle + marks",
+          "aria-label": "Expand left rail" }, /*#__PURE__*/
+
+        React.createElement("span", { className: "cx-rail-spine-glyph" }, "\u2263"), /*#__PURE__*/
+        React.createElement("span", { className: "cx-rail-spine-arr" }, "\u25B6")
+        ) :
+        null,
+        leftRailEl,
+        centerColEl,
+        rightRailEl,
+        rightCollapsed ? /*#__PURE__*/
+        React.createElement("button", {
+          className: "cx-rail-spine cx-rail-spine-r",
+          onClick: () => setRightCollapsed(false),
+          title: "Show translations + panels",
+          "aria-label": "Expand right rail" }, /*#__PURE__*/
+
+        React.createElement("span", { className: "cx-rail-spine-arr" }, "\u25C0"), /*#__PURE__*/
+        React.createElement("span", { className: "cx-rail-spine-glyph" }, "\u22EE")
+        ) :
+        null
+        ));
+
+    })(), /*#__PURE__*/
 
     React.createElement(FooterBar, {
       currentVerse: currentVerse,
@@ -3061,15 +3229,15 @@ function App() {
     ["K", "Previous verse"],
     ["H", "Previous chapter"],
     ["L", "Next chapter"],
-    ["⌘/Ctrl + K", "Focus search"],
+    ["⌘/Ctrl + K", "Omnibar — ask anything"],
     ["1 – 9", "Switch panel tab"],
-    ["O", "Toggle Oracle / left rail"],
-    ["B", "Toggle bookmarks"],
+    ["O", deskMode ? "Library window (Oracle, books, marks)" : "Toggle Oracle / left rail"],
+    ["B", deskMode ? "Library window (bookmarks)" : "Toggle bookmarks"],
     ["N", "Toggle notes"],
     ["M", "Toggle verse map"],
-    ["T", "Open translations"],
+    ["T", deskMode ? "Study window (translations, panels)" : "Open translations"],
     ["S", "Toggle side-by-side"],
-    ["F", "Toggle theater mode"],
+    ["F", deskMode ? "Focus — just the Word" : "Toggle theater mode"],
     ["Enter", "Open verse menu (on a verse)"],
     ["?", "Show this overlay"],
     ["Esc", "Close popovers / overlays"]].

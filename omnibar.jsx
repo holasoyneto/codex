@@ -93,6 +93,31 @@ const OMNI_COMMANDS = [
     title: "Open Settings", sub: "theme, language, API keys, every tweak",
     action: () => { window.dispatchEvent(new CustomEvent("codex:open-settings", { detail: {} })); },
   },
+  // v9 FACE TO FACE — the desk
+  {
+    id: "focus", icon: "⛶", aliases: ["focus", "zen", "theater", "read"],
+    title: "Focus — just the Word", sub: "hide every window but the reader · Esc restores",
+    action: () => {
+      if (window.codexDesk && window.codexDesk.on()) window.codexDesk.focus();
+      else window.dispatchEvent(new KeyboardEvent("keydown", { key: "f" }));
+    },
+  },
+  {
+    id: "library", icon: "☰", aliases: ["library", "books", "lib"],
+    title: "Open the Library window", sub: "books, chapters, marks, Oracle — place it anywhere",
+    action: () => {
+      if (window.codexDesk && window.codexDesk.on()) window.codexDesk.open("library");
+      else window.dispatchEvent(new CustomEvent("codex:open-library"));
+    },
+  },
+  {
+    id: "study", icon: "▤", aliases: ["study", "deck", "panels"],
+    title: "Open the Study window", sub: "the deck of pinned panels — place it anywhere",
+    action: () => {
+      if (window.codexDesk && window.codexDesk.on()) window.codexDesk.open("study");
+      else if (window.codexOpenPanel) window.codexOpenPanel("trans");
+    },
+  },
 ];
 
 const omniNorm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -205,6 +230,9 @@ const OMNI_CMD_KEYS = {
   oracle: "talk to ai chat ask question conversation assistant",
   ops: "mission ai kernel agent task",
   settings: "preferences theme options configure keys",
+  focus: "distraction free fullscreen reading mode hide everything zen",
+  library: "window books navigation left rail bookmarks oracle",
+  study: "window panels deck right rail commentary translations",
 };
 
 // The FULL command catalog for "/" mode: verbs, every rail panel, top-level
