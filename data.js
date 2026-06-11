@@ -206,14 +206,21 @@ window.CODEX_DATA = {
     { id:"vulg",   name:"Vulgata Clementina (Bolls)", year:"1592", license:"Public Domain", glyph:"VLG", lang:"LA", source:"bolls", apiId:"VULG" },
 
     // ── Hebrew (Tanakh + DHNT for NT) ─────────────────────────────────
-    { id:"wlc",    name:"Westminster Leningrad (Vowels)", year:"1010", license:"Public Domain", glyph:"WLC", lang:"HE", source:"bolls", apiId:"WLC" },
-    { id:"wlca",   name:"Westminster (Vowels + Strong)", year:"1010", license:"Public Domain", glyph:"WLCa", lang:"HE", source:"bolls", apiId:"WLCa" },
-    { id:"hac",    name:"Aleppo Codex (Tanah)", year:"930", license:"Public Domain", glyph:"ALP", lang:"HE", source:"bolls", apiId:"HAC" },
-    { id:"dhnt",   name:"Delitzsch NT (Hebrew)", year:"1877", license:"Public Domain", glyph:"DHNT", lang:"HE", source:"bolls", apiId:"DHNT" },
+    // WLC ships as a full offline bundle (scripts/build-corpora.mjs) —
+    // the complete Tanakh, vowels included, readable with zero network.
+    // `canons:["ot"]` scopes the library to the books the corpus contains.
+    { id:"wlc",    name:"Westminster Leningrad (Vowels)", year:"1010", license:"Public Domain", glyph:"WLC", lang:"HE", source:"bolls", apiId:"WLC",
+      bundle:"data/bibles/wlc.json", offlinePriority:"must", canons:["ot"] },
+    { id:"wlca",   name:"Westminster (Vowels + Strong)", year:"1010", license:"Public Domain", glyph:"WLCa", lang:"HE", source:"bolls", apiId:"WLCa", canons:["ot"] },
+    { id:"hac",    name:"Aleppo Codex (Tanah)", year:"930", license:"Public Domain", glyph:"ALP", lang:"HE", source:"bolls", apiId:"HAC", canons:["ot"] },
+    { id:"dhnt",   name:"Delitzsch NT (Hebrew)", year:"1877", license:"Public Domain", glyph:"DHNT", lang:"HE", source:"bolls", apiId:"DHNT", canons:["nt"] },
 
     // ── Greek (NT + LXX OT) ───────────────────────────────────────────
-    { id:"tisch",  name:"Tischendorf NT (Greek)", year:"1869", license:"Public Domain", glyph:"TISCH", lang:"EL", source:"bolls", apiId:"TISCH" },
-    { id:"tr",     name:"Textus Receptus (Greek)", year:"1624", license:"Public Domain", glyph:"TR", lang:"EL", source:"bolls", apiId:"TR" },
+    // SBLGNT — the SBL critical Greek NT (CC BY 4.0), full offline bundle.
+    { id:"sblgnt", name:"SBL Greek New Testament", year:"2010", license:"CC BY 4.0 · SBL/Logos", glyph:"SBL", lang:"EL", source:"bundle", apiId:"sblgnt",
+      bundle:"data/bibles/sblgnt.json", offlinePriority:"must", canons:["nt"] },
+    { id:"tisch",  name:"Tischendorf NT (Greek)", year:"1869", license:"Public Domain", glyph:"TISCH", lang:"EL", source:"bolls", apiId:"TISCH", canons:["nt"] },
+    { id:"tr",     name:"Textus Receptus (Greek)", year:"1624", license:"Public Domain", glyph:"TR", lang:"EL", source:"bolls", apiId:"TR", canons:["nt"] },
     { id:"lxx",    name:"Septuagint (Greek OT)",  year:"-200", license:"Public Domain", glyph:"LXX", lang:"EL", source:"bolls", apiId:"LXX",
       canons:["protestant","deuterocanon","orthodox"] },
 

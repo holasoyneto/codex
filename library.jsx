@@ -112,7 +112,10 @@ function Library({ activeBookId, activeChapter, onSelectChapter, activeTranslati
     return new Set(list);
   }, [activeTranslation, data.translations]);
   const showsBook = (b) => {
-    if (b.testament === "OT" || b.testament === "NT") return canons.has("protestant");
+    // "ot"/"nt" scope single-testament corpora (WLC, SBLGNT…) to the books
+    // they actually contain; "protestant" means the full 66.
+    if (b.testament === "OT") return canons.has("protestant") || canons.has("ot");
+    if (b.testament === "NT") return canons.has("protestant") || canons.has("nt");
     return canons.has(b.canon);
   };
   // Track whether the last openId change came from an external activeBookId

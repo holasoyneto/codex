@@ -9,12 +9,11 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "8.0",      // user-facing app version (header badge: NOCTURNE · v7.7)
-  sw: "v255",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "8.1",      // user-facing app version (header badge: NOCTURNE · v7.7)
+  sw: "v256",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "MONAD: panels float as real windows — drag, stack, minimize; they remember where you put them",
-    "Cross-refs, Plans, Strong's, Timeline… every plugin panel can live on your desk",
-    "⌘K panel commands now open windows on the desktop",
+    "THE ORIGINALS: the complete Hebrew Tanakh (Westminster Leningrad) and Greek NT (SBLGNT) now live inside the app — full text, fully offline",
+    "Pick WLC or SBL from the translation picker; the library shelf scopes itself to the testament the corpus contains",
   ],
 };
 
