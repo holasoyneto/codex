@@ -2980,13 +2980,11 @@ function App() {
 
         );
 
-        // Center column wrapper. The WelcomeBack banner and the Reader share
-        // grid column 2 — without this wrapper the in-flow WelcomeBack stole a
-        // grid track and shoved the reader + right rail into the wrong cells.
-        // Under the desk this same column is the reader window's body.
-        const centerColEl = (
-        <div className="cx-center-col">
-        {!wbDismissed && (
+        // The morning/evening briefing (WelcomeBack). Scripture is sacred
+        // ground — under the desk this does NOT live inside the reader: it
+        // floats top-right over the wallpaper like a notification banner.
+        // In classic/mobile it keeps its old place above the reader.
+        const briefEl = !wbDismissed ? (
           <WelcomeBack
             onContinue={(session) => {
               loadPassage(session.bookId, session.chapter, 1);
@@ -3003,7 +3001,15 @@ function App() {
               setWbDismissed(true);
             }}
           />
-        )}
+        ) : null;
+
+        // Center column wrapper. The WelcomeBack banner and the Reader share
+        // grid column 2 — without this wrapper the in-flow WelcomeBack stole a
+        // grid track and shoved the reader + right rail into the wrong cells.
+        // Under the desk this same column is the reader window's body.
+        const centerColEl = (
+        <div className="cx-center-col">
+        {deskMode ? null : briefEl}
 
         {/* Achievement / milestone marks render through the single ToastDock
             (codex:toast variant:'mark') — no separate render here. */}
@@ -3102,8 +3108,12 @@ function App() {
         );
 
         if (deskMode) {
+          const vvCount = passage.verses.filter(v => v[primary] != null && v[primary] !== "").length
+            || passage.verses.length || 0;
           return (
             <div className="cx-desk">
+              {/* the briefing floats over the wallpaper, never in the Word */}
+              {briefEl ? <div className="cx-desk-brief">{briefEl}</div> : null}
               {desk.library ? (
                 <DeskWin
                   id="sys:library" glyph="☰" title="Library"
@@ -3115,7 +3125,7 @@ function App() {
                 <DeskWin
                   id="sys:reader" glyph="✦"
                   title={`${passage.book || "Scripture"} ${passage.chapter}`}
-                  ctx={(primary || "").toUpperCase()}
+                  ctx={`${vvCount} VV · ${(primary || "").toUpperCase()}`}
                   onClose={() => setDesk(d => ({ ...d, reader: false, focus: false }))}
                   onFocusMode={() => setDesk(d => ({ ...d, focus: !d.focus }))}
                   focusOn={desk.focus}

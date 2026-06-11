@@ -594,7 +594,7 @@
 
       // Context strip
       React.createElement("div", { style: ctxStripStyle },
-        React.createElement("span", { style: { color: "#6b7785", letterSpacing: "0.16em", fontSize: 10 } }, "READING"),
+        React.createElement("span", { style: { color: "var(--cx-fg-dim, #8295ae)", letterSpacing: "0.16em", fontSize: 10 } }, "READING"),
         React.createElement("span", { style: { color: "#7ee0ff", fontWeight: 600 } }, refLabel),
       ),
 
@@ -674,7 +674,7 @@
         "▸ Speaking: ", React.createElement("b", { style: { color: "#7ee0ff" } }, currentVerse)),
       status && React.createElement("div", { style: { fontSize: 12, color: "#ffc46b", marginTop: 6 } }, status),
 
-      React.createElement("div", { style: { marginTop: 18, fontSize: 11, color: "#6b7785", lineHeight: 1.6 } },
+      React.createElement("div", { style: { marginTop: 18, fontSize: 11, color: "var(--cx-fg-dim, #8295ae)", lineHeight: 1.6 } },
         "Voice quality depends on your OS/browser. macOS & iOS Safari surface Apple's premium voices (★). On Linux you may see eSpeak fallback. Per-voice speed/pitch are saved automatically."),
     );
   }
@@ -854,14 +854,14 @@
         "Could not load prayer formats: ", err);
     }
     if (!pack) {
-      return React.createElement("div", { style: { padding: 16, color: "#6b7785" } },
+      return React.createElement("div", { style: { padding: 16, color: "var(--cx-fg-dim, #8295ae)" } },
         "Loading prayer formats…");
     }
 
     return React.createElement("div", { style: { padding: "0 14px 18px" } },
 
       React.createElement("div", { style: ctxStripStyle },
-        React.createElement("span", { style: { color: "#6b7785", letterSpacing: "0.16em", fontSize: 10 } }, "PRAYER"),
+        React.createElement("span", { style: { color: "var(--cx-fg-dim, #8295ae)", letterSpacing: "0.16em", fontSize: 10 } }, "PRAYER"),
         React.createElement("span", { style: { color: "#ffc46b" } },
           `${formats.length} traditions`),
       ),
@@ -1020,7 +1020,7 @@
     minHeight: "100%",
   };
   const sectionLabelStyle = {
-    fontSize: 10, letterSpacing: "0.18em", color: "#6b7785",
+    fontSize: 10, letterSpacing: "0.18em", color: "var(--cx-fg-dim, #8295ae)",
     textTransform: "uppercase", marginBottom: 6,
     display: "flex", alignItems: "center", gap: 8,
   };
@@ -1102,7 +1102,7 @@
   };
   const sectionTagStyle = {
     fontSize: 9, letterSpacing: "0.20em", textTransform: "uppercase",
-    color: "#6b7785", marginBottom: 4,
+    color: "var(--cx-fg-dim, #8295ae)", marginBottom: 4,
   };
   function sectionTextStyle(langDefault) {
     const isHeb = langDefault === "he";
@@ -1114,7 +1114,7 @@
     };
   }
   const silenceDurStyle = {
-    fontSize: 11, color: "#6b7785", marginTop: 4,
+    fontSize: 11, color: "var(--cx-fg-dim, #8295ae)", marginTop: 4,
     fontFamily: "ui-monospace, monospace",
   };
 

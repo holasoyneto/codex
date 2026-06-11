@@ -2982,13 +2982,11 @@ function App() {
 
 
 
-      // Center column wrapper. The WelcomeBack banner and the Reader share
-      // grid column 2 — without this wrapper the in-flow WelcomeBack stole a
-      // grid track and shoved the reader + right rail into the wrong cells.
-      // Under the desk this same column is the reader window's body.
-      const centerColEl = /*#__PURE__*/
-      React.createElement("div", { className: "cx-center-col" },
-      !wbDismissed && /*#__PURE__*/
+      // The morning/evening briefing (WelcomeBack). Scripture is sacred
+      // ground — under the desk this does NOT live inside the reader: it
+      // floats top-right over the wallpaper like a notification banner.
+      // In classic/mobile it keeps its old place above the reader.
+      const briefEl = !wbDismissed ? /*#__PURE__*/
       React.createElement(WelcomeBack, {
         onContinue: (session) => {
           loadPassage(session.bookId, session.chapter, 1);
@@ -3004,8 +3002,16 @@ function App() {
           }
           setWbDismissed(true);
         } }
-      ),
+      ) :
+      null;
 
+      // Center column wrapper. The WelcomeBack banner and the Reader share
+      // grid column 2 — without this wrapper the in-flow WelcomeBack stole a
+      // grid track and shoved the reader + right rail into the wrong cells.
+      // Under the desk this same column is the reader window's body.
+      const centerColEl = /*#__PURE__*/
+      React.createElement("div", { className: "cx-center-col" },
+      deskMode ? null : briefEl,
 
 
 
@@ -3104,8 +3110,12 @@ function App() {
 
 
       if (deskMode) {
+        const vvCount = passage.verses.filter((v) => v[primary] != null && v[primary] !== "").length ||
+        passage.verses.length || 0;
         return (/*#__PURE__*/
           React.createElement("div", { className: "cx-desk" },
+
+          briefEl ? /*#__PURE__*/React.createElement("div", { className: "cx-desk-brief" }, briefEl) : null,
           desk.library ? /*#__PURE__*/
           React.createElement(DeskWin, {
             id: "sys:library", glyph: "\u2630", title: "Library",
@@ -3117,7 +3127,7 @@ function App() {
           React.createElement(DeskWin, {
             id: "sys:reader", glyph: "\u2726",
             title: `${passage.book || "Scripture"} ${passage.chapter}`,
-            ctx: (primary || "").toUpperCase(),
+            ctx: `${vvCount} VV · ${(primary || "").toUpperCase()}`,
             onClose: () => setDesk((d) => ({ ...d, reader: false, focus: false })),
             onFocusMode: () => setDesk((d) => ({ ...d, focus: !d.focus })),
             focusOn: desk.focus,
