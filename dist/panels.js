@@ -1663,6 +1663,13 @@ function TalmudPanel({ panelData, status, meta, passage, onRegenerate }) {
 // "Weaponized readings" — surfaces how power has historically twisted a
 // verse to mislead, paired with the textual / contextual rebuttal so the
 // reader can navigate around the misuse. Cross-spectrum, cross-century.
+// v9.3 EXOGRAMMAR remake → THE OPPOSITION INSTRUMENT. Each entry is a
+// two-sided structure: LEFT the weaponization (hostile red-amber edge),
+// RIGHT the rebuttal (steady cyan edge), joined by a visible thread so the
+// opposition is read structurally before a word is parsed. Collapsed by
+// default to a claim-⇄-rebuttal one-liner; expands in place. The verse chip
+// anchors the pair and jumps the reader via window.codexJumpToRef. Data
+// pipeline, props, and caching are untouched — only the render changed.
 function DisarmPanel({ panelData, status, meta, passage, currentVerse, onRegenerate }) {
   const headTitle = window.t && window.t("panel.disarm.head");
   const title = headTitle && headTitle !== "panel.disarm.head" ? headTitle : "DISARM · WEAPONIZED READINGS";
@@ -1670,6 +1677,20 @@ function DisarmPanel({ panelData, status, meta, passage, currentVerse, onRegener
   const emptyText = emptyMsg && emptyMsg !== "panel.disarm.empty" ?
   emptyMsg :
   "No weaponizations on record for this verse.";
+  // Open pairs (indices). All collapsed at first — the instrument shows the
+  // field of oppositions before any single battle is entered.
+  const [openPairs, setOpenPairs] = useState(() => new Set());
+  const togglePair = (i) => setOpenPairs((prev) => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i);else next.add(i);
+    return next;
+  });
+  const jumpVerse = (v) => {
+    if (!v || !window.codexJumpToRef) return;
+    // verse strings look like "1:11" (chapter:verse) or bare "11".
+    const ref = String(v).includes(":") ? `${passage.book} ${v}` : `${passage.book} ${passage.chapter}:${v}`;
+    window.codexJumpToRef(ref);
+  };
   if (!panelData) {
     return (/*#__PURE__*/
       React.createElement("div", { className: "cx-pane" }, /*#__PURE__*/
@@ -1688,6 +1709,9 @@ function DisarmPanel({ panelData, status, meta, passage, currentVerse, onRegener
       React.createElement("span", { className: "cx-pane-actions" }, /*#__PURE__*/
       React.createElement(RegenBtn, { onClick: onRegenerate })
       ) }
+    ), /*#__PURE__*/
+    React.createElement("div", { className: "cx-disarm-banner", role: "note" }, "\u2694 SCHOLARLY SURVEY \xB7 DOCUMENTED MISUSE + TEXTUAL REBUTTAL \xB7 NOT AN ENDORSEMENT"
+
     ),
     entries.length === 0 ? /*#__PURE__*/
     React.createElement("div", { className: "cx-disarm-empty" }, /*#__PURE__*/
@@ -1695,35 +1719,67 @@ function DisarmPanel({ panelData, status, meta, passage, currentVerse, onRegener
     React.createElement("p", null, emptyText)
     ) : /*#__PURE__*/
 
-    React.createElement("div", { className: "cx-disarm-list" },
-    entries.map((e, i) => /*#__PURE__*/
-    React.createElement("article", { key: i, className: "cx-disarm-card" }, /*#__PURE__*/
-    React.createElement("header", { className: "cx-disarm-h" }, /*#__PURE__*/
-    React.createElement("span", { className: "cx-disarm-idx" }, "DISARM \xB7 ", pad(i + 1)),
-    e.verse ? /*#__PURE__*/React.createElement("span", { className: "cx-disarm-verse" }, "v. ", e.verse) : null
-    ), /*#__PURE__*/
-    React.createElement("h4", { className: "cx-disarm-eyebrow" }, e.weaponization),
-    e.quote ? /*#__PURE__*/
-    React.createElement("blockquote", { className: "cx-disarm-quote" }, /*#__PURE__*/
-    React.createElement("span", { className: "cx-disarm-quote-bar", "aria-hidden": true }), /*#__PURE__*/
-    React.createElement("span", { className: "cx-disarm-quote-text" }, e.quote)
-    ) :
-    null,
-    e.source ? /*#__PURE__*/React.createElement("div", { className: "cx-disarm-source" }, e.source) : null, /*#__PURE__*/
-    React.createElement("hr", { className: "cx-disarm-sep" }), /*#__PURE__*/
-    React.createElement("div", { className: "cx-disarm-rebut" }, /*#__PURE__*/
-    React.createElement("span", { className: "cx-disarm-rebut-lbl" }, "REBUTTAL"), /*#__PURE__*/
-    React.createElement("p", { className: "cx-disarm-rebut-body" }, /*#__PURE__*/React.createElement(LinkifyRefs, { text: e.rebuttal }))
-    ), /*#__PURE__*/
-    React.createElement("footer", { className: "cx-disarm-foot" }, /*#__PURE__*/
-    React.createElement(PanelMarkBtn, { onClick: () => savePanelEntryToNotes({
-        kind: "Disarm", ref: e.source, heading: e.weaponization,
-        body: `${e.quote ? `“${e.quote}” — ${e.source || "unknown"}\n\n` : ""}REBUTTAL: ${e.rebuttal}`,
-        passage
-      }) })
-    )
-    )
-    )
+    React.createElement("div", { className: "cx-disarm-field", role: "list", "aria-label": "Opposition instrument \u2014 weaponizations vs rebuttals" },
+    entries.map((e, i) => {
+      const open = openPairs.has(i);
+      const claim = e.weaponization || "Unlabeled claim";
+      const rebut = e.rebuttal || "";
+      return (/*#__PURE__*/
+        React.createElement("article", { key: i, role: "listitem", className: `cx-disarm-pair ${open ? "is-open" : ""}` }, /*#__PURE__*/
+        React.createElement("div", { className: "cx-disarm-pair-top" },
+        e.verse ? /*#__PURE__*/
+        React.createElement("button", { type: "button", className: "cx-disarm-vchip",
+          title: `Jump to ${passage.book} ${e.verse}`,
+          onClick: () => jumpVerse(e.verse) },
+        e.verse
+        ) : /*#__PURE__*/
+
+        React.createElement("span", { className: "cx-disarm-vchip is-static", "aria-hidden": true }, "\u2014"), /*#__PURE__*/
+
+        React.createElement("button", { type: "button", className: "cx-disarm-pair-toggle",
+          "aria-expanded": open,
+          onClick: () => togglePair(i) }, /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-mini is-claim" }, claim), /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-vs", "aria-hidden": true }, "\u21C4"), /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-mini is-rebut" }, rebut || "no rebuttal on record"), /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-cue", "aria-hidden": true }, open ? "▾" : "▸")
+        )
+        ),
+        open ? /*#__PURE__*/
+        React.createElement("div", { className: "cx-disarm-duel" }, /*#__PURE__*/
+        React.createElement("section", { className: "cx-disarm-side is-weapon" }, /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-side-lbl" }, "WEAPONIZATION"), /*#__PURE__*/
+        React.createElement("h4", { className: "cx-disarm-claim" }, claim),
+        e.quote ? /*#__PURE__*/
+        React.createElement("blockquote", { className: "cx-disarm-quote" }, /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-quote-bar", "aria-hidden": true }), /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-quote-text" }, e.quote)
+        ) :
+        null,
+        e.source ? /*#__PURE__*/React.createElement("div", { className: "cx-disarm-source" }, e.source) : null,
+        e.era ? /*#__PURE__*/React.createElement("div", { className: "cx-disarm-era" }, e.era) : null
+        ), /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-thread", "aria-hidden": true }, /*#__PURE__*/
+        React.createElement("i", { className: "cx-disarm-thread-node is-a" }), /*#__PURE__*/React.createElement("i", { className: "cx-disarm-thread-node is-b" })
+        ), /*#__PURE__*/
+        React.createElement("section", { className: "cx-disarm-side is-rebut" }, /*#__PURE__*/
+        React.createElement("span", { className: "cx-disarm-side-lbl" }, "REBUTTAL \xB7 SCHOLARLY"),
+        rebut ? /*#__PURE__*/
+        React.createElement("p", { className: "cx-disarm-rebut-body" }, /*#__PURE__*/React.createElement(LinkifyRefs, { text: rebut })) : /*#__PURE__*/
+        React.createElement("p", { className: "cx-disarm-rebut-body is-mute" }, "No rebuttal transmitted for this entry."), /*#__PURE__*/
+        React.createElement("footer", { className: "cx-disarm-foot" }, /*#__PURE__*/
+        React.createElement(PanelMarkBtn, { onClick: () => savePanelEntryToNotes({
+            kind: "Disarm", ref: e.source, heading: claim,
+            body: `${e.quote ? `“${e.quote}” — ${e.source || "unknown"}\n\n` : ""}REBUTTAL: ${rebut}`,
+            passage
+          }) })
+        )
+        )
+        ) :
+        null
+        ));
+
+    })
     )
 
     ));
@@ -2587,8 +2643,23 @@ function KabTree({ sefirot, highlight = [], onPick }) {
 
 }
 
-// ── GNOSIS ──────────────────────────────────────────────────────────────
+// ── GNOSIS · THE RESONANCE FIELD ────────────────────────────────────────
+// v9.3 EXOGRAMMAR remake. Each tradition/reading is a horizontal band in a
+// violet luminance field: the first band glows nearest/brightest, deeper
+// bands shift right and dim — the eye reads the SPREAD of traditions before
+// any prose (shape before script). Touching a band summons its body text in
+// place; several may resonate at once. Data pipeline, props, and caching
+// are untouched — only the render changed.
 function GnosisPanel({ panelData, status, meta, passage, gnosisOn, onToggleGnosis, onRegenerate }) {
+  // Bands open at once = a Set of indices. Everything collapsed at first:
+  // no prose visible until summoned (law 3 — prose is the earned zoom-in).
+  const [openBands, setOpenBands] = useState(() => new Set());
+  const toggleBand = (i) => setOpenBands((prev) => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i);else next.add(i);
+    return next;
+  });
+  const readings = panelData && Array.isArray(panelData.gnosis) ? panelData.gnosis : [];
   return (/*#__PURE__*/
     React.createElement("div", { className: "cx-pane is-gnosis" }, /*#__PURE__*/
     React.createElement(PaneHead, { title: window.t && window.t("panel.gnosis.head") || "GNOSIS · INTERPRETIVE OVERLAY",
@@ -2611,33 +2682,52 @@ function GnosisPanel({ panelData, status, meta, passage, gnosisOn, onToggleGnosi
     ),
 
     !panelData ? /*#__PURE__*/
-    React.createElement(PanelStatus, { status: status, passage: passage, onRegenerate: onRegenerate, kind: "gnosis" }) : /*#__PURE__*/
+    React.createElement(PanelStatus, { status: status, passage: passage, onRegenerate: onRegenerate, kind: "gnosis" }) :
+    readings.length === 0 ? /*#__PURE__*/
+    React.createElement("div", { className: "cx-gnosis-field is-empty" }, /*#__PURE__*/
+    React.createElement("span", { className: "cx-gnosis-field-empty-glyph", "aria-hidden": true }, "\u27C1"), /*#__PURE__*/
+    React.createElement("p", null, "No esoteric readings on record for this passage.")
+    ) : /*#__PURE__*/
 
-    React.createElement("div", { className: "cx-gnosis-list" },
-    panelData.gnosis.map((g, i) => /*#__PURE__*/
-    React.createElement(Collapsible, {
-      key: i,
-      defaultOpen: i < 2,
-      title: /*#__PURE__*/
-      React.createElement("span", { className: "cx-gnosis-h-inner" }, /*#__PURE__*/
-      React.createElement("span", { className: "cx-gnosis-sigil" }, g.sigil), /*#__PURE__*/
-      React.createElement("span", { className: "cx-gnosis-title-txt" }, g.title)
-      ) }, /*#__PURE__*/
+    React.createElement("div", { className: "cx-gnosis-field", role: "list", "aria-label": "Resonance field \u2014 esoteric readings" },
+    readings.map((g, i) => {
+      const open = openBands.has(i);
+      const n = readings.length;
+      // 0 → nearest/brightest band, 1 → farthest/dimmest. Drives the
+      // luminance + lateral drift via the --gn-t custom property.
+      const t = n > 1 ? i / (n - 1) : 0;
+      const title = g.title || `READING · ${pad(i + 1)}`;
+      return (/*#__PURE__*/
+        React.createElement("div", { key: i, role: "listitem",
+          className: `cx-gnosis-band ${open ? "is-open" : ""}`,
+          style: { "--gn-t": t } }, /*#__PURE__*/
+        React.createElement("button", { type: "button", className: "cx-gnosis-band-h",
+          "aria-expanded": open,
+          onClick: () => toggleBand(i) }, /*#__PURE__*/
+        React.createElement("span", { className: "cx-gnosis-band-glow", "aria-hidden": true }), /*#__PURE__*/
+        React.createElement("span", { className: "cx-gnosis-band-sigil", "aria-hidden": true }, g.sigil || "⟁"), /*#__PURE__*/
+        React.createElement("span", { className: "cx-gnosis-band-title" }, title), /*#__PURE__*/
+        React.createElement("span", { className: "cx-gnosis-band-cue", "aria-hidden": true }, open ? "▾" : "▸")
+        ),
+        open ? /*#__PURE__*/
+        React.createElement("div", { className: "cx-gnosis-band-body" },
+        g.body ? /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement(LinkifyRefs, { text: g.body })) : /*#__PURE__*/
+        React.createElement("p", { className: "cx-gnosis-band-mute" }, "\u2014 no text transmitted for this reading \u2014"),
 
 
-    React.createElement("article", { className: "cx-gnosis-card" }, /*#__PURE__*/
-    React.createElement("div", { className: "cx-gnosis-body" }, /*#__PURE__*/
-    React.createElement("p", null, /*#__PURE__*/React.createElement(LinkifyRefs, { text: g.body }))
-    ), /*#__PURE__*/
-    React.createElement(NormieToggle, { text: g.body, scope: "gnosis-card" }), /*#__PURE__*/
-    React.createElement("footer", { className: "cx-gnosis-foot" }, /*#__PURE__*/
-    React.createElement(PanelMarkBtn, { onClick: () => savePanelEntryToNotes({
-        kind: "Gnosis", heading: g.title, body: g.body, tag: g.sigil, passage
-      }) })
-    )
-    )
-    )
-    )
+        g.body && window.CODEX_NormieToggle ? /*#__PURE__*/
+        React.createElement(window.CODEX_NormieToggle, { text: g.body, scope: "gnosis-card" }) :
+        null, /*#__PURE__*/
+        React.createElement("footer", { className: "cx-gnosis-foot" }, /*#__PURE__*/
+        React.createElement(PanelMarkBtn, { onClick: () => savePanelEntryToNotes({
+            kind: "Gnosis", heading: title, body: g.body || "", tag: g.sigil, passage
+          }) })
+        )
+        ) :
+        null
+        ));
+
+    })
     ), /*#__PURE__*/
 
 

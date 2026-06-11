@@ -10,7 +10,7 @@
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
   v: "9.3",      // user-facing app version
-  sw: "v260",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  sw: "v261",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
     "THE GALAXY IS THE CONSTELLATION: ❂ now opens straight into the canon as navigable 3D space — the 2D wheel is gone",
     "PATH burns gold through space, NEAR flies the camera to the verse's neighborhood, FAMILIES recolors the clusters",
