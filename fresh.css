@@ -1,0 +1,111 @@
+/* ── FRESH — self-updating pipeline UI ─────────────────────────────────
+   Update toast (#cx-fresh) + what's-new card (#cx-whatsnew).
+   Lives in its own file (NOT styles.css — MONAD appends there).
+   Uses the global os7 tokens (--cx-*) from styles.css. */
+
+#cx-fresh,
+#cx-whatsnew {
+  position: fixed;
+  z-index: 2147483600; /* above dock/windows, below crash overlays */
+  font-family: var(--cx-mono);
+  color: var(--cx-fg);
+  background: var(--cx-panel-2);
+  border: 1px solid var(--cx-line-strong);
+  border-radius: 12px;
+  box-shadow: var(--cx-shadow), 0 0 18px var(--cx-accent-glow);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+/* Update pill — top center, tappable */
+#cx-fresh {
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 9px 18px;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: cx-fresh-in 0.35s ease-out both;
+}
+#cx-fresh:hover { border-color: var(--cx-accent); }
+#cx-fresh .cx-fresh-star { color: var(--cx-accent); margin-right: 6px; }
+#cx-fresh .cx-fresh-cta {
+  color: var(--cx-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin-left: 8px;
+}
+
+/* What's-new card — bottom right */
+#cx-whatsnew {
+  right: 16px;
+  bottom: 16px;
+  max-width: 320px;
+  padding: 12px 14px 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  animation: cx-fresh-in 0.35s ease-out both;
+}
+#cx-whatsnew .cx-whatsnew-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+#cx-whatsnew .cx-whatsnew-title {
+  color: var(--cx-accent);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+#cx-whatsnew .cx-whatsnew-x {
+  background: none;
+  border: 0;
+  color: var(--cx-fg-dim);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+#cx-whatsnew .cx-whatsnew-x:hover { color: var(--cx-fg); }
+#cx-whatsnew .cx-whatsnew-list {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--cx-fg);
+}
+#cx-whatsnew .cx-whatsnew-list li { margin: 3px 0; }
+
+/* Exit transition (shared) */
+.cx-fresh-out {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+#cx-whatsnew.cx-fresh-out { transform: translateY(8px); }
+#cx-fresh.cx-fresh-out { transform: translateX(-50%) translateY(-8px); }
+
+@keyframes cx-fresh-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+#cx-fresh { animation-name: cx-fresh-in-pill; }
+@keyframes cx-fresh-in-pill {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+#cx-whatsnew { animation-name: cx-fresh-in-card; }
+@keyframes cx-fresh-in-card {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #cx-fresh,
+  #cx-whatsnew { animation: none; }
+  .cx-fresh-out { transition: none; }
+}

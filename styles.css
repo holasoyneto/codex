@@ -20063,3 +20063,24 @@ body.cx-os7 ::-webkit-scrollbar-thumb:hover { background: var(--os7-line-strong)
     background: var(--cx-accent);
   }
 }
+
+/* ── v7.7 · READER FRONT-AND-CENTER (the Studio Display law) ─────────────
+   The grid's side tracks were the rails' widths (280 vs 380, or 0 when
+   folded) — so the center track, and the reader in it, was never centered
+   on the VIEWPORT. On wide canvases the tracks become equal flexible
+   halves with the rails pinned to the outer edges: the reader is now
+   viewport-true center in EVERY rail state. (Below 1700px the classic
+   tracks stand — rails own most of the width there anyway.) */
+@media (min-width: 1700px) {
+  body.cx-os7 .cx-grid,
+  body.cx-os7 .cx-app.is-l-collapsed .cx-grid,
+  body.cx-os7 .cx-app.is-r-collapsed .cx-grid,
+  body.cx-os7 .cx-app.is-l-collapsed.is-r-collapsed .cx-grid {
+    grid-template-columns: 1fr minmax(0, 1180px) 1fr;
+  }
+  body.cx-os7 .cx-rail-l { justify-self: start; width: var(--cx-lrail-w, 280px); min-width: 0; }
+  body.cx-os7 .cx-rail-r { justify-self: end;   width: var(--cx-rrail-w, 380px); min-width: 0; }
+  body.cx-os7 .cx-reader { justify-self: center; width: 100%; max-width: 1180px; }
+  /* the reading measure grows into the room: ~70ch on a 5K canvas */
+  body.cx-os7 .cx-reader-body { --cx-reader-measure: 70ch; }
+}

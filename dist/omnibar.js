@@ -98,6 +98,161 @@ const OMNI_COMMANDS = [
 
 
 const omniNorm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "");
+// like omniNorm but word-preserving — the "/" palette matches per query word
+const omniWords = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+// ── Learned usage — codex.cmd.freq.v1 = { [rowId]: { n, last } }.
+// Every executed omnibar row records here (hooked once, in exec); the "/"
+// palette ranks by n with a gentle recency decay so the user's own habits
+// float their commands to the top.
+const OMNI_FREQ_KEY = "codex.cmd.freq.v1";
+function omniFreqLoad() {
+  try {return JSON.parse(localStorage.getItem(OMNI_FREQ_KEY) || "{}") || {};} catch {return {};}
+}
+function omniFreqRecord(id) {
+  if (!id) return;
+  try {
+    const m = omniFreqLoad();
+    const e = m[id] || { n: 0, last: 0 };
+    e.n += 1;e.last = Date.now();
+    m[id] = e;
+    localStorage.setItem(OMNI_FREQ_KEY, JSON.stringify(m));
+  } catch {/* private mode etc. — learning is a luxury, never a crash */}
+}
+function omniFreqScore(map, ids) {
+  let s = 0;
+  (ids || []).forEach((id) => {
+    const e = map[id];
+    if (!e || !e.n) return;
+    const days = Math.max(0, (Date.now() - (e.last || 0)) / 86400000);
+    s += e.n * Math.pow(0.97, days);
+  });
+  return s;
+}
+
+// ── Plain-words descriptions + hidden search keywords for the "/" catalog.
+// Users don't know command names: "/talk to ai" must surface the Oracle,
+// "/connections" the cross-refs + constellation. Panel descriptions mirror
+// panels.jsx PALETTE_DESCRIPTIONS (static by design, same as PANEL_INDEX).
+const OMNI_PANEL_DESC = {
+  trans: "Translations and side-by-side compare",
+  talmud: "Talmudic context and questions",
+  comm: "Commentary on the open passage",
+  gem: "Gematria and numeric resonance",
+  gnosis: "Esoteric / mystical reading layer",
+  disarm: "How power twists this verse — and the rebuttals",
+  exeg: "Verse-level exegesis",
+  txan: "Word-by-word translation analysis",
+  "plugin:crossrefs-tsk:crossrefs": "Cross-references for the verse",
+  "plugin:strongs-concordance:strongs": "Strong's concordance lookups",
+  "plugin:word-study:word": "Deep word studies",
+  "plugin:bible-dictionary:dictionary": "Bible dictionary",
+  "plugin:passage-guide:guide": "Guided tour of the passage",
+  "plugin:compare:compare": "Side-by-side comparison view",
+  "plugin:jewish-study:torah": "Torah portions and Jewish lens",
+  "plugin:reading-plans:plans": "Reading plans",
+  "plugin:biblical-timeline:timeline": "Biblical timeline",
+  "plugin:reels:reels": "Short-form scripture reels",
+  "plugin:vox:vox": "Voice reading and prayer",
+  "plugin:continuity:dossier": "Analyst desk — continuity, mastery, intel log",
+  "plugin:module-marketplace:market": "Plugin marketplace",
+  "plugin:sermon-builder:builder": "Sermon & study builder",
+  "plugin:ai-quests:quests": "Quests and challenges"
+};
+const OMNI_PANEL_KEYS = {
+  trans: "versions languages bibles parallel",
+  talmud: "rabbinic jewish judaism sages",
+  comm: "explain notes scholars meaning",
+  gem: "numbers numerology hebrew letters",
+  gnosis: "mystical esoteric hidden secret",
+  disarm: "abuse misuse rebuttal apologetics",
+  exeg: "interpretation meaning close reading",
+  txan: "greek hebrew grammar original language",
+  "plugin:crossrefs-tsk:crossrefs": "connections related verses links",
+  "plugin:strongs-concordance:strongs": "lexicon concordance greek hebrew",
+  "plugin:word-study:word": "etymology vocabulary meaning",
+  "plugin:bible-dictionary:dictionary": "definitions encyclopedia lookup",
+  "plugin:passage-guide:guide": "tour walkthrough overview",
+  "plugin:compare:compare": "differences versions parallel",
+  "plugin:jewish-study:torah": "parsha portion hebrew jewish",
+  "plugin:reading-plans:plans": "schedule daily devotional habit",
+  "plugin:biblical-timeline:timeline": "history chronology dates events",
+  "plugin:reels:reels": "video shorts clips watch",
+  "plugin:vox:vox": "audio listen speech read aloud",
+  "plugin:continuity:dossier": "progress stats history intel",
+  "plugin:module-marketplace:market": "plugins addons install extensions",
+  "plugin:sermon-builder:builder": "sermon preach write outline",
+  "plugin:ai-quests:quests": "games challenges achievements play"
+};
+const OMNI_VERB_DESC = {
+  sword: "fourfold analysis console on any verse",
+  mirror: "pattern analysis console on any passage",
+  map: "geographic intelligence for any passage",
+  art: "paintings and illustrations for any passage",
+  compare: "every translation of a verse, side by side",
+  go: "jump the reader to any reference",
+  ops: "task the kernel with a mission"
+};
+const OMNI_VERB_KEYS = {
+  sword: "analyze deep dive verse",
+  mirror: "patterns structure chiasm",
+  map: "geography places atlas where",
+  art: "images paintings pictures visual",
+  compare: "translations versions differences",
+  go: "jump navigate goto open reference",
+  ops: "mission ai agent research task"
+};
+const OMNI_CMD_KEYS = {
+  constellation: "connections graph network visualize links",
+  oracle: "talk to ai chat ask question conversation assistant",
+  ops: "mission ai kernel agent task",
+  settings: "preferences theme options configure keys"
+};
+
+// The FULL command catalog for "/" mode: verbs, every rail panel, top-level
+// commands, plus the Loom. Each row carries a plain-words sub + a hidden
+// haystack; sorted learned-score desc, then alphabetical. `fill` lets verb
+// rows put "<verb> " back into the bar instead of closing (row.stay).
+function omniCatalogRows(fill) {
+  const freq = omniFreqLoad();
+  const out = [];
+  const add = (row, keys, scoreIds) => {
+    row.hay = omniWords([row.id, row.title, row.sub, keys || ""].join(" "));
+    row.score = omniFreqScore(freq, scoreIds || [row.id]);
+    out.push(row);
+  };
+  Object.keys(OMNI_VERBS).forEach((k) => {
+    const v = OMNI_VERBS[k];
+    add({
+      id: "verb-" + k, icon: v.icon, title: v.label,
+      sub: `${OMNI_VERB_DESC[k]} — fills "${k} " so you add the reference`,
+      stay: true,
+      action: () => fill(k + " ")
+    }, OMNI_VERB_KEYS[k], ["verb-" + k, "ref-" + k]);
+  });
+  PANEL_INDEX.forEach((p) => {
+    add({
+      id: "panel-" + p.id, icon: p.icon, title: `Open ${p.label} panel`,
+      sub: OMNI_PANEL_DESC[p.id] || "in the study rail",
+      action: () => omniOpenPanel(p.id)
+    }, (OMNI_PANEL_KEYS[p.id] || "") + " " + p.label);
+  });
+  OMNI_COMMANDS.forEach((c) => {
+    add({ id: "cmd-" + c.id, icon: c.icon, title: c.title, sub: c.sub, action: c.action },
+    (c.aliases || []).join(" ") + " " + (OMNI_CMD_KEYS[c.id] || ""));
+  });
+  add({
+    id: "loom", icon: "⟐", title: "Weave the session — the Loom",
+    sub: "your reading trail becomes one cited study",
+    action: () => {
+      window.codexOpenOps && window.codexOpenOps(
+        "Weave my session: call session_trail to see what I have been reading, name the thread that connects it, and build a short cited study that ties it together."
+      );
+    }
+  }, "weave loom summarize session trail synthesize study");
+  out.sort((a, b) => b.score - a.score || String(a.title).localeCompare(String(b.title)));
+  return out;
+}
 
 function omniOpenPanel(id) {
   if (window.codexOpenPanel) {window.codexOpenPanel(id);return;}
@@ -151,6 +306,23 @@ function Omnibar({ onClose }) {
     setSel(0);
 
     if (!text) {setItems([]);setPreview(null);return;}
+
+    // ── "/" — the full command palette, ranked by the user's own habits.
+    // Every command in the OS, each with a plain-words description; the
+    // filter reads ids, titles, descriptions AND hidden keywords, so
+    // "/connect" finds cross-refs + the constellation even if you don't
+    // know their names.
+    if (text[0] === "/") {
+      setPreview(null);
+      const fill = (s) => {setQ(s);};
+      const all = omniCatalogRows(fill);
+      const queryWords = omniWords(text.slice(1)).split(" ").filter(Boolean);
+      const filtered = queryWords.length ?
+      all.filter((r) => queryWords.every((w) => r.hay.indexOf(w) !== -1)) :
+      all;
+      setItems(filtered.slice(0, 18));
+      return;
+    }
 
     const rows = [];
     const finish = (extra) => {
@@ -285,7 +457,9 @@ function Omnibar({ onClose }) {
 
   const exec = (row) => {
     if (!row || !row.action) return;
+    omniFreqRecord(row.id); // learn the user's habits — "/" ranks by this
     row.action();
+    if (row.stay) {inputRef.current?.focus();return;} // verb rows refill the bar
     onClose();
   };
 
@@ -349,7 +523,8 @@ function Omnibar({ onClose }) {
     React.createElement("span", null, /*#__PURE__*/React.createElement("i", null, "\u0391"), " shepherd"), /*#__PURE__*/
     React.createElement("span", null, /*#__PURE__*/React.createElement("i", null, "\u2756"), " how do the prophets use fire?"), /*#__PURE__*/
     React.createElement("span", null, /*#__PURE__*/React.createElement("i", null, "\u27D0"), " weave"), /*#__PURE__*/
-    React.createElement("span", null, /*#__PURE__*/React.createElement("i", null, "\u25A4"), " plans \xB7 timeline \xB7 strong's\u2026")
+    React.createElement("span", null, /*#__PURE__*/React.createElement("i", null, "\u25A4"), " plans \xB7 timeline \xB7 strong's\u2026"), /*#__PURE__*/
+    React.createElement("span", null, /*#__PURE__*/React.createElement("i", null, "/"), " all commands")
     ), /*#__PURE__*/
     React.createElement("p", { className: "cx-omni-epigraph" }, "\u201CFor now we see through a glass, darkly; but then face to face.\u201D \u2014 1 Cor 13:12")
     )

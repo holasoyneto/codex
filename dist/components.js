@@ -244,7 +244,7 @@ function StatusBar({ now, solar, dark, autoTheme, onToggleTheme, onToggleAuto, b
     ), /*#__PURE__*/
     React.createElement("div", { className: "cx-logo-txt" }, /*#__PURE__*/
     React.createElement("b", { className: "cx-logo-name" }, /*#__PURE__*/React.createElement("span", { className: "cx-logo-std" }, "CODEX"), /*#__PURE__*/React.createElement("span", { className: "cx-logo-drift" }, "COD\u018EX")), /*#__PURE__*/
-    React.createElement("span", { className: "cx-logo-sub" }, /*#__PURE__*/React.createElement("span", { className: "cx-logo-std" }, "NOCTURNE \xB7 v7.6"), /*#__PURE__*/React.createElement("span", { className: "cx-logo-drift" }, "VEILED.GLYPH \xB7 NIHIL OBSTAT"))
+    React.createElement("span", { className: "cx-logo-sub" }, /*#__PURE__*/React.createElement("span", { className: "cx-logo-std" }, `NOCTURNE · v${window.CODEX_VERSION && window.CODEX_VERSION.v || "7.7"}`), /*#__PURE__*/React.createElement("span", { className: "cx-logo-drift" }, "VEILED.GLYPH \xB7 NIHIL OBSTAT"))
     )
     ), /*#__PURE__*/
 

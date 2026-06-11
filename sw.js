@@ -12,7 +12,8 @@
 // localStorage (verses, panels, marks, settings) keeps working as before
 // because that storage is independent of the SW caches.
 
-const VERSION = "v253";
+// ⚠️ MIRRORED in version.js (CODEX_VERSION.sw) — bump BOTH together.
+const VERSION = "v254";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -41,6 +42,8 @@ const SHELL_FILES = [
   r("manifest.json"),
   r("icon.svg"),
   // ── JS engine / data layer ───────────────────────────────────────
+  r("version.js"),
+  r("fresh.css"),
   r("observability.js"),
   r("boot-contract.js"),
   r("direct-api.js"),
@@ -169,6 +172,11 @@ self.addEventListener("install", (event) => {
     }));
     self.skipWaiting();
   })());
+});
+
+// FRESH pipeline: the page can ask a waiting worker to take over now.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {

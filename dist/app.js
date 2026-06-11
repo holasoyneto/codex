@@ -2110,11 +2110,29 @@ function App() {
 
   // Per-rail fold state — desktop only. Persists so the layout reopens the
   // way you left it. Mobile rails still slide via leftOpen / rightOpen.
+  // v8 "monad" boot: under the os7 desktop shell a FIRST visit (no stored
+  // preference yet) opens with both rails folded — just the reader and the
+  // omnibar. Any explicit open/close persists and wins on later boots.
+  // Classic shell + mobile keep the old default (false = visible).
+  const os7ZenDefault = () => {
+    try {
+      return document.body.classList.contains("cx-os7") &&
+      window.matchMedia("(min-width: 881px)").matches;
+    } catch {return false;}
+  };
   const [leftCollapsed, setLeftCollapsed] = useState(() => {
-    try {return localStorage.getItem("codex.ui.leftCollapsed") === "1";} catch {return false;}
+    try {
+      const v = localStorage.getItem("codex.ui.leftCollapsed");
+      if (v === null) return os7ZenDefault();
+      return v === "1";
+    } catch {return false;}
   });
   const [rightCollapsed, setRightCollapsed] = useState(() => {
-    try {return localStorage.getItem("codex.ui.rightCollapsed") === "1";} catch {return false;}
+    try {
+      const v = localStorage.getItem("codex.ui.rightCollapsed");
+      if (v === null) return os7ZenDefault();
+      return v === "1";
+    } catch {return false;}
   });
   useEffect(() => {try {localStorage.setItem("codex.ui.leftCollapsed", leftCollapsed ? "1" : "0");} catch {}}, [leftCollapsed]);
   useEffect(() => {try {localStorage.setItem("codex.ui.rightCollapsed", rightCollapsed ? "1" : "0");} catch {}}, [rightCollapsed]);
