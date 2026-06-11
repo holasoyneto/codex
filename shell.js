@@ -1,22 +1,18 @@
-// shell.js — OS·7 "NOCTURNE" shell boot. Classic script, loaded right before
-// wm.js. Owns exactly three things:
-//   1. The os7 mode flag: localStorage "codex.os7" (default ON, "1") →
-//      body.cx-os7. Exposes window.codexOS7(on) to flip + persist it.
+// shell.js — the NOCTURNE shell boot. Classic script, loaded right before
+// wm.js. Owns two things:
+//   1. body.cx-os7 — ALWAYS ON since v9.2 SHED. The desk is the app; the
+//      classic mode, its localStorage flag ("codex.os7") and the
+//      window.codexOS7() toggle are gone. The class name stays (hundreds
+//      of scoped CSS rules ride on it).
 //   2. The wallpaper: a #cx-wall starfield canvas prepended to <body>.
 //      ~240 accent-tinted stars in three parallax depth bands, drifting
 //      extremely slowly. DPR-aware, resize-safe, fully paused while the tab
 //      is hidden, and a single static frame under prefers-reduced-motion.
-//      Renders ONLY while body carries cx-os7.
-//   3. The "codex:os7" CustomEvent (on window) dispatched whenever the mode
-//      class toggles, so downstream chrome (wm.js dock) can re-render.
-//
-// Additive only: no existing class/export/key/event is renamed or removed.
 (function () {
   "use strict";
   if (window.__CXSHELL) return;
   window.__CXSHELL = true;
 
-  var KEY = "codex.os7";
   var STAR_COUNT = 240;
   var DRIFT = 0.0016; // normalized viewport-widths per second for the nearest band — a full crossing takes ~10 min
 
@@ -28,24 +24,14 @@
   try { mqReduce = window.matchMedia("(prefers-reduced-motion: reduce)"); } catch (_) {}
   function reduced() { return !!(mqReduce && mqReduce.matches); }
 
-  // ── Mode flag ───────────────────────────────────────────────────────────
-  function isOn() {
-    try { return (localStorage.getItem(KEY) || "1") === "1"; } catch (_) { return true; }
-  }
+  // ── Mode flag — permanently on (v9.2 SHED) ──────────────────────────────
+  function isOn() { return true; }
 
-  function applyClass(on) {
+  function applyClass() {
     if (!document.body) return;
-    document.body.classList.toggle("cx-os7", !!on);
-    try {
-      window.dispatchEvent(new CustomEvent("codex:os7", { detail: { on: !!on } }));
-    } catch (_) {}
+    document.body.classList.add("cx-os7");
     syncWall();
   }
-
-  window.codexOS7 = function (on) {
-    try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (_) {}
-    applyClass(!!on);
-  };
 
   // ── Starfield wallpaper ─────────────────────────────────────────────────
   function readTint() {
@@ -199,7 +185,7 @@
   // Theme swaps change --cx-accent; refresh the tint lazily on theme events.
   window.addEventListener("codex:theme", function () { readTint(); });
 
-  function boot() { applyClass(isOn()); }
+  function boot() { applyClass(); }
   if (document.body) boot();
   else document.addEventListener("DOMContentLoaded", boot, { once: true });
 })();

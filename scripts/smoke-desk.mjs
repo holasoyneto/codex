@@ -85,16 +85,14 @@ try {
   if (!after.library || !after.study) fail("desk layout should survive reload", after);
   log("desk persists across reload ✓");
 
-  // 5 · Classic mode (os7 off) still renders the grid.
-  await page.evaluate(() => window.codexOS7(false));
-  await sleep(800);
-  const classic = await page.evaluate(() => ({
+  // 5 · v9.2 SHED — the classic mode is GONE: no toggle, no grid on desktop.
+  const shed = await page.evaluate(() => ({
+    toggleGone: typeof window.codexOS7 === "undefined",
+    os7: document.body.classList.contains("cx-os7"),
     grid: !!document.querySelector(".cx-grid"),
-    deskWin: !!document.querySelector("[data-desk]"),
   }));
-  if (!classic.grid || classic.deskWin) fail("classic grid should return with os7 off", classic);
-  await page.evaluate(() => window.codexOS7(true));
-  log("classic grid intact with os7 off ✓");
+  if (!shed.toggleGone || !shed.os7 || shed.grid) fail("old app remnants detected", shed);
+  log("shed complete: no toggle, no desktop grid, os7 permanent ✓");
 
   if (jsErrors.length) fail("JS errors", jsErrors);
   log("PASS");

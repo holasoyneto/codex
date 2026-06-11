@@ -9,13 +9,12 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "9.1",      // user-facing app version (header badge: NOCTURNE · v7.7)
-  sw: "v258",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "9.2",      // user-facing app version
+  sw: "v259",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "PROPHET: the top bar is gone — time, theme and ⌘K live in a near-invisible trace, top-right; the Word gets the whole sky",
-    "The morning briefing now floats over the desk like a notification — never inside the reader",
-    "One voice per window: no more doubled labels clipping under the chrome",
-    "Dark mode reads everywhere — every panel audited, every text above contrast",
+    "SHED: the old app is gone — no classic mode, no toggle back, no folded rails, no theater. The desk IS the app",
+    "One reading state: Focus (F). One desktop layout: windows. Phones keep their drawers",
+    "~6KB of dead chrome CSS removed; one breakpoint (881px) everywhere",
   ],
 };
 

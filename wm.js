@@ -10,7 +10,7 @@
 //   · Zero deps, zero build. Attaches to the EXISTING React-rendered DOM via
 //     MutationObserver; never fights React (only touches inline styles and
 //     appends WM-owned nodes, which reconciliation leaves alone).
-//   · Desktop only — (min-width: 900px) and (pointer: fine). Phones keep the
+//   · Desktop only — (min-width: 881px) and (pointer: fine). Phones keep the
 //     full-screen console layout untouched.
 //   · Butter: geometry is applied inside requestAnimationFrame; transitions
 //     are disabled while dragging and enabled only for snaps.
@@ -22,7 +22,7 @@
   window.__CXWM = true;
 
   var MQ = null;
-  try { MQ = window.matchMedia("(min-width: 900px) and (pointer: fine)"); } catch (_) {}
+  try { MQ = window.matchMedia("(min-width: 881px) and (pointer: fine)"); } catch (_) {}
   function active() { return !!(MQ && MQ.matches); }
 
   // Console registry — backdrop holds the stacking layer, card is the window,

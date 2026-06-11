@@ -3822,62 +3822,6 @@ body.cx-resizing * { cursor: ew-resize !important; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   Theater / focus mode — YouTube-style. Hides chrome, centers reader.
-   F to enter, ESC to exit. The exit button shows on hover near top.
-   ════════════════════════════════════════════════════════════════════════ */
-.cx-app.is-theater .cx-status,
-.cx-app.is-theater .cx-footer,
-.cx-app.is-theater .cx-rail-l,
-.cx-app.is-theater .cx-rail-r { display: none; }
-
-.cx-app.is-theater .cx-grid {
-  grid-template-columns: minmax(0, 1fr) !important;
-  grid-template-rows: 1fr;
-  height: 100vh;
-  height: 100dvh;
-  padding: 0;
-}
-.cx-app.is-theater .cx-reader {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 24px 16px;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-}
-/* When side-by-side is active in theater/focus mode (Studio Display etc.),
-   widen the reader so 2-3 columns aren't cramped into 880px. */
-.cx-app.is-theater .cx-reader:has(.is-cols) {
-  max-width: min(1600px, 95vw);
-}
-.cx-app.is-theater .cx-frame {
-  border: none;
-  background: var(--cx-bg);
-}
-.cx-app.is-theater .cx-corner { display: none; }
-
-/* Subtle exit pill — tucks in top-right, fades in on near-top hover. */
-.cx-theater-exit {
-  position: fixed;
-  top: 12px;
-  right: 14px;
-  z-index: 9000;
-  font-family: var(--cx-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.18em;
-  color: var(--cx-fg-dim);
-  background: color-mix(in oklab, var(--cx-bg) 92%, transparent);
-  border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 30%, transparent);
-  padding: 6px 10px;
-  border-radius: 3px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity .25s ease;
-}
-.cx-theater-exit:hover { color: var(--cx-accent); border-color: var(--cx-accent); opacity: 1; }
-.cx-app.is-theater:hover .cx-theater-exit { opacity: 0.6; }
-
-/* ════════════════════════════════════════════════════════════════════════
    Offline indicator — quiet at rest, an SVG progress ring fills as the
    translation downloads, an "OFFLINE" badge with a subtle glow once complete.
    Restraint by default: shows as a hairline ring with only a tooltip until
@@ -4229,19 +4173,6 @@ body.cx-resizing * { cursor: ew-resize !important; }
    Per-rail fold — desktop only. Each rail gets a tiny ◀/▶ button to
    collapse; a thin spine appears at the screen edge for one-click revival.
    ════════════════════════════════════════════════════════════════════════ */
-@media (min-width: 881px) {
-  .cx-app.is-l-collapsed .cx-rail-l { display: none; }
-  .cx-app.is-r-collapsed .cx-rail-r { display: none; }
-  .cx-app.is-l-collapsed .cx-grid {
-    grid-template-columns: 0 minmax(0,1fr) var(--cx-rrail-w, 380px);
-  }
-  .cx-app.is-r-collapsed .cx-grid {
-    grid-template-columns: var(--cx-lrail-w, 280px) minmax(0,1fr) 0;
-  }
-  .cx-app.is-l-collapsed.is-r-collapsed .cx-grid {
-    grid-template-columns: minmax(0,1fr);
-  }
-}
 
 .cx-rail-fold {
   position: absolute;
@@ -4273,56 +4204,6 @@ body.cx-resizing * { cursor: ew-resize !important; }
 .cx-rail-fold { display: none !important; }
 .cx-rail-fold-l { right: 6px; }
 .cx-rail-fold-r { left: 6px; }
-
-.cx-rail-spine {
-  display: none;
-}
-@media (min-width: 881px) {
-  .cx-rail-spine {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    width: 18px;
-    background: color-mix(in oklab, var(--cx-fg-dim) 6%, transparent);
-    border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 18%, transparent);
-    border-top: 0; border-bottom: 0;
-    color: var(--cx-fg-dim);
-    cursor: pointer;
-    appearance: none;
-    transition: color .15s, background .15s, border-color .15s;
-    font-family: var(--cx-mono);
-    font-size: 11px;
-    align-self: stretch;
-  }
-  .cx-rail-spine:hover {
-    color: var(--cx-accent);
-    background: color-mix(in oklab, var(--cx-accent) 8%, transparent);
-    border-color: color-mix(in oklab, var(--cx-accent) 35%, transparent);
-  }
-  .cx-rail-spine-l { border-left: 0; }
-  .cx-rail-spine-r { border-right: 0; }
-  .cx-rail-spine-glyph {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    font-size: 14px;
-    letter-spacing: 0.18em;
-    opacity: 0.85;
-  }
-  .cx-rail-spine-arr { font-size: 9px; opacity: 0.7; }
-
-  /* Slot the spines into the grid where the rails would have been */
-  .cx-app.is-l-collapsed .cx-grid {
-    grid-template-columns: 18px minmax(0,1fr) var(--cx-rrail-w, 380px);
-  }
-  .cx-app.is-r-collapsed .cx-grid {
-    grid-template-columns: var(--cx-lrail-w, 280px) minmax(0,1fr) 18px;
-  }
-  .cx-app.is-l-collapsed.is-r-collapsed .cx-grid {
-    grid-template-columns: 18px minmax(0,1fr) 18px;
-  }
-}
 
 /* ════════════════════════════════════════════════════════════════════════
    Map polity timeline — slider + active polity card + full list
@@ -7280,28 +7161,6 @@ body.cx-oracle-fs-lock { overflow: hidden; }
   background: color-mix(in oklab, var(--cx-fg) 4%, transparent);
   border: 1px solid color-mix(in oklab, var(--cx-line) 80%, transparent);
 }
-
-/* ═══════════════════════════════════════════════════════════════════════
-   ORACLE · THEATER-MODE FULLSCREEN
-   When the Oracle goes fullscreen, we hide every other surface so the
-   chat is the only thing on screen — no rails poking through, no status
-   bar, no footer. Mirrors the existing .cx-app.is-theater behavior but
-   keyed off body.cx-oracle-theater so the user can keep their non-theater
-   layout for everything else.
-   ═══════════════════════════════════════════════════════════════════════ */
-/* True theater mode — instead of overlaying with position:fixed (which
-   leaves the Oracle a child of the left rail and produces hit-testing
-   weirdness), we collapse the grid so the rail holding the Oracle takes
-   the full viewport and hide every other surface. The Oracle stays in
-   normal flow; nothing peeks through. */
-body.cx-oracle-theater .cx-status,
-body.cx-oracle-theater .cx-footer,
-body.cx-oracle-theater .cx-rail-spine,
-body.cx-oracle-theater .cx-rail-resize,
-body.cx-oracle-theater .cx-rail-r,
-body.cx-oracle-theater .cx-reader,
-body.cx-oracle-theater .cx-rail-fold,
-body.cx-oracle-theater .cx-rail-l .cx-ltabs { display: none !important; }
 body.cx-oracle-theater .cx-grid {
   grid-template-columns: 1fr !important;
   grid-template-rows: 1fr !important;
@@ -17049,15 +16908,6 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 .cx-center-col > .cx-reader { flex: 1 1 auto; min-height: 0; }
 .cx-center-col > .cx-welcome-back { flex: 0 0 auto; }
 
-@media (min-width: 881px) {
-  .cx-app:not(.is-l-collapsed):not(.is-r-collapsed) .cx-grid {
-    grid-template-columns:
-      clamp(180px, var(--cx-lrail-w, 232px), 34vw)
-      minmax(0, 1fr)
-      clamp(280px, var(--cx-rrail-w, 400px), 34vw);
-  }
-}
-
 /* Reels: liked state on the heart action */
 .cx-reel-act.is-liked { color: #ff5d7a; text-shadow: 0 0 10px rgba(255,93,122,0.5); }
 
@@ -19639,23 +19489,6 @@ body.cx-os7 .cx-wm-preview {
   body.cx-os7 .cx-rail .cx-frame { flex: 0 1 auto; }
   body.cx-os7 .cx-rail-l > .cx-frame:only-child,
   body.cx-os7 .cx-rail-r > .cx-frame:only-child { flex: 1 1 auto; }
-
-  /* Collapsed spines: slim floating glass slivers, vertically centered. */
-  body.cx-os7 .cx-rail-spine {
-    align-self: center;
-    height: min(46vh, 340px);
-    border: 1px solid var(--os7-line);
-    border-radius: 999px;
-    background: var(--os7-glass-2);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    box-shadow: var(--os7-shadow-soft);
-  }
-  body.cx-os7 .cx-rail-spine:hover {
-    border-color: var(--os7-line-strong);
-    background: var(--os7-glass-hi);
-    box-shadow: 0 0 18px var(--os7-glow), var(--os7-shadow-soft);
-  }
 }
 
 /* ── OS7 §6 · READER — the anchor window of the desktop ───────────────── */
@@ -20078,26 +19911,8 @@ body.cx-os7 ::-webkit-scrollbar-thumb:hover { background: var(--os7-line-strong)
   }
 }
 
-/* ── v7.7 · READER FRONT-AND-CENTER (the Studio Display law) ─────────────
-   The grid's side tracks were the rails' widths (280 vs 380, or 0 when
-   folded) — so the center track, and the reader in it, was never centered
-   on the VIEWPORT. On wide canvases the tracks become equal flexible
-   halves with the rails pinned to the outer edges: the reader is now
-   viewport-true center in EVERY rail state. (Below 1700px the classic
-   tracks stand — rails own most of the width there anyway.) */
-@media (min-width: 1700px) {
-  body.cx-os7 .cx-grid,
-  body.cx-os7 .cx-app.is-l-collapsed .cx-grid,
-  body.cx-os7 .cx-app.is-r-collapsed .cx-grid,
-  body.cx-os7 .cx-app.is-l-collapsed.is-r-collapsed .cx-grid {
-    grid-template-columns: 1fr minmax(0, 1180px) 1fr;
-  }
-  body.cx-os7 .cx-rail-l { justify-self: start; width: var(--cx-lrail-w, 280px); min-width: 0; }
-  body.cx-os7 .cx-rail-r { justify-self: end;   width: var(--cx-rrail-w, 380px); min-width: 0; }
-  body.cx-os7 .cx-reader { justify-self: center; width: 100%; max-width: 1180px; }
-  /* the reading measure grows into the room: ~70ch on a 5K canvas */
-  body.cx-os7 .cx-reader-body { --cx-reader-measure: 70ch; }
-}
+/* (v9.2 SHED: the v7.7 Studio Display law retired with the desktop grid —
+   the reader window centers itself on any canvas now.) */
 
 /* ── v8 MONAD · generic floating windows (.cx-win) ───────────────────────
    The same glass as every console; wm.js drives drag/snap/dock through the

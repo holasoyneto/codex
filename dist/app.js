@@ -1359,9 +1359,10 @@ function deskLoad() {
 }
 function deskSave(d) {try {localStorage.setItem(DESK_KEY, JSON.stringify(d));} catch {}}
 function deskCapable() {
+  // v9.2 SHED: the desk IS the desktop app — no classic fallback. One
+  // breakpoint (881px, shared with the mobile media queries and wm.js).
   try {
-    return document.body.classList.contains("cx-os7") &&
-    window.matchMedia("(min-width: 900px) and (pointer: fine)").matches;
+    return window.matchMedia("(min-width: 881px) and (pointer: fine)").matches;
   } catch {return false;}
 }
 
@@ -2194,28 +2195,8 @@ function App() {
   // preference yet) opens with both rails folded — just the reader and the
   // omnibar. Any explicit open/close persists and wins on later boots.
   // Classic shell + mobile keep the old default (false = visible).
-  const os7ZenDefault = () => {
-    try {
-      return document.body.classList.contains("cx-os7") &&
-      window.matchMedia("(min-width: 881px)").matches;
-    } catch {return false;}
-  };
-  const [leftCollapsed, setLeftCollapsed] = useState(() => {
-    try {
-      const v = localStorage.getItem("codex.ui.leftCollapsed");
-      if (v === null) return os7ZenDefault();
-      return v === "1";
-    } catch {return false;}
-  });
-  const [rightCollapsed, setRightCollapsed] = useState(() => {
-    try {
-      const v = localStorage.getItem("codex.ui.rightCollapsed");
-      if (v === null) return os7ZenDefault();
-      return v === "1";
-    } catch {return false;}
-  });
-  useEffect(() => {try {localStorage.setItem("codex.ui.leftCollapsed", leftCollapsed ? "1" : "0");} catch {}}, [leftCollapsed]);
-  useEffect(() => {try {localStorage.setItem("codex.ui.rightCollapsed", rightCollapsed ? "1" : "0");} catch {}}, [rightCollapsed]);
+  // (v9.2 SHED: the collapsible-rails era is gone — desktop is the desk,
+  // phones use the drawers. codex.ui.*Collapsed keys retired.)
 
   // ── Caffeinate · Screen Wake Lock ──────────────────────────────────
   // Holds a Screen Wake Lock so phone/tablet/laptop screens stay awake
@@ -2252,22 +2233,16 @@ function App() {
     // eslint-disable-next-line
   }, [t.caffeinate]);
 
-  // Theater mode: YouTube-style focus. Hides rails AND status/footer chrome,
-  // centers the reader. ESC exits. Press F or click the focus button to enter.
-  // Not persisted — it's a per-session reading state, not a setting.
-  const [theater, setTheater] = useState(false);
-  const toggleTheater = useCallback(() => setTheater((t) => !t), []);
+  // (v9.2 SHED: theater mode retired — focus mode is the one reading state.)
 
   // ── v9 FACE TO FACE · desk mode ───────────────────────────────────────
-  // deskMode: OS·7 + desktop pointer → the app is windows, no grid.
+  // deskMode: desktop pointer → the app is windows. Phones get the drawers.
   const [deskMode, setDeskMode] = useState(deskCapable);
   useEffect(() => {
     const sync = () => setDeskMode(deskCapable());
-    window.addEventListener("codex:os7", sync);
     let mq = null;
-    try {mq = window.matchMedia("(min-width: 900px) and (pointer: fine)");mq.addEventListener("change", sync);} catch {}
+    try {mq = window.matchMedia("(min-width: 881px) and (pointer: fine)");mq.addEventListener("change", sync);} catch {}
     return () => {
-      window.removeEventListener("codex:os7", sync);
       try {mq && mq.removeEventListener("change", sync);} catch {}
     };
   }, []);
@@ -2568,7 +2543,6 @@ function App() {
         if (searchOpen) {setSearchOpen(false);e.preventDefault();return;}
         if (showShortcuts) {setShowShortcuts(false);e.preventDefault();return;}
         if (deskMode && desk.focus) {setDesk((d) => ({ ...d, focus: false }));e.preventDefault();return;}
-        if (theater) {setTheater(false);e.preventDefault();return;}
         // Generic escape — let listeners (verse menu, popovers, etc.) close.
         window.dispatchEvent(new CustomEvent("codex:escape"));
         setVerseMenu(null);
@@ -2677,20 +2651,14 @@ function App() {
           // Oracle lives in the library — window under the desk, rail in classic.
           e.preventDefault();
           if (deskMode) setDesk((d) => ({ ...d, library: !d.library, focus: false }));else
-          {
-            setLeftOpen((o) => !o);
-            if (leftCollapsed) setLeftCollapsed(false);
-          }
+          setLeftOpen((o) => !o);
           dispatchShortcut("toggle-oracle");
           return;
         case "b":case "B":
           // Bookmarks live in the library (window under the desk, rail in classic).
           e.preventDefault();
           if (deskMode) setDesk((d) => ({ ...d, library: !d.library, focus: false }));else
-          {
-            setLeftOpen((o) => !o);
-            if (leftCollapsed) setLeftCollapsed(false);
-          }
+          setLeftOpen((o) => !o);
           dispatchShortcut("toggle-bookmarks");
           return;
         case "n":case "N":{
@@ -2722,10 +2690,7 @@ function App() {
           // Translations live in the study window (deck) under the desk.
           setTab("trans");
           if (deskMode) setDesk((d) => ({ ...d, study: !d.study, focus: false }));else
-          {
-            setRightOpen(true);
-            if (rightCollapsed) setRightCollapsed(false);
-          }
+          setRightOpen(true);
           dispatchShortcut("open-translations");
           return;
         case "s":case "S":{
@@ -2737,9 +2702,8 @@ function App() {
           }
         case "f":case "F":
           e.preventDefault();
-          // Under the desk, F is FOCUS: hide everything but the reader.
-          if (deskMode) setDesk((d) => ({ ...d, focus: !d.focus, reader: true }));else
-          setTheater((v) => !v);
+          // F is FOCUS: hide everything but the reader.
+          if (deskMode) setDesk((d) => ({ ...d, focus: !d.focus, reader: true }));
           return;
         default:
           return;
@@ -2748,8 +2712,8 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // Re-bind whenever the closures' captured state changes.
-  }, [theater, showShortcuts, searchOpen, passage, currentVerse, sideBySide, gnosisOn,
-  leftCollapsed, rightCollapsed, data, loadPassage, openVerseMenu, t.notesEnabled,
+  }, [showShortcuts, searchOpen, passage, currentVerse, sideBySide, gnosisOn,
+  data, loadPassage, openVerseMenu, t.notesEnabled,
   deskMode, desk.focus]);
 
   useEffect(() => {setPrimary(t.primaryTranslation);}, [t.primaryTranslation]);
@@ -2949,7 +2913,7 @@ function App() {
 
   return (/*#__PURE__*/
     React.createElement("div", {
-      className: `cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${leftOpen ? "left-open" : ""} ${rightOpen ? "right-open" : ""} ${distractionFree ? "is-distraction-free" : ""} ${theater ? "is-theater" : ""} ${!deskMode && leftCollapsed ? "is-l-collapsed" : ""} ${!deskMode && rightCollapsed ? "is-r-collapsed" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""} ${schizoEligible && t.schizo ? "is-schizo" : ""}`,
+      className: `cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${leftOpen ? "left-open" : ""} ${rightOpen ? "right-open" : ""} ${distractionFree ? "is-distraction-free" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""} ${schizoEligible && t.schizo ? "is-schizo" : ""}`,
       style: themeStyle }, /*#__PURE__*/
 
     React.createElement("div", {
@@ -2991,8 +2955,8 @@ function App() {
     (() => {
       const leftRailEl = /*#__PURE__*/
       React.createElement(LeftRail, {
-        isCollapsed: deskMode ? false : leftCollapsed,
-        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, library: false })) : () => setLeftCollapsed(true),
+        isCollapsed: false,
+        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, library: false })) : () => setLeftOpen(false),
         activeBookId: passage.bookId,
         activeChapter: passage.chapter,
         marks: marks,
@@ -3117,8 +3081,8 @@ function App() {
 
       const rightRailEl = /*#__PURE__*/
       React.createElement(RightRail, {
-        isCollapsed: deskMode ? false : rightCollapsed,
-        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, study: false })) : () => setRightCollapsed(true),
+        isCollapsed: false,
+        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, study: false })) : () => setRightOpen(false),
         tab: tab,
         onTab: setTab,
         gnosisOn: gnosisOn,
@@ -3180,33 +3144,13 @@ function App() {
 
       }
 
+      // Phones + coarse pointers: the drawer layout (rails slide over the
+      // reader via left-open/right-open). The desktop grid era is over.
       return (/*#__PURE__*/
         React.createElement("div", { className: "cx-grid" },
-        leftCollapsed ? /*#__PURE__*/
-        React.createElement("button", {
-          className: "cx-rail-spine cx-rail-spine-l",
-          onClick: () => setLeftCollapsed(false),
-          title: "Show library + oracle + marks",
-          "aria-label": "Expand left rail" }, /*#__PURE__*/
-
-        React.createElement("span", { className: "cx-rail-spine-glyph" }, "\u2263"), /*#__PURE__*/
-        React.createElement("span", { className: "cx-rail-spine-arr" }, "\u25B6")
-        ) :
-        null,
         leftRailEl,
         centerColEl,
-        rightRailEl,
-        rightCollapsed ? /*#__PURE__*/
-        React.createElement("button", {
-          className: "cx-rail-spine cx-rail-spine-r",
-          onClick: () => setRightCollapsed(false),
-          title: "Show translations + panels",
-          "aria-label": "Expand right rail" }, /*#__PURE__*/
-
-        React.createElement("span", { className: "cx-rail-spine-arr" }, "\u25C0"), /*#__PURE__*/
-        React.createElement("span", { className: "cx-rail-spine-glyph" }, "\u22EE")
-        ) :
-        null
+        rightRailEl
         ));
 
     })(), /*#__PURE__*/
@@ -3221,28 +3165,10 @@ function App() {
       onOpenRight: () => setRightOpen(true),
       distractionFree: distractionFree,
       onToggleDistractionFree: toggleDistractionFree,
-      theater: theater,
-      onToggleTheater: toggleTheater,
-      leftCollapsed: leftCollapsed,
-      onToggleLeftCollapsed: () => {
-        setLeftOpen(false); // close any mobile slide-out too
-        setLeftCollapsed((v) => !v);
-      },
-      rightCollapsed: rightCollapsed,
-      onToggleRightCollapsed: () => {
-        setRightOpen(false);
-        setRightCollapsed((v) => !v);
-      },
       onShowShortcuts: () => setShowShortcuts(true),
-      onOpenReels: () => {setRightOpen(true);setRightCollapsed(false);setTab("plugin:reels:reels");},
+      onOpenReels: () => {setRightOpen(true);setTab("plugin:reels:reels");},
       isOnline: isOnline }
     ),
-
-    theater ? /*#__PURE__*/
-    React.createElement("button", { className: "cx-theater-exit", onClick: () => setTheater(false), title: "Exit focus (ESC)" }, "\u25D0 EXIT FOCUS \xB7 ESC"
-
-    ) :
-    null,
 
     schizoEligible && t.schizo ? /*#__PURE__*/
     React.createElement("div", { className: "cx-schizo-sigil", "aria-hidden": "true", title: "Schizo Mode active" }, "\u26AF") :
@@ -3282,7 +3208,7 @@ function App() {
     ["M", "Toggle verse map"],
     ["T", deskMode ? "Study window (translations, panels)" : "Open translations"],
     ["S", "Toggle side-by-side"],
-    ["F", deskMode ? "Focus — just the Word" : "Toggle theater mode"],
+    ["F", "Focus — just the Word"],
     ["Enter", "Open verse menu (on a verse)"],
     ["?", "Show this overlay"],
     ["Esc", "Close popovers / overlays"]].
@@ -4188,7 +4114,7 @@ function CachedPanelsBrowser({ onJump, bookLookup }) {
 
 }
 
-function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, onOpenLeft, onOpenRight, distractionFree, onToggleDistractionFree, theater, onToggleTheater, leftCollapsed, onToggleLeftCollapsed, rightCollapsed, onToggleRightCollapsed, onShowShortcuts, onOpenReels, isOnline = true }) {
+function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, onOpenLeft, onOpenRight, distractionFree, onToggleDistractionFree, onShowShortcuts, onOpenReels, isOnline = true }) {
   return (/*#__PURE__*/
     React.createElement("footer", { className: "cx-footer" }, /*#__PURE__*/
     React.createElement("div", { className: "cx-footer-l" }, /*#__PURE__*/

@@ -13,7 +13,7 @@
 // because that storage is independent of the SW caches.
 
 // ⚠️ MIRRORED in version.js (CODEX_VERSION.sw) — bump BOTH together.
-const VERSION = "v258";
+const VERSION = "v259";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
