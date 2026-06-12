@@ -9,13 +9,13 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "10.1",     // user-facing app version
-  sw: "v263",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "11.0",     // user-facing app version
+  sw: "v264",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "REBIRTH: the reader rebuilt from zero as the MAIN plugin — and red letters now come from a real red-letter edition (WEB ⟨wj⟩ markup), so narrative verses can never paint red again",
-    "THE LIBRARY DISMANTLED: shelves, oracle, and marks are three separate plugins with their own windows (O = oracle, B = marks) — and every canon is on the shelves, apocrypha served automatically from the corpus that carries it",
-    "THE DOCK IS YOURS: ✎ to pick your chips (the reader stays first, always) · ⧉ DISPLAYS throws any surface onto another monitor, all windows sharing one reading cursor",
-    "THE GALAXY ANSWERS: clicking a star opens its dossier — testament, family, thread mass, strongest neighbors, READ/NEAR/PATH — and Talmud dapim open live from Sefaria",
+    "EVERY PANEL IS ITS OWN WINDOW: the study stack is gone — Translations, Talmud, Commentary, Gematria, Gnosis, Disarm, Exegesis each float free, each remembering its place (1–9 opens them; pin any to the dock with ✎)",
+    "TRANSLATIONS REMADE FROM ZERO: language lanes of cards — one tap switches your Bible, ⊕ stacks a comparison, the offline dot (● ◐ ○) is always visible and IS the download button",
+    "THE THREAD WEB: cross-references are a living graph — your verse at center, references orbiting in covenant colors; click to walk, double-click to read",
+    "THE GALAXY DOSSIER CARRIES THE WORD: click a star and the chapter itself appears — whole if short, honest preview if long, served from whichever corpus carries it",
   ],
 };
 

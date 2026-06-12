@@ -129,6 +129,14 @@
     if (!r) return;
     try { window.dispatchEvent(new CustomEvent("codex:os-open", { detail: { kind: kind, ref: r } })); } catch (_) {}
   }
+  // v11 — the study deck chip is dead; the eight builtin panels register
+  // as their own launchable chips (each opens its own window via
+  // window.codexOpenPanel → codexDeskPanels). Pinnable through ✎.
+  function panelRun(id) {
+    return function () {
+      if (typeof window.codexOpenPanel === "function") window.codexOpenPanel(id);
+    };
+  }
   var DOCK_REG = [
     { id: "reader",   glyph: "✦", label: "READER",  title: "The Reader — the main plugin", locked: true,
       run: function () { deskOpen("reader"); } },
@@ -138,8 +146,14 @@
       run: function () { deskOpen("oracle"); } },
     { id: "marks",    glyph: "⌖", label: "MARKS",   title: "The Marks — your trail through the text (B)",
       run: function () { deskOpen("marks"); } },
-    { id: "study",    glyph: "▤", label: "STUDY",   title: "The Study deck (T)",
-      run: function () { deskOpen("study"); } },
+    { id: "trans",    glyph: "Α/Ω", label: "TRANS", title: "Translations — its own window (T)", run: panelRun("trans") },
+    { id: "talmud",   glyph: "ת", label: "TALMUD",  title: "Talmud — its own window",           run: panelRun("talmud") },
+    { id: "comm",     glyph: "§", label: "COMM",    title: "Commentary — its own window",       run: panelRun("comm") },
+    { id: "gem",      glyph: "Σn", label: "GEM",    title: "Gematria — its own window",         run: panelRun("gem") },
+    { id: "gnosis",   glyph: "⟁", label: "GNOSIS",  title: "Gnosis — its own window",           run: panelRun("gnosis") },
+    { id: "disarm",   glyph: "⚔", label: "DISARM",  title: "Disarm — its own window",           run: panelRun("disarm") },
+    { id: "exeg",     glyph: "✎", label: "EXEG",    title: "Exegesis — its own window",         run: panelRun("exeg") },
+    { id: "txan",     glyph: "⟷", label: "WORDS",   title: "Word analysis — its own window",    run: panelRun("txan") },
     { id: "omni",     glyph: "⌘", label: "OMNI",    title: "Omnibar (⌘K)",
       run: function () { if (typeof window.codexOpenOmni === "function") window.codexOpenOmni(); } },
     { id: "canon",    glyph: "❂", label: "GALAXY",  title: "The canon as one galaxy",
@@ -154,7 +168,10 @@
       run: function (anchor) { dockDisplaysMenu(anchor); } }
   ];
   var DOCK_PIN_KEY = "codex.dock.v2";
-  var DOCK_DEFAULT = ["reader", "library", "oracle", "marks", "study", "omni", "displays"];
+  // v11 default pins gain TRANS (the deck's STUDY chip is gone; saved pins
+  // containing "study" are filtered out by dockPins since the id left the
+  // registry).
+  var DOCK_DEFAULT = ["reader", "library", "oracle", "marks", "trans", "omni", "displays"];
   function dockPins() {
     var pins = null;
     try { pins = JSON.parse(localStorage.getItem(DOCK_PIN_KEY) || "null"); } catch (_) {}
@@ -235,13 +252,19 @@
     var trailRef = dockTrailRef();
     var ACT = "cx-wm-dock-chip cx-wm-dock-launch cx-wm-dock-act";
     var ds = (window.codexDesk && window.codexDesk.on && window.codexDesk.on()) ? window.codexDesk.state() : null;
+    var openPanels = (window.codexDeskPanels && window.codexDeskPanels.on && window.codexDeskPanels.on())
+      ? window.codexDeskPanels.list() : [];
+    var BUILTIN_CHIPS = ["trans", "talmud", "comm", "gem", "gnosis", "disarm", "exeg", "txan"];
     dockPins().forEach(function (id) {
       var c = null;
       for (var i = 0; i < DOCK_REG.length; i++) if (DOCK_REG[i].id === id) c = DOCK_REG[i];
       if (!c) return;
       var cls = ACT + (c.id === "reader" ? " cx-wm-dock-reader" : "");
-      if (ds && (c.id === "reader" || c.id === "library" || c.id === "oracle" || c.id === "marks" || c.id === "study") && ds[c.id]) {
+      if (ds && (c.id === "reader" || c.id === "library" || c.id === "oracle" || c.id === "marks") && ds[c.id]) {
         cls += " is-open"; // already on the desk — chip shows it lit
+      }
+      if (BUILTIN_CHIPS.indexOf(c.id) >= 0 && openPanels.indexOf(c.id) >= 0) {
+        cls += " is-open"; // that panel's window is on the desk
       }
       var ref = (now && now.ref) || trailRef;
       var title = c.title + (ref && (c.id === "sword" || c.id === "mirror" || c.id === "map") ? " — " + ref : "");
@@ -593,9 +616,12 @@
 
   // OS·7 mode flips (shell.js) re-render the dock so launchers appear/retire.
   window.addEventListener("codex:os7", function () { dockRender(); });
-  // Desk window opens/closes (app.jsx codexDesk) re-render the LIB/STUDY/
-  // READER chips so their active state tracks the desk.
+  // Desk window opens/closes (app.jsx codexDesk) re-render the LIB/READER
+  // chips so their active state tracks the desk.
   window.addEventListener("codex:desk", function () { dockRender(); });
+  // v11 — builtin panel windows open/close (app.jsx codexDeskPanels)
+  // re-render their chips' lit state the same way.
+  window.addEventListener("codex:desk-panels", function () { dockRender(); });
 
   // Verse cursor moves (app.jsx 'codex:now') re-render the action chips so
   // titles track the current ref and CONTINUE appears after boot without a

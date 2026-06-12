@@ -54,6 +54,12 @@ if (typeof window !== "undefined") {
           detail: { pluginId: parts[1], panelId: parts.slice(2).join(":") }
         }));
       } else {
+        // v11 — under the desk every builtin panel is its OWN window
+        // (app.jsx owns the data + windows via window.codexDeskPanels).
+        if (window.codexDeskPanels && window.codexDeskPanels.on && window.codexDeskPanels.on()) {
+          window.codexDeskPanels.open(id);
+          return;
+        }
         window.dispatchEvent(new CustomEvent("codex:open-panel", { detail: { panelId: id } }));
         window.dispatchEvent(new CustomEvent("codex:open-builtin-tab", { detail: { tabId: id } }));
       }
@@ -316,108 +322,9 @@ function RightRail({
     });
   };
 
-  /* v7.5 DECK — desktop-OS·7 stacked-card state. All additive: when the
-     deck is off (classic shell / mobile / os7-off) none of this renders. */
-  const deckOn = useDeckMode();
-  // Temporary "focus" escape hatch: ⤢ on a card flips to the classic
-  // single-panel body for deep work; ‹ DECK returns to the stack.
-  const [focusedPanel, setFocusedPanel] = React.useState(null);
-  // Collapsed-card ids; null = no stored value → default first two pinned
-  // expanded, the rest collapsed (header-only, content unmounted).
-  const [deckCollapsed, setDeckCollapsed] = React.useState(loadDeckCollapsed);
-  const collapsedIds = deckCollapsed != null ? deckCollapsed : pinned.slice(2);
-  React.useEffect(() => {if (!deckOn) setFocusedPanel(null);}, [deckOn]);
-  // Programmatic openers (codexOpenPanel / open-builtin-tab) only set `tab`;
-  // in deck mode make the targeted card visible by auto-expanding it.
-  const deckPrevTabRef = React.useRef(tab);
-  React.useEffect(() => {
-    if (deckPrevTabRef.current === tab) return;
-    deckPrevTabRef.current = tab;
-    if (!deckOn || !tab) return;
-    setDeckCollapsed((prev) => {
-      const base = prev != null ? prev : pinned.slice(2);
-      if (!base.includes(tab)) return prev;
-      const next = base.filter((x) => x !== tab);
-      saveDeckCollapsed(next);
-      return next;
-    });
-  }, [tab, deckOn, pinned]);
-  const toggleDeckCard = (tb) => {
-    if (tb.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
-    const base = collapsedIds;
-    const next = base.includes(tb.id) ? base.filter((x) => x !== tb.id) : [...base, tb.id];
-    saveDeckCollapsed(next);
-    setDeckCollapsed(next);
-  };
-  const focusDeckCard = (tb) => {
-    if (tb.id === "gnosis" && !gnosisOn) onToggleGnosis(true);
-    onTab(tb.id);
-    setFocusedPanel(tb.id);
-  };
-  // Per-id panel body for a deck card. Same components + same shared props
-  // as the classic single-body chain below — builtins are pure prop
-  // consumers (no singleton ids/refs), so multiple bodies coexist safely.
-  // Plugin panels render at most once each (pinned ids are unique) and
-  // ONLY while their card is expanded (mount-on-expand), so plugins with
-  // module-level state/listeners never run hidden.
-  const renderDeckPanel = (tb) => {
-    if (tb.isPlugin) {
-      return (/*#__PURE__*/
-        React.createElement(PluginPanelHost, {
-          panel: tb.plugin,
-          book: passage.book,
-          bookId: passage.bookId,
-          chapter: passage.chapter,
-          verse: currentVerse,
-          translation: translation || primary }
-        ));
-
-    }
-    switch (tb.id) {
-      case "trans":
-        return (/*#__PURE__*/
-          React.createElement(TranslationsPanel, { primary: primary, onPrimary: onPrimary,
-            compareSet: compareSet, onToggleCompare: onToggleCompare,
-            passage: passage, currentVerse: currentVerse }));
-
-      case "talmud":
-        return (/*#__PURE__*/
-          React.createElement(TalmudPanel, { panelData: panelData, status: panelStatus, meta: panelMeta,
-            passage: passage, onRegenerate: onRegeneratePanels }));
-
-      case "comm":
-        return (/*#__PURE__*/
-          React.createElement(CommentaryPanel, { panelData: panelData, status: panelStatus, meta: panelMeta,
-            passage: passage, onRegenerate: onRegeneratePanels, onJumpRef: onJumpRef }));
-
-      case "gem":
-        return (/*#__PURE__*/
-          React.createElement(GematriaPanel, { panelData: panelData, status: panelStatus, meta: panelMeta,
-            passage: passage, onRegenerate: onRegeneratePanels }));
-
-      case "gnosis":
-        return (/*#__PURE__*/
-          React.createElement(GnosisPanel, { panelData: panelData, status: panelStatus, meta: panelMeta,
-            passage: passage, gnosisOn: gnosisOn, onToggleGnosis: onToggleGnosis,
-            onRegenerate: onRegeneratePanels }));
-
-      case "disarm":
-        return (/*#__PURE__*/
-          React.createElement(DisarmPanel, { panelData: disarmData, status: disarmStatus, meta: disarmMeta,
-            passage: passage, currentVerse: currentVerse, onRegenerate: onRegenerateDisarm }));
-
-      case "exeg":
-        return /*#__PURE__*/React.createElement(ExegesisPanel, { passage: passage, currentVerse: currentVerse });
-      case "txan":
-        return (/*#__PURE__*/
-          React.createElement(TranslationAnalysisPanel, { passage: passage, currentVerse: currentVerse,
-            primary: primary, compareSet: compareSet, onJumpRef: onJumpRef }));
-
-      default:
-        return null;
-    }
-  };
-  /* end v7.5 DECK state */
+  /* (v11 — the v7.5 DECK is dead. Under the desk every builtin panel is
+     its own window, rendered by app.jsx. The rail below is the
+     mobile/classic drawer path only.) */
 
   // Companion to window.codexOpenPanel for BUILTIN tab ids: the app-level
   // codex:open-panel listener force-prefixes "plugin:", so codexOpenPanel
@@ -505,7 +412,7 @@ function RightRail({
   }, [onClose]);
 
   return (/*#__PURE__*/
-    React.createElement("aside", { ref: railRef, className: `cx-rail cx-rail-r${deckOn && !focusedPanel ? " is-deck" : ""}` }, /*#__PURE__*/
+    React.createElement("aside", { ref: railRef, className: "cx-rail cx-rail-r" }, /*#__PURE__*/
     React.createElement(RightRailResizer, null), /*#__PURE__*/
     React.createElement("button", { className: "cx-rail-close", onClick: onClose, "aria-label": "Close panels" }, "\xD7"),
     onCollapse ? /*#__PURE__*/
@@ -560,59 +467,18 @@ function RightRail({
       onPin: togglePin,
       gnosisOn: gnosisOn,
       onToggleGnosis: onToggleGnosis }
-    ),
-
-    deckOn && !focusedPanel ? /*#__PURE__*/
-    /* v7.5 DECK — pinned panels as a vertical stack of live glass
-       cards, auto-bound to the current passage. Collapsed cards mount
-       NO content (header only) — the safe default for every card. */
-    React.createElement("div", { className: "cx-tab-body cx-deck" },
-    pinnedTabs.map((tb) => {
-      const locked = tb.id === "gnosis" && !gnosisOn;
-      const expanded = !locked && !collapsedIds.includes(tb.id);
-      return (/*#__PURE__*/
-        React.createElement(DeckCard, {
-          key: tb.id,
-          tab: tb,
-          expanded: expanded,
-          locked: locked,
-          onToggle: () => toggleDeckCard(tb),
-          onFocus: () => focusDeckCard(tb) },
-
-        expanded ? renderDeckPanel(tb) : null
-        ));
-
-    }), /*#__PURE__*/
-    React.createElement("button", {
-      type: "button",
-      className: "cx-deck-add",
-      onClick: () => setPaletteOpen(true),
-      title: "All panels \u2014 open the panel library",
-      "aria-label": "Open panel library" },
-    "+ PANELS")
-    ) : /*#__PURE__*/
+    ), /*#__PURE__*/
 
     React.createElement("div", { className: "cx-tab-body" },
-    deckOn && focusedPanel ? /*#__PURE__*/
-    React.createElement("div", { className: "cx-deck-backbar" }, /*#__PURE__*/
-    React.createElement("button", {
-      type: "button",
-      className: "cx-deck-back",
-      onClick: () => setFocusedPanel(null),
-      title: "Back to the deck",
-      "aria-label": "Back to the deck" },
-    "\u2039 DECK")
-    ) :
-    null,
-    tab === "trans" && /*#__PURE__*/
-    React.createElement(TranslationsPanel, {
-      primary: primary,
-      onPrimary: onPrimary,
-      compareSet: compareSet,
-      onToggleCompare: onToggleCompare,
-      passage: passage,
-      currentVerse: currentVerse }
-    ),
+    tab === "trans" && (window.CodexTranslationsX ?
+    React.createElement(window.CodexTranslationsX, {
+      primary, onPrimary, compareSet, onToggleCompare, passage, currentVerse
+    }) : /*#__PURE__*/
+
+    React.createElement("div", { className: "cx-pane-status is-err" }, /*#__PURE__*/
+    React.createElement("b", null, "TRANSLATIONS MISSING"), /*#__PURE__*/
+    React.createElement("code", null, "dist/translations.js failed to load")
+    )),
 
     tab === "talmud" && /*#__PURE__*/
     React.createElement(TalmudPanel, { panelData: panelData, status: panelStatus, meta: panelMeta, passage: passage,
@@ -658,7 +524,6 @@ function RightRail({
     ) :
     null
     )
-
     ));
 
 }
@@ -940,575 +805,55 @@ try {
   });
 } catch {}
 
-// Display names for the language groupings in the translations panel.
-const LANG_NAMES = {
-  EN: "English", ES: "Español", DE: "Deutsch", PT: "Português",
-  FR: "Français", LA: "Latina", HE: "עברית", EL: "Ἑλληνική",
-  HI: "हिन्दी"
-};
-const DEFAULT_LANG_ORDER = ["EN", "ES", "FR", "DE", "PT", "LA", "HE", "EL", "HI"];
-const TP_LANG_ORDER_KEY = "codex.tp.lang.order.v1";
-const TP_LANG_COLLAPSED_KEY = "codex.tp.lang.collapsed.v1";
-const TP_TRANS_ORDER_KEY = "codex.tp.trans.order.v1";
-
-const tpLoad = (k, fallback) => {
-  try {const v = JSON.parse(localStorage.getItem(k) || "null");return v ?? fallback;}
-  catch {return fallback;}
-};
-const tpSave = (k, v) => {try {localStorage.setItem(k, JSON.stringify(v));} catch {}};
-
-function TranslationsPanel({ primary, onPrimary, compareSet, onToggleCompare, passage, currentVerse }) {
+// ── Download controls — module scope so any surface (the new translations
+// instrument in translations.jsx, diagnostics, kernel tools) can drive the
+// SAME state machine. Cross-IIFE law: exported via window.CODEX_TRANS_STATE.
+function transStartDownload(t, { silent } = {}) {
   const data = window.CODEX_DATA;
-  const verse = passage.verses.find((v) => v.n === currentVerse) || passage.verses[0];
-  const primaryMeta = data.translations.find((t) => t.id === primary);
-  const primaryText = verse ? verse[primary] || "—" : "—";
-  const [bumpKey, bump] = useState(0);
-  const userIds = new Set((window.loadRepos?.() || []).map((r) => r.id));
-  const [query, setQuery] = useState("");
-  const [ctxMenu, setCtxMenu] = useState(null); // { t, x, y }
-  const searchRef = useRef(null);
-
-  // Wrap parent callbacks so picking / comparing auto-kicks the bundler.
-  const onPrimaryWrap = (id) => {
-    const t = data.translations.find((x) => x.id === id);
-    onPrimary(id);
-    if (t) maybeAutoBundle(t, data.books);
-  };
-  const onToggleCompareWrap = (id) => {
-    const wasOn = compareSet.includes(id);
-    onToggleCompare(id);
-    if (!wasOn) {
-      const t = data.translations.find((x) => x.id === id);
-      if (t) maybeAutoBundle(t, data.books);
-    }
-  };
-
-  // ── User-defined ordering / collapse state ──
-  const [langOrder, setLangOrder] = useState(() => tpLoad(TP_LANG_ORDER_KEY, DEFAULT_LANG_ORDER));
-  const [collapsed, setCollapsed] = useState(() => new Set(tpLoad(TP_LANG_COLLAPSED_KEY, [])));
-  const [transOrder, setTransOrder] = useState(() => tpLoad(TP_TRANS_ORDER_KEY, {}));
-  const [drag, setDrag] = useState(null); // { kind: "lang"|"trans", id, lang? }
-  const [dropHint, setDropHint] = useState(null); // `${kind}:${id}`
-
-  const persistLangOrder = (v) => {setLangOrder(v);tpSave(TP_LANG_ORDER_KEY, v);};
-  const persistCollapsed = (v) => {setCollapsed(v);tpSave(TP_LANG_COLLAPSED_KEY, [...v]);};
-  const persistTransOrder = (v) => {setTransOrder(v);tpSave(TP_TRANS_ORDER_KEY, v);};
-
-  const toggleLang = (lang) => {
-    const next = new Set(collapsed);
-    if (next.has(lang)) next.delete(lang);else next.add(lang);
-    persistCollapsed(next);
-  };
-
-  // Group translations by language, honouring saved order. Unknown langs and
-  // newly added translations append in source order so nothing ever vanishes.
-  const groups = useMemo(() => {
-    const byLang = new Map();
-    for (const t of data.translations) {
-      const k = t.lang || "??";
-      if (!byLang.has(k)) byLang.set(k, []);
-      byLang.get(k).push(t);
-    }
-    const orderedLangs = [
-    ...langOrder.filter((l) => byLang.has(l)),
-    ...[...byLang.keys()].filter((l) => !langOrder.includes(l))];
-
-    return orderedLangs.map((lang) => {
-      const items = byLang.get(lang);
-      const saved = transOrder[lang] || [];
-      const ordered = [
-      ...saved.map((id) => items.find((t) => t.id === id)).filter(Boolean),
-      ...items.filter((t) => !saved.includes(t.id))];
-
-      return { lang, items: ordered };
-    });
-  }, [data.translations, langOrder, transOrder, bumpKey]);
-
-  // ── Drag-and-drop handlers ──
-  const onDragStart = (kind, id, lang) => (e) => {
-    setDrag({ kind, id, lang });
-    e.dataTransfer.effectAllowed = "move";
-    try {e.dataTransfer.setData("text/plain", id);} catch {}
-  };
-  const onDragEnd = () => {setDrag(null);setDropHint(null);};
-  const onDragOver = (kind, id) => (e) => {
-    if (!drag || drag.kind !== kind) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDropHint(`${kind}:${id}`);
-  };
-  const onDropLang = (overLang) => (e) => {
-    e.preventDefault();
-    if (!drag || drag.kind !== "lang" || drag.id === overLang) return onDragEnd();
-    const present = groups.map((g) => g.lang);
-    const next = present.filter((l) => l !== drag.id);
-    const idx = next.indexOf(overLang);
-    next.splice(idx, 0, drag.id);
-    persistLangOrder(next);
-    onDragEnd();
-  };
-  const onDropTrans = (lang, overId) => (e) => {
-    e.preventDefault();
-    if (!drag || drag.kind !== "trans" || drag.lang !== lang || drag.id === overId) return onDragEnd();
-    const group = groups.find((g) => g.lang === lang);
-    const ids = group.items.map((t) => t.id).filter((id) => id !== drag.id);
-    const idx = ids.indexOf(overId);
-    ids.splice(idx, 0, drag.id);
-    persistTransOrder({ ...transOrder, [lang]: ids });
-    onDragEnd();
-  };
-
-  // Subscribe to download tick so progress + completion repaint live.
-  useEffect(() => {
-    const fn = () => bump((n) => n + 1);
-    _dlListeners.add(fn);
-    return () => _dlListeners.delete(fn);
-  }, []);
-
-  // Re-render when a translation is installed/removed.
-  // data.translations is mutated in place so the useMemo above would
-  // otherwise miss it.
-  useEffect(() => {
-    const fn = () => bump((n) => n + 1);
-    window.addEventListener("codex:translations-changed", fn);
-    return () => window.removeEventListener("codex:translations-changed", fn);
-  }, []);
-
-  // Per-translation cache stats. Recompute on every bump (download progress
-  // tick OR cache mutation) so the offline indicator reflects live state —
-  // _dlState.size only changes when a key is first added so it missed the
-  // progress + completion deltas, leaving the icon stuck on "save offline"
-  // even after the cache was full.
-  const stats = useMemo(() => {
-    const m = {};
-    for (const t of data.translations) {
-      m[t.id] = window.BIBLE.cacheStats(t.id, data.books);
-    }
-    return m;
-  }, [data.translations, data.books, bumpKey]);
-  // Also re-derive when BIBLE.ready resolves so cached stats appear after
-  // the IDB warm-load instead of staying at 0/0 until the user clicks.
-  useEffect(() => {
-    const onReady = () => bump((n) => n + 1);
-    window.addEventListener("codex:bible:ready", onReady);
-    if (window.BIBLE?.ready) window.BIBLE.ready.then(onReady);
-    return () => window.removeEventListener("codex:bible:ready", onReady);
-  }, []);
-
-  const startDownload = (t, { silent } = {}) => {
-    if (_dlState.get(t.id)?.controller && !_dlState.get(t.id)?.complete) return;
-    const total = data.books.reduce((s, b) => s + b.chapters, 0);
-    const controller = window.BIBLE.downloadAll(t.id, data.books, (p) => {
-      _dlState.set(t.id, { ...p, controller });
-      _dlNotify();
-    });
-    _dlState.set(t.id, { done: 0, total, controller });
+  if (!data || !window.BIBLE?.downloadAll) return;
+  if (_dlState.get(t.id)?.controller && !_dlState.get(t.id)?.complete) return;
+  const total = data.books.reduce((s, b) => s + b.chapters, 0);
+  const controller = window.BIBLE.downloadAll(t.id, data.books, (p) => {
+    _dlState.set(t.id, { ...p, controller });
     _dlNotify();
-    if (!silent) _toast(`Saving ${t.name} offline…`, "info");
-  };
-  const stopDownload = (t) => {
-    const s = _dlState.get(t.id);
-    s?.controller?.abort();
-    _toast(`Paused ${t.name} download`, "warn");
-  };
-  const clearOffline = (t, { skipConfirm } = {}) => {
-    if (!skipConfirm && !window.confirm(`Remove offline copy of ${t.name}? Active reading will re-fetch as you go.`)) return;
-    try {
-      if (typeof window.BIBLE.removeTranslation === "function") {
-        window.BIBLE.removeTranslation(t.id);
-      } else {
-        const raw = JSON.parse(localStorage.getItem("codex.bible.cache.v2") || "{}");
-        for (const k of Object.keys(raw)) if (k.endsWith(`.${t.id}`)) delete raw[k];
-        localStorage.setItem("codex.bible.cache.v2", JSON.stringify(raw));
-      }
-    } catch {}
-    try {window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: t.id } }));} catch {}
-    _dlState.delete(t.id);
-    _autoBundleTried.delete(t.id);
-    _dlNotify();
-  };
-
-  // Context menu actions (right-click / long-press).
-  const openCtx = (t, ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    setCtxMenu({ t, x: ev.clientX, y: ev.clientY });
-  };
-  useEffect(() => {
-    if (!ctxMenu) return;
-    const close = () => setCtxMenu(null);
-    window.addEventListener("click", close);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("keydown", (e) => {if (e.key === "Escape") close();}, { once: true });
-    return () => {
-      window.removeEventListener("click", close);
-      window.removeEventListener("scroll", close, true);
-    };
-  }, [ctxMenu]);
-
-  // Cmd+F focuses the filter (when panel is mounted/focused).
-  useEffect(() => {
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        if (searchRef.current && document.activeElement !== searchRef.current) {
-          e.preventDefault();
-          searchRef.current.focus();
-          searchRef.current.select?.();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const collapseAll = () => persistCollapsed(new Set(groups.map((g) => g.lang)));
-  const expandAll = () => persistCollapsed(new Set());
-
-  // Tap-to-copy + long-press share for the preview blockquote.
-  const previewRef = useRef(null);
-  const copyPreview = () => {
-    if (!verse) return;
-    const ref = `${passage.book} ${passage.chapter}:${verse.n}`;
-    const text = `${primaryText.trim()} — ${ref} (${primaryMeta?.name || primary})`;
-    try {
-      navigator.clipboard?.writeText(text);
-      _toast(`Copied · ${ref}`, "ok");
-    } catch {_toast("Copy failed", "err");}
-  };
-  const sharePreview = () => {
-    if (!verse || !navigator.share) return copyPreview();
-    const ref = `${passage.book} ${passage.chapter}:${verse.n}`;
-    navigator.share({ title: ref, text: `${primaryText.trim()} — ${ref}` }).catch(() => {});
-  };
-  const onPreviewPointerDown = (e) => {
-    if (!previewRef.current) return;
-    let longPressed = false;
-    const timer = setTimeout(() => {longPressed = true;sharePreview();}, 550);
-    const up = () => {
-      clearTimeout(timer);
-      previewRef.current?.removeEventListener("pointerup", up);
-      previewRef.current?.removeEventListener("pointercancel", up);
-      previewRef.current?.removeEventListener("pointerleave", up);
-      if (!longPressed) copyPreview();
-    };
-    previewRef.current.addEventListener("pointerup", up);
-    previewRef.current.addEventListener("pointercancel", up);
-    previewRef.current.addEventListener("pointerleave", up);
-  };
-
-  // Filter groups by query (name OR lang OR id).
-  const q = query.trim().toLowerCase();
-  const filteredGroups = !q ? groups : groups.map((g) => {
-    const items = g.items.filter((t) =>
-    (t.name || "").toLowerCase().includes(q) ||
-    (t.lang || "").toLowerCase().includes(q) ||
-    (t.id || "").toLowerCase().includes(q) ||
-    (t.year || "").toString().includes(q)
-    );
-    return { ...g, items };
-  }).filter((g) => g.items.length);
-
-  const removeOne = (t) => {
-    if (!userIds.has(t.id)) return;
-    if (!window.confirm(`Remove ${t.name} from your library? Cached chapters will be cleared.`)) return;
-    window.removeRepo(t.id);
-    if (compareSet.includes(t.id)) onToggleCompare(t.id);
-    if (primary === t.id) onPrimary("kjv");
-    bump((n) => n + 1);
-  };
-
-  return (/*#__PURE__*/
-    React.createElement("div", { className: "cx-pane cx-tp" }, /*#__PURE__*/
-    React.createElement(PaneHead, { title: "TRANSLATIONS", sub: `${passage.book} ${passage.chapter}:${verse?.n ?? "—"}` }), /*#__PURE__*/
-
-
-    React.createElement("blockquote", {
-      ref: previewRef,
-      className: "cx-tp-quote is-tappable",
-      onPointerDown: onPreviewPointerDown,
-      title: "Tap to copy \xB7 long-press to share",
-      style: { touchAction: "manipulation", userSelect: "none", cursor: "pointer" } }, /*#__PURE__*/
-
-    React.createElement("span", { className: "cx-tp-quote-glyph" }, primaryMeta?.glyph), /*#__PURE__*/
-    React.createElement("span", { className: "cx-tp-quote-text" }, primaryText), /*#__PURE__*/
-    React.createElement("span", { className: "cx-tp-quote-vn", style: { fontFeatureSettings: '"tnum"', opacity: 0.55, marginLeft: 6, fontSize: 11 } },
-    verse ? `${verse.n}` : ""
-    )
-    ), /*#__PURE__*/
-
-
-    React.createElement("div", { className: "cx-tp-toolbar", style: { display: "flex", gap: 6, alignItems: "center", padding: "4px 8px 6px", fontFamily: "var(--cx-mono)", fontSize: 11 } }, /*#__PURE__*/
-    React.createElement("input", {
-      ref: searchRef,
-      type: "search",
-      value: query,
-      onChange: (e) => setQuery(e.target.value),
-      placeholder: "Filter translations \xB7 name, lang, id",
-      className: "cx-tp-filter",
-      "aria-label": "Filter translations",
-      style: {
-        flex: 1, background: "transparent", color: "var(--cx-fg)",
-        border: "1px solid color-mix(in oklab, var(--cx-accent) 22%, transparent)",
-        borderRadius: 3, padding: "4px 7px", fontFamily: "inherit", fontSize: 11,
-        outline: "none"
-      } }
-    ), /*#__PURE__*/
-    React.createElement("button", {
-      type: "button",
-      className: "cx-tp-mini-btn",
-      onClick: collapseAll,
-      title: "Collapse all language groups",
-      style: { background: "transparent", border: "1px solid color-mix(in oklab, var(--cx-fg-dim) 35%, transparent)", color: "var(--cx-fg-dim)", borderRadius: 3, padding: "3px 6px", cursor: "pointer", fontSize: 10, letterSpacing: ".08em" } },
-    "\u229F"), /*#__PURE__*/
-    React.createElement("button", {
-      type: "button",
-      className: "cx-tp-mini-btn",
-      onClick: expandAll,
-      title: "Expand all language groups",
-      style: { background: "transparent", border: "1px solid color-mix(in oklab, var(--cx-fg-dim) 35%, transparent)", color: "var(--cx-fg-dim)", borderRadius: 3, padding: "3px 6px", cursor: "pointer", fontSize: 10, letterSpacing: ".08em" } },
-    "\u229E")
-    ), /*#__PURE__*/
-
-
-
-    React.createElement("div", { className: "cx-tp-groups" },
-    filteredGroups.map(({ lang, items }) => {
-      const isFolded = collapsed.has(lang);
-      const primaryCount = items.filter((t) => t.id === primary).length;
-      const compareCount = items.filter((t) => compareSet.includes(t.id)).length;
-      const isLangDragOver = dropHint === `lang:${lang}` && drag?.kind === "lang";
-      return (/*#__PURE__*/
-        React.createElement("section", {
-          key: lang,
-          className: `cx-tp-group ${isFolded ? "is-folded" : ""} ${isLangDragOver ? "is-drop" : ""}`,
-          onDragOver: onDragOver("lang", lang),
-          onDrop: onDropLang(lang),
-          onDragLeave: () => dropHint === `lang:${lang}` && setDropHint(null) }, /*#__PURE__*/
-
-        React.createElement("header", {
-          className: "cx-tp-group-h",
-          draggable: true,
-          onDragStart: onDragStart("lang", lang),
-          onDragEnd: onDragEnd,
-          onClick: () => toggleLang(lang),
-          title: isFolded ? "Expand · drag to reorder" : "Collapse · drag to reorder" }, /*#__PURE__*/
-
-        React.createElement("span", { className: "cx-tp-group-grip", "aria-hidden": true, style: { touchAction: "none" } }, "\u22EE\u22EE"), /*#__PURE__*/
-        React.createElement("span", { className: "cx-tp-group-tag" }, lang), /*#__PURE__*/
-        React.createElement("span", { className: "cx-tp-group-name" }, LANG_NAMES[lang] || lang), /*#__PURE__*/
-        React.createElement("span", { className: "cx-tp-group-meta" },
-        primaryCount ? /*#__PURE__*/React.createElement("i", { className: "cx-tp-group-dot is-p", title: "primary" }) : null,
-        compareCount ? /*#__PURE__*/React.createElement("i", { className: "cx-tp-group-dot is-c", title: `${compareCount} in compare` }) : null, /*#__PURE__*/
-        React.createElement("span", { className: "cx-tp-group-count" }, items.length)
-        ), /*#__PURE__*/
-        React.createElement("span", { className: "cx-tp-group-caret", "aria-hidden": true }, isFolded ? "▸" : "▾")
-        ), /*#__PURE__*/
-        React.createElement("div", { className: "cx-tp-group-body" }, /*#__PURE__*/
-        React.createElement("ul", { className: "cx-tp-list" },
-        items.map((t) => {
-          const isPrimary = primary === t.id;
-          const isCompare = compareSet.includes(t.id);
-          const isUser = userIds.has(t.id);
-          const isRowDragOver = dropHint === `trans:${t.id}` && drag?.kind === "trans" && drag?.lang === lang;
-          const isDragging = drag?.kind === "trans" && drag?.id === t.id;
-          return (/*#__PURE__*/
-            React.createElement("li", {
-              key: t.id,
-              title: t.placeholder ? `${t.name} — not yet bundled in CODEX (registry placeholder)` : t.name,
-              className: `cx-tp-row ${isPrimary ? "is-primary" : ""} ${isCompare ? "is-compare" : ""} ${isUser ? "is-user" : ""} ${isRowDragOver ? "is-drop" : ""} ${isDragging ? "is-dragging" : ""} ${t.placeholder ? "is-placeholder" : ""}`,
-              draggable: true,
-              onDragStart: onDragStart("trans", t.id, lang),
-              onDragEnd: onDragEnd,
-              onDragOver: onDragOver("trans", t.id),
-              onDrop: onDropTrans(lang, t.id),
-              onContextMenu: (e) => openCtx(t, e) }, /*#__PURE__*/
-
-            React.createElement("span", {
-              className: "cx-tp-grip",
-              "aria-hidden": true,
-              title: "Drag to reorder",
-              style: { touchAction: "none" } },
-            "\u22EE\u22EE"), /*#__PURE__*/
-            React.createElement("button", {
-              className: "cx-tp-pick",
-              onClick: () => onPrimaryWrap(t.id),
-              title: `Read in ${t.name}` }, /*#__PURE__*/
-
-            React.createElement("span", { className: "cx-tp-mark", "aria-hidden": true }, isPrimary ? "●" : ""), /*#__PURE__*/
-            React.createElement("span", { className: "cx-tp-name" }, t.name, t.placeholder ? /*#__PURE__*/React.createElement("em", { className: "cx-tp-coming" }, " \xB7 coming soon") : null), /*#__PURE__*/
-            React.createElement("span", { className: "cx-tp-year" }, t.year)
-            ), /*#__PURE__*/
-            React.createElement("button", {
-              className: `cx-tp-eye ${isCompare ? "is-on" : ""}`,
-              onClick: () => onToggleCompareWrap(t.id),
-              title: isCompare ? "Remove from compare" : "Add to compare",
-              "aria-label": "Toggle compare",
-              "aria-pressed": isCompare },
-            isCompare ? "◉" : "○"), /*#__PURE__*/
-            React.createElement(OfflineDot, {
-              t: t,
-              stats: stats[t.id],
-              dl: _dlState.get(t.id),
-              onStart: () => startDownload(t),
-              onStop: () => stopDownload(t),
-              onClear: () => clearOffline(t) }
-            ),
-            isUser ? /*#__PURE__*/
-            React.createElement("button", {
-              className: "cx-tp-rm",
-              onClick: () => removeOne(t),
-              title: `Remove ${t.name}`,
-              "aria-label": "Remove translation" },
-            "\xD7") :
-            null
-            ));
-
-        })
-        )
-        )
-        ));
-
-    })
-    ), /*#__PURE__*/
-
-    React.createElement("div", { className: "cx-tp-foot" }, /*#__PURE__*/
-    React.createElement("span", null, "\u25CF primary  \xB7  \u25C9 compare  \xB7  \u22EE\u22EE drag")
-    ),
-    window.RepoAdd ? /*#__PURE__*/
-    React.createElement("div", { className: "cx-tp-browse", style: { padding: "6px 8px 10px" } }, /*#__PURE__*/
-    React.createElement("details", null, /*#__PURE__*/
-    React.createElement("summary", {
-      style: {
-        cursor: "pointer", listStyle: "none",
-        fontFamily: "var(--cx-mono)", fontSize: 11, letterSpacing: ".1em",
-        color: "var(--cx-accent)", padding: "6px 10px",
-        border: "1px dashed color-mix(in oklab, var(--cx-accent) 45%, transparent)",
-        borderRadius: 3, textAlign: "center", textTransform: "uppercase"
-      } },
-    "\uFF0B Browse community translations"), /*#__PURE__*/
-    React.createElement(RepoAdd, { onAdded: () => bump((n) => n + 1) })
-    )
-    ) :
-    null,
-    ctxMenu ? /*#__PURE__*/
-    React.createElement("ul", {
-      className: "cx-tp-ctx",
-      role: "menu",
-      style: {
-        position: "fixed", left: Math.min(ctxMenu.x, window.innerWidth - 240), top: Math.min(ctxMenu.y, window.innerHeight - 220),
-        zIndex: 9999, minWidth: 220,
-        background: "var(--cx-bg, #0a0e12)",
-        border: "1px solid color-mix(in oklab, var(--cx-accent) 35%, transparent)",
-        borderRadius: 4, padding: 4,
-        fontFamily: "var(--cx-mono)", fontSize: 11, listStyle: "none", margin: 0,
-        boxShadow: "0 6px 30px rgba(0,0,0,.55)"
-      },
-      onClick: (e) => e.stopPropagation() },
-
-    (() => {
-      const t = ctxMenu.t;
-      const isPrim = primary === t.id;
-      const isCmp = compareSet.includes(t.id);
-      const st = stats[t.id];
-      const items = [
-      { label: "Set as primary", on: () => onPrimaryWrap(t.id), disabled: isPrim },
-      { label: isCmp ? "Remove from compare" : "Add to compare", on: () => onToggleCompareWrap(t.id) },
-      { label: "Save offline", on: () => startDownload(t), disabled: st?.fully },
-      { label: "Remove offline data", on: () => clearOffline(t), disabled: !st || st.cached === 0 }];
-
-      if (userIds.has(t.id)) items.push({ label: "Remove from library", on: () => removeOne(t), danger: true });
-      return items.map((it, i) => /*#__PURE__*/
-      React.createElement("li", { key: i, role: "menuitem" }, /*#__PURE__*/
-      React.createElement("button", {
-        type: "button",
-        disabled: it.disabled,
-        onClick: () => {it.on();setCtxMenu(null);},
-        style: {
-          width: "100%", textAlign: "left",
-          background: "transparent", border: "none",
-          color: it.disabled ? "var(--cx-fg-dim)" : it.danger ? "#ff8291" : "var(--cx-fg)",
-          padding: "6px 10px", cursor: it.disabled ? "default" : "pointer",
-          opacity: it.disabled ? 0.5 : 1, borderRadius: 3
-        },
-        onMouseEnter: (e) => {if (!it.disabled) e.currentTarget.style.background = "color-mix(in oklab, var(--cx-accent) 12%, transparent)";},
-        onMouseLeave: (e) => {e.currentTarget.style.background = "transparent";} },
-      it.label)
-      )
-      );
-    })()
-    ) :
-    null
-    ));
-
+  });
+  _dlState.set(t.id, { done: 0, total, controller });
+  _dlNotify();
+  if (!silent) _toast(`Saving ${t.name} offline…`, "info");
 }
-
-// Offline indicator — three states, all elegant:
-//   • At rest, untouched: hairline ring icon, low opacity. Hover: "Save offline".
-//   • Downloading: SVG progress ring fills clockwise, percent + book name flick
-//     subtly underneath. Click to pause.
-//   • Fully cached: solid filled ring + tiny "OFFLINE" word in mono.
-// Always reserves the same width so rows don't shift between states.
-function OfflineDot({ t, stats, dl, onStart, onStop, onClear }) {
-  const downloading = dl && !dl.complete && !dl.aborted;
-  const fully = stats?.fully && !downloading;
-  const ratio = downloading ? dl.done / dl.total : stats ? stats.cached / stats.total : 0;
-  // Show "<1%" rather than rounding tiny progress down to 0 — "0%" would
-  // wrongly suggest nothing is cached when in fact 2/1189 chapters are.
-  const pct = ratio > 0 && ratio < 0.01 ? "<1%" : `${Math.round(ratio * 100)}%`;
-
-  const onClick = (e) => {
-    e.stopPropagation();
-    if (downloading) onStop();else
-    if (fully) onClear();else
-    onStart();
-  };
-  const title = downloading ?
-  `Downloading ${t.name} for offline · ${dl.done}/${dl.total} chapters · click to pause` :
-  fully ?
-  `${t.name} is fully available offline · click to remove` :
-  ratio > 0 ?
-  `${t.name} partially cached (${stats.cached}/${stats.total}) · click to download the rest` :
-  `Save ${t.name} for offline reading`;
-
-  // SVG progress ring — circumference = 2πr; offset = c · (1 − ratio)
-  const SIZE = 18,R = 7;
-  const C = 2 * Math.PI * R;
-  const off = C * (1 - ratio);
-
-  const label = fully ? "OFFLINE" : downloading ? pct : ratio > 0 ? pct : "DL";
-  return (/*#__PURE__*/
-    React.createElement("button", {
-      className: `cx-tp-offline ${downloading ? "is-dl" : ""} ${fully ? "is-full" : ""} ${ratio > 0 && !fully && !downloading ? "is-partial" : ""}`,
-      onClick: onClick,
-      title: title,
-      "aria-label": title }, /*#__PURE__*/
-
-    React.createElement("svg", { viewBox: `0 0 ${SIZE} ${SIZE}`, width: SIZE, height: SIZE, "aria-hidden": true, className: "cx-tp-off-svg" }, /*#__PURE__*/
-    React.createElement("circle", { cx: SIZE / 2, cy: SIZE / 2, r: R, fill: "none", className: "cx-tp-off-track" }),
-    ratio > 0 ? /*#__PURE__*/
-    React.createElement("circle", {
-      cx: SIZE / 2, cy: SIZE / 2, r: R,
-      fill: fully ? "currentColor" : "none",
-      className: "cx-tp-off-fill",
-      strokeDasharray: C,
-      strokeDashoffset: off,
-      transform: `rotate(-90 ${SIZE / 2} ${SIZE / 2})` }
-    ) :
-    null,
-    fully ? /*#__PURE__*/
-    React.createElement("path", { d: "M5.5 9.5 l2.4 2.4 l5-5.5", fill: "none",
-      stroke: "var(--cx-bg)", strokeWidth: "1.6",
-      strokeLinecap: "round", strokeLinejoin: "round" }) :
-    !downloading && ratio === 0 ? /*#__PURE__*/
-    React.createElement("path", { d: "M9 5 v6 m-3 -3 l3 3 l3 -3", fill: "none",
-      stroke: "currentColor", strokeWidth: "1.2",
-      strokeLinecap: "round", strokeLinejoin: "round", opacity: "0.65" }) :
-    null
-    ), /*#__PURE__*/
-    React.createElement("span", { className: "cx-tp-off-lbl" }, label)
-    ));
-
+function transStopDownload(t) {
+  const s = _dlState.get(t.id);
+  s?.controller?.abort();
+  _toast(`Paused ${t.name} download`, "warn");
 }
+function transClearOffline(t, { skipConfirm } = {}) {
+  if (!skipConfirm && !window.confirm(`Remove offline copy of ${t.name}? Active reading will re-fetch as you go.`)) return;
+  try {
+    if (typeof window.BIBLE.removeTranslation === "function") {
+      window.BIBLE.removeTranslation(t.id);
+    } else {
+      const raw = JSON.parse(localStorage.getItem("codex.bible.cache.v2") || "{}");
+      for (const k of Object.keys(raw)) if (k.endsWith(`.${t.id}`)) delete raw[k];
+      localStorage.setItem("codex.bible.cache.v2", JSON.stringify(raw));
+    }
+  } catch {}
+  try {window.dispatchEvent(new CustomEvent("codex:translations-changed", { detail: { id: t.id } }));} catch {}
+  _dlState.delete(t.id);
+  _autoBundleTried.delete(t.id);
+  _dlNotify();
+}
+// The honest cross-IIFE door: translations.jsx renders the offline truth
+// dots from this exact state machine — no parallel copy.
+try {
+  window.CODEX_TRANS_STATE = {
+    get: (id) => _dlState.get(id),
+    subscribe: (fn) => {_dlListeners.add(fn);return () => _dlListeners.delete(fn);},
+    start: transStartDownload,
+    stop: transStopDownload,
+    clear: transClearOffline,
+    maybeAutoBundle
+  };
+} catch {}
 
 // Save a panel entry (Talmud parallel / Gnosis reading) to the user's
 // notes. Same path Oracle uses — so all three "save" gestures (verse menu
@@ -3164,102 +2509,13 @@ function LeftRailResizer() {
 
 // PluginPanelHost is exported for the MONAD window host (winhost.jsx):
 // plugin panels are pure (ctx)=>element renderers, so they mount equally
-// well inside a floating window as inside the rail/deck.
-Object.assign(window, { RightRail, LeftRailResizer, PluginPanelHost });
-
-/* v7.5 DECK ════════════════════════════════════════════════════════════
-   Desktop OS·7 right-rail "Deck": the pinned panels render as a vertical
-   scroll stack of glass cards instead of a tab strip. Everything below is
-   additive and file-local — no existing class/export/key/event renamed.
-   The deck engages ONLY when body.cx-os7 is set AND viewport >= 881px;
-   classic shell, mobile, and os7-off keep today's tab behavior exactly.
-   (Function declarations hoist, so RightRail above sees these.)
-   ══════════════════════════════════════════════════════════════════════ */
-
-// Collapsed-card persistence: array of tab ids whose cards are folded.
-// null (nothing stored yet) → caller derives the default: first two
-// pinned cards expanded, the rest collapsed.
-const DECK_COLLAPSED_KEY = "codex.deck.collapsed.v1";
-function loadDeckCollapsed() {
-  try {
-    const raw = localStorage.getItem(DECK_COLLAPSED_KEY);
-    if (raw == null) return null;
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : null;
-  } catch {}
-  return null;
-}
-function saveDeckCollapsed(arr) {
-  try {localStorage.setItem(DECK_COLLAPSED_KEY, JSON.stringify(arr));} catch {}
-}
-
-// Deck mode = OS·7 shell active AND desktop width. Re-evaluated on the
-// "codex:os7" toggle event (shell.js dispatches it) and on viewport
-// crossings of the 881px desktop breakpoint.
-function useDeckMode() {
-  const compute = () => {
-    try {
-      return typeof document !== "undefined" &&
-      document.body.classList.contains("cx-os7") &&
-      !!(window.matchMedia && window.matchMedia("(min-width: 881px)").matches);
-    } catch {return false;}
-  };
-  const [on, setOn] = React.useState(compute);
-  React.useEffect(() => {
-    const update = () => setOn(compute());
-    window.addEventListener("codex:os7", update);
-    let mq = null;
-    try {mq = window.matchMedia ? window.matchMedia("(min-width: 881px)") : null;} catch {}
-    if (mq) {
-      if (mq.addEventListener) mq.addEventListener("change", update);else
-      if (mq.addListener) mq.addListener(update);
-    }
-    return () => {
-      window.removeEventListener("codex:os7", update);
-      if (mq) {
-        if (mq.removeEventListener) mq.removeEventListener("change", update);else
-        if (mq.removeListener) mq.removeListener(update);
-      }
-    };
-  }, []);
-  return on;
-}
-
-// One glass card in the deck: slim sticky header (caret + glyph + label +
-// ⤢ focus) over an optionally-mounted body. Mount-on-expand is the safe
-// default for ALL cards — collapsed means header only, zero content
-// mounted, so plugins holding module-level state / window listeners
-// (e.g. reels' media + intervals) only ever live while visible.
-function DeckCard({ tab, expanded, locked, onToggle, onFocus, children }) {
-  return (/*#__PURE__*/
-    React.createElement("section", {
-      className: `cx-deck-card ${expanded ? "is-open" : "is-closed"}${tab.isPlugin ? " is-plugin" : ""}${locked ? " is-locked" : ""}${tab.isTemp ? " is-temp" : ""}`,
-      "data-deck-id": tab.id }, /*#__PURE__*/
-
-    React.createElement("header", { className: "cx-deck-card-head" }, /*#__PURE__*/
-    React.createElement("button", {
-      type: "button",
-      className: "cx-deck-card-toggle",
-      onClick: onToggle,
-      "aria-expanded": expanded,
-      title: locked ? "Unlock and expand" : expanded ? "Collapse" : "Expand" }, /*#__PURE__*/
-
-    React.createElement("span", { className: "cx-deck-caret", "aria-hidden": "true" }, expanded ? "▾" : "▸"), /*#__PURE__*/
-    React.createElement("span", { className: "cx-deck-glyph", "aria-hidden": "true" }, tab.glyph), /*#__PURE__*/
-    React.createElement("span", { className: "cx-deck-lbl" }, tab.label),
-    locked ? /*#__PURE__*/React.createElement("span", { className: "cx-tab-lock", "aria-hidden": "true" }, "\u232C") : null
-    ), /*#__PURE__*/
-    React.createElement("button", {
-      type: "button",
-      className: "cx-deck-focus",
-      onClick: onFocus,
-      title: `Focus ${tab.label} — full single-panel view`,
-      "aria-label": `Focus ${tab.label}` },
-    "\u2922")
-    ),
-    expanded ? /*#__PURE__*/React.createElement("div", { className: "cx-deck-card-body" }, children) : null
-    ));
-
-}
-/* end v7.5 DECK */
+// well inside a floating window as inside the rail.
+// v11 — the builtin panels export too: app.jsx renders each as its own
+// desk window (the deck is dead). Cross-IIFE law: only window.* crosses
+// dist file boundaries.
+Object.assign(window, {
+  RightRail, LeftRailResizer, PluginPanelHost,
+  TalmudPanel, CommentaryPanel, GematriaPanel, GnosisPanel, DisarmPanel,
+  ExegesisPanel, TranslationAnalysisPanel
+});
 })();

@@ -111,11 +111,13 @@ const OMNI_COMMANDS = [
     },
   },
   {
-    id: "study", icon: "▤", aliases: ["study", "deck", "panels"],
-    title: "Open the Study window", sub: "the deck of pinned panels — place it anywhere",
+    // v11 — the study deck is dead; "study/panels" now opens the
+    // translations window (each panel is its own window — see PANEL_INDEX
+    // rows for the rest).
+    id: "study", icon: "Α/Ω", aliases: ["study", "panels", "translations"],
+    title: "Open the Translations window", sub: "every panel is its own window now — type a panel name for the rest",
     action: () => {
-      if (window.codexDesk && window.codexDesk.on()) window.codexDesk.open("study");
-      else if (window.codexOpenPanel) window.codexOpenPanel("trans");
+      if (window.codexOpenPanel) window.codexOpenPanel("trans");
     },
   },
 ];
@@ -232,7 +234,7 @@ const OMNI_CMD_KEYS = {
   settings: "preferences theme options configure keys",
   focus: "distraction free fullscreen reading mode hide everything zen",
   library: "window books navigation left rail bookmarks oracle",
-  study: "window panels deck right rail commentary translations",
+  study: "window panels translations languages compare",
 };
 
 // The FULL command catalog for "/" mode: verbs, every rail panel, top-level

@@ -223,7 +223,7 @@ function CodexReaderX({ surface } = {}) {
     React.createElement("button", { className: "cxr-chip", onClick: cycleFont, title: `Scripture size · ${fs}px` }, "Aa"), /*#__PURE__*/
     React.createElement("button", {
       className: "cxr-chip cxr-chip-tr",
-      onClick: () => {try {window.dispatchEvent(new CustomEvent("codex:open-builtin-tab", { detail: { tabId: "trans" } }));} catch {}if (window.codexDesk) window.codexDesk.open("study");},
+      onClick: () => {try {if (window.codexOpenPanel) window.codexOpenPanel("trans");else window.dispatchEvent(new CustomEvent("codex:open-builtin-tab", { detail: { tabId: "trans" } }));} catch {}},
       title: trMeta ? `${trMeta.name} (${trMeta.year || ""}) — click for translations` : "Translations" },
     (tr || "").toUpperCase())
     ),

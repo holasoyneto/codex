@@ -1351,14 +1351,54 @@ function deskLoad() {
     if (d && typeof d === "object") {
       // v10 REBIRTH: the library is dismantled — oracle + marks are their
       // own desk windows (own plugins), no longer stowaways in the rail.
-      return { reader: d.reader !== false, library: !!d.library, study: !!d.study,
+      // (v11: the study deck is dead — its key is dropped on read; builtin
+      // panels live in codex.desk.panels.v1 as independent windows.)
+      return { reader: d.reader !== false, library: !!d.library,
                oracle: !!d.oracle, marks: !!d.marks, focus: !!d.focus };
     }
   } catch {}
   // First open: the reader, front and center, and nothing else.
-  return { reader: true, library: false, study: false, oracle: false, marks: false, focus: false };
+  return { reader: true, library: false, oracle: false, marks: false, focus: false };
 }
 function deskSave(d) { try { localStorage.setItem(DESK_KEY, JSON.stringify(d)); } catch {} }
+
+// ── v11 — BUILTIN PANELS AS INDEPENDENT WINDOWS ───────────────────────
+// The v7.5 study deck is dead. Each of the eight builtin panels is its own
+// desk window (win:builtin:<id>), fed the SAME props the deck passed, with
+// per-window geometry persisted by wm.js. codex.desk.panels.v1 remembers
+// which are open; the old deck pins (codex.panels.pinned.v1) migrate once
+// so a returning user's arrangement greets them as windows.
+const DESK_PANELS_KEY = "codex.desk.panels.v1";
+const BUILTIN_WIN = {
+  trans:  { glyph: "Α/Ω", title: "TRANSLATIONS" },
+  talmud: { glyph: "ת",   title: "TALMUD" },
+  comm:   { glyph: "§",   title: "COMMENTARY" },
+  gem:    { glyph: "Σn",  title: "GEMATRIA" },
+  gnosis: { glyph: "⟁",   title: "GNOSIS" },
+  disarm: { glyph: "⚔",   title: "DISARM" },
+  exeg:   { glyph: "✎",   title: "EXEGESIS" },
+  txan:   { glyph: "⟷",   title: "WORD ANALYSIS" },
+};
+const BUILTIN_PANEL_IDS = Object.keys(BUILTIN_WIN);
+function deskPanelsLoad() {
+  // Satellites (?surface=) show ONE surface — never the panel windows.
+  try { if (new URLSearchParams(window.location.search).get("surface")) return []; } catch {}
+  try {
+    const arr = JSON.parse(localStorage.getItem(DESK_PANELS_KEY) || "null");
+    if (Array.isArray(arr)) return arr.filter(id => BUILTIN_PANEL_IDS.includes(id));
+  } catch {}
+  // One-time migration: builtin ids the user had pinned in the old deck
+  // become the initially-open windows. Plugin ids stay winhost's business.
+  try {
+    const pinned = JSON.parse(localStorage.getItem("codex.panels.pinned.v1") || "null");
+    if (Array.isArray(pinned)) return pinned.filter(id => BUILTIN_PANEL_IDS.includes(id));
+  } catch {}
+  return [];
+}
+function deskPanelsSave(arr) {
+  try { if (new URLSearchParams(window.location.search).get("surface")) return; } catch {}
+  try { localStorage.setItem(DESK_PANELS_KEY, JSON.stringify(arr)); } catch {}
+}
 function deskCapable() {
   // v9.2 SHED: the desk IS the desktop app — no classic fallback. One
   // breakpoint (881px, shared with the mobile media queries and wm.js).
@@ -2256,6 +2296,61 @@ function App() {
     deskSave(desk);
     try { window.dispatchEvent(new CustomEvent("codex:desk", { detail: { ...desk } })); } catch {}
   }, [desk]);
+
+  // v11 — open builtin panel windows (ordered array of builtin ids).
+  const [deskPanels, setDeskPanels] = useState(deskPanelsLoad);
+  useEffect(() => {
+    deskPanelsSave(deskPanels);
+    try { window.dispatchEvent(new CustomEvent("codex:desk-panels", { detail: { open: deskPanels.slice() } })); } catch {}
+  }, [deskPanels]);
+  // Focus an already-open panel window: restore if minimized, raise via the
+  // same pointerdown nudge winhost uses (wm.js owns the z ladder).
+  const focusBuiltinWin = useCallback((id) => {
+    try {
+      const bd = document.querySelector(`[data-wm-id="win:builtin:${id}"]`);
+      if (bd) { bd.style.display = ""; bd.dispatchEvent(new Event("pointerdown", { bubbles: true })); }
+    } catch {}
+  }, []);
+  const openBuiltinPanel = useCallback((id) => {
+    if (!BUILTIN_WIN[id]) return;
+    if (id === "gnosis") setGnosisOn(true);
+    setDeskPanels(p => {
+      if (p.includes(id)) { focusBuiltinWin(id); return p; }
+      return [...p, id];
+    });
+    // raise newly-mounted windows too (after React paints)
+    requestAnimationFrame(() => focusBuiltinWin(id));
+  }, [focusBuiltinWin]);
+  const closeBuiltinPanel = useCallback((id) => {
+    setDeskPanels(p => p.filter(x => x !== id));
+  }, []);
+  // Public API — dock chips (wm.js), codexOpenPanel (panels.jsx), omnibar
+  // and the keyboard all drive builtin windows through this one door.
+  useEffect(() => {
+    window.codexDeskPanels = {
+      on: () => deskMode,
+      list: () => deskPanels.slice(),
+      open: openBuiltinPanel,
+      close: closeBuiltinPanel,
+      toggle: (id) => {
+        if (!BUILTIN_WIN[id]) return;
+        if (deskPanels.includes(id)) closeBuiltinPanel(id);
+        else openBuiltinPanel(id);
+      },
+    };
+    return () => { delete window.codexDeskPanels; };
+  }, [deskMode, deskPanels, openBuiltinPanel, closeBuiltinPanel]);
+  // codex:open-builtin-tab lands on windows under the desk (the rail keeps
+  // its own listener for the mobile drawer, which doesn't mount here).
+  useEffect(() => {
+    if (!deskMode) return;
+    const onBuiltin = (e) => {
+      const id = e && e.detail && e.detail.tabId;
+      if (id && BUILTIN_WIN[id]) openBuiltinPanel(id);
+    };
+    window.addEventListener("codex:open-builtin-tab", onBuiltin);
+    return () => window.removeEventListener("codex:open-builtin-tab", onBuiltin);
+  }, [deskMode, openBuiltinPanel]);
   // Focus mode is a body class so CSS can hide every non-reader window
   // (including consoles + plugin windows) without unmounting them.
   useEffect(() => {
@@ -2282,10 +2377,10 @@ function App() {
     }
   }, [deskMode, leftOpen]);
   useEffect(() => {
-    if (deskMode && rightOpen) {
-      setRightOpen(false);
-      setDesk(d => (d.study ? d : { ...d, study: true, focus: false }));
-    }
+    // v11: there is no study window to surface — the drawer flag is just
+    // reset under the desk (panel opens route through codexDeskPanels /
+    // winhost windows instead).
+    if (deskMode && rightOpen) setRightOpen(false);
   }, [deskMode, rightOpen]);
   // Keyboard shortcut overlay — `?` opens it, Esc closes.
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -2611,7 +2706,9 @@ function App() {
         }
       }
 
-      // Panel tabs 1..9
+      // Panel keys 1..9 — under the desk each opens/focuses that panel's
+      // OWN window (builtin → app desk window, plugin → winhost window);
+      // mobile/classic keeps the drawer-tab behavior.
       if (/^[1-9]$/.test(k)) {
         const tabs = (window.railTabs ? window.railTabs() : null) || [
           { id: "trans" }, { id: "talmud" }, { id: "comm" }, { id: "gem" }, { id: "gnosis" }
@@ -2620,6 +2717,10 @@ function App() {
         if (idx < tabs.length) {
           e.preventDefault();
           const id = tabs[idx].id;
+          if (deskMode && window.codexOpenPanel) {
+            window.codexOpenPanel(id);
+            return;
+          }
           if (id === "gnosis" && !gnosisOn) setGnosisOn(true);
           setTab(id);
         }
@@ -2691,10 +2792,14 @@ function App() {
           return;
         case "t": case "T":
           e.preventDefault();
-          // Translations live in the study window (deck) under the desk.
-          setTab("trans");
-          if (deskMode) setDesk(d => ({ ...d, study: !d.study, focus: false }));
-          else setRightOpen(true);
+          // v11 — translations are their OWN window under the desk.
+          if (deskMode) {
+            if (window.codexDeskPanels) window.codexDeskPanels.toggle("trans");
+            setDesk(d => (d.focus ? { ...d, focus: false } : d));
+          } else {
+            setTab("trans");
+            setRightOpen(true);
+          }
           dispatchShortcut("open-translations");
           return;
         case "s": case "S": {
@@ -2886,6 +2991,13 @@ function App() {
       const d = (e && e.detail) || {};
       let id = d.panelId || "";
       if (!id) return;
+      // v11 — a bare builtin id under the desk is a window open, not a tab.
+      if (!d.pluginId && BUILTIN_WIN[id] && deskMode && window.codexDeskPanels) {
+        const vb = d.ctx && (d.ctx.verse || (d.ctx.ref && d.ctx.ref.verse));
+        if (vb) setCurrentVerse(vb);
+        window.codexDeskPanels.open(id);
+        return;
+      }
       if (d.pluginId && id.indexOf(":") === -1) id = `${d.pluginId}:${id}`;
       if (id.indexOf("plugin:") !== 0) id = `plugin:${id}`;
       const v = d.ctx && (d.ctx.verse || (d.ctx.ref && d.ctx.ref.verse));
@@ -2897,6 +3009,14 @@ function App() {
         const bId = c.bookId, ch = c.chapter, vn = c.verse;
         if (bId && ch) setXrefThread([`${String(bId).toLowerCase()}.${ch}.${vn || 1}`]);
       }
+      // v11 — under the desk, plugin panels are winhost windows; the study
+      // deck no longer exists to receive a tab.
+      if (deskMode && window.codexOpenWindow) {
+        const glyph = (window.CODEX_PLUGINS_API?.getPanels?.() || []).find(
+          p => `plugin:${p.pluginId}:${p.id}` === id
+        )?.glyph;
+        if (window.codexOpenWindow({ id, glyph })) return;
+      }
       setRightOpen(true);
       // (v9.2 SHED removed the collapsible-rails state — the old
       // setRightCollapsed call here threw on every codex:open-panel.)
@@ -2904,7 +3024,7 @@ function App() {
     };
     window.addEventListener("codex:open-panel", onOpenPanel);
     return () => window.removeEventListener("codex:open-panel", onOpenPanel);
-  }, []);
+  }, [deskMode]);
 
   // Exiting a fullscreen experience (e.g. Reels) should return to reading, not
   // leave the rail open behind a dimmed scrim. Reels dispatches this on close.
@@ -3117,6 +3237,55 @@ function App() {
         if (deskMode) {
           const vvCount = passage.verses.filter(v => v[primary] != null && v[primary] !== "").length
             || passage.verses.length || 0;
+          // v11 — each open builtin panel is its own window, fed the SAME
+          // props the dead deck passed. Components cross the panels.jsx
+          // IIFE boundary via window.* (cross-IIFE law).
+          const refCtx = `${passage.book || ""} ${passage.chapter}:${currentVerse || 1}`;
+          const builtinBody = (id) => {
+            const W = window;
+            switch (id) {
+              case "trans":
+                return W.CodexTranslationsX ? React.createElement(W.CodexTranslationsX, {
+                  primary, onPrimary: setPrimaryAndPersist, compareSet, onToggleCompare,
+                  passage, currentVerse,
+                }) : null;
+              case "talmud":
+                return W.TalmudPanel ? React.createElement(W.TalmudPanel, {
+                  panelData, status: panelStatus, meta: panelMeta, passage,
+                  onRegenerate: regeneratePanels,
+                }) : null;
+              case "comm":
+                return W.CommentaryPanel ? React.createElement(W.CommentaryPanel, {
+                  panelData, status: panelStatus, meta: panelMeta, passage,
+                  onRegenerate: regeneratePanels, onJumpRef: jumpToRef,
+                }) : null;
+              case "gem":
+                return W.GematriaPanel ? React.createElement(W.GematriaPanel, {
+                  panelData, status: panelStatus, meta: panelMeta, passage,
+                  onRegenerate: regeneratePanels,
+                }) : null;
+              case "gnosis":
+                return W.GnosisPanel ? React.createElement(W.GnosisPanel, {
+                  panelData, status: panelStatus, meta: panelMeta, passage,
+                  gnosisOn, onToggleGnosis: setGnosisOn, onRegenerate: regeneratePanels,
+                }) : null;
+              case "disarm":
+                return W.DisarmPanel ? React.createElement(W.DisarmPanel, {
+                  panelData: disarmData, status: disarmStatus, meta: disarmMeta, passage,
+                  currentVerse, onRegenerate: regenerateDisarm,
+                }) : null;
+              case "exeg":
+                return W.ExegesisPanel ? React.createElement(W.ExegesisPanel, {
+                  passage, currentVerse,
+                }) : null;
+              case "txan":
+                return W.TranslationAnalysisPanel ? React.createElement(W.TranslationAnalysisPanel, {
+                  passage, currentVerse, primary, compareSet, onJumpRef: jumpToRef,
+                }) : null;
+              default:
+                return null;
+            }
+          };
           return (
             <div className="cx-desk">
               {/* the briefing floats over the wallpaper, never in the Word */}
@@ -3139,13 +3308,19 @@ function App() {
                   bodyClass="cx-desk-body-reader"
                 >{centerColEl}</DeskWin>
               ) : null}
-              {desk.study ? (
+              {/* v11 — the study deck is DEAD: every open builtin panel
+                  floats as its own window with its own persisted geometry. */}
+              {deskPanels.map((pid) => BUILTIN_WIN[pid] ? (
                 <DeskWin
-                  id="sys:study" glyph="▤" title="Study"
-                  onClose={() => setDesk(d => ({ ...d, study: false }))}
-                  bodyClass="cx-desk-body-rail"
-                >{rightRailEl}</DeskWin>
-              ) : null}
+                  key={pid}
+                  id={`builtin:${pid}`}
+                  glyph={BUILTIN_WIN[pid].glyph}
+                  title={BUILTIN_WIN[pid].title}
+                  ctx={refCtx}
+                  onClose={() => closeBuiltinPanel(pid)}
+                  bodyClass="cx-desk-body-panel"
+                >{builtinBody(pid)}</DeskWin>
+              ) : null)}
               {/* v10 REBIRTH — the library dismantled: oracle + marks are
                   their own desk windows, rendered by their own plugins. */}
               {desk.oracle && window.OracleX ? (
@@ -3189,7 +3364,12 @@ function App() {
         distractionFree={distractionFree}
         onToggleDistractionFree={toggleDistractionFree}
         onShowShortcuts={() => setShowShortcuts(true)}
-        onOpenReels={() => { setRightOpen(true); setTab("plugin:reels:reels"); }}
+        onOpenReels={() => {
+          // codexOpenPanel routes honestly everywhere: winhost window under
+          // the desk, drawer tab on mobile/classic.
+          if (window.codexOpenPanel) window.codexOpenPanel("plugin:reels:reels");
+          else { setRightOpen(true); setTab("plugin:reels:reels"); }
+        }}
         isOnline={isOnline}
       />
 
@@ -3224,12 +3404,12 @@ function App() {
                 ["H", "Previous chapter"],
                 ["L", "Next chapter"],
                 ["⌘/Ctrl + K", "Omnibar — ask anything"],
-                ["1 – 9", "Switch panel tab"],
+                ["1 – 9", deskMode ? "Open the Nth panel window" : "Switch panel tab"],
                 ["O", deskMode ? "Library window (Oracle, books, marks)" : "Toggle Oracle / left rail"],
                 ["B", deskMode ? "Library window (bookmarks)" : "Toggle bookmarks"],
                 ["N", "Toggle notes"],
                 ["M", "Toggle verse map"],
-                ["T", deskMode ? "Study window (translations, panels)" : "Open translations"],
+                ["T", deskMode ? "Translations window" : "Open translations"],
                 ["S", "Toggle side-by-side"],
                 ["F", "Focus — just the Word"],
                 ["Enter", "Open verse menu (on a verse)"],

@@ -13,7 +13,7 @@
 // because that storage is independent of the SW caches.
 
 // ⚠️ MIRRORED in version.js (CODEX_VERSION.sw) — bump BOTH together.
-const VERSION = "v263";
+const VERSION = "v264";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -69,6 +69,7 @@ const SHELL_FILES = [
   r("dist/app.js"),
   r("dist/components.js"),
   r("dist/panels.js"),
+  r("dist/translations.js"),
   r("dist/winhost.js"),
   r("dist/oracle.js"),
   r("dist/library.js"),

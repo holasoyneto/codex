@@ -4,7 +4,7 @@
 // Any surface of CODEX can be thrown onto another monitor as its own
 // browser window, and every window shares ONE reading cursor:
 //
-//   window.codexDisplays.open("study" | "reader" | "library" | "oracle" |
+//   window.codexDisplays.open("reader" | "library" | "oracle" |
 //                             "marks" | "galaxy")
 //     → opens   index.html?surface=<s>&follow=1   as a popup the user
 //       drags to the second display.
@@ -29,7 +29,9 @@
 
   var SURFACES = {
     reader:  { label: "Reader",  open: function () { var d = window.codexDesk; if (d) { d.open("reader"); } } },
-    study:   { label: "Study",   open: function () { var d = window.codexDesk; if (d) { d.open("study"); } } },
+    // (v11: the "study" surface died with the deck — builtin panels are
+    // independent windows; satellites boot with none open, see app.jsx
+    // deskPanelsLoad's ?surface= guard.)
     library: { label: "Library", open: function () { var d = window.codexDesk; if (d) { d.open("library"); } } },
     oracle:  { label: "Oracle",  open: function () { var d = window.codexDesk; if (d) { d.open("oracle"); } } },
     marks:   { label: "Marks",   open: function () { var d = window.codexDesk; if (d) { d.open("marks"); } } },
@@ -82,7 +84,7 @@
             // keep the reader on study satellites? No — one surface, one screen.
             d.close && d.close("reader");
           }
-          ["library", "study", "oracle", "marks"].forEach(function (k) {
+          ["library", "oracle", "marks"].forEach(function (k) {
             if (k !== SURFACE && d.state()[k] && d.close) d.close(k);
           });
         }

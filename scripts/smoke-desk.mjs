@@ -1,8 +1,10 @@
 // smoke-desk.mjs — v9 FACE TO FACE: the desk replaces the grid on OS·7
 // desktops. First open = reader alone as a floating WM window; library and
-// study open as free windows via window.codexDesk; focus mode hides every
+// oracle open as free windows via window.codexDesk; focus mode hides every
 // non-reader window; the open set survives reload; classic grid returns
 // when os7 is off. Zero pageerrors throughout.
+// (v11: the STUDY deck window is dead — builtin panels are independent
+// windows covered by smoke-windows.mjs; this file now exercises oracle.)
 import puppeteer from "puppeteer-core";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const URL = process.env.SMOKE_URL || "http://localhost:7777/";
@@ -33,17 +35,17 @@ try {
     reader: !!document.querySelector('[data-desk="sys:reader"] .cx-win .cx-verse, [data-desk="sys:reader"] .cx-win .cx-verse-row'),
     readerWm: !!document.querySelector('[data-desk="sys:reader"] .cx-win.cx-wm-win'),
     library: !!document.querySelector('[data-desk="sys:library"]'),
-    study: !!document.querySelector('[data-desk="sys:study"]'),
+    oracle: !!document.querySelector('[data-desk="sys:oracle"]'),
     desk: window.codexDesk && window.codexDesk.state(),
   }));
   if (first.grid) fail("grid should be gone under the desk", first);
   if (!first.reader) fail("reader verses should render inside the reader window", first);
   if (!first.readerWm) fail("reader window should be WM-enhanced (drag/resize)", first);
-  if (first.library || first.study) fail("first open must be the reader ALONE", first);
+  if (first.library || first.oracle) fail("first open must be the reader ALONE", first);
   log("first open: reader alone, WM-enhanced, no grid ✓");
 
-  // 2 · Library + study open as windows with real content.
-  await page.evaluate(() => { window.codexDesk.open("library"); window.codexDesk.open("study"); });
+  // 2 · Library + oracle open as windows with real content.
+  await page.evaluate(() => { window.codexDesk.open("library"); window.codexDesk.open("oracle"); });
   await sleep(1200);
   const wins = await page.evaluate(() => {
     const probe = (id) => {
@@ -52,11 +54,11 @@ try {
       const r = el.getBoundingClientRect();
       return { w: Math.round(r.width), h: Math.round(r.height), wm: el.classList.contains("cx-wm-win") };
     };
-    return { lib: probe("sys:library"), study: probe("sys:study") };
+    return { lib: probe("sys:library"), oracle: probe("sys:oracle") };
   });
   if (!wins.lib || wins.lib.w < 200 || !wins.lib.wm) fail("library window missing/empty", wins);
-  if (!wins.study || wins.study.w < 200 || !wins.study.wm) fail("study window missing/empty", wins);
-  log("library + study float as WM windows ✓", wins);
+  if (!wins.oracle || wins.oracle.w < 200 || !wins.oracle.wm) fail("oracle window missing/empty", wins);
+  log("library + oracle float as WM windows ✓", wins);
 
   // 3 · Focus mode hides everything but the reader; Esc restores.
   await page.evaluate(() => window.codexDesk.focus(true));
@@ -80,9 +82,9 @@ try {
   await boot();
   const after = await page.evaluate(() => ({
     library: !!document.querySelector('[data-desk="sys:library"]'),
-    study: !!document.querySelector('[data-desk="sys:study"]'),
+    oracle: !!document.querySelector('[data-desk="sys:oracle"]'),
   }));
-  if (!after.library || !after.study) fail("desk layout should survive reload", after);
+  if (!after.library || !after.oracle) fail("desk layout should survive reload", after);
   log("desk persists across reload ✓");
 
   // 5 · v9.2 SHED — the classic mode is GONE: no toggle, no grid on desktop.

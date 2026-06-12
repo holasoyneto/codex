@@ -19672,217 +19672,6 @@ body.cx-os7 ::-webkit-scrollbar-thumb:hover { background: var(--os7-line-strong)
 }
 /* ═══ END OS·7 NOCTURNE ═══ */
 
-/* v7.5 DECK ════════════════════════════════════════════════════════════
-   OS·7 desktop right-rail Deck: the pinned panels become a vertical
-   scroll stack of live glass cards. Engages ONLY through the additive
-   .is-deck class the rail sets when body.cx-os7 + min-width:881px (and
-   no focused panel). Classic shell, mobile, and os7-off are untouched —
-   no existing selector is modified, only new rules appended.
-   ══════════════════════════════════════════════════════════════════════ */
-@media (min-width: 881px) {
-  /* 1 · The pinned tab strip yields to the stack (palette stays reachable
-     via the + PANELS button at the bottom of the deck). */
-  body.cx-os7 .cx-rail-r.is-deck .cx-tabs.is-pinned { display: none; }
-
-  /* 2 · The body becomes the scroll column for the cards: classic panel
-     chrome (opaque bg, hairline border, corner ticks) is neutralized so
-     each card supplies its own glass. Scroll, not click. */
-  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 2px 2px 12px;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    scroll-behavior: smooth;
-  }
-  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck::before,
-  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck::after { display: none; }
-
-  /* 3 · The card: detached glass pane, os7 vocabulary. NO overflow clip on
-     the card itself — sticky headers need a visible-overflow ancestor
-     chain up to the scrolling .cx-deck. */
-  body.cx-os7 .cx-deck-card {
-    position: relative;
-    flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--os7-line);
-    border-radius: var(--os7-radius);
-    background: var(--os7-glass-2);
-    -webkit-backdrop-filter: var(--os7-blur);
-    backdrop-filter: var(--os7-blur);
-    box-shadow: var(--os7-shadow-soft);
-  }
-  body.cx-os7 .cx-deck-card.is-open {
-    box-shadow: var(--os7-shadow);
-    border-color: var(--os7-line);
-  }
-  body.cx-os7 .cx-deck-card.is-open:focus-within {
-    border-color: var(--os7-line-strong);
-  }
-  body.cx-os7 .cx-deck-card.is-temp { border-style: dashed; }
-
-  /* 4 · Slim header — sticky while the stack scrolls. */
-  body.cx-os7 .cx-deck-card-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 8px 8px 11px;
-    border-radius: var(--os7-radius) var(--os7-radius) 0 0;
-    border-bottom: 1px solid var(--os7-line-soft);
-    background: var(--os7-glass-hi);
-    -webkit-backdrop-filter: var(--os7-blur);
-    backdrop-filter: var(--os7-blur);
-  }
-  body.cx-os7 .cx-deck-card.is-closed .cx-deck-card-head {
-    border-bottom: 0;
-    border-radius: var(--os7-radius);
-  }
-  body.cx-os7 .cx-deck-card-toggle {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--cx-fg-dim);
-    font-family: var(--cx-mono);
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    text-align: left;
-    cursor: pointer;
-  }
-  body.cx-os7 .cx-deck-card-toggle:hover { color: var(--cx-fg); }
-  body.cx-os7 .cx-deck-card.is-open .cx-deck-card-toggle { color: var(--cx-fg); }
-  body.cx-os7 .cx-deck-card.is-locked .cx-deck-card-toggle { opacity: 0.65; }
-  body.cx-os7 .cx-deck-caret {
-    flex: 0 0 auto;
-    width: 10px;
-    font-size: 9px;
-    opacity: 0.7;
-  }
-  body.cx-os7 .cx-deck-glyph {
-    flex: 0 0 auto;
-    font-size: 12px;
-    opacity: 0.85;
-  }
-  body.cx-os7 .cx-deck-lbl {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  body.cx-os7 .cx-deck-focus {
-    flex: 0 0 auto;
-    width: 24px;
-    height: 24px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: 1px solid var(--os7-line-soft);
-    border-radius: 7px;
-    background: var(--os7-glass-2);
-    color: var(--cx-fg-dim);
-    font-size: 12px;
-    line-height: 1;
-    cursor: pointer;
-  }
-  body.cx-os7 .cx-deck-focus:hover {
-    color: var(--cx-fg);
-    border-color: var(--os7-line-strong);
-    background: var(--os7-glass-hi);
-    box-shadow: 0 0 12px var(--os7-glow);
-  }
-
-  /* 5 · Card body — each card owns its scroll; panels size to content
-     instead of filling the rail (the classic `.cx-tab-body > .cx-pane`
-     fill rules don't reach here: panes are no longer direct children). */
-  body.cx-os7 .cx-deck-card-body {
-    max-height: min(52vh, 480px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    border-radius: 0 0 var(--os7-radius) var(--os7-radius);
-    animation: cx-deck-reveal 0.22s ease both;
-  }
-  body.cx-os7 .cx-deck-card-body .cx-pane {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-  }
-  @keyframes cx-deck-reveal {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: none; }
-  }
-
-  /* 6 · "+ PANELS" — the palette stays one tap away at stack bottom. */
-  body.cx-os7 .cx-deck-add {
-    flex: 0 0 auto;
-    align-self: stretch;
-    padding: 9px 12px;
-    border: 1px dashed var(--os7-line);
-    border-radius: var(--os7-radius);
-    background: transparent;
-    color: var(--cx-fg-dim);
-    font-family: var(--cx-mono);
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    cursor: pointer;
-  }
-  body.cx-os7 .cx-deck-add:hover {
-    color: var(--cx-fg);
-    border-color: var(--os7-line-strong);
-    background: var(--os7-glass-2);
-    box-shadow: 0 0 14px var(--os7-glow);
-  }
-
-  /* 7 · Focused (⤢) classic view: the back strip above the single panel. */
-  body.cx-os7 .cx-deck-backbar {
-    flex: 0 0 auto;
-    display: flex;
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--os7-line-soft);
-  }
-  body.cx-os7 .cx-deck-back {
-    padding: 4px 10px;
-    border: 1px solid var(--os7-line);
-    border-radius: 999px;
-    background: var(--os7-glass-2);
-    color: var(--cx-fg-dim);
-    font-family: var(--cx-mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    cursor: pointer;
-  }
-  body.cx-os7 .cx-deck-back:hover {
-    color: var(--cx-fg);
-    border-color: var(--os7-line-strong);
-    box-shadow: 0 0 12px var(--os7-glow);
-  }
-}
-/* Reduced motion: the deck expands without animation or smooth-scroll. */
-@media (prefers-reduced-motion: reduce) {
-  body.cx-os7 .cx-deck-card-body { animation: none !important; }
-  body.cx-os7 .cx-rail-r.is-deck > .cx-tab-body.cx-deck { scroll-behavior: auto; }
-}
-/* end v7.5 DECK */
-
 /* v7.5 ACTION DOCK */
 /* Dock v3 — the OS·7 launcher row is an ACTION BAR bound to the current
    verse. Additive, scoped to body.cx-os7 desktop only. */
@@ -20008,10 +19797,28 @@ body.cx-os7 ::-webkit-scrollbar-thumb:hover { background: var(--os7-line-strong)
   left: 20px; top: 36px; transform: none;
   width: 316px; height: calc(100vh - 164px);
 }
-/* STUDY — the deck as a window. Lands right by default; lives anywhere. */
-[data-desk="sys:study"] .cx-win {
-  left: calc(100vw - 436px); top: 36px; transform: none;
-  width: 416px; height: calc(100vh - 164px);
+/* v11 — BUILTIN PANEL WINDOWS · first-open geometry only (wm.js measures
+   these rects once, then owns geometry forever under cx-wm-geo:win:builtin:*).
+   Staggered so several opened in a row never stack exactly. */
+[data-desk^="builtin:"] .cx-win {
+  transform: none;
+  width: 420px; height: min(72vh, 780px);
+}
+[data-desk="builtin:trans"]  .cx-win { left: calc(100vw - 460px); top: 36px;  width: 440px; }
+[data-desk="builtin:talmud"] .cx-win { left: calc(100vw - 492px); top: 64px; }
+[data-desk="builtin:comm"]   .cx-win { left: calc(100vw - 524px); top: 92px; }
+[data-desk="builtin:gem"]    .cx-win { left: calc(100vw - 556px); top: 120px; }
+[data-desk="builtin:gnosis"] .cx-win { left: calc(100vw - 588px); top: 148px; }
+[data-desk="builtin:disarm"] .cx-win { left: calc(100vw - 620px); top: 176px; }
+[data-desk="builtin:exeg"]   .cx-win { left: calc(100vw - 652px); top: 204px; }
+[data-desk="builtin:txan"]   .cx-win { left: calc(100vw - 684px); top: 232px; }
+/* Panel windows host one .cx-pane: it fills, scrolls, no double padding. */
+.cx-win-body.cx-desk-body-panel {
+  padding: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.cx-desk-body-panel > .cx-pane {
+  flex: 1 1 auto; min-height: 0; height: auto; overflow-y: auto;
 }
 
 /* Window bodies hosting full surfaces: the surface fills, no double padding */
@@ -20809,3 +20616,246 @@ body.cx-focus .cx-wm-dock:focus-within { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   .cxr-pulse, .cxo-bind-dot, .cxo-consult i { animation: none; opacity: 1; }
 }
+
+/* ═══ v11 THE TONGUES INSTRUMENT · translations.jsx ═══════════════════════
+   Translations rebuilt from zero (EXOGRAMMAR): THE CURRENT WORD up top
+   (serif, serene — law 7), LANGUAGE LANES of cards below (shape before
+   script — the lane IS the language, the card IS the translation), compare
+   as a one-gesture ⊕, offline truth as a permanent dot. Tokens only;
+   focus rings everywhere; reduced motion honored. */
+.cx-tx { gap: 0; }
+
+/* ── THE CURRENT WORD ── */
+.cx-tx-current {
+  flex: none;
+  padding: 2px 2px 12px;
+  border-bottom: 1px solid var(--cx-line);
+  margin-bottom: 10px;
+}
+.cx-tx-identity {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-bottom: 8px;
+}
+.cx-tx-id-glyph {
+  font-family: var(--cx-mono);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--cx-bg);
+  background: var(--cx-accent);
+  padding: 3px 8px; border-radius: 3px;
+  flex: none;
+}
+.cx-tx-id-name {
+  font-family: var(--cx-mono); font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--cx-fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cx-tx-id-year {
+  font-family: var(--cx-mono); font-size: 10px; color: var(--cx-fg-dim);
+  margin-left: auto; flex: none;
+  font-feature-settings: "tnum";
+}
+.cx-tx-verse {
+  margin: 0; padding: 0 2px;
+  font-family: var(--cx-serif);
+  font-size: 17px; line-height: 1.55;
+  color: var(--cx-fg);
+  cursor: pointer;
+}
+.cx-tx-verse-ref {
+  display: block; margin-top: 6px;
+  font-family: var(--cx-mono); font-style: normal;
+  font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--cx-fg-dim);
+}
+.cx-tx-compare { margin-top: 10px; display: grid; gap: 7px; }
+.cx-tx-cmp-row {
+  display: flex; gap: 8px; align-items: baseline;
+  padding-left: 2px;
+  border-left: 2px solid color-mix(in oklab, var(--cx-accent) 55%, transparent);
+}
+.cx-tx-cmp-tag {
+  flex: none;
+  font-family: var(--cx-mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; color: var(--cx-accent);
+  padding: 1px 5px;
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 40%, transparent);
+  border-radius: 3px;
+}
+.cx-tx-cmp-text {
+  font-family: var(--cx-serif); font-size: 14px; line-height: 1.5;
+  color: color-mix(in oklab, var(--cx-fg) 86%, transparent);
+}
+
+/* ── Filter bar ── */
+.cx-tx-bar {
+  flex: none;
+  display: flex; gap: 8px; align-items: center;
+  padding: 0 2px 8px;
+}
+.cx-tx-filter {
+  flex: 1; min-width: 0;
+  background: transparent; color: var(--cx-fg);
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 25%, transparent);
+  border-radius: 3px; padding: 5px 8px;
+  font-family: var(--cx-mono); font-size: 11px;
+}
+.cx-tx-filter:focus-visible { outline: 2px solid var(--cx-accent); outline-offset: 1px; }
+.cx-tx-legend {
+  flex: none;
+  font-family: var(--cx-mono); font-size: 9px; letter-spacing: 0.06em;
+  color: var(--cx-fg-dim); white-space: nowrap;
+}
+
+/* ── LANGUAGE LANES ── */
+.cx-tx-lanes { display: grid; gap: 14px; padding-bottom: 8px; }
+.cx-tx-lane-h {
+  display: flex; align-items: baseline; gap: 7px;
+  padding: 0 2px 5px;
+}
+.cx-tx-lane-tag {
+  font-family: var(--cx-mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.14em; color: var(--cx-accent);
+  border: 1px solid color-mix(in oklab, var(--cx-accent) 40%, transparent);
+  border-radius: 3px; padding: 1px 5px;
+}
+.cx-tx-lane-name {
+  font-family: var(--cx-sans); font-size: 11px; color: var(--cx-fg-dim);
+}
+.cx-tx-lane-count {
+  margin-left: auto;
+  font-family: var(--cx-mono); font-size: 9px; color: var(--cx-fg-dim);
+  font-feature-settings: "tnum";
+}
+.cx-tx-lane-track {
+  display: flex; gap: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 2px 2px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--cx-fg-dim) 25%, transparent) transparent;
+}
+.cx-tx-lane-track::-webkit-scrollbar { height: 4px; }
+.cx-tx-lane-track::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--cx-fg-dim) 25%, transparent); border-radius: 2px;
+}
+
+/* ── Cards ── */
+.cx-tx-card {
+  position: relative; flex: none;
+  width: 132px;
+  border: 1px solid var(--cx-line);
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--cx-panel) 65%, transparent);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.cx-tx-card:hover {
+  border-color: color-mix(in oklab, var(--cx-accent) 45%, transparent);
+}
+/* active card = solid identity; others stay glass */
+.cx-tx-card.is-primary {
+  background: color-mix(in oklab, var(--cx-accent) 16%, var(--cx-panel));
+  border-color: var(--cx-accent);
+  box-shadow: 0 0 0 1px var(--cx-accent), 0 4px 18px -8px var(--cx-accent-glow, transparent);
+}
+/* compare set shares one accent edge */
+.cx-tx-card.is-compare { border-bottom: 2px solid var(--cx-accent); }
+.cx-tx-card.is-ghost { opacity: 0.45; }
+.cx-tx-card-pick {
+  appearance: none; display: block; width: 100%;
+  background: transparent; border: 0; cursor: pointer;
+  padding: 9px 10px 8px; text-align: left;
+  color: var(--cx-fg);
+  border-radius: 6px;
+}
+.cx-tx-card-pick[disabled] { cursor: default; }
+.cx-tx-card-pick:focus-visible { outline: 2px solid var(--cx-accent); outline-offset: 1px; }
+.cx-tx-card-glyph {
+  display: block;
+  font-family: var(--cx-mono); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.06em; color: var(--cx-accent);
+  margin-bottom: 3px;
+}
+.cx-tx-card.is-primary .cx-tx-card-glyph { color: var(--cx-fg); }
+.cx-tx-card-name {
+  display: block;
+  font-family: var(--cx-sans); font-size: 10.5px; line-height: 1.3;
+  color: var(--cx-fg);
+  min-height: 2.6em;
+  overflow: hidden;
+}
+.cx-tx-card-meta {
+  display: flex; align-items: center; gap: 5px; margin-top: 4px;
+  /* leave room for the permanent state dot bottom-right */
+  padding-right: 30px;
+}
+.cx-tx-card-year {
+  font-family: var(--cx-mono); font-size: 9px; color: var(--cx-fg-dim);
+  font-feature-settings: "tnum";
+}
+.cx-tx-lic {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: color-mix(in oklab, var(--cx-fg-dim) 70%, transparent);
+  flex: none;
+}
+/* offline truth — permanent, bottom-right of the card */
+.cx-tx-dot {
+  appearance: none; position: absolute; right: 4px; bottom: 4px;
+  background: transparent; border: 1px solid transparent; border-radius: 4px;
+  font-size: 11px; line-height: 1;
+  padding: 3px 4px; cursor: pointer;
+  font-family: var(--cx-mono);
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.cx-tx-dot.is-full { color: var(--cx-accent); }
+.cx-tx-dot.is-part { color: color-mix(in oklab, var(--cx-accent) 70%, var(--cx-fg-dim)); }
+.cx-tx-dot.is-net  { color: var(--cx-fg-dim); }
+.cx-tx-dot:hover { border-color: color-mix(in oklab, var(--cx-fg-dim) 35%, transparent); }
+.cx-tx-dot:focus-visible { outline: 2px solid var(--cx-accent); outline-offset: 1px; }
+.cx-tx-dot-pct { font-size: 8px; letter-spacing: 0.04em; font-feature-settings: "tnum"; }
+@keyframes cx-tx-dl { 50% { opacity: 0.35; } }
+.cx-tx-dot.is-dl { animation: cx-tx-dl 1.2s ease-in-out infinite; }
+/* compare gesture — small ⊕ corner (desktop); long-press covers touch */
+.cx-tx-card-cmp {
+  appearance: none; position: absolute; right: 4px; top: 4px;
+  width: 20px; height: 20px;
+  background: transparent; border: 1px solid transparent; border-radius: 4px;
+  color: var(--cx-fg-dim); font-size: 12px; line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.cx-tx-card:hover .cx-tx-card-cmp,
+.cx-tx-card:focus-within .cx-tx-card-cmp,
+.cx-tx-card.is-compare .cx-tx-card-cmp { opacity: 1; }
+.cx-tx-card-cmp[aria-pressed="true"] { color: var(--cx-accent); }
+.cx-tx-card-cmp:hover { border-color: color-mix(in oklab, var(--cx-fg-dim) 35%, transparent); color: var(--cx-fg); }
+.cx-tx-card-cmp:focus-visible { outline: 2px solid var(--cx-accent); outline-offset: 1px; opacity: 1; }
+.cx-tx-card-rm {
+  appearance: none; position: absolute; left: 4px; top: 4px;
+  width: 18px; height: 18px;
+  background: transparent; border: 1px solid transparent; border-radius: 4px;
+  color: var(--cx-fg-dim); font-size: 12px; line-height: 1; cursor: pointer;
+  opacity: 0; transition: opacity 120ms ease;
+}
+.cx-tx-card:hover .cx-tx-card-rm, .cx-tx-card:focus-within .cx-tx-card-rm { opacity: 1; }
+.cx-tx-card-rm:hover { color: var(--cx-fg); border-color: color-mix(in oklab, var(--cx-fg-dim) 35%, transparent); }
+.cx-tx-card-rm:focus-visible { outline: 2px solid var(--cx-accent); outline-offset: 1px; opacity: 1; }
+
+.cx-tx-none {
+  font-family: var(--cx-mono); font-size: 11px; color: var(--cx-fg-dim);
+  padding: 16px 4px;
+}
+.cx-tx-browse { margin-top: 8px; flex: none; }
+.cx-tx-browse > summary {
+  cursor: pointer; list-style: none;
+  font-family: var(--cx-mono); font-size: 11px; letter-spacing: 0.1em;
+  color: var(--cx-accent); padding: 6px 10px;
+  border: 1px dashed color-mix(in oklab, var(--cx-accent) 45%, transparent);
+  border-radius: 3px; text-align: center; text-transform: uppercase;
+}
+.cx-tx-browse > summary:focus-visible { outline: 2px solid var(--cx-accent); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-tx-card, .cx-tx-card-cmp, .cx-tx-card-rm { transition: none; }
+  .cx-tx-dot.is-dl { animation: none; }
+}
+/* ═══ end v11 TONGUES ═══ */
