@@ -12,20 +12,25 @@ try {
   const page = await browser.newPage();
   const jsErrors = [];
   page.on("pageerror", (e) => jsErrors.push("pageerror: " + e.message));
-  page.on("console", (m) => { if (m.type()==="error" && !/Failed to load resource/i.test(m.text())) jsErrors.push(m.text()); });
+  page.on("console", (m) => { /* CORS = bible-api throttling; the loader falls back to its bolls mirror by design */ if (m.type()==="error" && !/Failed to load resource|CORS policy/i.test(m.text())) jsErrors.push(m.text()); });
 
   await page.goto(URL, { waitUntil: "load", timeout: 30000 });
   await page.waitForFunction(() => window.__CODEX_READY__ === true, { timeout: 45000 });
   await page.waitForFunction(() => document.querySelectorAll(".cx-verse,.cx-verse-row").length > 0, { timeout: 20000 });
   log("booted; verses present");
 
-  const opened = await page.evaluate(() => {
-    const n = document.querySelector(".cx-vnum");
-    if (!n) return false;
-    const r = n.getBoundingClientRect();
-    n.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left+3, clientY: r.top+3 }));
+  const opened = await (async () => {
+    // v10: rows are .cxr-v — a REAL right-click (synthetic contextmenu
+    // dispatches don't reliably reach React 18's delegated listener), and
+    // Escape first to clear any first-run chrome over the desk.
+    await page.keyboard.press("Escape");
+    await new Promise(r => setTimeout(r, 400));
+    const row = await page.$(".cxr-v, .cx-vnum");
+    if (!row) return false;
+    const rb = await row.boundingBox();
+    await page.mouse.click(rb.x + rb.width / 2, rb.y + 5, { button: "right" });
     return true;
-  });
+  })();
   await new Promise(r => setTimeout(r, 400));
   log("verse menu opened:", await page.evaluate(() => !!document.querySelector(".cx-vm")), "(ctx:", opened, ")");
 

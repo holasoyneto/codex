@@ -113,35 +113,141 @@
     div.style.cssText = "align-self:stretch;width:1px;margin:4px 4px;background:currentColor;opacity:.18;";
     return div;
   }
+
+  // ── Dock v4 (v10 REBIRTH) — the dock is CUSTOMIZABLE. ─────────────────
+  // A registry of launchable chips; the user's pinned set persists in
+  // codex.dock.v2. ONE law is not negotiable: the READER is the main
+  // plugin, so its chip is always first — it cannot be unpinned or moved.
+  function deskOpen(k) {
+    var d = window.codexDesk;
+    if (d && d.on && d.on()) { d.open(k); return true; }
+    return false;
+  }
+  function verbRun(kind) {
+    var n = dockNow();
+    var r = (n && n.ref) || dockTrailRef();
+    if (!r) return;
+    try { window.dispatchEvent(new CustomEvent("codex:os-open", { detail: { kind: kind, ref: r } })); } catch (_) {}
+  }
+  var DOCK_REG = [
+    { id: "reader",   glyph: "✦", label: "READER",  title: "The Reader — the main plugin", locked: true,
+      run: function () { deskOpen("reader"); } },
+    { id: "library",  glyph: "☰", label: "LIB",     title: "The Shelves — every canon (O was oracle; this is books)",
+      run: function () { if (!deskOpen("library")) try { window.dispatchEvent(new CustomEvent("codex:open-library")); } catch (_) {} } },
+    { id: "oracle",   glyph: "◬", label: "ORACLE",  title: "The Oracle — AI companion bound to the reader (O)",
+      run: function () { deskOpen("oracle"); } },
+    { id: "marks",    glyph: "⌖", label: "MARKS",   title: "The Marks — your trail through the text (B)",
+      run: function () { deskOpen("marks"); } },
+    { id: "study",    glyph: "▤", label: "STUDY",   title: "The Study deck (T)",
+      run: function () { deskOpen("study"); } },
+    { id: "omni",     glyph: "⌘", label: "OMNI",    title: "Omnibar (⌘K)",
+      run: function () { if (typeof window.codexOpenOmni === "function") window.codexOpenOmni(); } },
+    { id: "canon",    glyph: "❂", label: "GALAXY",  title: "The canon as one galaxy",
+      run: function () { if (typeof window.codexOpenConstellation === "function") window.codexOpenConstellation(); } },
+    { id: "sword",    glyph: "⚔", label: "SWORD",   title: "Sword — cleave the current verse",
+      run: function () { verbRun("sword"); } },
+    { id: "mirror",   glyph: "⌬", label: "MIRROR",  title: "Mirror — the current verse across translations",
+      run: function () { verbRun("mirror"); } },
+    { id: "map",      glyph: "◎", label: "MAP",     title: "Map — where the current verse happens",
+      run: function () { verbRun("map"); } },
+    { id: "displays", glyph: "⧉", label: "DISPLAYS", title: "Throw a surface onto another monitor",
+      run: function (anchor) { dockDisplaysMenu(anchor); } }
+  ];
+  var DOCK_PIN_KEY = "codex.dock.v2";
+  var DOCK_DEFAULT = ["reader", "library", "oracle", "marks", "study", "omni", "displays"];
+  function dockPins() {
+    var pins = null;
+    try { pins = JSON.parse(localStorage.getItem(DOCK_PIN_KEY) || "null"); } catch (_) {}
+    if (!Array.isArray(pins) || !pins.length) pins = DOCK_DEFAULT.slice();
+    // the law: reader first, always.
+    pins = pins.filter(function (id, i) { return id !== "reader" && pins.indexOf(id) === i && DOCK_REG.some(function (c) { return c.id === id; }); });
+    pins.unshift("reader");
+    return pins;
+  }
+  function dockSavePins(pins) {
+    try { localStorage.setItem(DOCK_PIN_KEY, JSON.stringify(pins)); } catch (_) {}
+    dockRender();
+  }
+
+  // Small WM-owned popovers (editor + displays). Plain DOM — never React.
+  var dockPop = null;
+  function dockPopClose() { if (dockPop) { dockPop.remove(); dockPop = null; } }
+  function dockPopOpen() {
+    dockPopClose();
+    dockPop = document.createElement("div");
+    dockPop.className = "cx-wm-dockpop";
+    document.body.appendChild(dockPop);
+    setTimeout(function () {
+      var away = function (e) {
+        if (dockPop && !dockPop.contains(e.target)) { dockPopClose(); document.removeEventListener("pointerdown", away, true); }
+      };
+      document.addEventListener("pointerdown", away, true);
+    }, 0);
+    return dockPop;
+  }
+  function dockDisplaysMenu() {
+    var pop = dockPopOpen();
+    var h = document.createElement("b");
+    h.textContent = "⧉ SECOND DISPLAY — open as its own window, drag to any monitor";
+    pop.appendChild(h);
+    var D = window.codexDisplays;
+    (D ? D.surfaces : []).forEach(function (s) {
+      var b = document.createElement("button");
+      b.textContent = s.toUpperCase();
+      b.addEventListener("click", function () { D.open(s); dockPopClose(); });
+      pop.appendChild(b);
+    });
+    var note = document.createElement("span");
+    note.textContent = "every window shares one reading cursor";
+    pop.appendChild(note);
+  }
+  function dockEditMenu() {
+    var pop = dockPopOpen();
+    var h = document.createElement("b");
+    h.textContent = "✎ DOCK — pick your chips · the reader is law";
+    pop.appendChild(h);
+    var pins = dockPins();
+    DOCK_REG.forEach(function (c) {
+      var row = document.createElement("label");
+      row.className = "cx-wm-dockpop-row";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = pins.indexOf(c.id) >= 0;
+      cb.disabled = !!c.locked;
+      cb.addEventListener("change", function () {
+        var cur = dockPins().filter(function (id) { return id !== c.id; });
+        if (cb.checked) cur.push(c.id);
+        dockSavePins(cur);
+      });
+      var t = document.createElement("span");
+      t.textContent = c.glyph + " " + c.label + (c.locked ? " · FIRST, ALWAYS" : "");
+      row.appendChild(cb); row.appendChild(t);
+      pop.appendChild(row);
+    });
+    var reset = document.createElement("button");
+    reset.textContent = "RESET TO DEFAULT";
+    reset.addEventListener("click", function () { dockSavePins(DOCK_DEFAULT.slice()); dockPopClose(); });
+    pop.appendChild(reset);
+  }
+
   function dockActionChips(el) {
     var now = dockNow();
     var trailRef = dockTrailRef();
     var ACT = "cx-wm-dock-chip cx-wm-dock-launch cx-wm-dock-act";
-    el.appendChild(dockChip(ACT, "⌘", "OMNI", "Omnibar (⌘K)", function () {
-      if (typeof window.codexOpenOmni === "function") window.codexOpenOmni();
-    }));
-    // v9 FACE TO FACE — closed desk windows launch from the dock; open ones
-    // already have a running-window chip (focus/minimize), so no duplicates.
-    // Nothing is unclosable, but the way back is always one tap.
-    var desk = window.codexDesk;
-    if (desk && desk.on && desk.on()) {
-      var ds = desk.state();
-      if (!ds.reader) {
-        el.appendChild(dockChip(ACT, "✦", "READER", "Reopen the reader", function () {
-          window.codexDesk && window.codexDesk.open("reader");
-        }));
+    var ds = (window.codexDesk && window.codexDesk.on && window.codexDesk.on()) ? window.codexDesk.state() : null;
+    dockPins().forEach(function (id) {
+      var c = null;
+      for (var i = 0; i < DOCK_REG.length; i++) if (DOCK_REG[i].id === id) c = DOCK_REG[i];
+      if (!c) return;
+      var cls = ACT + (c.id === "reader" ? " cx-wm-dock-reader" : "");
+      if (ds && (c.id === "reader" || c.id === "library" || c.id === "oracle" || c.id === "marks" || c.id === "study") && ds[c.id]) {
+        cls += " is-open"; // already on the desk — chip shows it lit
       }
-      if (!ds.library) {
-        el.appendChild(dockChip(ACT, "☰", "LIB", "Open the library window (O)", function () {
-          window.codexDesk && window.codexDesk.open("library");
-        }));
-      }
-      if (!ds.study) {
-        el.appendChild(dockChip(ACT, "▤", "STUDY", "Open the study window (T)", function () {
-          window.codexDesk && window.codexDesk.open("study");
-        }));
-      }
-    }
+      var ref = (now && now.ref) || trailRef;
+      var title = c.title + (ref && (c.id === "sword" || c.id === "mirror" || c.id === "map") ? " — " + ref : "");
+      var chip = dockChip(cls, c.glyph, c.label, title, function () { c.run(chip); });
+      el.appendChild(chip);
+    });
     if (trailRef) {
       el.appendChild(dockChip(ACT + " cx-wm-dock-continue", "⟳", "CONTINUE", "Continue — " + trailRef, function () {
         var r = dockTrailRef();
@@ -150,23 +256,8 @@
         }
       }));
     }
-    el.appendChild(dockSep());
-    DOCK_VERBS.forEach(function (v) {
-      var ref = (now && now.ref) || trailRef;
-      el.appendChild(dockChip(
-        ACT + (now ? "" : " is-idle"),
-        v.glyph, v.label,
-        v.name + (ref ? " — " + ref : ""),
-        function () {
-          var n = dockNow();
-          var r = (n && n.ref) || dockTrailRef();
-          if (!r) return;
-          try {
-            window.dispatchEvent(new CustomEvent("codex:os-open", { detail: { kind: v.kind, ref: r } }));
-          } catch (_) {}
-        }
-      ));
-    });
+    // the customizer — the dock is the user's
+    el.appendChild(dockChip(ACT + " cx-wm-dock-edit", "✎", "", "Customize the dock", function () { dockEditMenu(); }));
   }
 
   function dockRender() {

@@ -379,9 +379,13 @@
             <div className="cx-js-section-label">DAF YOMI · DAY {todayDaf.day}</div>
             <div className="cx-js-daf-refs">
               {todayDaf.readings.map((r, i) => (
-                <span key={i} className="cx-js-daf-ref" title={r.replace(/^talmud\./, "").replace(/\./g, " ")}>
+                /* v10 — dapim are READABLE now: codexOpenText fetches the
+                   page live from Sefaria into a floating text window. */
+                <button key={i} type="button" className="cx-js-daf-ref is-live"
+                  title={`Open ${r.replace(/^talmud\./, "").replace(/\./g, " ")} (live from Sefaria)`}
+                  onClick={() => { if (window.codexOpenText) window.codexOpenText(r); }}>
                   {r.replace(/^talmud\./, "").replace(/\./g, " ")}
-                </span>
+                </button>
               ))}
             </div>
           </section>

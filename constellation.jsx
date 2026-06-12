@@ -236,6 +236,9 @@ function VerseConstellation({ onClose }) {
   const [err, setErr] = useState(null);
   const dataRef = useRef(null);   // { canon, pairs, adj, threads }
   const [hud, setHud] = useState(null); // { label, threads } | null
+  // v10 — clicking a star opens a REAL dossier, not a two-line hud:
+  // { idx, label, bookId, chapter, testament, fam, degree, threads, rows }
+  const [info, setInfo] = useState(null);
 
   // ── Graph-instrument state: query → PATH / NEAR; FAMILIES color mode ──
   const [query, setQuery] = useState("");
@@ -287,6 +290,37 @@ function VerseConstellation({ onClose }) {
     if (!famRef.current) famRef.current = constFamilies(d.adj, d.canon.count);
     setFamOn(v => !v);
   };
+
+  // v10 — the star dossier. Everything the graph knows about one chapter,
+  // readable and actionable: testament, family, thread mass, strongest
+  // neighbors (each clickable), READ / NEAR / PATH-FROM verbs.
+  const inspect = (idx) => {
+    const d = dataRef.current;
+    if (!d || idx < 0 || idx >= d.canon.count) return;
+    const c = d.canon.chapters[idx];
+    const edges = d.adj.get(idx) || [];
+    if (!famRef.current) famRef.current = constFamilies(d.adj, d.canon.count);
+    const rows = edges.slice().sort((x, y) => y[1] - x[1]).slice(0, 8)
+      .map(([i2, w]) => ({ idx: i2, label: labelOf(i2), w }));
+    selRef.current = idx;
+    setHud(null);
+    setInfo({
+      idx,
+      label: labelOf(idx),
+      bookId: c.bookId,
+      chapter: c.ch,
+      testament: c.testament || "DC",
+      fam: famRef.current.label[idx],
+      degree: edges.length,
+      threads: edges.reduce((s, [, w2]) => s + w2, 0),
+      rows,
+    });
+  };
+  // test + automation hook (smoke uses this — canvas pixels can't be queried)
+  useEffect(() => {
+    window.codexConstInspect = (idx) => { inspect(idx); if (galaxyRef.current) flyTo(idx); };
+    return () => { delete window.codexConstInspect; };
+  });
 
   // ── GALAXY — the canon as navigable 3D space. The ONLY view since v9.3:
   // the 2D chord wheel is gone ("constellation only needs the galaxy").
@@ -532,11 +566,9 @@ function VerseConstellation({ onClose }) {
         const hit = galaxyHit(e.clientX - rect.left, e.clientY - rect.top);
         selRef.current = hit;
         if (hit >= 0) {
-          const d = dataRef.current;
-          const edges = d.adj.get(hit) || [];
-          setHud({ label: labelOf(hit).toUpperCase(), threads: edges.reduce((s, [, w2]) => s + w2, 0) });
+          inspect(hit);
           flyTo(hit);
-        } else setHud(null);
+        } else { setInfo(null); setHud(null); }
       }
     },
     dbl: (e) => {
@@ -692,14 +724,55 @@ function VerseConstellation({ onClose }) {
               <span>{d ? d.threads.toLocaleString() : "—"} THREADS</span>
               <span>STARS SIZED BY THREAD-WEIGHT · YOUR TRAIL BURNS GOLD</span>
             </div>
-            {hud ? (
+            {info ? (
+              <aside className="cx-const-info" aria-label={`${info.label} — star dossier`}>
+                <header>
+                  <b>{info.label.toUpperCase()}</b>
+                  <button className="cx-const-info-x" onClick={() => { setInfo(null); selRef.current = -1; }} aria-label="Close dossier">×</button>
+                </header>
+                <div className="cx-const-info-meta">
+                  <span className={`is-${info.testament.toLowerCase()}`}>{info.testament}</span>
+                  <span>FAMILY {info.fam + 1}</span>
+                  <span>{info.degree} LINKS</span>
+                  <span>{info.threads.toLocaleString()} THREADS</span>
+                </div>
+                <div className="cx-const-info-verbs">
+                  <button onClick={() => {
+                    // READ — structured jump (bookId+chapter), so apocrypha
+                    // and Greek additions open via the corpus workflow even
+                    // when their display names defeat the string parser.
+                    if (window.codexGoto) window.codexGoto(info.bookId, info.chapter, 1);
+                    else if (window.codexJumpToRef) window.codexJumpToRef(info.label);
+                    try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg: `❂ ${info.label}`, kind: "ok" } })); } catch {}
+                  }}>✦ READ</button>
+                  <button onClick={() => { setQuery(info.label); setRoute(null);
+                    const rows = info.rows.slice(0, 14);
+                    setNear({ idx: info.idx, label: info.label, rows });
+                  }}>◉ NEAR</button>
+                  <button onClick={() => { setQuery(`${info.label} → `); setInfo(null); }}
+                    title="Start a PATH query from this star">⌖ PATH FROM</button>
+                </div>
+                {info.rows.length ? (
+                  <ul className="cx-const-info-rows">
+                    {info.rows.map(r => (
+                      <li key={r.idx}>
+                        <button onClick={() => { inspect(r.idx); flyTo(r.idx); }} title={`Inspect ${r.label}`}>{r.label}</button>
+                        <span>{r.w}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="cx-const-info-none">No Treasury threads touch this chapter — it sits outside the 66-book TSK web. ✦ READ still opens it.</p>
+                )}
+              </aside>
+            ) : hud ? (
               <div className="cx-const-hud">
                 <b>{hud.label}</b>
                 <span>{hud.threads.toLocaleString()} threads · double-click to read</span>
               </div>
             ) : (
               <div className="cx-const-hud is-idle">
-                <span>drag to orbit · scroll to dive · click a star to approach · double-click to read · your trail burns gold</span>
+                <span>drag to orbit · scroll to dive · click a star for its dossier · double-click to read · your trail burns gold</span>
               </div>
             )}
           </div>

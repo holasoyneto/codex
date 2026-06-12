@@ -13,7 +13,7 @@
 // because that storage is independent of the SW caches.
 
 // ⚠️ MIRRORED in version.js (CODEX_VERSION.sw) — bump BOTH together.
-const VERSION = "v261";
+const VERSION = "v262";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -72,6 +72,14 @@ const SHELL_FILES = [
   r("dist/winhost.js"),
   r("dist/oracle.js"),
   r("dist/library.js"),
+  // v10 REBIRTH — reader-as-main-plugin + dismantled library + workflows
+  r("dist/reader.js"),
+  r("dist/library2.js"),
+  r("dist/oracle2.js"),
+  r("dist/marks-plugin.js"),
+  r("dist/textflow.js"),
+  r("displays.js"),
+  r("data/red-letter.json"),
   r("dist/tweaks-panel.js"),
   r("dist/verse-menu.js"),
   r("dist/verse-map.js"),

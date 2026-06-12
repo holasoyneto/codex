@@ -9,12 +9,13 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "9.3",      // user-facing app version
-  sw: "v261",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "10.0",     // user-facing app version
+  sw: "v262",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "THE GALAXY IS THE CONSTELLATION: ❂ now opens straight into the canon as navigable 3D space — the 2D wheel is gone",
-    "PATH burns gold through space, NEAR flies the camera to the verse's neighborhood, FAMILIES recolors the clusters",
-    "EXOGRAMMAR: a new design law for every panel — instruments, not documents (the remakes have begun)",
+    "REBIRTH: the reader rebuilt from zero as the MAIN plugin — and red letters now come from a real red-letter edition (WEB ⟨wj⟩ markup), so narrative verses can never paint red again",
+    "THE LIBRARY DISMANTLED: shelves, oracle, and marks are three separate plugins with their own windows (O = oracle, B = marks) — and every canon is on the shelves, apocrypha served automatically from the corpus that carries it",
+    "THE DOCK IS YOURS: ✎ to pick your chips (the reader stays first, always) · ⧉ DISPLAYS throws any surface onto another monitor, all windows sharing one reading cursor",
+    "THE GALAXY ANSWERS: clicking a star opens its dossier — testament, family, thread mass, strongest neighbors, READ/NEAR/PATH — and Talmud dapim open live from Sefaria",
   ],
 };
 

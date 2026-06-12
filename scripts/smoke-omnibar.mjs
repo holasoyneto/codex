@@ -59,7 +59,9 @@ try {
   await new Promise(r => setTimeout(r, 1800));
   const after = await page.evaluate(() => ({
     omniClosed: !document.querySelector(".cx-omni"),
-    title: (document.querySelector(".cx-reader-titles h1, h1")||{}).textContent || "",
+    // v10: the rebuilt reader shows its location in .cxr-loc b; the old
+    // .cx-reader-titles h1 stays as a fallback for the classic path.
+    title: (document.querySelector(".cxr-loc b, .cx-reader-titles h1, h1")||{}).textContent || "",
     trail: JSON.parse(localStorage.getItem("codex.trail") || "[]").length,
   }));
   log("after jump:", JSON.stringify(after));

@@ -36,24 +36,22 @@ try {
   await sleep(300);
 
   // 2 — `o` shortcut event lands the left rail on the Oracle tab.
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent("codex:shortcut", { detail: { action: "toggle-oracle" } })));
-  await sleep(400);
-  const oracleTab = await page.evaluate(() => {
-    const t = document.querySelector(".cx-ltab.is-active .cx-ltab-lbl");
-    return (t?.textContent || "").trim();
-  });
-  if (!/oracle/i.test(oracleTab)) fail("toggle-oracle did not switch left rail to Oracle (active: " + oracleTab + ")");
-  log("left rail on Oracle tab.");
+  // v10 REBIRTH — the library is dismantled: O opens the ORACLE WINDOW
+  // (sys-oracle plugin) on the desk; B opens the MARKS WINDOW (sys-marks).
+  await page.keyboard.press("Escape");           // clear first-run chrome
+  await sleep(300);
+  await page.keyboard.press("o");
+  await sleep(500);
+  const oracleWin = await page.evaluate(() => !!document.querySelector('[data-desk="sys:oracle"] .cxo'));
+  if (!oracleWin) fail("O did not open the oracle window (sys-oracle)");
+  log("O opens the oracle window.");
 
-  // 3 — toggle-bookmarks lands on Marks.
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent("codex:shortcut", { detail: { action: "toggle-bookmarks" } })));
-  await sleep(400);
-  const marksTab = await page.evaluate(() => {
-    const t = document.querySelector(".cx-ltab.is-active .cx-ltab-lbl");
-    return (t?.textContent || "").trim();
-  });
-  if (!/mark/i.test(marksTab)) fail("toggle-bookmarks did not switch left rail to Marks (active: " + marksTab + ")");
-  log("left rail on Marks tab.");
+  // 3 — B opens the marks window.
+  await page.keyboard.press("b");
+  await sleep(500);
+  const marksWin = await page.evaluate(() => !!document.querySelector('[data-desk="sys:marks"] .cxm'));
+  if (!marksWin) fail("B did not open the marks window (sys-marks)");
+  log("B opens the marks window.");
 
   if (jsErrors.length) fail("JS errors: " + JSON.stringify(jsErrors));
   log("PASS — settings intent + left-rail shortcut tabs all wired.");

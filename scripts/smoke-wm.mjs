@@ -22,12 +22,18 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".cx-verse,.cx-verse-row").length > 0, { timeout: 20000 });
   log("booted at 1440x900; verses present");
 
-  // Open the verse menu → MIRROR console.
-  await page.evaluate(() => {
-    const n = document.querySelector(".cx-vnum");
-    const r = n.getBoundingClientRect();
-    n.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left+3, clientY: r.top+3 }));
-  });
+  // Open the verse menu → MIRROR console. (v10: the rebuilt reader's rows
+  // are .cxr-v; a REAL right-click — synthetic contextmenu dispatches don't
+  // reliably reach React 18's delegated listener.)
+  {
+    // first-run chrome (welcome tour / briefing) sits over the desk on a
+    // fresh profile — Escape clears it so the pointer reaches the verse.
+    await page.keyboard.press("Escape");
+    await new Promise(r => setTimeout(r, 400));
+    const row = await page.$(".cxr-v, .cx-vnum");
+    const rb = await row.boundingBox();
+    await page.mouse.click(rb.x + rb.width / 2, rb.y + 5, { button: "right" });
+  }
   await new Promise(r => setTimeout(r, 400));
   const clicked = await page.evaluate(() => {
     const rows = [].slice.call(document.querySelectorAll(".cx-vm-row, button, [role='menuitem']"));

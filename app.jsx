@@ -1349,11 +1349,14 @@ function deskLoad() {
   try {
     const d = JSON.parse(localStorage.getItem(DESK_KEY) || "null");
     if (d && typeof d === "object") {
-      return { reader: d.reader !== false, library: !!d.library, study: !!d.study, focus: !!d.focus };
+      // v10 REBIRTH: the library is dismantled — oracle + marks are their
+      // own desk windows (own plugins), no longer stowaways in the rail.
+      return { reader: d.reader !== false, library: !!d.library, study: !!d.study,
+               oracle: !!d.oracle, marks: !!d.marks, focus: !!d.focus };
     }
   } catch {}
   // First open: the reader, front and center, and nothing else.
-  return { reader: true, library: false, study: false, focus: false };
+  return { reader: true, library: false, study: false, oracle: false, marks: false, focus: false };
 }
 function deskSave(d) { try { localStorage.setItem(DESK_KEY, JSON.stringify(d)); } catch {} }
 function deskCapable() {
@@ -1715,7 +1718,9 @@ function App() {
         const nextCh = chap + 1;
         if (nextCh <= (book.chapters || 0)) {
           const run = () => {
-            try { window.BIBLE.loadChapter(bookId, nextCh, primary); } catch {}
+            // async — a sync try/catch can't see the rejection. DC books
+            // (1en…) reject on translations that don't carry them.
+            try { window.BIBLE.loadChapter(bookId, nextCh, primary)?.catch?.(() => {}); } catch {}
           };
           if ("requestIdleCallback" in window) {
             window.requestIdleCallback(() => setTimeout(run, 250), { timeout: 4000 });
@@ -1785,10 +1790,11 @@ function App() {
         bookId: passage.bookId,
         chapter: passage.chapter,
         verse: v,
+        translation: primary,
       };
       window.dispatchEvent(new CustomEvent("codex:now", { detail: window.CODEX_NOW }));
     } catch {}
-  }, [passage.bookId, passage.chapter, passage.book, currentVerse]);
+  }, [passage.bookId, passage.chapter, passage.book, currentVerse, primary]);
 
   // Update passage title once panels finish generating, so the header reflects the AI title.
   useEffect(() => {
@@ -2646,16 +2652,16 @@ function App() {
           return;
         }
         case "o": case "O":
-          // Oracle lives in the library — window under the desk, rail in classic.
+          // v10 — the oracle is its OWN window under the desk (sys-oracle).
           e.preventDefault();
-          if (deskMode) setDesk(d => ({ ...d, library: !d.library, focus: false }));
+          if (deskMode) setDesk(d => ({ ...d, oracle: !d.oracle, focus: false }));
           else setLeftOpen(o => !o);
           dispatchShortcut("toggle-oracle");
           return;
         case "b": case "B":
-          // Bookmarks live in the library (window under the desk, rail in classic).
+          // v10 — marks are their OWN window under the desk (sys-marks).
           e.preventDefault();
-          if (deskMode) setDesk(d => ({ ...d, library: !d.library, focus: false }));
+          if (deskMode) setDesk(d => ({ ...d, marks: !d.marks, focus: false }));
           else setLeftOpen(o => !o);
           dispatchShortcut("toggle-bookmarks");
           return;
@@ -2732,6 +2738,41 @@ function App() {
   // Expose jumpToRef globally so external modules (side quests etc.)
   // can pivot the reader to a passage by reference string.
   useEffect(() => { window.codexJumpToRef = jumpToRef; }, [jumpToRef]);
+
+  // v10 REBIRTH — service hooks for the plugin reader (reader.jsx). The
+  // app keeps owning the passage state; the reader is a thin projection.
+  useEffect(() => {
+    window.codexSelectVerse = (n) => { if (Number.isFinite(n)) setCurrentVerse(n); };
+    return () => { delete window.codexSelectVerse; };
+  }, []);
+  // Structured navigation — bookId + chapter, no string parsing. The only
+  // reliable door for books whose display names defeat parseRef
+  // ("I Enoch (Book of Enoch)", "Bel and the Dragon", …).
+  useEffect(() => {
+    window.codexGoto = (bookId, ch, v) => {
+      if (!bookId) return;
+      loadPassage(bookId, ch || 1, v || 1);
+    };
+    return () => { delete window.codexGoto; };
+  }, [loadPassage]);
+  useEffect(() => {
+    window.codexOpenVerseMenu = (n, rect) => {
+      const v = passage.verses.find(x => x.n === n);
+      if (v && rect) openVerseMenu(v, rect);
+    };
+    return () => { delete window.codexOpenVerseMenu; };
+  }, [passage.verses, openVerseMenu]);
+  // External mark mutations (marks plugin window) → reload our copy.
+  useEffect(() => {
+    const reload = () => {
+      try {
+        const raw = JSON.parse(localStorage.getItem("codex.highlights.v1") || "{}");
+        setHighlights(h => (JSON.stringify(h) === JSON.stringify(raw) ? h : raw));
+      } catch {}
+    };
+    window.addEventListener("codex:marks-changed", reload);
+    return () => window.removeEventListener("codex:marks-changed", reload);
+  }, []);
 
   // Library smart-search dispatches codex:jump-ref for verse-level jumps;
   // chapter-level jumps go through onSelectChapter directly.
@@ -2824,7 +2865,8 @@ function App() {
   useEffect(() => {
     const onOpen = () => {
       setLeftOpen(true);
-      setLeftCollapsed(false);
+      // (v9.2 SHED removed the collapsible-rails state — the old
+      // setLeftCollapsed call here threw on every codex:open-library.)
       setTimeout(() => {
         try { window.dispatchEvent(new CustomEvent("codex:focus-lib-search")); } catch {}
       }, 60);
@@ -2856,7 +2898,8 @@ function App() {
         if (bId && ch) setXrefThread([`${String(bId).toLowerCase()}.${ch}.${vn || 1}`]);
       }
       setRightOpen(true);
-      setRightCollapsed(false);
+      // (v9.2 SHED removed the collapsible-rails state — the old
+      // setRightCollapsed call here threw on every codex:open-panel.)
       setTab(id);
     };
     window.addEventListener("codex:open-panel", onOpenPanel);
@@ -2897,7 +2940,13 @@ function App() {
   const setPrimaryAndPersist = (id) => {
     setPrimary(id);
     setTweak("primaryTranslation", id);
+    // The plugin reader (and any satellite display) listens for this.
+    try { window.dispatchEvent(new CustomEvent("codex:primary", { detail: { id } })); } catch {}
   };
+  useEffect(() => {
+    window.codexSetPrimary = setPrimaryAndPersist;
+    return () => { delete window.codexSetPrimary; };
+  });
 
   const accent = ACCENT_MAP[t.accent] || ACCENT_MAP.cyan;
   // Drift mode hijacks the accent for the matrix-green Easter-egg theme.
@@ -3023,54 +3072,13 @@ function App() {
           ? React.createElement(window.CODEX_CONTINUITY.Mount)
           : null}
 
-        <Reader
-          schizo={!!(schizoEligible && t.schizo)}
-          passage={passage}
-          primary={primary}
-          compareTranslations={compareSet}
-          sideBySide={sideBySide}
-          onToggleSideBySide={() => { const v = !sideBySide; setSideBySide(v); setTweak("sideBySide", v); }}
-          gnosisOn={gnosisOn}
-          redLetter={redLetter}
-          onToggleRedLetter={() => { const v = !redLetter; setRedLetter(v); setTweak("redLetter", v); }}
-          fontScale={t.fontScale}
-          onCycleFontSize={() => {
-            const sizes = [16, 19, 22, 26, 30];
-            const idx = sizes.indexOf(t.fontScale);
-            const next = sizes[(idx + 1) % sizes.length] || 22;
-            setTweak("fontScale", next);
-          }}
-          highlightedVerse={currentVerse}
-          onSelectVerse={(n) => setCurrentVerse(n)}
-          onSelectPrimary={setPrimaryAndPersist}
-          yhwhMode={!!t.yhwhMode}
-          onToggleYHWH={() => setTweak("yhwhMode", !t.yhwhMode)}
-          highlights={highlights}
-          highlightColor={t.highlightColor}
-          onToggleHighlight={(n, color) => {
-            const v = passage.verses.find(x => x.n === n);
-            const text = v ? (v[primary] || v.kjv || v.web || "") : "";
-            toggleHighlight(passage.bookId, passage.chapter, n, color, text);
-          }}
-          onOpenVerseMenu={openVerseMenu}
-          panelData={panelData}
-          onPrevChapter={() => {
-            const book = data.books.find(b => b.id === passage.bookId);
-            if (passage.chapter > 1) loadPassage(passage.bookId, passage.chapter - 1, 1);
-            else {
-              const idx = data.books.findIndex(b => b.id === passage.bookId);
-              if (idx > 0) loadPassage(data.books[idx-1].id, data.books[idx-1].chapters, 1);
-            }
-          }}
-          onNextChapter={() => {
-            const book = data.books.find(b => b.id === passage.bookId);
-            if (passage.chapter < book.chapters) loadPassage(passage.bookId, passage.chapter + 1, 1);
-            else {
-              const idx = data.books.findIndex(b => b.id === passage.bookId);
-              if (idx < data.books.length - 1) loadPassage(data.books[idx+1].id, 1, 1);
-            }
-          }}
-        />
+        {/* v10 REBIRTH — the reader scrapped and rebuilt from zero as the
+            MAIN PLUGIN (reader.jsx · sys-reader). Self-binding: it follows
+            window.CODEX_NOW and navigates through codexJumpToRef, so the
+            panel pipeline and every instrument stay in lock-step. */}
+        {window.CodexReaderX
+          ? React.createElement(window.CodexReaderX, { surface: "main" })
+          : <div className="cxr-status is-err"><b>READER PLUGIN MISSING</b><code>dist/reader.js failed to load</code></div>}
         </div>
         );
 
@@ -3118,7 +3126,7 @@ function App() {
                   id="sys:library" glyph="☰" title="Library"
                   onClose={() => setDesk(d => ({ ...d, library: false }))}
                   bodyClass="cx-desk-body-rail"
-                >{leftRailEl}</DeskWin>
+                >{window.LibraryX ? React.createElement(window.LibraryX) : leftRailEl}</DeskWin>
               ) : null}
               {desk.reader ? (
                 <DeskWin
@@ -3137,6 +3145,23 @@ function App() {
                   onClose={() => setDesk(d => ({ ...d, study: false }))}
                   bodyClass="cx-desk-body-rail"
                 >{rightRailEl}</DeskWin>
+              ) : null}
+              {/* v10 REBIRTH — the library dismantled: oracle + marks are
+                  their own desk windows, rendered by their own plugins. */}
+              {desk.oracle && window.OracleX ? (
+                <DeskWin
+                  id="sys:oracle" glyph="◬" title="Oracle"
+                  ctx={`${passage.book || ""} ${passage.chapter}:${currentVerse || 1}`}
+                  onClose={() => setDesk(d => ({ ...d, oracle: false }))}
+                  bodyClass="cx-desk-body-rail"
+                >{React.createElement(window.OracleX)}</DeskWin>
+              ) : null}
+              {desk.marks && window.MarksX ? (
+                <DeskWin
+                  id="sys:marks" glyph="⌖" title="Marks"
+                  onClose={() => setDesk(d => ({ ...d, marks: false }))}
+                  bodyClass="cx-desk-body-rail"
+                >{React.createElement(window.MarksX)}</DeskWin>
               ) : null}
             </div>
           );
@@ -3483,7 +3508,6 @@ function App() {
             title="Browse and install plugin modules"
             onClick={() => {
               setRightOpen(true);
-              setRightCollapsed(false);
               setTab("plugin:marketplace:market");
             }}
           >Open Marketplace</button>

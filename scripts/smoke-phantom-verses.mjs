@@ -45,7 +45,9 @@ try {
   //    passage.verses even in single-column mode — the old bug.)
   await page.evaluate(() => window.codexJumpToRef("Psalms 39:1"));
   await page.waitForFunction(() => {
-    const h1 = document.querySelector(".cx-reader-titles h1");
+    // v10: the rebuilt reader names its location in .cxr-loc b (the old
+    // .cx-reader-titles h1 stays as a classic-path fallback).
+    const h1 = document.querySelector(".cxr-loc b, .cx-reader-titles h1");
     const rows = document.querySelectorAll(".cx-verse, .cx-verse-row");
     return h1 && /psalm/i.test(h1.textContent || "") && rows.length > 0;
   }, { timeout: 30000 }).catch(() => fail("Psalms 39 never rendered"));

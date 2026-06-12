@@ -33,13 +33,18 @@ try {
   log("railTabs has crossrefs tab:", reg.railTabIds.filter(id => /crossref/i.test(id)));
 
   // Open the verse menu via contextmenu on a verse number.
-  const opened = await page.evaluate(() => {
-    const n = document.querySelector(".cx-vnum");
-    if (!n) return false;
-    const r = n.getBoundingClientRect();
-    n.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left+3, clientY: r.top+3 }));
+  const opened = await (async () => {
+    // v10: rows are .cxr-v — a REAL right-click (synthetic contextmenu
+    // dispatches don't reliably reach React 18's delegated listener), and
+    // Escape first to clear any first-run chrome over the desk.
+    await page.keyboard.press("Escape");
+    await new Promise(r => setTimeout(r, 400));
+    const row = await page.$(".cxr-v, .cx-vnum");
+    if (!row) return false;
+    const rb = await row.boundingBox();
+    await page.mouse.click(rb.x + rb.width / 2, rb.y + 5, { button: "right" });
     return true;
-  });
+  })();
   await new Promise(r => setTimeout(r, 400));
   const menuOpen = await page.evaluate(() => !!document.querySelector(".cx-vm"));
   log("verse menu opened:", menuOpen);
@@ -56,12 +61,19 @@ try {
   log("clicked Cross-References row:", JSON.stringify(clicked));
   if (!clicked.found) { console.error("[xref] FAIL — no Cross-References row in the menu"); process.exit(1); }
 
-  // Give the panel time to switch + load TSK.
+  // Give the panel time to switch + load TSK (a 5 MB module — first parse
+  // can take >10s under load). Poll for actual ref buttons, not a timer.
   await page.waitForFunction(() => {
     const app = document.querySelector(".cx-app");
     return app && /right-open/.test(app.className);
   }, { timeout: 8000 }).catch(() => {});
-  await new Promise(r => setTimeout(r, 2500));
+  await page.waitForFunction(() => {
+    // v8+: codexOpenPanel prefers a floating MONAD window for plugin ids —
+    // the refs may live in .cx-win instead of the rail. Search both.
+    const scopes = [...document.querySelectorAll(".cx-rail-r, .cx-win")];
+    return scopes.some(sc => [...sc.querySelectorAll("button")].some(b => /\d+:\d+/.test(b.textContent || "")));
+  }, { timeout: 40000 }).catch(() => {});
+  await new Promise(r => setTimeout(r, 500));
 
   const after = await page.evaluate(() => {
     const app = document.querySelector(".cx-app");
@@ -87,11 +99,12 @@ try {
 
   // Now test ref-click navigation: click the first ref (not a chain/back btn)
   // and confirm the reader navigates away from John 1.
-  const titleBefore = await page.evaluate(() => (document.querySelector(".cx-reader-titles h1")||{}).textContent || "");
+  const titleBefore = await page.evaluate(() => (document.querySelector(".cxr-loc b, .cx-reader-titles h1")||{}).textContent || "");
   const navClick = await page.evaluate(() => {
-    const rail = document.querySelector(".cx-rail-r");
-    if (!rail) return { found:false };
-    const btns = [].slice.call(rail.querySelectorAll("button"));
+    // refs may render in the rail OR a floating MONAD window (.cx-win)
+    const scopes = [...document.querySelectorAll(".cx-rail-r, .cx-win")];
+    if (!scopes.length) return { found:false };
+    const btns = scopes.flatMap(sc => [...sc.querySelectorAll("button")]);
     // a ref button looks like "Genesis 1:1" — has a digit:digit, not "chain"/"back"
     const ref = btns.find(b => /\d+:\d+/.test(b.textContent||"") && !/chain|back/i.test(b.textContent||""));
     if (!ref) return { found:false, sample: btns.slice(0,8).map(b=>b.textContent.trim()) };
@@ -100,7 +113,7 @@ try {
   });
   log("ref-click:", JSON.stringify(navClick));
   await new Promise(r => setTimeout(r, 2500));
-  const titleAfter = await page.evaluate(() => (document.querySelector(".cx-reader-titles h1")||{}).textContent || "");
+  const titleAfter = await page.evaluate(() => (document.querySelector(".cxr-loc b, .cx-reader-titles h1")||{}).textContent || "");
   const navigated = !!navClick.found && titleAfter && titleAfter !== titleBefore;
   log("reader title before:", JSON.stringify(titleBefore), "→ after:", JSON.stringify(titleAfter), "| navigated:", navigated);
 

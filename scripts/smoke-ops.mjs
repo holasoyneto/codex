@@ -26,11 +26,16 @@ try {
   log("kernel:", JSON.stringify(kernel));
 
   // Open OPS via the verse menu
-  await page.evaluate(() => {
-    const n = document.querySelector(".cx-vnum");
-    const r = n.getBoundingClientRect();
-    n.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left+3, clientY: r.top+3 }));
-  });
+  {
+    // v10: rows are .cxr-v — a REAL right-click (synthetic contextmenu
+    // dispatches don't reliably reach React 18's delegated listener), and
+    // Escape first to clear any first-run chrome over the desk.
+    await page.keyboard.press("Escape");
+    await new Promise(r => setTimeout(r, 400));
+    const row = await page.$(".cxr-v, .cx-vnum");
+    const rb = await row.boundingBox();
+    await page.mouse.click(rb.x + rb.width / 2, rb.y + 5, { button: "right" });
+  }
   await new Promise(r => setTimeout(r, 400));
   const clicked = await page.evaluate(() => {
     const rows = [].slice.call(document.querySelectorAll(".cx-vm-row"));

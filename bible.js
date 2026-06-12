@@ -418,6 +418,10 @@ window.BIBLE = (function () {
     return _memCache[key];
   }
 
+  // In-flight dedupe — v10: the plugin reader and the app's panel pipeline
+  // both load the current chapter; without this they'd issue two identical
+  // network fetches (and feed the free APIs' rate limiters).
+  const _inflight = new Map(); // key -> Promise<verses>
   async function loadChapter(bookId, chapter, translation) {
     if (_ready) await _ready;
     const key = `${bookId}.${chapter}.${translation}`;
@@ -429,6 +433,13 @@ window.BIBLE = (function () {
       }
       return _memCache[key];
     }
+    if (_inflight.has(key)) return _inflight.get(key);
+    const p = _loadChapterFresh(bookId, chapter, translation, key)
+      .finally(() => { _inflight.delete(key); });
+    _inflight.set(key, p);
+    return p;
+  }
+  async function _loadChapterFresh(bookId, chapter, translation, key) {
 
     // Phase B/C: try the pre-baked bundle first ONLY when explicitly
     // declared on the translation (`t.bundle` is a string path, or
@@ -462,23 +473,23 @@ window.BIBLE = (function () {
   }
 
   // ── Red-letter system (simple, realistic) ──────────────────────────────────
-  // One source of truth: data/red-letter.json. Hand-curated map of
-  // {bookId.chapter → verse numbers where Jesus speaks}, cross-checked
-  // against Cambridge Annotated KJV, ESV red-letter, and NA28. Covers
-  // every chapter of Matthew, Mark, Luke, John, and Revelation.
+  // One source of truth: data/red-letter.json — GENERATED from the World
+  // English Bible's <wj> (words-of-Jesus) markup by
+  // scripts/build-redletter.mjs. The WEB editors' markers are the same
+  // ones print shops ink red, so the dataset is a real red-letter edition,
+  // not a hand-typed guess (the previous curation carried narrative verses
+  // like Mark 1:18 marked red).
   //
   // For every verse in the truth set we mark the WHOLE verse red across
   // every loaded translation (KJV, Geneva, Vulgate, Reina-Valera, etc.).
   // No heuristics, no per-string painting, no carry-forward state, no
   // cross-translation cache, no localStorage, no rules that drift.
   //
-  // We previously had ~600 lines of heuristic detection (commaSplitReds,
-  // quoteTrackedReds, OTHER_SPEAKER_RE, JESUS_*_RE, ENDSTATE, RL_DB,
-  // NON_JESUS_RANGES mask) that produced false positives like "the
-  // disciples answered, …" painting subsequent verses red, then leaking
-  // those false positives across every translation via RL_DB. The
-  // curated dataset eliminates the entire failure class.
-  const RED_LETTER_BOOKS = new Set(["mat", "mrk", "luk", "jhn", "rev"]);
+  // The covered-book set is DERIVED from the dataset (any "<book>." key) —
+  // Acts, 1 Corinthians, 2 Corinthians, Revelation etc. paint as soon as
+  // the data covers them. The hardcoded set below is only the pre-load
+  // fast-path filter.
+  const RED_LETTER_BOOKS = new Set(["mat", "mrk", "luk", "jhn", "act", "rev"]);
 
   // ── Authoritative red-letter ground truth ─────────────────────────────
   // Static JSON dataset (data/red-letter.json) of verses where Jesus
@@ -524,6 +535,10 @@ window.BIBLE = (function () {
           if (k.startsWith("_")) continue;          // doc fields
           if (typeof raw[k] !== "string") continue;
           RED_LETTER_TRUTH[k] = parseRange(raw[k]);
+          // The covered-book set follows the data — new books (Acts, the
+          // epistles' quoted Christ-speech, …) paint without a code change.
+          const dot = k.indexOf(".");
+          if (dot > 0) RED_LETTER_BOOKS.add(k.slice(0, dot));
         }
       } catch (e) { /* swallow — heuristic still works */ }
       _truthLoaded = true;
@@ -606,12 +621,12 @@ window.BIBLE = (function () {
     const out = [];
     for (let n = 1; n <= maxN; n++) if (byVerse.has(n)) out.push(byVerse.get(n));
 
-    // Truth dataset is async — make sure it's loaded before annotation so
-    // the static positive-list overrides the heuristic deterministically.
+    // Truth dataset is async — make sure it's loaded BEFORE the book-set
+    // check, because RED_LETTER_BOOKS itself is derived from the dataset
+    // (epistle chapters like Rom/1Co would otherwise miss their paint on
+    // the very first view after a cold start).
+    await _loadRedLetterTruth();
     if (RED_LETTER_BOOKS.has(bookId)) {
-      // Truth dataset loads async at module init; await its dedupe-cached
-      // promise so the first chapter view doesn't paint stale.
-      await _loadRedLetterTruth();
       applyRedLetter(out, bookId, chapter, translations);
     }
     return out;
