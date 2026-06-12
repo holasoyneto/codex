@@ -13,7 +13,7 @@
 // because that storage is independent of the SW caches.
 
 // ⚠️ MIRRORED in version.js (CODEX_VERSION.sw) — bump BOTH together.
-const VERSION = "v264";
+const VERSION = "v265";
 const SHELL = `codex-shell-${VERSION}`;
 const DATA  = `codex-data-${VERSION}`;
 const PANELS = `codex-panels-${VERSION}`;
@@ -72,6 +72,7 @@ const SHELL_FILES = [
   r("dist/translations.js"),
   r("dist/winhost.js"),
   r("dist/oracle.js"),
+  r("dist/artifacts.js"), // shared AI artifacts engine (rich render + busy orb)
   r("dist/library.js"),
   // v10 REBIRTH — reader-as-main-plugin + dismantled library + workflows
   r("dist/reader.js"),
@@ -91,6 +92,8 @@ const SHELL_FILES = [
   r("dist/ops.js"),
   r("dist/omnibar.js"),
   r("dist/constellation.js"),
+  r("dist/mobile.js"), // v12 THE PALM — phone shell (orb · palm · sheets)
+
   r("dist/notes.js"),
   r("dist/help.js"),
   r("dist/repo-add.js"),

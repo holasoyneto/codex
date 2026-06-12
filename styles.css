@@ -83,14 +83,7 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   );
 }
 
-.cx-grid {
-  display: grid;
-  grid-template-columns: var(--cx-lrail-w, 232px) minmax(0, 1fr) var(--cx-rrail-w, 400px);
-  gap: 10px;
-  padding: 8px 12px;
-  min-height: 0;
-  overflow: hidden;
-}
+/* (v12 — the .cx-grid drawer layout is dead: desk windows or the mobile palm shell.) */
 
 /* ── frame primitives ──────────────────────────────────────────────────── */
 .cx-frame {
@@ -165,28 +158,7 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 }
 .cx-tick b { color: var(--cx-fg); font-weight: 600; }
 
-/* ── status bar ────────────────────────────────────────────────────────── */
-.cx-status {
-  display: grid;
-  grid-template-columns: 1fr 1.1fr 1fr;
-  align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--cx-line);
-  background: linear-gradient(to bottom, var(--cx-bg-2), var(--cx-bg));
-  font-family: var(--cx-mono);
-  gap: 14px;
-  position: relative;
-  z-index: 5;
-}
-.cx-status::before {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
-  background: linear-gradient(to right, transparent, var(--cx-accent), transparent);
-  opacity: .4;
-}
-
-.cx-status-l, .cx-status-r { display: flex; align-items: center; gap: 14px; }
-.cx-status-r { justify-content: flex-end; }
-.cx-status-c { display: flex; justify-content: center; }
+/* (v12 — the StatusBar is dead code: DeskTrace on desktop, MobileTrace on phones.) */
 
 .cx-logo { display: flex; align-items: center; gap: 8px; color: var(--cx-accent); }
 .cx-sigil { width: 24px; height: 24px; filter: drop-shadow(0 0 6px var(--cx-accent-glow)); }
@@ -194,7 +166,6 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 .cx-logo-txt b { color: var(--cx-fg); font-size: 13px; letter-spacing: 0.18em; font-weight: 700; }
 .cx-logo-txt span { color: var(--cx-fg-dim); font-size: 9px; letter-spacing: 0.08em; }
 
-.cx-status-sep { width: 1px; height: 22px; background: var(--cx-line-strong); }
 
 .cx-clock { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
 .cx-clock-time {
@@ -1520,11 +1491,6 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   background: color-mix(in oklab, var(--cx-fg-dim) 22%, transparent);
   margin: 0 2px;
 }
-@media (min-width: 881px) {
-  /* On desktop the ≣ FAB is hidden — drop the leading separator too */
-  .cx-footer-cluster .cx-mobile-fab + .cx-footer-sep { display: none; }
-}
-
 /* ── COLS HEAD + ROWS ────────────────────────────────────────────────── */
 .cx-cols-head {
   display: grid;
@@ -1639,22 +1605,7 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 .cx-foot-toggle-grid { display: inline-flex; gap: 1px; }
 .cx-foot-toggle-grid i { width: 2px; height: 9px; background: currentColor; display: block; }
 
-/* ── MOBILE FAB ─────────────────────────────────────────────────────── */
-.cx-mobile-fab {
-  display: none;
-  appearance: none; cursor: pointer;
-  width: 40px; height: 40px;
-  background: color-mix(in oklab, var(--cx-fg-dim) 4%, transparent);
-  border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 18%, transparent);
-  border-radius: 8px;
-  color: var(--cx-fg);
-  font-family: var(--cx-mono); font-size: 18px;
-  align-items: center; justify-content: center;
-  line-height: 1;
-  transition: color .15s, background .15s, border-color .15s, transform .12s;
-}
-.cx-mobile-fab:hover { background: color-mix(in oklab, var(--cx-accent) 10%, transparent); border-color: var(--cx-accent); color: var(--cx-accent); transform: translateY(-1px); }
-.cx-mobile-fab:active { transform: translateY(0); }
+/* (v12 — the mobile library/panel FABs are dead: the orb is the one chrome.) */
 .cx-rail-close {
   display: none;
   position: absolute; top: 6px; right: 6px;
@@ -1670,12 +1621,8 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 .cx-reader-titles { min-width: 0; flex: 1 1 300px; }
 .cx-reader-titles h1 { text-wrap: balance; }
 
-/* Top translation dropdown row spacing in narrow status bar */
-.cx-status { min-height: 56px; }
-
 /* ── RESPONSIVE — TABLET ─────────────────────────────────────────────── */
 @media (max-width: 1180px) {
-  .cx-grid { grid-template-columns: var(--cx-lrail-w, 200px) minmax(0, 1fr) var(--cx-rrail-w, 340px); gap: 8px; padding: 6px 8px; }
   .cx-sun { width: 280px; }
   .cx-reader-titles h1 { font-size: 26px; }
   .cx-tab-lbl { font-size: 7.5px; letter-spacing: 0.06em; }
@@ -1686,37 +1633,12 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
 /* ── RESPONSIVE — NARROW / PHONE ─────────────────────────────────────── */
 @media (max-width: 880px) {
   .cx-hide-narrow { display: none !important; }
-  .cx-status { grid-template-columns: 1fr auto; padding: 0 10px; gap: 8px; }
-  .cx-status-r { gap: 8px; }
-  .cx-status-c { display: none; }
-  .cx-clock-date { display: none; }
   /* Theme toggle adapts to narrow viewport — capsule stays compact */
   .cx-theme-toggle { width: 46px; height: 22px; }
 
-  .cx-mobile-fab { display: inline-flex; }
   .cx-hide-mobile { display: none !important; }
 
-  .cx-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr);
-    padding: 6px;
-  }
-  .cx-rail-l, .cx-rail-r {
-    position: fixed; top: 56px; bottom: 36px;
-    width: 86vw; max-width: 340px;
-    background: var(--cx-bg);
-    z-index: 100;
-    padding: 8px;
-    box-shadow: var(--cx-shadow);
-    transform: translateX(-110%);
-    transition: transform .25s ease;
-    overflow-y: auto;
-  }
-  .cx-rail-r { right: 0; transform: translateX(110%); }
-  .cx-rail-l { left: 0; border-right: 1px solid var(--cx-accent); }
-  .cx-rail-r { left: auto; border-left: 1px solid var(--cx-accent); }
-  .cx-app.left-open .cx-rail-l { transform: translateX(0); }
-  .cx-app.right-open .cx-rail-r { transform: translateX(0); }
+  /* (v12 — the off-canvas drawer rails + their slide transforms are dead.) */
 
   .cx-reader .cx-frame { padding: 22px 14px 14px; }
   .cx-reader-titles h1 { font-size: 22px; }
@@ -1729,13 +1651,9 @@ body { font-family: var(--cx-mono); font-size: 12px; color: var(--cx-fg); }
   .cx-verse-col { border-left: 0; padding-left: 38px !important; padding-top: 6px !important; }
   .cx-cols-head { display: none; }
 
-  .cx-footer { padding: 0 8px; grid-template-columns: auto 1fr auto; gap: 6px; }
-  .cx-gnosis-master { padding: 5px 10px 5px 24px; font-size: 9.5px; letter-spacing: 0.1em; }
-  .cx-gnosis-master-ring { left: 6px; width: 10px; height: 10px; }
 }
 
 @media (max-width: 540px) {
-  .cx-status { padding: 0 8px; }
   .cx-logo-txt span { display: none; }
   .cx-logo-txt b { font-size: 12px; }
   .cx-pdd-btn { padding: 5px 8px; gap: 6px; }
@@ -1787,7 +1705,7 @@ body {
    with no gray default-tap callout, and pointer cursor where appropriate. */
 @media (hover: none) and (pointer: coarse) {
   button, .cx-tab, .cx-ltab, .cx-tp-row, .cx-tp-pick, .cx-tp-eye, .cx-tp-rm,
-  .cx-side-toggle, .cx-mobile-fab, .cx-quick, .cx-repo-toggle,
+  .cx-side-toggle, .cx-quick, .cx-repo-toggle,
   .cx-repo-prov, .cx-repo-add, .cx-vm-row,
   .cx-vmark-btn, .cx-pane-toggle, .cx-vm-hl-swatch, .cx-vm-hl-rm {
     min-height: 44px;
@@ -1798,32 +1716,9 @@ body {
   /* Don't shrink-wrap thin rail items. */
   .cx-tp-row { min-height: 44px; }
   .cx-tp-eye, .cx-tp-rm { min-width: 44px; min-height: 44px; }
-  .cx-mobile-fab { width: 44px; height: 44px; }
 }
 
-/* Backdrop scrim behind a slid-out rail — taps close the rail. */
-.cx-rail-scrim {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.55);
-  z-index: 99;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .2s ease;
-}
-/* The scrim only dims on mobile, where the rails are off-canvas drawers and a
-   dimmed backdrop is correct. On desktop the rails are INLINE grid columns, so
-   a full-viewport z-99 scrim would sit ON TOP of them — dimming the screen and
-   swallowing clicks (the "panel opens but nothing happens / screen just dims /
-   needs an extra click" bug). Guarding activation to the drawer breakpoint
-   makes the scrim a no-op on desktop (base rule keeps it opacity:0 /
-   pointer-events:none there). */
-@media (max-width: 880px) {
-  .cx-app.left-open .cx-rail-scrim,
-  .cx-app.right-open .cx-rail-scrim {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
+/* (v12 — the drawer scrim is dead; sheets carry their own glass.) */
 
 /* Inertial scrolling for every scrollable surface on iOS. */
 .cx-pane, .cx-reader-body, .cx-reader-cols, .cx-rail-l, .cx-rail-r, .cx-oracle-log,
@@ -1892,28 +1787,6 @@ body {
 
 /* Phone layout refinements ─────────────────────────────────────────────── */
 @media (max-width: 880px) {
-  /* Rails sit beneath the status bar accounting for the notch. */
-  .cx-rail-l, .cx-rail-r {
-    top: calc(56px + env(safe-area-inset-top));
-    bottom: calc(48px + env(safe-area-inset-bottom));
-    width: min(86vw, 360px);
-    max-width: 360px;
-    border-radius: 0 8px 8px 0;
-  }
-  .cx-rail-r { border-radius: 8px 0 0 8px; }
-
-  /* Status bar gets sane spacing for the notch + larger logo. */
-  .cx-status {
-    padding-top: env(safe-area-inset-top);
-    min-height: calc(56px + env(safe-area-inset-top));
-  }
-
-  /* Footer adopts the home-indicator inset. */
-  .cx-footer {
-    padding-bottom: env(safe-area-inset-bottom);
-    min-height: calc(48px + env(safe-area-inset-bottom));
-  }
-
   /* Reader gets full width with comfortable reading padding. */
   .cx-reader { padding: 0; }
   .cx-reader-body { padding: 0 6px; }
@@ -1921,13 +1794,6 @@ body {
 
   /* Reader meta wraps onto two lines instead of overflowing. */
   .cx-reader-meta { flex-wrap: wrap; row-gap: 6px; }
-
-  /* The mobile FABs become real iOS-feeling tap targets (44pt HIG). */
-  .cx-mobile-fab {
-    width: 44px; height: 44px;
-    font-size: 20px;
-    border-radius: 6px;
-  }
 
   /* Solar strip is a luxury — hide on phones to save vertical real-estate. */
   .cx-sun { display: none; }
@@ -1949,12 +1815,10 @@ body {
 @media (max-width: 380px) {
   .cx-reader-titles h1 { font-size: 18px; }
   .cx-side-toggle { font-size: 8.5px; padding: 4px 7px; letter-spacing: 0.08em; }
-  .cx-rail-l, .cx-rail-r { width: 92vw; }
 }
 
 /* Landscape phone — keep the reader breathable, hide chrome that hogs height. */
 @media (max-height: 480px) and (orientation: landscape) {
-  .cx-status { min-height: 44px; }
   .cx-footer { min-height: 44px; }
   .cx-reader-titles h1 { font-size: 18px; }
   .cx-reader-titles p { display: none; }
@@ -3682,11 +3546,6 @@ body.cx-resizing * { cursor: ew-resize !important; }
 /* Distraction-free mode: collapse both rails on desktop, expand reader.
    On mobile rails are off-screen anyway; this only kicks in at >= 881px. */
 @media (min-width: 881px) {
-  .cx-app.is-distraction-free .cx-rail-l,
-  .cx-app.is-distraction-free .cx-rail-r { display: none; }
-  .cx-app.is-distraction-free .cx-grid {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
   .cx-app.is-distraction-free .cx-reader {
     max-width: 880px;
     margin-left: auto;
@@ -7658,14 +7517,6 @@ select.twk-field {
 /* Slim status-bar height on desktop & tablet (mouse precision = OK).
    Mobile keeps 44px+ for thumb hit targets. */
 @media (min-width: 881px) {
-  .cx-status { min-height: 40px !important; padding: 0 14px; }
-  .cx-status-l, .cx-status-r { gap: 10px; }
-  .cx-logo-txt b { font-size: 12px; }
-  .cx-logo-txt span { font-size: 8.5px; }
-  .cx-sigil { width: 22px; height: 22px; }
-  .cx-clock-time { font-size: 14px; }
-  .cx-clock-date { font-size: 8.5px; }
-  .cx-status-sep { height: 18px; }
   .cx-footer { min-height: 32px; padding: 0 12px; }
   .cx-footer .cx-pill, .cx-footer .cx-tick { font-size: 9.5px; padding: 2px 6px; }
 }
@@ -20859,3 +20710,282 @@ body.cx-focus .cx-wm-dock:focus-within { opacity: 1; }
   .cx-tx-dot.is-dl { animation: none; }
 }
 /* ═══ end v11 TONGUES ═══ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v12 · THE PALM — the phone shell rebuilt from zero (mobile.jsx).
+   THE WORD full-bleed over a starfield · one floating glass ORB · the PALM
+   bottom sheet · full-screen SHEETS. No status bar, no footer, no drawers.
+   Tokens only; ≥44px targets; safe-areas; reduced-motion = instant.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The shell owns its own safe-areas — the app frame goes truly full-bleed. */
+.cx-app.is-mob { padding: 0; }
+
+.cx-mob {
+  position: fixed; inset: 0; z-index: 1;
+  /* CSS starfield — same night the desk boots into, no JS dependency. */
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, color-mix(in oklab, var(--cx-fg) 38%, transparent) 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 9%,  color-mix(in oklab, var(--cx-fg) 30%, transparent) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 33% 64%, color-mix(in oklab, var(--cx-accent) 36%, transparent) 50%, transparent 51%),
+    radial-gradient(1px 1px at 64% 41%, color-mix(in oklab, var(--cx-fg) 26%, transparent) 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 76%, color-mix(in oklab, var(--cx-fg) 32%, transparent) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 22% 88%, color-mix(in oklab, var(--cx-fg) 22%, transparent) 50%, transparent 51%),
+    radial-gradient(1px 1px at 51% 14%, color-mix(in oklab, var(--cx-fg) 24%, transparent) 50%, transparent 51%);
+  background-size: 240px 240px, 320px 320px, 280px 280px, 200px 200px, 260px 260px, 300px 300px, 220px 220px;
+}
+
+/* ── THE WORD — sys-reader edge to edge ─────────────────────────────────── */
+.cx-mob-reader { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.cx-mob-reader .cxr { flex: 1; min-height: 0; }
+.cx-mob-reader .cxr-bar {
+  padding-top: calc(8px + env(safe-area-inset-top));
+  padding-left: calc(10px + env(safe-area-inset-left));
+  padding-right: calc(64px + env(safe-area-inset-right)); /* room for the trace */
+}
+.cx-mob-reader .cxr-scroll {
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-right: calc(16px + env(safe-area-inset-right));
+  padding-bottom: calc(104px + env(safe-area-inset-bottom)); /* the orb floats here */
+}
+/* FOCUS (orb long-press): even the reader bar dies — the Word + orb only. */
+.cx-mob.is-focus .cxr-bar,
+.cx-mob.is-focus .cxr-served { display: none; }
+.cx-mob.is-focus .cxr-scroll { padding-top: calc(18px + env(safe-area-inset-top)); }
+
+/* ── THE TRACE — time · ◐ top-right, near-invisible until touched ──────── */
+.cx-mtrace {
+  position: fixed;
+  top: calc(6px + env(safe-area-inset-top));
+  right: calc(8px + env(safe-area-inset-right));
+  z-index: 60;
+  display: flex; align-items: center; gap: 2px;
+  opacity: 0.34;
+  transition: opacity 0.2s ease;
+}
+.cx-mtrace:hover, .cx-mtrace:active, .cx-mtrace:focus-within { opacity: 0.95; }
+.cx-mtrace-time {
+  font-family: var(--cx-mono); font-size: 10.5px; letter-spacing: 0.12em;
+  color: var(--cx-fg-dim); font-variant-numeric: tabular-nums;
+}
+.cx-mtrace-btn {
+  appearance: none; cursor: pointer; background: transparent; border: 0;
+  min-width: 44px; min-height: 44px;
+  color: var(--cx-fg-dim); font-size: 15px; line-height: 1;
+  display: grid; place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-mtrace-btn:active { color: var(--cx-accent); }
+
+/* ── THE ORB — the one piece of chrome ──────────────────────────────────── */
+.cx-orb {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 56px; height: 56px; min-width: 44px; min-height: 44px;
+  border-radius: 50%;
+  z-index: 120;
+  appearance: none; cursor: pointer; padding: 0;
+  border: 1px solid color-mix(in oklab, var(--cx-fg) 22%, transparent);
+  background: color-mix(in oklab, var(--cx-bg-2) 74%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  color: var(--cx-accent);
+  display: grid; place-items: center;
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.45),
+    0 0 0 1px color-mix(in oklab, var(--cx-accent) 12%, transparent),
+    0 0 18px color-mix(in oklab, var(--cx-accent) 14%, transparent);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+  transition: opacity 0.24s ease, transform 0.24s ease, left 0.24s ease;
+}
+.cx-orb.is-center { left: 50%; transform: translateX(-50%); }
+.cx-orb.is-left   { left: 17%;  transform: translateX(-50%); }
+.cx-orb.is-right  { left: 83%;  transform: translateX(-50%); }
+.cx-orb.is-tucked { opacity: 0; pointer-events: none; transform: translateX(-50%) scale(0.6); }
+.cx-orb-core {
+  font-size: 20px; line-height: 1;
+  text-shadow: 0 0 12px var(--cx-accent-glow);
+}
+.cx-orb.is-busy .cx-orb-core { animation: cx-orb-busy 1.1s ease-in-out infinite; }
+@keyframes cx-orb-busy {
+  0%, 100% { opacity: 0.5; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+.cx-orb-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cx-orb-track { fill: none; stroke: color-mix(in oklab, var(--cx-fg) 13%, transparent); stroke-width: 1.5; }
+.cx-orb-streak {
+  fill: none; stroke: #ffd479; stroke-width: 2; stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(255, 212, 121, 0.7));
+}
+
+/* ── THE PALM — the one door (bottom sheet) ─────────────────────────────── */
+.cx-palm-scrim {
+  position: fixed; inset: 0; z-index: 130;
+  background: rgba(0, 0, 0, 0.5);
+}
+.cx-palm {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 131;
+  max-height: 78dvh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: color-mix(in oklab, var(--cx-bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  border-top: 1px solid var(--cx-line-strong);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.5);
+  padding: 0 14px calc(14px + env(safe-area-inset-bottom));
+  animation: cx-sheet-up 0.24s ease;
+}
+.cx-palm-head {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 0 2px;
+  touch-action: none;
+}
+.cx-sheet-grab {
+  display: block; width: 42px; height: 4px; border-radius: 2px;
+  background: color-mix(in oklab, var(--cx-fg) 28%, transparent);
+  margin: 2px auto 6px;
+}
+.cx-palm-now {
+  font-family: var(--cx-mono); font-size: 10.5px; letter-spacing: 0.16em;
+  color: var(--cx-accent);
+}
+.cx-palm-now.is-dim { color: var(--cx-fg-dim); }
+
+.cx-palm-grip {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  padding: 10px 0 2px;
+}
+.cx-palm-launch {
+  appearance: none; cursor: pointer;
+  min-height: 64px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: color-mix(in oklab, var(--cx-fg) 5%, transparent);
+  border: 1px solid var(--cx-line); border-radius: 12px;
+  color: var(--cx-fg);
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-palm-launch:active { border-color: var(--cx-accent); background: color-mix(in oklab, var(--cx-accent) 10%, transparent); }
+.cx-palm-launch i { font-style: normal; font-size: 19px; line-height: 1; color: var(--cx-accent); }
+.cx-palm-launch span { font-family: var(--cx-mono); font-size: 9px; letter-spacing: 0.14em; color: var(--cx-fg-dim); }
+.cx-palm-launch.is-hot { border-color: color-mix(in oklab, var(--cx-accent) 45%, transparent); }
+.cx-palm-launch.is-hot span { color: var(--cx-accent); }
+
+.cx-palm-verbs {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  padding: 10px 0;
+}
+.cx-palm-verb {
+  appearance: none; cursor: pointer;
+  min-height: 54px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: transparent;
+  border: 1px solid var(--cx-line); border-radius: 10px;
+  color: var(--cx-fg);
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-palm-verb:disabled { opacity: 0.35; cursor: default; }
+.cx-palm-verb:not(:disabled):active { border-color: var(--cx-accent); }
+.cx-palm-verb i { font-style: normal; font-size: 16px; line-height: 1; color: var(--cx-fg); }
+.cx-palm-verb span { font-family: var(--cx-mono); font-size: 8.5px; letter-spacing: 0.12em; color: var(--cx-fg-dim); }
+.cx-palm-verb.is-continue i, .cx-palm-verb.is-continue span { color: var(--cx-accent); }
+
+.cx-palm-panels {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--cx-line);
+}
+.cx-palm-chip {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 44px; padding: 6px 13px;
+  border: 1px solid var(--cx-line); border-radius: 22px;
+  background: transparent; color: var(--cx-fg);
+  font-family: var(--cx-mono); font-size: 10px; letter-spacing: 0.1em;
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-palm-chip:active { border-color: var(--cx-accent); }
+.cx-palm-chip i { font-style: normal; font-size: 13px; color: var(--cx-accent); }
+.cx-palm-chip.is-plugin i { color: #b88cff; }
+.cx-palm-chip.is-sys { opacity: 0.8; }
+
+/* ── SHEETS — every launch is a full-screen glass sheet ─────────────────── */
+.cx-sheet {
+  position: fixed; inset: 0; z-index: 140;
+  display: flex; flex-direction: column;
+  background: color-mix(in oklab, var(--cx-bg) 93%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  padding-top: env(safe-area-inset-top);
+  animation: cx-sheet-up 0.24s ease;
+}
+.cx-sheet.is-under {
+  transform: scale(0.98);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.cx-sheet-h {
+  flex: none;
+  padding: 6px 6px 4px;
+  border-bottom: 1px solid var(--cx-line);
+  touch-action: none; /* the header is the drag handle, not a scroller */
+}
+.cx-sheet-row { display: flex; align-items: center; gap: 6px; }
+.cx-sheet-back, .cx-sheet-x {
+  appearance: none; cursor: pointer; background: transparent; border: 0;
+  min-width: 44px; min-height: 44px;
+  color: var(--cx-fg); line-height: 1;
+  display: grid; place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-sheet-back { font-size: 24px; }
+.cx-sheet-x { font-size: 20px; color: var(--cx-fg-dim); }
+.cx-sheet-glyph { flex: none; font-size: 15px; color: var(--cx-accent); }
+.cx-sheet-title {
+  flex: 1; min-width: 0;
+  font-family: var(--cx-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
+  color: var(--cx-fg);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cx-sheet-body {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cx-sheet-body > * { flex: 1 1 auto; min-height: 0; }
+.cx-sheet-missing {
+  margin: auto; text-align: center; padding: 24px;
+  font-family: var(--cx-mono); color: var(--cx-fg-dim);
+}
+.cx-sheet-missing b { display: block; color: var(--cx-fg); letter-spacing: 0.18em; margin-bottom: 6px; }
+
+@keyframes cx-sheet-up {
+  from { transform: translateY(28px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* ── MOBILE GALAXY — full-screen; the dossier becomes a bottom card ─────── */
+@media (max-width: 880px) {
+  .cx-const-info {
+    position: absolute;
+    top: auto; right: 10px; left: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    width: auto;
+    max-height: 46dvh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .cx-const-info-verbs button { min-height: 44px; }
+  .cx-const-info-x { min-width: 44px; min-height: 44px; }
+  .cx-const-x { min-width: 44px; min-height: 44px; }
+}
+
+/* ── Reduced motion: every shell move is instant ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .cx-mob *, .cx-orb, .cx-palm, .cx-sheet, .cx-mtrace {
+    animation: none !important;
+    transition: none !important;
+  }
+  .cx-orb.is-busy .cx-orb-core { animation: none !important; opacity: 0.85; }
+}

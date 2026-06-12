@@ -157,6 +157,63 @@ function CodexReaderX({ surface } = {}) {
     return () => {dead = true;};
   }, [now.bookId, now.chapter, primary]);
 
+  // ── SCROLL-TO-TOP ON PAGE TURN (all form factors) — the human eye goes
+  // to the first verse when the chapter changes; the machine must follow.
+  // Two stages: an instant reset the moment the location flips (so the old
+  // position never flashes under the loading placeholder), then a settle
+  // to 0 once the new verses have mounted (smooth if the panel was already
+  // mounted and tall; reduced-motion gets the instant jump).
+  const locKey = `${now.bookId}:${now.chapter}`;
+  const prevLocRef = useRef(locKey);
+  const needTopRef = useRef(false);
+  useEffect(() => {
+    if (prevLocRef.current === locKey) return;
+    prevLocRef.current = locKey;
+    needTopRef.current = true;
+    const el = scrollRef.current;
+    if (el) el.scrollTop = 0; // no flash of the old position
+  }, [locKey]);
+  useEffect(() => {
+    if (!needTopRef.current || state.loading) return;
+    needTopRef.current = false;
+    const el = scrollRef.current;
+    if (!el || el.scrollTop === 0) return;
+    let reduced = false;
+    try {reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;} catch {}
+    try {el.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });}
+    catch {el.scrollTop = 0;}
+  }, [state.loading, state.verses]);
+
+  // ── Touch: horizontal swipe on the scripture = chapter turn (the reader
+  // keeps this gesture on every surface; vertical scroll always wins). ──
+  const swipeNav = useRef({ prev: () => {}, next: () => {} });
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let x0 = 0,y0 = 0,t0 = 0,live = false;
+    const start = (e) => {
+      const t = e.touches && e.touches[0];
+      if (!t || e.touches && e.touches.length > 1) {live = false;return;}
+      live = true;x0 = t.clientX;y0 = t.clientY;t0 = Date.now();
+    };
+    const end = (e) => {
+      if (!live) return;
+      live = false;
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - x0,dy = t.clientY - y0,dt = Date.now() - t0;
+      if (dt > 600) return;
+      if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+      if (dx < 0) swipeNav.current.next();else swipeNav.current.prev();
+    };
+    el.addEventListener("touchstart", start, { passive: true });
+    el.addEventListener("touchend", end, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchend", end);
+    };
+  }, []);
+
   const book = data.books.find((b) => b.id === now.bookId);
   const bookName = book && book.name || now.book || now.bookId;
   const chapters = book && book.chapters || 1;
@@ -177,6 +234,8 @@ function CodexReaderX({ surface } = {}) {
     const i = data.books.findIndex((b) => b.id === now.bookId);
     if (i >= 0 && i < data.books.length - 1) go(data.books[i + 1].id, 1);
   };
+  // feed the touch-swipe effect (stable ref, fresh closures)
+  swipeNav.current = { prev, next };
 
   const selectVerse = (n) => {
     if (window.codexSelectVerse) window.codexSelectVerse(n);else
@@ -185,6 +244,20 @@ function CodexReaderX({ surface } = {}) {
   const openMenu = (n, el) => {
     selectVerse(n);
     if (window.codexOpenVerseMenu && el) window.codexOpenVerseMenu(n, el.getBoundingClientRect());
+  };
+  // Double-tap (or double-click) a verse opens its menu without breaking
+  // single-tap select — the first tap selects, a quick second tap opens.
+  const lastTapRef = useRef({ n: 0, t: 0 });
+  const tapVerse = (n, el) => {
+    const tNow = Date.now();
+    const last = lastTapRef.current;
+    if (last.n === n && tNow - last.t < 350) {
+      lastTapRef.current = { n: 0, t: 0 };
+      openMenu(n, el);
+      return;
+    }
+    lastTapRef.current = { n, t: tNow };
+    selectVerse(n);
   };
 
   const cycleFont = () => {
@@ -262,7 +335,7 @@ function CodexReaderX({ surface } = {}) {
           tabIndex: 0,
           className: `cx-verse-row cxr-v ${isCur ? "is-hl" : ""} ${isRed ? "is-red" : ""} ${mk ? "has-mark" : ""}`,
           style: mk ? { "--cxr-mark": READER_HL[mk.color] || READER_HL.amber } : undefined,
-          onClick: () => selectVerse(v.n),
+          onClick: (e) => tapVerse(v.n, e.currentTarget),
           onContextMenu: (e) => {e.preventDefault();openMenu(v.n, e.currentTarget);} }, /*#__PURE__*/
 
         React.createElement("button", {

@@ -590,12 +590,33 @@ function VerseConstellation({ onClose }) {
     requestAnimationFrame(stepFly);
   };
 
+  // Touch-tuned (v12): one finger = orbit / tap = dossier (pointer events
+  // unify mouse + touch), two fingers = PINCH DOLLY. While two pointers are
+  // live, orbit is suppressed so the galaxy doesn't spin under a pinch.
+  const pinchRef = useRef({ pts: new Map(), d0: 0, dist0: 0 });
   const onGalaxyPointer = {
     down: (e) => {
-      dragRef.current = { x: e.clientX, y: e.clientY, yaw: camRef.current.yaw, pitch: camRef.current.pitch, moved: false };
+      const pz = pinchRef.current;
+      pz.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pz.pts.size === 2) {
+        const [a, b] = [...pz.pts.values()];
+        pz.d0 = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        pz.dist0 = camRef.current.dist;
+        dragRef.current = null; // a pinch is not an orbit
+      } else if (pz.pts.size === 1) {
+        dragRef.current = { x: e.clientX, y: e.clientY, yaw: camRef.current.yaw, pitch: camRef.current.pitch, moved: false };
+      }
       e.currentTarget.setPointerCapture?.(e.pointerId);
     },
     move: (e) => {
+      const pz = pinchRef.current;
+      if (pz.pts.has(e.pointerId)) pz.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pz.pts.size === 2) {
+        const [a, b] = [...pz.pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        camRef.current.dist = Math.max(120, Math.min(2400, pz.dist0 * (pz.d0 / d)));
+        return;
+      }
       const dr = dragRef.current;
       if (dr) {
         const dx = e.clientX - dr.x,dy = e.clientY - dr.y;
@@ -605,9 +626,12 @@ function VerseConstellation({ onClose }) {
       }
     },
     up: (e) => {
+      const pz = pinchRef.current;
+      const wasPinch = pz.pts.size >= 2;
+      pz.pts.delete(e.pointerId);
       const dr = dragRef.current;
       dragRef.current = null;
-      if (dr && !dr.moved) {
+      if (dr && !dr.moved && !wasPinch) {
         const rect = canvasRef.current.getBoundingClientRect();
         const hit = galaxyHit(e.clientX - rect.left, e.clientY - rect.top);
         selRef.current = hit;
@@ -616,6 +640,10 @@ function VerseConstellation({ onClose }) {
           flyTo(hit);
         } else {setInfo(null);setHud(null);}
       }
+    },
+    cancel: (e) => {
+      pinchRef.current.pts.delete(e.pointerId);
+      dragRef.current = null;
     },
     dbl: (e) => {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -780,9 +808,10 @@ function VerseConstellation({ onClose }) {
     React.createElement("canvas", {
       ref: canvasRef,
       className: "cx-const-canvas is-galaxy",
-      onMouseMove: onGalaxyPointer.move,
+      onPointerMove: onGalaxyPointer.move,
       onPointerDown: onGalaxyPointer.down,
       onPointerUp: onGalaxyPointer.up,
+      onPointerCancel: onGalaxyPointer.cancel,
       onDoubleClick: onGalaxyPointer.dbl,
       role: "img",
       "aria-label": "Galaxy \u2014 the canon as navigable 3D space" }

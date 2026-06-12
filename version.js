@@ -9,13 +9,13 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "11.0",     // user-facing app version
-  sw: "v264",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "12.0",     // user-facing app version
+  sw: "v265",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "EVERY PANEL IS ITS OWN WINDOW: the study stack is gone — Translations, Talmud, Commentary, Gematria, Gnosis, Disarm, Exegesis each float free, each remembering its place (1–9 opens them; pin any to the dock with ✎)",
-    "TRANSLATIONS REMADE FROM ZERO: language lanes of cards — one tap switches your Bible, ⊕ stacks a comparison, the offline dot (● ◐ ○) is always visible and IS the download button",
-    "THE THREAD WEB: cross-references are a living graph — your verse at center, references orbiting in covenant colors; click to walk, double-click to read",
-    "THE GALAXY DOSSIER CARRIES THE WORD: click a star and the chapter itself appears — whole if short, honest preview if long, served from whichever corpus carries it",
+    "THE PALM: mobile is reborn — the Word full-bleed over the starfield, one glass orb as the only chrome; tap it and everything opens as sheets (long-press = focus)",
+    "The machine follows the eye: turning a chapter starts you at verse 1 — no more scrolling back up",
+    "Arrow-pad reading on desktop: ↓↑ verses, ←→ chapters, PageUp/Down, Home/End — browse the whole Bible from the arrow keys",
+    "Galaxy, shelves, translations, oracle — all touch-native as full-screen sheets on the phone",
   ],
 };
 

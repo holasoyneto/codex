@@ -150,7 +150,42 @@ try {
     fail("dragged geometry should persist per window", { gPos, dPos, ...persisted });
   log("two dragged windows held their geometry across reload ✓", { gPos, dPos });
 
-  // f · zero pageerrors throughout.
+  // f · ARROW-PAD READING (v12 addendum) — ↓ advances the verse cursor,
+  //     → turns the chapter, and every chapter turn resets the reader's
+  //     scroll to the FIRST verse (the machine follows the eye).
+  await page.evaluate(() => { const b = document.activeElement; if (b && b.blur) b.blur(); });
+  const v0 = await page.evaluate(() => (window.CODEX_NOW || {}).verse || 1);
+  await page.keyboard.press("ArrowDown");
+  await page.waitForFunction(
+    (v) => ((window.CODEX_NOW || {}).verse || 1) === v + 1,
+    { timeout: 8000 }, v0
+  ).catch(() => fail("ArrowDown did not advance currentVerse", { v0 }));
+  await page.keyboard.press("ArrowUp");
+  await page.waitForFunction(
+    (v) => ((window.CODEX_NOW || {}).verse || 1) === v,
+    { timeout: 8000 }, v0
+  ).catch(() => fail("ArrowUp did not step the verse back", { v0 }));
+  // scroll the reader down, then turn the chapter with →
+  await page.evaluate(() => { const sc = document.querySelector(".cxr-scroll"); if (sc) sc.scrollTop = 600; });
+  const ch0 = await page.evaluate(() => (window.CODEX_NOW || {}).chapter);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForFunction(
+    (ch) => (window.CODEX_NOW || {}).chapter !== ch,
+    { timeout: 15000 }, ch0
+  ).catch(() => fail("ArrowRight did not change the chapter", { ch0 }));
+  await page.waitForFunction(() => document.querySelectorAll(".cx-verse-row").length > 0, { timeout: 20000 });
+  await sleep(900); // let the smooth scroll settle
+  const turn = await page.evaluate(() => ({
+    chapter: (window.CODEX_NOW || {}).chapter,
+    verse: (window.CODEX_NOW || {}).verse,
+    scrollTop: (document.querySelector(".cxr-scroll") || { scrollTop: -1 }).scrollTop,
+  }));
+  if (turn.scrollTop !== 0) fail("chapter turn must reset the reader scroll to the first verse", turn);
+  await page.keyboard.press("ArrowLeft"); // restore the chapter for cleanliness
+  await page.waitForFunction((ch) => (window.CODEX_NOW || {}).chapter === ch, { timeout: 15000 }, ch0).catch(() => {});
+  log(`arrow-pad: ↓/↑ verse ${v0}→${v0 + 1}→${v0} · → ch ${ch0}→${turn.chapter} · scrollTop=${turn.scrollTop} ✓`);
+
+  // g · zero pageerrors throughout.
   if (jsErrors.length) fail("JS errors", jsErrors);
   log("PASS");
 } finally {

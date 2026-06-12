@@ -1477,7 +1477,8 @@ function App() {
   const { now, solar, dark } = useSolarClock(t.autoTheme, t.manualDark);
   const data = window.CODEX_DATA;
 
-  const [tab, setTab] = useState("trans");
+  // (v12: the right-rail `tab` state died with the drawers — panels open as
+  // desk windows or mobile sheets through codexOpenPanel.)
   const [primary, setPrimary] = useState(t.primaryTranslation);
 
   // Global bump so any consumer of window.CODEX_DATA.translations (right-rail
@@ -1555,8 +1556,8 @@ function App() {
   // that opens only when you're standing in front of it.
   const [schizoEligible, setSchizoEligible] = useState(false);
 
-  const [leftOpen, setLeftOpen] = useState(false);
-  const [rightOpen, setRightOpen] = useState(false);
+  // (v12 THE PALM: the leftOpen/rightOpen drawer flags are dead — phones
+  // route every open through window.codexMobile sheets instead.)
   const [panelData, setPanelData] = useState(null);
   const [panelStatus, setPanelStatus] = useState({ loading: false, error: null });
   // Meta about the current chapter's panels — surfaces to the user as a
@@ -2236,7 +2237,7 @@ function App() {
   }, [distractionFree]);
 
   // Per-rail fold state — desktop only. Persists so the layout reopens the
-  // way you left it. Mobile rails still slide via leftOpen / rightOpen.
+  // way you left it. (v12: mobile drawers are dead — the orb + sheets rule.)
   // v8 "monad" boot: under the os7 desktop shell a FIRST visit (no stored
   // preference yet) opens with both rails folded — just the reader and the
   // omnibar. Any explicit open/close persists and wins on later boots.
@@ -2342,13 +2343,15 @@ function App() {
     };
     return () => {delete window.codexDeskPanels;};
   }, [deskMode, deskPanels, openBuiltinPanel, closeBuiltinPanel]);
-  // codex:open-builtin-tab lands on windows under the desk (the rail keeps
-  // its own listener for the mobile drawer, which doesn't mount here).
+  // codex:open-builtin-tab lands on windows under the desk and on sheets
+  // on the phone (the drawer rail that used to listen is dead).
   useEffect(() => {
-    if (!deskMode) return;
     const onBuiltin = (e) => {
       const id = e && e.detail && e.detail.tabId;
-      if (id && BUILTIN_WIN[id]) openBuiltinPanel(id);
+      if (!id || !BUILTIN_WIN[id]) return;
+      if (deskMode) {openBuiltinPanel(id);return;}
+      if (id === "gnosis") setGnosisOn(true);
+      if (window.codexMobile) window.codexMobile.open("builtin:" + id);
     };
     window.addEventListener("codex:open-builtin-tab", onBuiltin);
     return () => window.removeEventListener("codex:open-builtin-tab", onBuiltin);
@@ -2370,20 +2373,8 @@ function App() {
     };
     return () => {delete window.codexDesk;};
   }, [deskMode, desk]);
-  // Legacy rail-open calls (codex:open-library, codex:open-panel, status/footer
-  // buttons, plugins) keep working: under the desk they become window opens.
-  useEffect(() => {
-    if (deskMode && leftOpen) {
-      setLeftOpen(false);
-      setDesk((d) => d.library ? d : { ...d, library: true, focus: false });
-    }
-  }, [deskMode, leftOpen]);
-  useEffect(() => {
-    // v11: there is no study window to surface — the drawer flag is just
-    // reset under the desk (panel opens route through codexDeskPanels /
-    // winhost windows instead).
-    if (deskMode && rightOpen) setRightOpen(false);
-  }, [deskMode, rightOpen]);
+  // (v12: the leftOpen/rightOpen → desk redirect effects died with the
+  // drawer flags — codex:open-library / codex:open-panel route directly.)
   // Keyboard shortcut overlay — `?` opens it, Esc closes.
   const [showShortcuts, setShowShortcuts] = useState(false);
   // a11y: hold the modal node + the element to restore focus to on close.
@@ -2635,6 +2626,50 @@ function App() {
       window.dispatchEvent(new CustomEvent("codex:shortcut", { detail: { action } }));
     };
 
+    // Chapter turns — one path for H/L and ←/→ (and the reader's own ‹ ›).
+    const prevChapter = () => {
+      if (passage.chapter > 1) loadPassage(passage.bookId, passage.chapter - 1, 1);else
+      {
+        const idx = data.books.findIndex((b) => b.id === passage.bookId);
+        if (idx > 0) loadPassage(data.books[idx - 1].id, data.books[idx - 1].chapters, 1);
+      }
+    };
+    const nextChapter = () => {
+      const book = data.books.find((b) => b.id === passage.bookId);
+      if (book && passage.chapter < book.chapters) loadPassage(passage.bookId, passage.chapter + 1, 1);else
+      {
+        const idx = data.books.findIndex((b) => b.id === passage.bookId);
+        if (idx >= 0 && idx < data.books.length - 1) loadPassage(data.books[idx + 1].id, 1, 1);
+      }
+    };
+
+    // ARROW-PAD READING (v12 addendum) — inert whenever an overlay, the
+    // omnibar, the verse menu, or a mobile sheet/palm owns the screen, so
+    // arrows never fight a focused surface.
+    const overlayOwnsKeys = () => {
+      if (searchOpen || showShortcuts || omniOpen || constOpen || verseMenu) return true;
+      try {
+        if (window.codexMobile) {
+          const s = window.codexMobile.state();
+          if (s.palm || s.sheets && s.sheets.length) return true;
+        }
+      } catch {}
+      return false;
+    };
+    const reducedMotion = () => {
+      try {return window.matchMedia("(prefers-reduced-motion: reduce)").matches;} catch {return false;}
+    };
+    const readerScroller = () => document.querySelector(".cxr-scroll");
+    const jumpEdgeVerse = (which) => {
+      const nodes = verseNodes();
+      if (!nodes.length) return;
+      const target = which === "first" ? nodes[0] : nodes[nodes.length - 1];
+      target.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: which === "first" ? "start" : "end" });
+      flashVerse(target);
+      const vn = Number(target.getAttribute("data-vn") || target.dataset?.vn);
+      if (Number.isFinite(vn)) setCurrentVerse(vn);
+    };
+
     const onKey = (e) => {
       const target = e.target;
       const typing = isTyping(target);
@@ -2644,11 +2679,10 @@ function App() {
         if (searchOpen) {setSearchOpen(false);e.preventDefault();return;}
         if (showShortcuts) {setShowShortcuts(false);e.preventDefault();return;}
         if (deskMode && desk.focus) {setDesk((d) => ({ ...d, focus: false }));e.preventDefault();return;}
-        // Generic escape — let listeners (verse menu, popovers, etc.) close.
+        // Generic escape — let listeners (verse menu, popovers, mobile
+        // sheets/palm) close themselves.
         window.dispatchEvent(new CustomEvent("codex:escape"));
         setVerseMenu(null);
-        setLeftOpen(false);
-        setRightOpen(false);
         return;
       }
       // ── Focus trap for the shortcuts modal ────────────────────────────
@@ -2696,6 +2730,39 @@ function App() {
       // `?` (Shift+/) — shortcut overlay
       if (k === "?") {e.preventDefault();setShowShortcuts((v) => !v);return;}
 
+      // ── ARROW-PAD READING — ↓/↑ verse, →/← chapter, PgDn/PgUp screenful,
+      // Home/End first/last verse. preventDefault so the page never
+      // double-scrolls behind the cursor flash. ───────────────────────────
+      if (k === "ArrowDown" || k === "ArrowUp") {
+        if (overlayOwnsKeys()) return;
+        e.preventDefault();
+        scrollToVerse(k === "ArrowDown" ? +1 : -1);
+        return;
+      }
+      if (k === "ArrowRight" || k === "ArrowLeft") {
+        if (overlayOwnsKeys()) return;
+        e.preventDefault();
+        if (k === "ArrowRight") nextChapter();else prevChapter();
+        return;
+      }
+      if (k === "PageDown" || k === "PageUp") {
+        if (overlayOwnsKeys()) return;
+        const sc = readerScroller();
+        if (!sc) return;
+        e.preventDefault();
+        sc.scrollBy({
+          top: (k === "PageDown" ? 1 : -1) * Math.max(120, Math.round(sc.clientHeight * 0.85)),
+          behavior: reducedMotion() ? "auto" : "smooth"
+        });
+        return;
+      }
+      if (k === "Home" || k === "End") {
+        if (overlayOwnsKeys()) return;
+        e.preventDefault();
+        jumpEdgeVerse(k === "Home" ? "first" : "last");
+        return;
+      }
+
       // Enter on a verse row → open verse menu
       if (k === "Enter") {
         const row = target.closest?.(".cx-verse, .cx-verse-row");
@@ -2708,9 +2775,8 @@ function App() {
         }
       }
 
-      // Panel keys 1..9 — under the desk each opens/focuses that panel's
-      // OWN window (builtin → app desk window, plugin → winhost window);
-      // mobile/classic keeps the drawer-tab behavior.
+      // Panel keys 1..9 — each opens that panel's OWN surface (desk window
+      // on desktop, full-screen sheet on the phone) via the one door.
       if (/^[1-9]$/.test(k)) {
         const tabs = (window.railTabs ? window.railTabs() : null) || [
         { id: "trans" }, { id: "talmud" }, { id: "comm" }, { id: "gem" }, { id: "gnosis" }];
@@ -2718,13 +2784,7 @@ function App() {
         const idx = Number(k) - 1;
         if (idx < tabs.length) {
           e.preventDefault();
-          const id = tabs[idx].id;
-          if (deskMode && window.codexOpenPanel) {
-            window.codexOpenPanel(id);
-            return;
-          }
-          if (id === "gnosis" && !gnosisOn) setGnosisOn(true);
-          setTab(id);
+          if (window.codexOpenPanel) window.codexOpenPanel(tabs[idx].id);
         }
         return;
       }
@@ -2734,38 +2794,23 @@ function App() {
           e.preventDefault();scrollToVerse(+1);return;
         case "k":case "K":
           e.preventDefault();scrollToVerse(-1);return;
-        case "h":case "H":{
-            e.preventDefault();
-            const book = data.books.find((b) => b.id === passage.bookId);
-            if (passage.chapter > 1) loadPassage(passage.bookId, passage.chapter - 1, 1);else
-            {
-              const idx = data.books.findIndex((b) => b.id === passage.bookId);
-              if (idx > 0) loadPassage(data.books[idx - 1].id, data.books[idx - 1].chapters, 1);
-            }
-            return;
-          }
-        case "l":case "L":{
-            e.preventDefault();
-            const book = data.books.find((b) => b.id === passage.bookId);
-            if (book && passage.chapter < book.chapters) loadPassage(passage.bookId, passage.chapter + 1, 1);else
-            {
-              const idx = data.books.findIndex((b) => b.id === passage.bookId);
-              if (idx >= 0 && idx < data.books.length - 1) loadPassage(data.books[idx + 1].id, 1, 1);
-            }
-            return;
-          }
+        case "h":case "H":
+          e.preventDefault();prevChapter();return;
+        case "l":case "L":
+          e.preventDefault();nextChapter();return;
         case "o":case "O":
-          // v10 — the oracle is its OWN window under the desk (sys-oracle).
+          // v10 — the oracle is its OWN window under the desk (sys-oracle);
+          // v12 — its own full-screen sheet on the phone.
           e.preventDefault();
           if (deskMode) setDesk((d) => ({ ...d, oracle: !d.oracle, focus: false }));else
-          setLeftOpen((o) => !o);
+          if (window.codexMobile) window.codexMobile.open("oracle");
           dispatchShortcut("toggle-oracle");
           return;
         case "b":case "B":
           // v10 — marks are their OWN window under the desk (sys-marks).
           e.preventDefault();
           if (deskMode) setDesk((d) => ({ ...d, marks: !d.marks, focus: false }));else
-          setLeftOpen((o) => !o);
+          if (window.codexMobile) window.codexMobile.open("marks");
           dispatchShortcut("toggle-bookmarks");
           return;
         case "n":case "N":{
@@ -2794,13 +2839,13 @@ function App() {
           return;
         case "t":case "T":
           e.preventDefault();
-          // v11 — translations are their OWN window under the desk.
+          // v11 — translations are their OWN window under the desk;
+          // v12 — their own sheet on the phone.
           if (deskMode) {
             if (window.codexDeskPanels) window.codexDeskPanels.toggle("trans");
             setDesk((d) => d.focus ? { ...d, focus: false } : d);
-          } else {
-            setTab("trans");
-            setRightOpen(true);
+          } else if (window.codexMobile) {
+            window.codexMobile.open("builtin:trans");
           }
           dispatchShortcut("open-translations");
           return;
@@ -2814,7 +2859,8 @@ function App() {
         case "f":case "F":
           e.preventDefault();
           // F is FOCUS: hide everything but the reader.
-          if (deskMode) setDesk((d) => ({ ...d, focus: !d.focus, reader: true }));
+          if (deskMode) setDesk((d) => ({ ...d, focus: !d.focus, reader: true }));else
+          if (window.codexMobile) window.codexMobile.focus();
           return;
         default:
           return;
@@ -2825,7 +2871,7 @@ function App() {
     // Re-bind whenever the closures' captured state changes.
   }, [showShortcuts, searchOpen, passage, currentVerse, sideBySide, gnosisOn,
   data, loadPassage, openVerseMenu, t.notesEnabled,
-  deskMode, desk.focus]);
+  deskMode, desk.focus, omniOpen, constOpen, verseMenu]);
 
   useEffect(() => {setPrimary(t.primaryTranslation);}, [t.primaryTranslation]);
   useEffect(() => {setSideBySide(!!t.sideBySide);}, [t.sideBySide]);
@@ -2839,7 +2885,6 @@ function App() {
   const jumpToRef = useCallback((refStr) => {
     const loc = parseRef(refStr, data.books);
     if (loc) loadPassage(loc.bookId, loc.chapter, loc.verse);
-    setLeftOpen(false);
   }, [data.books, loadPassage]);
 
   // Expose jumpToRef globally so external modules (side quests etc.)
@@ -2966,21 +3011,19 @@ function App() {
     try {window.dispatchEvent(new CustomEvent("codex:xref-thread", { detail: { thread: xrefThread } }));} catch {}
   }, [xrefThread]);
 
-  // Click on the reader title opens the Library. On mobile this slides the
-  // left drawer in; on desktop the rail is already visible, so we also
-  // un-collapse it and focus its search — otherwise the click looked dead.
+  // Click on the reader title opens the Library: a desk window on desktop,
+  // a full-screen sheet on the phone.
   useEffect(() => {
     const onOpen = () => {
-      setLeftOpen(true);
-      // (v9.2 SHED removed the collapsible-rails state — the old
-      // setLeftCollapsed call here threw on every codex:open-library.)
+      if (deskMode) setDesk((d) => d.library ? d : { ...d, library: true, focus: false });else
+      if (window.codexMobile) window.codexMobile.open("library");
       setTimeout(() => {
         try {window.dispatchEvent(new CustomEvent("codex:focus-lib-search"));} catch {}
       }, 60);
     };
     window.addEventListener("codex:open-library", onOpen);
     return () => window.removeEventListener("codex:open-library", onOpen);
-  }, []);
+  }, [deskMode]);
 
   // Plugin panels (cross-references, Strong's, word-study, dictionary,
   // passage-guide, vox, map) ask to be shown via `codex:open-panel`. Nothing
@@ -2993,11 +3036,17 @@ function App() {
       const d = e && e.detail || {};
       let id = d.panelId || "";
       if (!id) return;
-      // v11 — a bare builtin id under the desk is a window open, not a tab.
-      if (!d.pluginId && BUILTIN_WIN[id] && deskMode && window.codexDeskPanels) {
+      // v11 — a bare builtin id is a window open under the desk;
+      // v12 — a full-screen sheet on the phone.
+      if (!d.pluginId && BUILTIN_WIN[id]) {
         const vb = d.ctx && (d.ctx.verse || d.ctx.ref && d.ctx.ref.verse);
         if (vb) setCurrentVerse(vb);
-        window.codexDeskPanels.open(id);
+        if (deskMode && window.codexDeskPanels) {window.codexDeskPanels.open(id);return;}
+        if (!deskMode) {
+          if (id === "gnosis") setGnosisOn(true);
+          if (window.codexMobile) window.codexMobile.open("builtin:" + id);
+          return;
+        }
         return;
       }
       if (d.pluginId && id.indexOf(":") === -1) id = `${d.pluginId}:${id}`;
@@ -3019,19 +3068,17 @@ function App() {
         )?.glyph;
         if (window.codexOpenWindow({ id, glyph })) return;
       }
-      setRightOpen(true);
-      // (v9.2 SHED removed the collapsible-rails state — the old
-      // setRightCollapsed call here threw on every codex:open-panel.)
-      setTab(id);
+      // v12 — the phone hosts the same plugin component as a sheet.
+      if (!deskMode && window.codexMobile) window.codexMobile.open(id);
     };
     window.addEventListener("codex:open-panel", onOpenPanel);
     return () => window.removeEventListener("codex:open-panel", onOpenPanel);
   }, [deskMode]);
 
-  // Exiting a fullscreen experience (e.g. Reels) should return to reading, not
-  // leave the rail open behind a dimmed scrim. Reels dispatches this on close.
+  // Exiting a fullscreen experience (e.g. Reels) should return to reading.
+  // Reels dispatches this on close; on the phone it closes every sheet.
   useEffect(() => {
-    const onCloseRails = () => {setLeftOpen(false);setRightOpen(false);};
+    const onCloseRails = () => {if (window.codexMobile) window.codexMobile.closeAll();};
     window.addEventListener("codex:close-rails", onCloseRails);
     return () => window.removeEventListener("codex:close-rails", onCloseRails);
   }, []);
@@ -3082,14 +3129,12 @@ function App() {
 
   return (/*#__PURE__*/
     React.createElement("div", {
-      className: `cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${leftOpen ? "left-open" : ""} ${rightOpen ? "right-open" : ""} ${distractionFree ? "is-distraction-free" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""} ${schizoEligible && t.schizo ? "is-schizo" : ""}`,
-      style: themeStyle }, /*#__PURE__*/
+      className: `cx-app ${dark ? "is-dark" : "is-light"} ${t.scanlines ? "has-scan" : ""} font-${t.scriptureFont} ${deskMode ? "" : "is-mob"} ${distractionFree ? "is-distraction-free" : ""} ${t.hermeneuticDriftCompensation ? "is-drift" : ""} ${schizoEligible && t.schizo ? "is-schizo" : ""}`,
+      style: themeStyle },
 
-    React.createElement("div", {
-      className: "cx-rail-scrim",
-      onClick: () => {setLeftOpen(false);setRightOpen(false);},
-      "aria-hidden": true }
-    ),
+
+
+
     deskMode ? /*#__PURE__*/
     React.createElement(DeskTrace, {
       now: now, dark: dark, autoTheme: t.autoTheme,
@@ -3097,24 +3142,8 @@ function App() {
         if (t.autoTheme) setTweak("autoTheme", false);
         setTweak("manualDark", !dark);
       } }
-    ) : /*#__PURE__*/
-
-    React.createElement(StatusBar, {
-      now: now, solar: solar, dark: dark,
-      autoTheme: t.autoTheme,
-      onToggleTheme: () => {
-        if (t.autoTheme) setTweak("autoTheme", false);
-        setTweak("manualDark", !dark);
-      },
-      onToggleAuto: () => setTweak("autoTheme", !t.autoTheme),
-      bookmarkCount: marks.length,
-      gnosisOn: gnosisOn,
-      onToggleLeft: () => setLeftOpen((o) => !o),
-      onToggleRight: () => setRightOpen((o) => !o),
-      primary: primary,
-      onSelectPrimary: setPrimaryAndPersist }
-    ),
-
+    ) :
+    null,
 
     tourOpen ? /*#__PURE__*/React.createElement(WelcomeTour, { onClose: closeTour }) : null,
 
@@ -3122,34 +3151,6 @@ function App() {
 
 
     (() => {
-      const leftRailEl = /*#__PURE__*/
-      React.createElement(LeftRail, {
-        isCollapsed: false,
-        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, library: false })) : () => setLeftOpen(false),
-        activeBookId: passage.bookId,
-        activeChapter: passage.chapter,
-        marks: marks,
-        highlightColors: HIGHLIGHT_COLORS,
-        onSelectMark: onSelectMark,
-        onClearMark: onClearMark,
-        onTogglePinMark: togglePinMark,
-        onMarkCurrent: onMarkCurrent,
-        onSelectChapter: (bookId, ch) => {loadPassage(bookId, ch, 1);setLeftOpen(false);},
-        currentRef: `${passage.book} ${passage.chapter}:${currentVerse}`,
-        onClose: () => setLeftOpen(false),
-        oracleProps: {
-          passage, currentVerse, primary, gnosisOn,
-          driftMode: !!t.hermeneuticDriftCompensation,
-          provider: t.provider || "anthropic",
-          model: t.model || "claude-haiku-4-5-20251001",
-          availableProviders,
-          onAddBookmark: ({ ref }) => jumpToRef(ref), // legacy hook → just jump
-          onJumpTo: ({ ref }) => jumpToRef(ref)
-        } }
-      );
-
-
-
       // The morning/evening briefing (WelcomeBack). Scripture is sacred
       // ground — under the desk this does NOT live inside the reader: it
       // floats top-right over the wallpaper like a notification banner.
@@ -3179,8 +3180,6 @@ function App() {
       // Under the desk this same column is the reader window's body.
       const centerColEl = /*#__PURE__*/
       React.createElement("div", { className: "cx-center-col" },
-      deskMode ? null : briefEl,
-
 
 
 
@@ -3207,87 +3206,60 @@ function App() {
       // Reels launcher moved out of the reading area into the footer
       // (see FooterBar onOpenReels) — the floating circle was intrusive.
 
-      const rightRailEl = /*#__PURE__*/
-      React.createElement(RightRail, {
-        isCollapsed: false,
-        onCollapse: deskMode ? () => setDesk((d) => ({ ...d, study: false })) : () => setRightOpen(false),
-        tab: tab,
-        onTab: setTab,
-        gnosisOn: gnosisOn,
-        onToggleGnosis: setGnosisOn,
-        primary: primary,
-        onPrimary: setPrimaryAndPersist,
-        compareSet: compareSet,
-        onToggleCompare: onToggleCompare,
-        passage: passage,
-        currentVerse: currentVerse,
-        panelData: panelData,
-        panelStatus: panelStatus,
-        panelMeta: panelMeta,
-        onRegeneratePanels: regeneratePanels,
-        disarmData: disarmData,
-        disarmStatus: disarmStatus,
-        disarmMeta: disarmMeta,
-        onRegenerateDisarm: regenerateDisarm,
-        onClose: () => setRightOpen(false),
-        onJumpRef: jumpToRef,
-        pluginVersion: pluginVersion,
-        translation: primary }
-      );
-
+      // v11/v12 — each open builtin panel is its own surface (desk window
+      // on desktop, full-screen sheet on the phone), fed the SAME props
+      // the dead deck passed. Components cross the panels.jsx IIFE
+      // boundary via window.* (cross-IIFE law).
+      const builtinBody = (id) => {
+        const W = window;
+        switch (id) {
+          case "trans":
+            return W.CodexTranslationsX ? React.createElement(W.CodexTranslationsX, {
+              primary, onPrimary: setPrimaryAndPersist, compareSet, onToggleCompare,
+              passage, currentVerse
+            }) : null;
+          case "talmud":
+            return W.TalmudPanel ? React.createElement(W.TalmudPanel, {
+              panelData, status: panelStatus, meta: panelMeta, passage,
+              onRegenerate: regeneratePanels
+            }) : null;
+          case "comm":
+            return W.CommentaryPanel ? React.createElement(W.CommentaryPanel, {
+              panelData, status: panelStatus, meta: panelMeta, passage,
+              onRegenerate: regeneratePanels, onJumpRef: jumpToRef
+            }) : null;
+          case "gem":
+            return W.GematriaPanel ? React.createElement(W.GematriaPanel, {
+              panelData, status: panelStatus, meta: panelMeta, passage,
+              onRegenerate: regeneratePanels
+            }) : null;
+          case "gnosis":
+            return W.GnosisPanel ? React.createElement(W.GnosisPanel, {
+              panelData, status: panelStatus, meta: panelMeta, passage,
+              gnosisOn, onToggleGnosis: setGnosisOn, onRegenerate: regeneratePanels
+            }) : null;
+          case "disarm":
+            return W.DisarmPanel ? React.createElement(W.DisarmPanel, {
+              panelData: disarmData, status: disarmStatus, meta: disarmMeta, passage,
+              currentVerse, onRegenerate: regenerateDisarm
+            }) : null;
+          case "exeg":
+            return W.ExegesisPanel ? React.createElement(W.ExegesisPanel, {
+              passage, currentVerse
+            }) : null;
+          case "txan":
+            return W.TranslationAnalysisPanel ? React.createElement(W.TranslationAnalysisPanel, {
+              passage, currentVerse, primary, compareSet, onJumpRef: jumpToRef
+            }) : null;
+          default:
+            return null;
+        }
+      };
 
       if (deskMode) {
         const vvCount = passage.verses.filter((v) => v[primary] != null && v[primary] !== "").length ||
         passage.verses.length || 0;
-        // v11 — each open builtin panel is its own window, fed the SAME
-        // props the dead deck passed. Components cross the panels.jsx
-        // IIFE boundary via window.* (cross-IIFE law).
         const refCtx = `${passage.book || ""} ${passage.chapter}:${currentVerse || 1}`;
-        const builtinBody = (id) => {
-          const W = window;
-          switch (id) {
-            case "trans":
-              return W.CodexTranslationsX ? React.createElement(W.CodexTranslationsX, {
-                primary, onPrimary: setPrimaryAndPersist, compareSet, onToggleCompare,
-                passage, currentVerse
-              }) : null;
-            case "talmud":
-              return W.TalmudPanel ? React.createElement(W.TalmudPanel, {
-                panelData, status: panelStatus, meta: panelMeta, passage,
-                onRegenerate: regeneratePanels
-              }) : null;
-            case "comm":
-              return W.CommentaryPanel ? React.createElement(W.CommentaryPanel, {
-                panelData, status: panelStatus, meta: panelMeta, passage,
-                onRegenerate: regeneratePanels, onJumpRef: jumpToRef
-              }) : null;
-            case "gem":
-              return W.GematriaPanel ? React.createElement(W.GematriaPanel, {
-                panelData, status: panelStatus, meta: panelMeta, passage,
-                onRegenerate: regeneratePanels
-              }) : null;
-            case "gnosis":
-              return W.GnosisPanel ? React.createElement(W.GnosisPanel, {
-                panelData, status: panelStatus, meta: panelMeta, passage,
-                gnosisOn, onToggleGnosis: setGnosisOn, onRegenerate: regeneratePanels
-              }) : null;
-            case "disarm":
-              return W.DisarmPanel ? React.createElement(W.DisarmPanel, {
-                panelData: disarmData, status: disarmStatus, meta: disarmMeta, passage,
-                currentVerse, onRegenerate: regenerateDisarm
-              }) : null;
-            case "exeg":
-              return W.ExegesisPanel ? React.createElement(W.ExegesisPanel, {
-                passage, currentVerse
-              }) : null;
-            case "txan":
-              return W.TranslationAnalysisPanel ? React.createElement(W.TranslationAnalysisPanel, {
-                passage, currentVerse, primary, compareSet, onJumpRef: jumpToRef
-              }) : null;
-            default:
-              return null;
-          }
-        };
         return (/*#__PURE__*/
           React.createElement("div", { className: "cx-desk" },
 
@@ -3297,7 +3269,7 @@ function App() {
             id: "sys:library", glyph: "\u2630", title: "Library",
             onClose: () => setDesk((d) => ({ ...d, library: false })),
             bodyClass: "cx-desk-body-rail" },
-          window.LibraryX ? React.createElement(window.LibraryX) : leftRailEl) :
+          window.LibraryX ? React.createElement(window.LibraryX) : null) :
           null,
           desk.reader ? /*#__PURE__*/
           React.createElement(DeskWin, {
@@ -3344,36 +3316,49 @@ function App() {
 
       }
 
-      // Phones + coarse pointers: the drawer layout (rails slide over the
-      // reader via left-open/right-open). The desktop grid era is over.
-      return (/*#__PURE__*/
-        React.createElement("div", { className: "cx-grid" },
-        leftRailEl,
-        centerColEl,
-        rightRailEl
-        ));
+      // v12 THE PALM — phones + coarse pointers get the rebuilt shell:
+      // THE WORD full-bleed, one floating ORB, sheets for everything.
+      // The drawer grid (cx-grid / rails / scrim) is dead in code.
+      return window.CodexMobileShell ?
+      React.createElement(window.CodexMobileShell, {
+        builtinWin: BUILTIN_WIN,
+        builtinBody,
+        busy: !!(panelStatus.loading || disarmStatus.loading),
+        dark,
+        onToggleTheme: () => {
+          if (t.autoTheme) setTweak("autoTheme", false);
+          setTweak("manualDark", !dark);
+        }
+      }) : /*#__PURE__*/
 
-    })(), /*#__PURE__*/
+      // dist/mobile.js failed to load — at least keep the Word readable.
+      React.createElement("div", { className: "cx-mob" }, /*#__PURE__*/
+      React.createElement("div", { className: "cx-mob-reader" },
+      window.CodexReaderX ?
+      React.createElement(window.CodexReaderX, { surface: "mobile" }) : /*#__PURE__*/
+      React.createElement("div", { className: "cxr-status is-err" }, /*#__PURE__*/React.createElement("b", null, "READER PLUGIN MISSING"), /*#__PURE__*/React.createElement("code", null, "dist/reader.js failed to load"))
+      )
+      );
 
+    })(),
+
+
+    deskMode ? /*#__PURE__*/
     React.createElement(FooterBar, {
       currentVerse: currentVerse,
       passage: passage,
       gnosisOn: gnosisOn,
       onToggleGnosis: setGnosisOn,
       compareCount: compareSet.length,
-      onOpenLeft: () => setLeftOpen(true),
-      onOpenRight: () => setRightOpen(true),
       distractionFree: distractionFree,
       onToggleDistractionFree: toggleDistractionFree,
       onShowShortcuts: () => setShowShortcuts(true),
       onOpenReels: () => {
-        // codexOpenPanel routes honestly everywhere: winhost window under
-        // the desk, drawer tab on mobile/classic.
-        if (window.codexOpenPanel) window.codexOpenPanel("plugin:reels:reels");else
-        {setRightOpen(true);setTab("plugin:reels:reels");}
+        if (window.codexOpenPanel) window.codexOpenPanel("plugin:reels:reels");
       },
       isOnline: isOnline }
-    ),
+    ) :
+    null,
 
     schizoEligible && t.schizo ? /*#__PURE__*/
     React.createElement("div", { className: "cx-schizo-sigil", "aria-hidden": "true", title: "Schizo Mode active" }, "\u26AF") :
@@ -3401,17 +3386,19 @@ function App() {
     ), /*#__PURE__*/
     React.createElement("div", { className: "cx-kbd-grid" },
     [
-    ["J", "Next verse"],
-    ["K", "Previous verse"],
-    ["H", "Previous chapter"],
-    ["L", "Next chapter"],
+    ["J / ↓", "Next verse"],
+    ["K / ↑", "Previous verse"],
+    ["H / ←", "Previous chapter"],
+    ["L / →", "Next chapter"],
+    ["PgDn / PgUp", "Scroll a screenful"],
+    ["Home / End", "First / last verse"],
     ["⌘/Ctrl + K", "Omnibar — ask anything"],
-    ["1 – 9", deskMode ? "Open the Nth panel window" : "Switch panel tab"],
-    ["O", deskMode ? "Library window (Oracle, books, marks)" : "Toggle Oracle / left rail"],
-    ["B", deskMode ? "Library window (bookmarks)" : "Toggle bookmarks"],
+    ["1 – 9", deskMode ? "Open the Nth panel window" : "Open the Nth panel sheet"],
+    ["O", deskMode ? "Oracle window" : "Oracle sheet"],
+    ["B", deskMode ? "Marks window" : "Marks sheet"],
     ["N", "Toggle notes"],
     ["M", "Toggle verse map"],
-    ["T", deskMode ? "Translations window" : "Open translations"],
+    ["T", deskMode ? "Translations window" : "Translations sheet"],
     ["S", "Toggle side-by-side"],
     ["F", "Focus — just the Word"],
     ["Enter", "Open verse menu (on a verse)"],
@@ -3448,8 +3435,13 @@ function App() {
       },
       onSetPrimary: setPrimaryAndPersist,
       onAskOracle: (verse, refStr, text) => {
-        setLeftOpen(true);
-        window.dispatchEvent(new CustomEvent("oracle:prefill", { detail: { ref: refStr, text } }));
+        // v12 — the oracle is a desk window / mobile sheet, not a drawer.
+        if (deskMode) setDesk((d) => ({ ...d, oracle: true, focus: false }));else
+        if (window.codexMobile) window.codexMobile.open("oracle");
+        // Let the surface mount before the prefill lands.
+        setTimeout(() => {
+          try {window.dispatchEvent(new CustomEvent("oracle:prefill", { detail: { ref: refStr, text } }));} catch {}
+        }, 120);
       },
       onToggleGnosis: setGnosisOn,
       onToggleHighlight: (color) => {
@@ -3689,8 +3681,7 @@ function App() {
       className: "cx-mini-btn",
       title: "Browse and install plugin modules",
       onClick: () => {
-        setRightOpen(true);
-        setTab("plugin:marketplace:market");
+        if (window.codexOpenPanel) window.codexOpenPanel("plugin:module-marketplace:market");
       } },
     "Open Marketplace")
     ), /*#__PURE__*/
@@ -4318,16 +4309,13 @@ function CachedPanelsBrowser({ onJump, bookLookup }) {
 
 }
 
-function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, onOpenLeft, onOpenRight, distractionFree, onToggleDistractionFree, onShowShortcuts, onOpenReels, isOnline = true }) {
+function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCount, distractionFree, onToggleDistractionFree, onShowShortcuts, onOpenReels, isOnline = true }) {
+  // v12 — desk-only chrome. The mobile library/panel FABs died with the
+  // drawers; phones route everything through the orb + palm (mobile.jsx).
   return (/*#__PURE__*/
     React.createElement("footer", { className: "cx-footer" }, /*#__PURE__*/
     React.createElement("div", { className: "cx-footer-l" }, /*#__PURE__*/
     React.createElement("div", { className: "cx-footer-cluster" }, /*#__PURE__*/
-
-
-
-
-    React.createElement("button", { className: "cx-mobile-fab", onClick: onOpenLeft, "aria-label": "Library" }, "\u2263"), /*#__PURE__*/
     React.createElement("button", {
       className: `cx-df-toggle ${distractionFree ? "is-on" : ""}`,
       onClick: onToggleDistractionFree,
@@ -4382,8 +4370,7 @@ function FooterBar({ currentVerse, passage, gnosisOn, onToggleGnosis, compareCou
       title: "Keyboard shortcuts (?)",
       "aria-label": "Keyboard shortcuts" },
     "?") :
-    null, /*#__PURE__*/
-    React.createElement("button", { className: "cx-mobile-fab", onClick: onOpenRight, "aria-label": "Panels" }, "\u22EE")
+    null
     )
     ));
 

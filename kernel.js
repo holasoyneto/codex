@@ -322,6 +322,114 @@
     },
   });
 
+  // ── App-control tools — settings, panels, translation, focus ──────────
+  // The settings tools speak to the SAME store the Settings panel uses
+  // (localStorage codex.tweaks.v1 + the 'tweakchange' event + the
+  // __edit_mode_set_keys host message — see tweaks-panel.jsx useTweaks).
+  var TWEAKS_LS = "codex.tweaks.v1";
+  function readTweaks() {
+    try { return JSON.parse(localStorage.getItem(TWEAKS_LS) || "{}") || {}; }
+    catch (_) { return {}; }
+  }
+  function writeTweak(key, value) {
+    var stored = readTweaks();
+    var prev = stored[key];
+    stored[key] = value;
+    try { localStorage.setItem(TWEAKS_LS, JSON.stringify(stored)); }
+    catch (e) { throw new Error("Could not persist setting: " + String(e && e.message || e)); }
+    var edits = {}; edits[key] = value;
+    try { window.parent.postMessage({ type: "__edit_mode_set_keys", edits: edits }, "*"); } catch (_) {}
+    try { window.dispatchEvent(new CustomEvent("tweakchange", { detail: edits })); } catch (_) {}
+    // No silent changes — every write echoes a visible chip.
+    try {
+      window.dispatchEvent(new CustomEvent("codex:toast", {
+        detail: { msg: "⚙ set " + key + " " + JSON.stringify(value), kind: "ok" },
+      }));
+    } catch (_) {}
+    return prev;
+  }
+
+  register({
+    name: "app_settings_get",
+    description: "Read the user's app settings (the same codex.tweaks.v1 store the Settings panel uses). args: {key?: read one setting}. Returns JSON.",
+    run: async function (args) {
+      var t = readTweaks();
+      var key = args && args.key != null ? String(args.key) : "";
+      if (key) return JSON.stringify({ key: key, value: t.hasOwnProperty(key) ? t[key] : null, set: t.hasOwnProperty(key) });
+      return clip(JSON.stringify(t), 2000);
+    },
+  });
+
+  register({
+    name: "app_settings_set",
+    description: "Change ONE app setting through the same store Settings uses (visible side-effect; the change is echoed to the user as a ⚙ chip — never silent). args: {key, value}. Useful keys: fontScale (number, reader text size), oracleFontScale, scriptureFont ('serif'|'mono'), accent ('cyan'|'amber'|'violet'|'green'|'rose'), redLetter (bool), sideBySide (bool), distractionFree (bool), primaryTranslation (translation id), provider, model.",
+    sideEffect: true,
+    run: async function (args) {
+      var key = String((args && args.key) || "").trim();
+      if (!key) throw new Error("Need args.key");
+      if (!(args && "value" in args)) throw new Error("Need args.value");
+      var prev = writeTweak(key, args.value);
+      return "⚙ set " + key + " " + JSON.stringify(args.value) +
+        (prev !== undefined ? " (was " + JSON.stringify(prev) + ")" : "") +
+        " — persisted to the Settings store; some surfaces apply it on their next render.";
+    },
+  });
+
+  register({
+    name: "open_panel",
+    description: "Open an app panel/window for the reader (visual side-effect). args: {id: one of trans|talmud|comm|gem|gnosis|disarm|exeg|txan (study panels) or library|oracle|marks|reader (desk windows)}.",
+    sideEffect: true,
+    run: async function (args) {
+      var id = String((args && args.id) || "").trim();
+      if (!id) throw new Error("Need args.id");
+      var deskIds = ["reader", "library", "oracle", "marks"];
+      if (deskIds.indexOf(id) !== -1 && window.codexDesk && window.codexDesk.open) {
+        window.codexDesk.open(id);
+        return "Opened the " + id.toUpperCase() + " window.";
+      }
+      if (window.codexDeskPanels && window.codexDeskPanels.open) {
+        window.codexDeskPanels.open(id);
+        return "Opened the " + id.toUpperCase() + " panel window.";
+      }
+      try {
+        window.dispatchEvent(new CustomEvent("codex:open-builtin-tab", { detail: { tabId: id } }));
+        return "Requested the " + id.toUpperCase() + " panel.";
+      } catch (e) { throw new Error("Panel host unavailable"); }
+    },
+  });
+
+  register({
+    name: "set_translation",
+    description: "Switch the reader's primary translation (visual side-effect). args: {id: translation id like 'kjv', 'web', 'lxx', 'wlc'}.",
+    sideEffect: true,
+    run: async function (args) {
+      var id = String((args && args.id) || "").trim().toLowerCase();
+      if (!id) throw new Error("Need args.id");
+      var list = (window.CODEX_DATA && window.CODEX_DATA.translations) || [];
+      if (list.length && !list.some(function (t) { return t.id === id; })) {
+        throw new Error("Unknown translation id: " + id + ". Known: " + list.slice(0, 30).map(function (t) { return t.id; }).join(", "));
+      }
+      if (typeof window.codexSetPrimary === "function") { window.codexSetPrimary(id); }
+      else {
+        writeTweak("primaryTranslation", id);
+        try { window.dispatchEvent(new CustomEvent("codex:set-primary", { detail: { id: id } })); } catch (_) {}
+      }
+      return "Primary translation switched to " + id.toUpperCase() + ".";
+    },
+  });
+
+  register({
+    name: "focus_mode",
+    description: "Toggle focus mode — hides every window except the reader (visual side-effect). args: {on: true|false}.",
+    sideEffect: true,
+    run: async function (args) {
+      var on = !!(args && args.on);
+      if (!window.codexDesk || typeof window.codexDesk.focus !== "function") throw new Error("Desk unavailable");
+      window.codexDesk.focus(on);
+      return "Focus mode " + (on ? "ON — only the Word remains." : "off — the desk is back.");
+    },
+  });
+
   // Optional semantic search — registered only if the engine ships it.
   if (window.CODEX_SEARCH && typeof window.CODEX_SEARCH.searchSemantic === "function") {
     register({
@@ -342,6 +450,15 @@
     var lines = Object.keys(TOOLS).map(function (k) {
       return "  · " + k + " — " + TOOLS[k].description;
     });
+    // Section bodies render through the artifacts engine — teach the model
+    // the rich-output grammar so artifacts can carry charts/flows/buttons.
+    var artDoc = "";
+    try {
+      if (window.CODEX_ARTIFACTS && window.CODEX_ARTIFACTS.directiveDoc) {
+        artDoc = "\n\nSECTION BODIES — " + window.CODEX_ARTIFACTS.directiveDoc() +
+          "\nChart/flow data must come from your tool results in THIS mission — never invented.";
+      }
+    } catch (_) {}
     return [
       "You are the CODEX KERNEL — the mission agent of a Bible-study OS. You accomplish the reader's intent by calling the app's own tools, then writing a cited artifact. You are a careful scholar: every factual claim in your sections must be traceable to a tool result or marked as interpretation; cite canonical refs (e.g. John 1:1) inline. Survey traditions neutrally; never preach.",
       "",
@@ -358,8 +475,10 @@
       "- ≤ " + maxSteps + " total steps. Plan tightly. 2-5 sections is a good artifact.",
       "- Never invent verse text, cross-references, or gematria values — call the tool.",
       "- The final section must be a short 'Caveats' note (interpretive limits).",
-      "- open_console/goto are for SHOWING the reader things — use at most 2 per mission, only when visual context truly helps.",
+      "- open_console/goto/open_panel/focus_mode are for SHOWING the reader things — use at most 2 per mission, only when visual context truly helps.",
+      "- app_settings_set changes the user's real settings — only when the intent explicitly asks for it.",
       "- Return ONLY the JSON object each turn.",
+      artDoc,
     ].join("\n");
   }
 
@@ -384,18 +503,26 @@
   async function chat(messages, system) {
     var I = window.CODEX_INTEL;
     var eng = I.intelEngine();
-    var r = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: eng.provider,
-        model: eng.model || "claude-haiku-4-5-20251001",
-        system: system,
-        messages: messages,
-        max_tokens: 1400,
-      }),
-    });
-    var body = await r.json().catch(function () { return {}; });
+    // AI-busy bus — the orb pulses for the duration of every model call.
+    var busyId = null;
+    try { if (window.CODEX_AI_BUSY) busyId = window.CODEX_AI_BUSY.begin("KERNEL MISSION"); } catch (_) {}
+    var r, body;
+    try {
+      r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: eng.provider,
+          model: eng.model || "claude-haiku-4-5-20251001",
+          system: system,
+          messages: messages,
+          max_tokens: 1400,
+        }),
+      });
+      body = await r.json().catch(function () { return {}; });
+    } finally {
+      try { if (busyId != null && window.CODEX_AI_BUSY) window.CODEX_AI_BUSY.end(busyId); } catch (_) {}
+    }
     if (!r.ok) throw new Error(I.intelErrMessage(body, r.status));
     var text = String(body.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
     var i = text.indexOf("{");
@@ -490,6 +617,13 @@
   window.CODEX_KERNEL = {
     register: register,
     tools: function () { return Object.keys(TOOLS); },
+    // {name, description, sideEffect} for every registered tool — lets chat
+    // surfaces (the Oracle's agentic mode) teach the model the live registry.
+    toolSpecs: function () {
+      return Object.keys(TOOLS).map(function (k) {
+        return { name: k, description: TOOLS[k].description || "", sideEffect: !!TOOLS[k].sideEffect };
+      });
+    },
     call: call,
     run: run,
     missions: loadMissions,

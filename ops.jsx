@@ -17,7 +17,28 @@
 // Mission history persists (codex.missions, ring of 20) — reopen any prior
 // artifact from the MISSIONS drawer.
 
+// Self-injected CSS for the v11 additions (collapsible results); idempotent.
+function opsEnsureCss() {
+  if (typeof document === "undefined" || document.getElementById("cx-ops2-css")) return;
+  const el = document.createElement("style");
+  el.id = "cx-ops2-css";
+  el.textContent = `
+    .cx-ops-ev.is-result details { margin: 0; }
+    .cx-ops-ev.is-result summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 6px;
+      font-family: var(--cx-mono, ui-monospace, Menlo, monospace); font-size: 9.5px; letter-spacing: 0.06em;
+      color: var(--cx-fg-dim, #8a98a8); }
+    .cx-ops-ev.is-result summary::-webkit-details-marker { display: none; }
+    .cx-ops-ev.is-result summary::before { content: "▸"; color: var(--cx-accent, #7ee0ff); flex: none; }
+    .cx-ops-ev.is-result details[open] summary::before { content: "▾"; }
+    .cx-ops-ev.is-result summary:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(126,224,255,0.5); border-radius: 3px; }
+    .cx-ops-ev.is-result .cx-ops-ev-gist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .cx-ops-ev.is-result.is-failed summary::before, .cx-ops-ev.is-result.is-failed .cx-ops-ev-gist { color: var(--cx-red, #ff8291); }
+  `;
+  document.head.appendChild(el);
+}
+
 function VerseOps({ seed, onClose, onJumpRef }) {
+  useEffect(() => { opsEnsureCss(); }, []);
   const [intent, setIntent] = useState(seed || "");
   const [mission, setMission] = useState(null);   // live mission state
   const [events, setEvents] = useState([]);        // step feed
@@ -253,9 +274,22 @@ function OpsEvent({ ev }) {
     );
   }
   if (ev.type === "result") {
+    // Collapsible inline result: a one-line gist ("found 23 cross-refs…")
+    // expands to the full tool output. <details> = keyboard-native.
+    const full = String(ev.result || "");
+    const lines = full.split("\n").map(s => s.trim()).filter(Boolean);
+    const gist = ev.failed
+      ? (lines[0] || "tool failed")
+      : (lines.length > 1 ? `${lines.length} lines · ${lines[0]}` : (lines[0] || "(empty)"));
     return (
       <div className={`cx-ops-ev is-result ${ev.failed ? "is-failed" : ""}`}>
-        <pre>{String(ev.result || "").slice(0, 600)}</pre>
+        <details>
+          <summary title="Expand the full tool result">
+            {ev.tool ? <b>{ev.tool}</b> : null}
+            <span className="cx-ops-ev-gist">{gist.slice(0, 110)}</span>
+          </summary>
+          <pre>{full.slice(0, 1600)}</pre>
+        </details>
       </div>
     );
   }
@@ -274,8 +308,20 @@ function OpsEvent({ ev }) {
   return null;
 }
 
-// Artifact section body — renders refs like "John 1:1" as jump chips.
+// Artifact section body — renders through the shared CODEX_ARTIFACTS engine
+// (rich markdown DOM, live ref chips with hover preview, codex:chart /
+// codex:flow / codex:buttons / codex:verse-grid directives become real
+// interactive SVG/buttons). Falls back to the legacy ref-chip renderer if
+// the artifacts engine isn't loaded.
 function ArtifactBody({ body, onJumpRef }) {
+  const A = window.CODEX_ARTIFACTS;
+  if (A && A.Rich) {
+    return <div className="cx-ops-art-body"><A.Rich text={String(body || "")} /></div>;
+  }
+  return <ArtifactBodyLegacy body={body} onJumpRef={onJumpRef} />;
+}
+
+function ArtifactBodyLegacy({ body, onJumpRef }) {
   const parts = useMemo(() => {
     const re = /\b((?:[1-3]\s+)?[A-Z][a-z]+(?:\s+of\s+[A-Z][a-z]+)?)\s+(\d+):(\d+(?:[-–]\d+)?)\b/g;
     const out = [];

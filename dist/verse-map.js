@@ -86,44 +86,99 @@ Rules:
 - Calm scholarly tone. No exclamations. No emoji.
 - Return ONLY the JSON object.`;
 
+// Typed-guarded AI-activity beacon. A parallel agent is building the
+// window.CODEX_AI_BUSY surface — emit on it when it exists, never assume.
+function mapAiBusy(on, source) {
+  try {
+    if (typeof window.CODEX_AI_BUSY === "function") window.CODEX_AI_BUSY(!!on, { source });
+  } catch {}
+}
+
 function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
-  const key = `codex.maps.${passage.bookId}.${passage.chapter}.${verse?.n}`;
+  // `verse` arrives as a verse object ({n}) from the verse menu but as a
+  // bare NUMBER from the keyboard "m" shortcut — normalise or the cache key
+  // ends in "undefined".
+  const initV = typeof verse === "number" ? verse : verse && verse.n || 1;
+
+  // Live cursor — the map FOLLOWS the reader. Every codex:now (chip click,
+  // keyboard nav, any surface) retargets the camera: cinematic fly-to.
+  const [cur, setCur] = useState({
+    bookId: passage.bookId, chapter: passage.chapter, verse: initV,
+    refStr, verseText: verseText || ""
+  });
+  useEffect(() => {
+    const onNow = (e) => {
+      const n = e.detail || window.CODEX_NOW;
+      if (!n || !n.bookId) return;
+      setCur((c) => c.bookId === n.bookId && c.chapter === n.chapter && c.verse === n.verse ?
+      c :
+      { bookId: n.bookId, chapter: n.chapter, verse: n.verse, refStr: n.ref || c.refStr, verseText: "" });
+    };
+    window.addEventListener("codex:now", onNow);
+    return () => window.removeEventListener("codex:now", onNow);
+  }, []);
+
+  const key = `codex.maps.${cur.bookId}.${cur.chapter}.${cur.verse}`;
   // Mirror cache key for the same verse — the RESONANCE layer plots the
   // Mirror console's geocoded events on this map.
-  const mirrorKey = `codex.mirrors.${passage.bookId}.${passage.chapter}.${verse?.n}`;
+  const mirrorKey = `codex.mirrors.${cur.bookId}.${cur.chapter}.${cur.verse}`;
+
   const [data, setData] = useState(() => {
     try {const raw = localStorage.getItem(key);if (raw) return JSON.parse(raw);}
     catch {}
     return null;
   });
-  const [err, setErr] = useState(null);
-  const [loading, setLoading] = useState(!data);
+  const dataRef = useRef(data);dataRef.current = data;
+  const [err, setErr] = useState(null); // fatal: nothing to show
+  const [softErr, setSoftErr] = useState(null); // refetch failed: keep last fix
+  const [loading, setLoading] = useState(!data); // first light only
+  const [refetching, setRefetching] = useState(false); // verse changed under an open map
+
+  // Self-injected styles for the v2 surface (dossier, scrub, orb, a11y list).
+  // styles.css is owned by a parallel build — idempotent <style id> pattern.
+  useEffect(() => {injectMapXCSS();}, []);
 
   useEffect(() => {
-    if (data) return;
     let cancelled = false;
+    setSoftErr(null);
+    // Cache-first: re-opens and revisited verses are instant + offline-safe.
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        setData(obj);setErr(null);setLoading(false);setRefetching(false);
+        return;
+      }
+    } catch {}
     (async () => {
+      if (dataRef.current) setRefetching(true);else setLoading(true);
+      mapAiBusy(true, "map");
       try {
         // Canonical AI pipeline (intel.jsx): engine resolution, fence-strip,
         // tolerant parse, and — critically — readable error strings instead
         // of "[object Object]" when the provider returns a structured error.
         const obj = await window.CODEX_INTEL.intelAI({
           system: MAP_PROMPT,
-          user: `Verse: ${refStr}\nText: ${verseText}\n\nReturn the JSON object.`,
+          user: `Verse: ${cur.refStr}\nText: ${cur.verseText}\n\nReturn the JSON object.`,
           maxTokens: 2400
         });
         if (typeof obj.lat !== "number" || typeof obj.lng !== "number") throw new Error("Map response missing coordinates");
         if (cancelled) return;
         try {localStorage.setItem(key, JSON.stringify(obj));} catch {}
         setData(obj);
-        setLoading(false);
+        setErr(null);
       } catch (e) {
         if (cancelled) return;
+        // Keep the last fix on screen when a NEW verse fails to resolve —
+        // blanking a working map is worse than an honest "last fix" chip.
+        if (dataRef.current) setSoftErr(String(e.message || e));else
         setErr(String(e.message || e));
-        setLoading(false);
+      } finally {
+        mapAiBusy(false, "map");
+        if (!cancelled) {setLoading(false);setRefetching(false);}
       }
     })();
-    return () => {cancelled = true;};
+    return () => {cancelled = true;mapAiBusy(false, "map");};
   }, [key]);
 
   // ESC closes the modal
@@ -143,17 +198,17 @@ function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
 
     React.createElement("header", { className: "cx-map-h" }, /*#__PURE__*/
     React.createElement("span", { className: "cx-map-h-tag" }, "CODEX \xB7 MAP"), /*#__PURE__*/
-    React.createElement("span", { className: "cx-map-h-ref" }, refStr), /*#__PURE__*/
+    React.createElement("span", { className: "cx-map-h-ref" }, cur.refStr), /*#__PURE__*/
     React.createElement("button", { className: "cx-map-x", onClick: onClose, "aria-label": "Close", title: "Close (ESC)" }, "\xD7")
     ),
 
-    loading ? /*#__PURE__*/
+    loading && !data ? /*#__PURE__*/
     React.createElement("div", { className: "cx-map-loading" }, /*#__PURE__*/
     React.createElement("div", { className: "cx-map-spin" }, /*#__PURE__*/React.createElement("i", null), /*#__PURE__*/React.createElement("i", null), /*#__PURE__*/React.createElement("i", null), /*#__PURE__*/React.createElement("i", null)), /*#__PURE__*/
-    React.createElement("span", null, "TRIANGULATING \xB7 ", refStr), /*#__PURE__*/
+    React.createElement("span", null, "TRIANGULATING \xB7 ", cur.refStr), /*#__PURE__*/
     React.createElement("span", { className: "cx-map-loading-sub" }, "resolving place \xB7 era \xB7 context across cartographic record\u2026")
     ) :
-    err ? /*#__PURE__*/
+    err && !data ? /*#__PURE__*/
     React.createElement("div", { className: "cx-map-err" }, /*#__PURE__*/
     React.createElement("b", null, "MAP ORACLE OFFLINE"), /*#__PURE__*/
     React.createElement("code", null, err)
@@ -162,7 +217,10 @@ function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
     React.createElement(MapBody, {
       data: data,
       mirrorKey: mirrorKey,
-      refStr: refStr,
+      refStr: cur.refStr,
+      cur: cur,
+      refetching: refetching,
+      softErr: softErr,
       onRefresh: () => {
         try {localStorage.removeItem(key);} catch {}
         setData(null);
@@ -260,7 +318,7 @@ const RIVERS = {
   jordan: [[33.3, 35.6], [32.8, 35.55], [32.2, 35.5], [31.7, 35.5]]
 };
 
-function MapBody({ data, mirrorKey, refStr, onRefresh }) {
+function MapBody({ data, mirrorKey, refStr, cur, refetching, softErr, onRefresh }) {
   const [px, py] = projXY(data.lat, data.lng);
   const inBounds = px >= 0 && px <= MAP_W && py >= 0 && py <= MAP_H;
   const cx = inBounds ? px : Math.max(8, Math.min(MAP_W - 8, px));
@@ -275,6 +333,17 @@ function MapBody({ data, mirrorKey, refStr, onRefresh }) {
   const [touristLoading, setTouristLoading] = useState(false);
   const [userPos, setUserPos] = useState(null); // { lat, lng, accuracy }
   const [selectedPlace, setSelectedPlace] = useState(null);
+  // ── POI dossier — the click IS the document. Markers and the a11y list
+  // both route through the codex:map-poi bus; the card renders IN-SURFACE
+  // (no popup, no modal) with wiki intel + ✦ READ chips → codexGoto.
+  const [dossier, setDossier] = useState(null);
+  useEffect(() => {
+    const onPoi = (e) => {if (e.detail && e.detail.poi) setDossier(e.detail.poi);};
+    window.addEventListener("codex:map-poi", onPoi);
+    return () => window.removeEventListener("codex:map-poi", onPoi);
+  }, []);
+  // New verse → new theatre; close the stale dossier.
+  useEffect(() => {setDossier(null);}, [data.place, data.lat, data.lng]);
   const [overlays, setOverlays] = useState({ biblical: true, pilgrimage: false, manuscripts: false, empires: false, mine: true, resonance: false, network: false });
   const [discoveredCount, setDiscoveredCount] = useState(() => {
     try {return Object.keys(JSON.parse(localStorage.getItem("codex.discovered") || "{}")).length;}
@@ -416,9 +485,63 @@ function MapBody({ data, mirrorKey, refStr, onRefresh }) {
     React.createElement("span", { className: "cx-map-discovered", title: "Sites you have discovered" }, "\uD83C\uDFDB ", discoveredCount)
     ), /*#__PURE__*/
     React.createElement(LeafletField, { data: data, mirrorKey: mirrorKey }), /*#__PURE__*/
+
+
+    React.createElement("div", { className: "cx-mapx-eraglow", "aria-hidden": "true" }),
+
+
+    refetching ? /*#__PURE__*/
+    React.createElement("div", { className: "cx-mapx-busy", role: "status" }, /*#__PURE__*/
+    React.createElement("span", { className: "cx-mapx-orb" }), /*#__PURE__*/
+    React.createElement("span", null, "RESOLVING \xB7 ", refStr)
+    ) :
+    null,
+    softErr ? /*#__PURE__*/
+    React.createElement("div", { className: "cx-mapx-softerr", role: "status", title: softErr }, "\u26A0 MAP ORACLE OFFLINE \xB7 showing last fix"
+
+    ) :
+    null,
+
+
+    dossier ? /*#__PURE__*/
+    React.createElement(PoiDossier, {
+      key: (dossier.name || "") + (dossier.lat || ""),
+      poi: dossier,
+      cur: cur,
+      onClose: () => setDossier(null) }
+    ) :
+    null, /*#__PURE__*/
+
+
+
+    React.createElement("nav", { className: "cx-mapx-alist-wrap", "aria-label": "Points of interest" }, /*#__PURE__*/
+    React.createElement("ul", { className: "cx-mapx-alist" }, /*#__PURE__*/
+    React.createElement("li", null, /*#__PURE__*/
+    React.createElement("button", { onClick: () => {
+        window.dispatchEvent(new CustomEvent("codex:map-poi", { detail: { poi: { name: data.place, kind: "site", lat: data.lat, lng: data.lng, wiki: "", main: true } } }));
+        window.dispatchEvent(new CustomEvent("codex:map-fly", { detail: { lat: data.lat, lng: data.lng, zoom: 7 } }));
+      } }, "\u2316 ", data.place)
+    ),
+    (data.pointsOfInterest || []).map((p, i) => /*#__PURE__*/
+    React.createElement("li", { key: i }, /*#__PURE__*/
+    React.createElement("button", { onClick: () => {
+        window.dispatchEvent(new CustomEvent("codex:map-poi", { detail: { poi: p } }));
+        window.dispatchEvent(new CustomEvent("codex:map-fly", { detail: { lat: p.lat, lng: p.lng, zoom: 8 } }));
+      } }, poiGlyph(p.kind), " ", p.name)
+    )
+    )
+    )
+    ),
+
+
+    Array.isArray(data.polities) && data.polities.length > 0 ? /*#__PURE__*/
+    React.createElement(FootScrub, { key: `${data.place}:${data.lat}`, polities: data.polities, verseYear: data.verseYear }) :
+    null, /*#__PURE__*/
+
     React.createElement("div", { className: "cx-map-coords" }, /*#__PURE__*/
     React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "LAT"), " ", data.lat?.toFixed(3), "\xB0"), /*#__PURE__*/
     React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "LNG"), " ", data.lng?.toFixed(3), "\xB0"), /*#__PURE__*/
+    React.createElement("span", { className: "cx-mapx-coords-era", id: "cx-map-era", "aria-live": "polite" }), /*#__PURE__*/
     React.createElement("span", { className: "cx-map-cursor", id: "cx-map-cursor", "aria-hidden": "true" })
     ),
     touristOn ? /*#__PURE__*/
@@ -500,15 +623,39 @@ function LeafletField({ data, mirrorKey }) {
       const el = document.getElementById("cx-map-cursor");
       if (!el) return;
       const km = haversineKm(data.lat, data.lng, e.latlng.lat, e.latlng.lng);
-      el.textContent = `⌖ ${e.latlng.lat.toFixed(3)}°, ${e.latlng.lng.toFixed(3)}° · ${km < 10 ? km.toFixed(1) : Math.round(km)} km out`;
+      const era = window.__CODEX_MAP_ERA && window.__CODEX_MAP_ERA.name ? ` · ${window.__CODEX_MAP_ERA.name}` : "";
+      el.textContent = `⌖ ${e.latlng.lat.toFixed(3)}°, ${e.latlng.lng.toFixed(3)}° · ${km < 10 ? km.toFixed(1) : Math.round(km)} km out${era}`;
     });
     map.on("mouseout", () => {
       const el = document.getElementById("cx-map-cursor");
       if (el) el.textContent = "";
     });
+    // Camera telemetry — published on every move so any surface (and the
+    // smoke harness) can read where the lens is without touching Leaflet.
+    const publishCam = () => {
+      try {
+        const c = map.getCenter();
+        window.__CODEX_MAP_CAM = { lat: c.lat, lng: c.lng, zoom: map.getZoom(), at: Date.now() };
+      } catch {}
+    };
+    map.on("move", publishCam);
+    map.on("zoomend", publishCam);
+    publishCam();
+    // Any surface can request a fly-to (a11y POI list, dossier, future ops).
+    const onFlyReq = (e) => {
+      const d = e.detail || {};
+      if (typeof d.lat !== "number" || typeof d.lng !== "number") return;
+      const z = typeof d.zoom === "number" ? d.zoom : Math.max(map.getZoom(), 7);
+      if (prefersReducedMotion()) map.setView([d.lat, d.lng], z);else
+      map.flyTo([d.lat, d.lng], z, { duration: 1.1, easeLinearity: 0.2 });
+    };
+    window.addEventListener("codex:map-fly", onFlyReq);
     // Force a redraw next frame in case the modal animated in
     requestAnimationFrame(() => map.invalidateSize());
-    return () => {map.remove();mapRef.current = null;};
+    return () => {
+      window.removeEventListener("codex:map-fly", onFlyReq);
+      map.remove();mapRef.current = null;
+    };
   }, []);
 
   // Theme switch — swap tile layer
@@ -516,10 +663,18 @@ function LeafletField({ data, mirrorKey }) {
     if (mapRef.current) addTiles(mapRef.current, dark);
   }, [dark]);
 
-  // Re-centre when the data changes (different verse opens)
+  // Cinematic fly-to when the verse moves under an open map (codex:now →
+  // new dossier → new theatre). Ease the camera across the earth to the new
+  // site; prefers-reduced-motion gets an honest hard cut instead.
+  const firstFlight = useRef(true);
   useEffect(() => {
     if (!mapRef.current) return;
-    mapRef.current.setView([data.lat, data.lng], 5);
+    if (firstFlight.current) {firstFlight.current = false;return;} // init already setView'd
+    if (prefersReducedMotion()) {
+      mapRef.current.setView([data.lat, data.lng], 5);
+    } else {
+      mapRef.current.flyTo([data.lat, data.lng], 5, { duration: 1.8, easeLinearity: 0.18 });
+    }
     addMainMarker(mapRef.current, data);
     redrawPOIs(mapRef.current, data, year);
   }, [data.lat, data.lng, data.place]);
@@ -946,9 +1101,13 @@ function LeafletField({ data, mirrorKey }) {
         className: "cx-map-ring"
       }).addTo(grp);
     });
-    window.L.marker([data.lat, data.lng], { icon, riseOnHover: true }).
-    bindPopup(`<b>${escapeHtml(data.place || "")}</b><br><small>${escapeHtml(data.region || "")}</small>`).
-    addTo(grp);
+    const mk = window.L.marker([data.lat, data.lng], { icon, riseOnHover: true }).addTo(grp);
+    // The site itself opens its own dossier — one gesture deep, no popup.
+    mk.on("click", () => {
+      window.dispatchEvent(new CustomEvent("codex:map-poi", { detail: { poi: {
+            name: data.place, kind: "site", lat: data.lat, lng: data.lng, wiki: "", main: true
+          } } }));
+    });
     layersRef.current.marker = grp;
   }
 
@@ -961,27 +1120,26 @@ function LeafletField({ data, mirrorKey }) {
       if (typeof p.from === "number" && currentYear < p.from) return;
       if (typeof p.to === "number" && currentYear > p.to) return;
       const glyph = poiGlyph(p.kind);
+      // Significance pulse — settlements (where the story happens) breathe
+      // harder than the standing furniture of the earth. Shape carries the
+      // meaning first; the label annotates.
+      const sig = poiSignificance(p.kind);
       const icon = window.L.divIcon({
-        className: `cx-map-poi-leaflet kind-${p.kind || "default"}`,
-        html: `<span class="cx-poi-dot"></span><span class="cx-poi-lbl">${glyph} ${escapeHtml(p.name)}</span>`,
+        className: `cx-map-poi-leaflet kind-${p.kind || "default"} cx-mapx-sig-${sig}`,
+        html: `<span class="cx-mapx-poi-pulse"></span><span class="cx-poi-dot"></span><span class="cx-poi-lbl">${glyph} ${escapeHtml(p.name)}</span>`,
         iconSize: [10, 10],
         iconAnchor: [5, 5]
       });
-      // Skeleton popup. Real content (image + paragraph) loads lazily on
-      // first open via Wikipedia's REST summary API — no key needed, CORS
-      // is enabled, response is small. The fetched payload is cached on
-      // the marker so subsequent opens are instant.
-      const popupHtml = poiPopupHtml(p);
-      const marker = window.L.marker([p.lat, p.lng], { icon, riseOnHover: true }).
-      bindPopup(popupHtml, { maxWidth: 240, className: "cx-poi-popup" }).
-      addTo(group);
+      // CLICK = in-surface dossier card (wiki intel + ✦ READ chips). The
+      // old Leaflet popup is gone — the card is the document now.
+      const marker = window.L.marker([p.lat, p.lng], { icon, riseOnHover: true }).addTo(group);
+      marker.on("click", () => {
+        window.dispatchEvent(new CustomEvent("codex:map-poi", { detail: { poi: p } }));
+      });
       marker._codexPOI = p;
     });
     group.addTo(map);
     layersRef.current.poi = group;
-    // Hydration runs via the document-wide MutationObserver defined below.
-    // Marker- and map-level popupopen events were unreliable across
-    // programmatic / synthesised opens; observing DOM insertions is bulletproof.
   }
 }
 
