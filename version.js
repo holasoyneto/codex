@@ -9,8 +9,8 @@
 //
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
-  v: "10.0",     // user-facing app version
-  sw: "v262",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  v: "10.1",     // user-facing app version
+  sw: "v263",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
     "REBIRTH: the reader rebuilt from zero as the MAIN plugin — and red letters now come from a real red-letter edition (WEB ⟨wj⟩ markup), so narrative verses can never paint red again",
     "THE LIBRARY DISMANTLED: shelves, oracle, and marks are three separate plugins with their own windows (O = oracle, B = marks) — and every canon is on the shelves, apocrypha served automatically from the corpus that carries it",

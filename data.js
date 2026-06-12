@@ -167,6 +167,16 @@ window.CODEX_DATA = {
     { id:"charles", name:"Charles · Apocrypha & Pseudepigrapha", year:"1913", license:"Public Domain", glyph:"CHR", lang:"EN", source:"bundle", apiId:"charles",
       bundle:"data/bibles/charles.json",
       canons:["deuterocanon","orthodox","ethiopian","pseudepigrapha"] },
+    // Beyond the 66 — PD compilation (scripts/build-beyond.mjs) covering the
+    // 18 registry books no other source carried: Esther Greek additions,
+    // Jubilees, IV Ezra, III Corinthians, Laodiceans, Psalms 152-155,
+    // II Baruch + Epistle, I/II Clement, II Enoch, Testaments of the Twelve
+    // Patriarchs, Odes of Solomon, Apocalypse of Moses. Meqabyan I-III and
+    // III Enoch have no clean public-domain English text yet — those carry
+    // an honest placeholder (see bundle meta.missing).
+    { id:"beyond", name:"Beyond the 66 (PD compilation)", year:"1913", license:"Public Domain", glyph:"BYD", lang:"EN", source:"bundle", apiId:"beyond",
+      bundle:"data/bibles/beyond.json",
+      canons:["deuterocanon","orthodox","ethiopian","syriac","armenian","coptic","pseudepigrapha"] },
     // Lamsa — English from the Aramaic Peshitta. Full text via bolls.life API.
     { id:"lamsa", name:"Lamsa (Aramaic Peshitta · English)", year:"1933", license:"Public Domain", glyph:"LAM", lang:"EN", source:"bolls", apiId:"LBP",
       canons:["protestant","syriac"] },
