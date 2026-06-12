@@ -10,12 +10,12 @@
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
   v: "12.0",     // user-facing app version
-  sw: "v265",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  sw: "v266",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "THE PALM: mobile is reborn — the Word full-bleed over the starfield, one glass orb as the only chrome; tap it and everything opens as sheets (long-press = focus)",
-    "The machine follows the eye: turning a chapter starts you at verse 1 — no more scrolling back up",
-    "Arrow-pad reading on desktop: ↓↑ verses, ←→ chapters, PageUp/Down, Home/End — browse the whole Bible from the arrow keys",
-    "Galaxy, shelves, translations, oracle — all touch-native as full-screen sheets on the phone",
+    "THE ORACLE ASCENDED: rich interactive answers — live verse chips, working buttons, charts and flowcharts; tabs for your threads; ⚒ TOOLS lets it drive the whole app (every action shown, never silent)",
+    "◎ THE MAP IS CINEMATIC: the camera flies to each verse; drag the time scrub and watch empires recolor the land; click a place for its dossier",
+    "⏳ THE TIMELINE IS A RIVER: zoom with the wheel, pan with inertia, the gold marker tracks what you're reading; clusters unfold as you dive",
+    "A quiet orb pulses bottom-right whenever AI is thinking — you always know",
   ],
 };
 

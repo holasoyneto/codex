@@ -287,7 +287,8 @@
       .cx-tl2-card-honest { margin-top: 8px; padding-top: 6px; border-top: 1px dotted var(--cx-line); font-family: var(--cx-mono, ui-monospace, monospace); font-size: 8px; letter-spacing: 0.1em; color: var(--cx-fg-dim); text-transform: uppercase; }
 
       /* minimap */
-      .cx-tl2-mini { position: relative; height: 30px; flex: none; border: 1px solid var(--cx-line); border-radius: 6px; overflow: hidden; cursor: pointer; touch-action: none; }
+      .cx-tl2-mini { position: relative; height: 30px; flex: none; border: 1px solid var(--cx-line); border-radius: 6px; overflow: hidden; cursor: pointer; touch-action: pan-y; }
+      @media (pointer: coarse) { .cx-tl2-mini { height: 44px; } }
       .cx-tl2-mini-band { position: absolute; top: 0; bottom: 0; pointer-events: none; }
       .cx-tl2-mini-dot { position: absolute; bottom: 4px; width: 2px; background: var(--cx-fg-dim); opacity: 0.65; pointer-events: none; }
       .cx-tl2-mini-win { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--cx-accent) 16%, transparent); border-left: 1px solid var(--cx-accent); border-right: 1px solid var(--cx-accent); pointer-events: none; }
@@ -314,24 +315,32 @@
     const [filterCats, setFilterCats] = useState(() => new Set(CATEGORIES.map((c) => c.id)));
     const [search, setSearch] = useState("");
     const [selected, setSelected] = useState(null);
-    const [passage, setPassage] = useState(() => ({
-      bookId: ctx && ctx.bookId || ctx && ctx.passage && ctx.passage.bookId || null,
-      chapter: ctx && ctx.chapter || ctx && ctx.passage && ctx.passage.chapter || null,
-      ref: null
-    }));
+    const [passage, setPassage] = useState(() => {
+      // Seed from the live cursor — codex:now only fires on CHANGE, so a
+      // window opened mid-session must read window.CODEX_NOW or the gold
+      // marker stays dark until the reader moves.
+      const now = window.CODEX_NOW || {};
+      return {
+        bookId: ctx && ctx.bookId || ctx && ctx.passage && ctx.passage.bookId || now.bookId || null,
+        chapter: ctx && ctx.chapter || ctx && ctx.passage && ctx.passage.chapter || now.chapter || null,
+        ref: now.ref || null
+      };
+    });
     const [W, setW] = useState(900);
     const [H, setH] = useState(260);
 
     // view = { center (year at midline), span (years across the river) }
     const [view, setViewState] = useState(null);
     const viewRef = useRef(null);
+    // viewRef is the AUTHORITATIVE view and updates synchronously — React 18
+    // batches renders, so updating the ref inside the state updater (render
+    // time) loses increments when pointermove events outpace renders: every
+    // drag step would compute from a stale base and overwrite the previous.
     const setView = useCallback((next) => {
-      setViewState((prev) => {
-        const v = typeof next === "function" ? next(prev) : next;
-        viewRef.current = v;
-        try {window.__CODEX_TL_VIEW = v ? { center: v.center, span: v.span } : null;} catch {}
-        return v;
-      });
+      const v = typeof next === "function" ? next(viewRef.current) : next;
+      viewRef.current = v;
+      try {window.__CODEX_TL_VIEW = v ? { center: v.center, span: v.span } : null;} catch {}
+      setViewState(v);
     }, []);
 
     const riverRef = useRef(null);
@@ -342,7 +351,17 @@
     // ── Data load (in-surface pulsing orb while resolving) ───────────────
     useEffect(() => {
       let alive = true;
-      if (!events) loadEvents().then((es) => {if (alive) setEvents(es);});
+      if (!events) {
+        // Emit on the global AI-activity bus too — typed-guarded begin/end.
+        let busyId = null;
+        try {
+          const bus = window.CODEX_AI_BUSY;
+          if (bus && typeof bus.begin === "function") busyId = bus.begin("TIMELINE · chronology");
+        } catch {}
+        loadEvents().then((es) => {if (alive) setEvents(es);}).finally(() => {
+          try {if (busyId != null) window.CODEX_AI_BUSY.end(busyId);} catch {}
+        });
+      }
       return () => {alive = false;};
     }, []);
 
@@ -421,16 +440,20 @@
       return { center: c, span: s };
     }, [full.lo, full.hi, fullSpan]);
 
+    // Both read viewRef (authoritative, synchronous) — deliberately NOT
+    // keyed on `view` state: yearAtX is a dependency of the drag effect, and
+    // a per-pan-step identity change would tear the pointer listeners down
+    // MID-DRAG (wiping the pointer map → dead pan after the first step).
     const xOf = useCallback((y) => {
       const v = viewRef.current;
       if (!v) return 0;
       return (y - v.center) / v.span * W + W / 2;
-    }, [W, view]);
+    }, [W]);
     const yearAtX = useCallback((px) => {
       const v = viewRef.current;
       if (!v) return 0;
       return v.center + (px - W / 2) * v.span / W;
-    }, [W, view]);
+    }, [W]);
 
     // ── Animated fly (reduced-motion: cut) ────────────────────────────────
     const animateTo = useCallback((center, span, ms = 520) => {

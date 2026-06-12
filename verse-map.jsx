@@ -84,12 +84,38 @@ Rules:
 - Calm scholarly tone. No exclamations. No emoji.
 - Return ONLY the JSON object.`;
 
-// Typed-guarded AI-activity beacon. A parallel agent is building the
-// window.CODEX_AI_BUSY surface — emit on it when it exists, never assume.
+// AI-activity beacon — window.CODEX_AI_BUSY (artifacts.jsx) is an object:
+// begin(label) → id / end(id). One outstanding id per source; typed-guarded
+// so a missing/older surface never throws.
+const _mapBusyIds = new Map();
 function mapAiBusy(on, source) {
   try {
-    if (typeof window.CODEX_AI_BUSY === "function") window.CODEX_AI_BUSY(!!on, { source });
+    const bus = window.CODEX_AI_BUSY;
+    if (!bus || typeof bus.begin !== "function" || typeof bus.end !== "function") return;
+    if (on) {
+      if (_mapBusyIds.has(source)) return;
+      _mapBusyIds.set(source, bus.begin("MAP · " + (source || "intel")));
+    } else {
+      const id = _mapBusyIds.get(source);
+      if (id != null) { bus.end(id); _mapBusyIds.delete(source); }
+    }
   } catch {}
+}
+
+function prefersReducedMotion() {
+  try { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+  catch { return false; }
+}
+
+// Significance by kind — settlements (where the story happens) outrank the
+// standing furniture of the earth. Drives the marker pulse cadence.
+function poiSignificance(kind) {
+  switch ((kind || "").toLowerCase()) {
+    case "city":                 return 3;
+    case "town": case "ruin":
+    case "region": case "island":return 2;
+    default:                     return 1; // mountain · river · sea · lake · road
+  }
 }
 
 function VerseMap({ verse, refStr, verseText, passage, primary, onClose }) {
@@ -1717,5 +1743,400 @@ window.CODEX_PILGRIM_ROUTES = [
   { name: "Jesus Trail",        color: "#9bd66b", note: "Nazareth → Capernaum (~65 km)", path: [[32.7019, 35.2972], [32.7600, 35.3500], [32.8200, 35.4500], [32.8731, 35.5483], [32.8810, 35.5750]] },
   { name: "Hajj approach",      color: "#e29b6b", note: "Historical pilgrim route to Mecca (Damascus branch)", path: [[33.5118, 36.3070], [31.9500, 35.9100], [29.5320, 35.0060], [25.2854, 39.0900], [21.4225, 39.8262]] },
 ];
+
+// ════════════════════════════════════════════════════════════════════════
+// v2 surface — TIME SCRUB · POI DOSSIER · era recolor · self-injected CSS
+// ════════════════════════════════════════════════════════════════════════
+
+// Era tint — tokens only. Each polity sits on a mix line between the two
+// accent tokens; no raw palette enters the codebase.
+function eraTint(i, n) {
+  const p = n > 1 ? Math.round((i / (n - 1)) * 100) : 50;
+  return `color-mix(in srgb, var(--cx-accent, #7ee0ff) ${100 - p}%, var(--cx-accent-2, #ffc46b) ${p}%)`;
+}
+
+// OSIS-ish ref ("gen.11.31") → app navigation + display label.
+function mapResolveBook(osisBook) {
+  const want = String(osisBook || "").toLowerCase();
+  const books = (window.CODEX_DATA && window.CODEX_DATA.books) || [];
+  return books.find(b => (b.id || "").toLowerCase() === want)
+      || books.find(b => (b.id || "").toLowerCase().startsWith(want) || want.startsWith((b.id || "").toLowerCase()))
+      || null;
+}
+function osisDisplay(osis) {
+  const parts = String(osis || "").split("-")[0].split(".");
+  const b = mapResolveBook(parts[0]);
+  const name = b ? b.name : (parts[0] || "").toUpperCase();
+  if (parts[2]) return `${name} ${parts[1]}:${parts[2]}`;
+  return parts[1] ? `${name} ${parts[1]}` : name;
+}
+function mapGotoOsis(osis) {
+  const parts = String(osis || "").split("-")[0].split(".");
+  const b = mapResolveBook(parts[0]);
+  if (b && typeof window.codexGoto === "function") {
+    window.codexGoto(b.id, parseInt(parts[1], 10) || 1, parseInt(parts[2], 10) || 1);
+    return true;
+  }
+  if (typeof window.codexJumpToRef === "function") { window.codexJumpToRef(osisDisplay(osis)); return true; }
+  return false;
+}
+
+// ── Gazetteer — scripture refs for a POI. Cache → local atlas → AI. ──────
+const POI_REFS_PROMPT = `You are CODEX GAZETTEER. Given a place name from biblical geography, return a single JSON object: {"refs":["gen.11.31","neh.9.7"]} — 2 to 5 OSIS-style verse references (lowercase book.chapter.verse) where this place appears or is most directly relevant in the Protestant canon. Books: gen exo lev num deu jos jdg rut 1sa 2sa 1ki 2ki 1ch 2ch ezr neh est job psa pro ecc sng isa jer lam eze dan hos joe amo oba jon mic nah hab zep hag zec mal mat mrk luk jhn act rom 1co 2co gal eph php col 1th 2th 1ti 2ti tit phm heb jas 1pe 2pe 1jn 2jn 3jn jud rev. If the place never appears in scripture, return {"refs":[]}. JSON only, no prose, no fences.`;
+
+async function poiRefsResolve(poi) {
+  const name = String((poi && poi.name) || "").trim();
+  if (!name) return { refs: [], src: "none" };
+  const ck = "codex.poirefs." + name.toLowerCase();
+  try { const raw = localStorage.getItem(ck); if (raw) return { refs: JSON.parse(raw), src: "cache" }; } catch {}
+  // Local atlas first — instant, offline, zero tokens.
+  const lower = name.toLowerCase();
+  const atlas = (window.CODEX_BIBLE_SITES || []).find(s =>
+    s.name.toLowerCase() === lower || lower.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(lower));
+  if (atlas && Array.isArray(atlas.refs) && atlas.refs.length) {
+    try { localStorage.setItem(ck, JSON.stringify(atlas.refs)); } catch {}
+    return { refs: atlas.refs, src: "atlas" };
+  }
+  mapAiBusy(true, "gazetteer");
+  try {
+    const obj = await window.CODEX_INTEL.intelAI({
+      system: POI_REFS_PROMPT,
+      user: `Place: ${name} (${(poi && poi.kind) || "place"}). Return the JSON object.`,
+      maxTokens: 220,
+    });
+    const refs = Array.isArray(obj.refs) ? obj.refs.slice(0, 5).filter(r => typeof r === "string") : [];
+    try { localStorage.setItem(ck, JSON.stringify(refs)); } catch {}
+    return { refs, src: "ai" };
+  } catch (e) {
+    return { refs: [], src: "offline" };
+  } finally {
+    mapAiBusy(false, "gazetteer");
+  }
+}
+
+// ── POI DOSSIER — the click IS the document. In-surface card, never a
+// popup/modal: wiki intel (summary + thumb) + ✦ READ chips → codexGoto. ──
+function PoiDossier({ poi, cur, onClose }) {
+  const [wiki, setWiki] = useState(null);   // { summary, thumbUrl, pageUrl }
+  const [refs, setRefs] = useState(null);   // null = resolving
+  const [refsSrc, setRefsSrc] = useState("");
+  useEffect(() => {
+    let live = true;
+    setWiki(null); setRefs(null); setRefsSrc("");
+    poiResolve(poi).then(w => { if (live) setWiki(w); }).catch(() => { if (live) setWiki({ summary: "", thumbUrl: null, pageUrl: null }); });
+    poiRefsResolve(poi).then(r => { if (live) { setRefs(r.refs); setRefsSrc(r.src); } });
+    return () => { live = false; };
+  }, [poi.name, poi.lat]);
+
+  const yrRange = (typeof poi.from === "number" && typeof poi.to === "number")
+    ? `${fmtYear(poi.from)} – ${fmtYear(poi.to)}` : null;
+  const resolving = wiki === null || refs === null;
+
+  return (
+    <aside className="cx-mapx-dossier" role="region" aria-label={`Dossier: ${poi.name}`}>
+      <header className="cx-mapx-dossier-h">
+        <span className="cx-mapx-dossier-glyph" aria-hidden="true">{poi.main ? "⌖" : poiGlyph(poi.kind)}</span>
+        <span className="cx-mapx-dossier-name">{poi.name}</span>
+        <button
+          className="cx-mapx-dossier-fly"
+          title="Center the map here"
+          aria-label={`Center map on ${poi.name}`}
+          onClick={() => window.dispatchEvent(new CustomEvent("codex:map-fly", { detail: { lat: poi.lat, lng: poi.lng, zoom: poi.main ? 7 : 8 } }))}
+        >⌖</button>
+        <button className="cx-mapx-dossier-x" onClick={onClose} aria-label="Close dossier">×</button>
+      </header>
+      <div className="cx-mapx-dossier-meta">
+        <span>{(poi.kind || "site").toUpperCase()}</span>
+        {yrRange ? <span>· known {yrRange}</span> : null}
+        {typeof poi.lat === "number" ? <span>· {poi.lat.toFixed(2)}°, {poi.lng.toFixed(2)}°</span> : null}
+      </div>
+
+      {wiki && wiki.thumbUrl ? (
+        <img className="cx-mapx-dossier-img" loading="lazy" src={wiki.thumbUrl} alt={poi.name} />
+      ) : null}
+
+      {resolving ? (
+        <div className="cx-mapx-dossier-busy" role="status">
+          <span className="cx-mapx-orb" />
+          <span>CONSULTING ARCHIVES…</span>
+        </div>
+      ) : null}
+
+      {wiki !== null ? (
+        <p className="cx-mapx-dossier-sum">
+          {wiki.summary
+            ? (wiki.summary.length > 320 ? wiki.summary.slice(0, 320).trim() + "…" : wiki.summary)
+            : "No encyclopedia summary found for this site."}
+        </p>
+      ) : null}
+
+      {refs && refs.length ? (
+        <div className="cx-mapx-dossier-refs">
+          {refs.map((r, i) => (
+            <button
+              key={i}
+              className="cx-mapx-readchip"
+              data-osis={r}
+              onClick={() => mapGotoOsis(r)}
+              title={`Open the reader at ${osisDisplay(r)}`}
+            >✦ READ {osisDisplay(r)}</button>
+          ))}
+        </div>
+      ) : refs && refs.length === 0 ? (
+        <div className="cx-mapx-dossier-norefs">
+          {refsSrc === "offline" ? "gazetteer offline · no cached refs" : "no direct scripture refs on record"}
+        </div>
+      ) : null}
+
+      <footer className="cx-mapx-dossier-foot">
+        <span>
+          intel: wikipedia
+          {refsSrc === "ai" ? " · refs: AI-suggested" : refsSrc === "atlas" ? " · refs: atlas" : refsSrc === "cache" ? " · refs: cached" : ""}
+        </span>
+        {wiki && wiki.pageUrl ? (
+          <a href={wiki.pageUrl} target="_blank" rel="noopener noreferrer">wikipedia ↗</a>
+        ) : null}
+      </footer>
+    </aside>
+  );
+}
+
+// ── FOOT SCRUB — drag across the polity chronology at the map's foot. The
+// active era recolors the map (label tint + glow wash via CSS var), writes
+// the mono era readout, and broadcasts codex:year so POIs filter live. ──
+function FootScrub({ polities, verseYear }) {
+  const trackRef = useRef(null);
+  const draggingRef = useRef(false);
+  const list = useMemo(
+    () => polities
+      .filter(p => typeof p.from === "number" && typeof p.to === "number" && p.to > p.from && p.name)
+      .slice()
+      .sort((a, b) => a.from - b.from),
+    [polities]
+  );
+  const yMin = useMemo(() => list.length ? Math.min(...list.map(p => p.from)) : -2000, [list]);
+  const yMax = useMemo(() => list.length ? Math.max(...list.map(p => p.to))   :  2030, [list]);
+  const vy = (typeof verseYear === "number" && !Number.isNaN(verseYear))
+    ? Math.max(yMin, Math.min(yMax, verseYear)) : yMin;
+  const [year, setYear] = useState(vy);
+
+  const activeIdx = useMemo(() => {
+    let idx = list.findIndex(p => year >= p.from && year <= p.to);
+    if (idx === -1 && list.length) {
+      let best = 0, bd = Infinity;
+      list.forEach((p, i) => {
+        const d = Math.min(Math.abs(p.from - year), Math.abs(p.to - year));
+        if (d < bd) { bd = d; best = i; }
+      });
+      idx = best;
+    }
+    return idx;
+  }, [list, year]);
+  const active = list[activeIdx] || null;
+
+  // Broadcast + recolor on every change (and once on mount, so the era
+  // readout and glow are live before any interaction).
+  useEffect(() => {
+    try {
+      window.__CODEX_MAP_ERA = active ? { name: active.name, from: active.from, to: active.to, year } : null;
+      const ro = document.getElementById("cx-map-era");
+      if (ro) ro.textContent = active ? `ERA ${active.name.toUpperCase()} · ${fmtYear(year)}` : "";
+      const wrap = trackRef.current && trackRef.current.closest(".cx-map-field-wrap");
+      if (wrap) wrap.style.setProperty("--cx-mapx-era-tint", eraTint(activeIdx, list.length));
+      window.dispatchEvent(new CustomEvent("codex:year", { detail: { year } }));
+    } catch {}
+  }, [year, activeIdx, active && active.name, list.length]);
+
+  const pct = (y) => ((y - yMin) / Math.max(1, yMax - yMin)) * 100;
+  const yearAtX = (clientX) => {
+    const el = trackRef.current;
+    if (!el) return year;
+    const r = el.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (clientX - r.left) / Math.max(1, r.width)));
+    return Math.round(yMin + t * (yMax - yMin));
+  };
+
+  const onDown = (e) => {
+    draggingRef.current = true;
+    try { trackRef.current.setPointerCapture(e.pointerId); } catch {}
+    setYear(yearAtX(e.clientX));
+  };
+  const onMove = (e) => { if (draggingRef.current) setYear(yearAtX(e.clientX)); };
+  const onUp = () => { draggingRef.current = false; };
+  const onKey = (e) => {
+    if (!list.length) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      const dir = e.key === "ArrowRight" ? 1 : -1;
+      const ni = Math.max(0, Math.min(list.length - 1, activeIdx + dir));
+      const p = list[ni];
+      setYear(Math.round((p.from + p.to) / 2));
+    } else if (e.key === "Home") { e.preventDefault(); setYear(vy); }
+  };
+
+  if (!list.length) return null;
+  return (
+    <div className="cx-mapx-scrub" role="group" aria-label="Time scrub — polity chronology">
+      <div className="cx-mapx-scrub-ro" aria-hidden="true">
+        <span className="cx-mapx-scrub-tag">⧖ TIME</span>
+        <span className="cx-mapx-scrub-era">{active ? active.name : "—"}</span>
+        <span className="cx-mapx-scrub-yr">{fmtYear(year)}</span>
+      </div>
+      <div
+        className="cx-mapx-scrub-track"
+        ref={trackRef}
+        role="slider"
+        tabIndex={0}
+        aria-label="Year — drag across the chronology"
+        aria-valuemin={yMin}
+        aria-valuemax={yMax}
+        aria-valuenow={year}
+        aria-valuetext={active ? `${fmtYear(year)} — ${active.name}` : fmtYear(year)}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onKeyDown={onKey}
+      >
+        {list.map((p, i) => (
+          <span
+            key={i}
+            className={"cx-mapx-scrub-seg" + (i === activeIdx ? " is-active" : "")}
+            style={{
+              left: pct(p.from) + "%",
+              width: Math.max(0.4, pct(p.to) - pct(p.from)) + "%",
+              background: `color-mix(in srgb, ${eraTint(i, list.length)} ${i === activeIdx ? 72 : 30}%, transparent)`,
+            }}
+            title={`${p.name} · ${fmtYear(p.from)} – ${fmtYear(p.to)}`}
+          />
+        ))}
+        <span className="cx-mapx-scrub-vy" style={{ left: pct(vy) + "%" }} title="verse year" aria-hidden="true">✦</span>
+        <span className="cx-mapx-scrub-cursor" style={{ left: pct(year) + "%" }} aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
+
+// ── Self-injected CSS — idempotent <style id> (constellation.jsx pattern).
+// Tokens only; every color routes through a --cx-* var (with fallback). ──
+function injectMapXCSS() {
+  if (document.getElementById("cx-mapx-css")) return;
+  const el = document.createElement("style");
+  el.id = "cx-mapx-css";
+  el.textContent = `
+    /* era recolor wash — sits above tiles (200/400), below markers (600) */
+    .cx-mapx-eraglow { position: absolute; inset: 0; pointer-events: none; z-index: 450;
+      background: radial-gradient(ellipse at 50% 62%, color-mix(in srgb, var(--cx-mapx-era-tint, transparent) 20%, transparent), transparent 72%);
+      mix-blend-mode: screen; transition: background 0.5s ease; }
+    .cx-map-field-wrap .cx-poi-lbl, .cx-map-field-wrap .cx-mark-lbl { color: var(--cx-mapx-era-tint, var(--cx-accent, #7ee0ff)); transition: color 0.5s ease; }
+    .cx-mapx-coords-era { color: var(--cx-mapx-era-tint, var(--cx-accent, #7ee0ff)); letter-spacing: 0.12em; }
+
+    /* POI significance pulse — settlements breathe harder */
+    .cx-map-poi-leaflet .cx-mapx-poi-pulse { position: absolute; left: 50%; top: 50%; width: 24px; height: 24px;
+      transform: translate(-50%,-50%); border-radius: 50%; pointer-events: none; opacity: 0;
+      border: 1px solid var(--cx-mapx-era-tint, var(--cx-accent, #7ee0ff));
+      animation: cx-mapx-pulse 3.4s ease-out infinite; }
+    .cx-mapx-sig-2 .cx-mapx-poi-pulse { animation-duration: 2.4s; width: 28px; height: 28px; }
+    .cx-mapx-sig-3 .cx-mapx-poi-pulse { animation-duration: 1.7s; width: 34px; height: 34px; }
+    @keyframes cx-mapx-pulse { 0% { transform: translate(-50%,-50%) scale(0.25); opacity: 0.75; } 70% { opacity: 0.12; } 100% { transform: translate(-50%,-50%) scale(1.2); opacity: 0; } }
+
+    /* in-surface busy orb + soft error (honesty furniture) */
+    .cx-mapx-busy { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1250;
+      display: flex; align-items: center; gap: 8px; pointer-events: none;
+      font-family: var(--cx-mono, ui-monospace, monospace); font-size: 9.5px; letter-spacing: 0.14em;
+      color: var(--cx-accent, #7ee0ff);
+      background: color-mix(in srgb, var(--cx-bg, #06080e) 84%, transparent);
+      border: 1px solid color-mix(in srgb, var(--cx-accent, #7ee0ff) 40%, transparent);
+      border-radius: 6px; padding: 5px 10px; }
+    .cx-mapx-orb { width: 10px; height: 10px; border-radius: 50%; flex: none;
+      background: radial-gradient(circle, var(--cx-accent, #7ee0ff) 0%, color-mix(in srgb, var(--cx-accent, #7ee0ff) 40%, transparent) 60%, transparent 100%);
+      animation: cx-mapx-orb 1.1s ease-in-out infinite; }
+    @keyframes cx-mapx-orb { 0%, 100% { transform: scale(0.7); opacity: 0.5; } 50% { transform: scale(1.2); opacity: 1; } }
+    .cx-mapx-softerr { position: absolute; top: 10px; right: 10px; z-index: 1250; pointer-events: none;
+      font-family: var(--cx-mono, ui-monospace, monospace); font-size: 9px; letter-spacing: 0.12em;
+      color: var(--cx-accent-2, #ffc46b);
+      background: color-mix(in srgb, var(--cx-bg, #06080e) 84%, transparent);
+      border: 1px solid color-mix(in srgb, var(--cx-accent-2, #ffc46b) 45%, transparent);
+      border-radius: 6px; padding: 5px 9px; }
+
+    /* POI dossier — in-surface card, never a popup */
+    .cx-mapx-dossier { position: absolute; top: 46px; left: 8px; width: min(300px, 64%);
+      max-height: calc(100% - 116px); overflow-y: auto; z-index: 1200;
+      background: color-mix(in srgb, var(--cx-bg, #06080e) 92%, transparent);
+      border: 1px solid color-mix(in srgb, var(--cx-accent, #7ee0ff) 35%, transparent);
+      border-radius: 8px; padding: 10px 12px;
+      font-family: var(--cx-mono, ui-monospace, monospace); color: var(--cx-fg, #dfe9f5);
+      box-shadow: var(--cx-shadow, 0 8px 32px rgba(0,0,0,0.55)); }
+    .cx-mapx-dossier-h { display: flex; align-items: center; gap: 7px; }
+    .cx-mapx-dossier-glyph { color: var(--cx-mapx-era-tint, var(--cx-accent, #7ee0ff)); font-size: 13px; flex: none; }
+    .cx-mapx-dossier-name { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cx-mapx-dossier-fly, .cx-mapx-dossier-x { flex: none; background: transparent; cursor: pointer;
+      border: 1px solid color-mix(in srgb, var(--cx-fg-dim, #8aa) 45%, transparent); border-radius: 6px;
+      color: var(--cx-fg-dim, #8aa); font-size: 12px; line-height: 1; padding: 4px 8px; min-width: 28px; min-height: 28px; }
+    .cx-mapx-dossier-fly:hover, .cx-mapx-dossier-x:hover { color: var(--cx-accent, #7ee0ff); border-color: var(--cx-accent, #7ee0ff); }
+    .cx-mapx-dossier-meta { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px;
+      font-size: 8.5px; letter-spacing: 0.12em; color: var(--cx-fg-dim, #8aa); }
+    .cx-mapx-dossier-img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: block; }
+    .cx-mapx-dossier-busy { display: flex; align-items: center; gap: 8px; margin-top: 8px;
+      font-size: 9px; letter-spacing: 0.14em; color: var(--cx-accent, #7ee0ff); }
+    .cx-mapx-dossier-sum { margin: 8px 0 0; font-family: var(--cx-serif, Georgia, serif);
+      font-size: 12.5px; line-height: 1.55; color: var(--cx-fg, #dfe9f5); }
+    .cx-mapx-dossier-refs { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 9px; }
+    .cx-mapx-readchip { background: transparent; cursor: pointer;
+      border: 1px solid color-mix(in srgb, var(--cx-accent, #7ee0ff) 50%, transparent); border-radius: 10px;
+      color: var(--cx-accent, #7ee0ff); font-family: var(--cx-mono, ui-monospace, monospace);
+      font-size: 9.5px; letter-spacing: 0.05em; padding: 4px 9px; min-height: 28px; }
+    .cx-mapx-readchip:hover, .cx-mapx-readchip:focus-visible { background: color-mix(in srgb, var(--cx-accent, #7ee0ff) 16%, transparent); }
+    .cx-mapx-dossier-norefs { margin-top: 8px; font-size: 8.5px; letter-spacing: 0.1em; color: var(--cx-fg-dim, #8aa); text-transform: uppercase; }
+    .cx-mapx-dossier-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+      padding-top: 6px; border-top: 1px dotted color-mix(in srgb, var(--cx-fg-dim, #8aa) 40%, transparent);
+      font-size: 8px; letter-spacing: 0.1em; color: var(--cx-fg-dim, #8aa); text-transform: uppercase; }
+    .cx-mapx-dossier-foot a { color: var(--cx-accent, #7ee0ff); text-decoration: none; }
+
+    /* keyboard mirror of the markers — visually hidden, focus-revealed */
+    .cx-mapx-alist-wrap { position: absolute; top: 0; left: 0; right: 0; z-index: 1300; }
+    .cx-mapx-alist { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+      white-space: nowrap; margin: 0; padding: 0; list-style: none; }
+    .cx-mapx-alist:focus-within { position: static; width: auto; height: auto; clip-path: none; white-space: normal;
+      display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; max-height: 120px; overflow-y: auto;
+      background: color-mix(in srgb, var(--cx-bg, #06080e) 90%, transparent); }
+    .cx-mapx-alist li { display: inline-block; }
+    .cx-mapx-alist button { background: transparent; cursor: pointer;
+      border: 1px solid color-mix(in srgb, var(--cx-accent, #7ee0ff) 45%, transparent); border-radius: 10px;
+      color: var(--cx-accent, #7ee0ff); font-family: var(--cx-mono, ui-monospace, monospace);
+      font-size: 9px; letter-spacing: 0.05em; padding: 4px 9px; min-height: 28px; }
+
+    /* TIME SCRUB at the foot — horizontal drag only; vertical scroll passes */
+    .cx-mapx-scrub { position: absolute; left: 8px; right: 8px; bottom: 30px; z-index: 1100;
+      font-family: var(--cx-mono, ui-monospace, monospace); pointer-events: none; }
+    .cx-mapx-scrub-ro { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;
+      font-size: 8.5px; letter-spacing: 0.12em; color: var(--cx-fg-dim, #8aa);
+      text-shadow: 0 1px 3px var(--cx-bg, #06080e); }
+    .cx-mapx-scrub-tag { color: var(--cx-mapx-era-tint, var(--cx-accent, #7ee0ff)); font-weight: 700; }
+    .cx-mapx-scrub-era { color: var(--cx-fg, #dfe9f5); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
+    .cx-mapx-scrub-yr { margin-left: auto; color: var(--cx-mapx-era-tint, var(--cx-accent, #7ee0ff)); }
+    .cx-mapx-scrub-track { position: relative; height: 18px; border-radius: 5px; overflow: hidden; cursor: ew-resize;
+      pointer-events: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+      background: color-mix(in srgb, var(--cx-bg, #06080e) 78%, transparent);
+      border: 1px solid color-mix(in srgb, var(--cx-accent, #7ee0ff) 28%, transparent); }
+    .cx-mapx-scrub-track:focus-visible { outline: 2px solid var(--cx-accent, #7ee0ff); outline-offset: 1px; }
+    .cx-mapx-scrub-seg { position: absolute; top: 0; bottom: 0; pointer-events: none; transition: background 0.25s ease; }
+    .cx-mapx-scrub-seg.is-active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cx-fg, #dfe9f5) 35%, transparent); }
+    .cx-mapx-scrub-vy { position: absolute; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+      font-size: 8px; color: var(--cx-accent-2, #ffc46b); text-shadow: 0 0 4px var(--cx-bg, #06080e); }
+    .cx-mapx-scrub-cursor { position: absolute; top: -2px; bottom: -2px; width: 2px; transform: translateX(-50%); pointer-events: none;
+      background: var(--cx-fg, #dfe9f5); box-shadow: 0 0 6px color-mix(in srgb, var(--cx-mapx-era-tint, var(--cx-accent, #7ee0ff)) 80%, transparent); }
+    @media (pointer: coarse) {
+      .cx-mapx-scrub-track { height: 30px; }
+      .cx-mapx-readchip, .cx-mapx-alist button, .cx-mapx-dossier-fly, .cx-mapx-dossier-x { min-height: 44px; min-width: 44px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cx-mapx-orb { animation: none; opacity: 0.9; }
+      .cx-mapx-poi-pulse { animation: none !important; opacity: 0.22; }
+      .cx-mapx-eraglow, .cx-mapx-scrub-seg, .cx-map-field-wrap .cx-poi-lbl, .cx-mapx-coords-era { transition: none; }
+    }
+  `;
+  document.head.appendChild(el);
+}
 
 Object.assign(window, { VerseMap });
