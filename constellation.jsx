@@ -291,6 +291,31 @@ function VerseConstellation({ onClose }) {
     setFamOn(v => !v);
   };
 
+  // v10.2 — the dossier carries the Word itself: the whole chapter when it
+  // fits, an honest preview when long, a pulsing orb while it travels.
+  // Source resolution mirrors the reader's chain (primary first, then any
+  // corpus whose declared canons cover the book) — DC stars read too.
+  const inspectSeqRef = useRef(0);
+  const dossierSourceChain = (bookId) => {
+    const D = window.CODEX_DATA || {};
+    const book = (D.books || []).find(b => b.id === bookId);
+    const primary = (D.tweaks && D.tweaks.primaryTranslation) || "web";
+    const canonsOf = (t) => new Set((t.canons && t.canons.length) ? t.canons : ["protestant"]);
+    const covers = (t) => {
+      const c = canonsOf(t);
+      if (!book) return c.has("protestant");
+      if (book.testament === "OT") return c.has("protestant") || c.has("ot");
+      if (book.testament === "NT") return c.has("protestant") || c.has("nt");
+      return c.has(book.canon);
+    };
+    const all = D.translations || [];
+    const chain = [];
+    const cur = all.find(t => t.id === primary);
+    if (cur && covers(cur)) chain.push(primary);
+    all.forEach(t => { if (t.id !== primary && covers(t)) chain.push(t.id); });
+    return chain.length ? chain : [primary];
+  };
+
   // v10 — the star dossier. Everything the graph knows about one chapter,
   // readable and actionable: testament, family, thread mass, strongest
   // neighbors (each clickable), READ / NEAR / PATH-FROM verbs.
@@ -314,7 +339,26 @@ function VerseConstellation({ onClose }) {
       degree: edges.length,
       threads: edges.reduce((s, [, w2]) => s + w2, 0),
       rows,
+      text: { state: "loading" },
     });
+    // fetch the chapter text — sequence-guarded so a fast second click
+    // never paints a stale chapter into a fresh dossier
+    const seq = ++inspectSeqRef.current;
+    (async () => {
+      for (const tr of dossierSourceChain(c.bookId)) {
+        try {
+          const vv = await window.BIBLE.loadChapter(c.bookId, c.ch, tr);
+          if (vv && vv.length && vv.some(v => v.text && v.text.trim())) {
+            if (inspectSeqRef.current !== seq) return;
+            setInfo(prev => (prev && prev.idx === idx)
+              ? { ...prev, text: { state: "ready", verses: vv, from: tr } } : prev);
+            return;
+          }
+        } catch { /* next source */ }
+      }
+      if (inspectSeqRef.current !== seq) return;
+      setInfo(prev => (prev && prev.idx === idx) ? { ...prev, text: { state: "none" } } : prev);
+    })();
   };
   // test + automation hook (smoke uses this — canvas pixels can't be queried)
   useEffect(() => {
@@ -616,6 +660,28 @@ function VerseConstellation({ onClose }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Dossier-text styles — self-injected (one tag, idempotent) instead of
+  // styles.css because a parallel build owns that file right now.
+  // TODO: fold into styles.css at the next quiet moment.
+  useEffect(() => {
+    if (document.getElementById("cx-const-text-css")) return;
+    const el = document.createElement("style");
+    el.id = "cx-const-text-css";
+    el.textContent = `
+      .cx-const-info-text { margin: 8px 0 4px; max-height: 240px; overflow-y: auto; padding-right: 4px; }
+      .cx-const-info-text p { font-family: var(--cx-serif, Georgia, serif); font-size: 13px; line-height: 1.55; color: var(--cx-fg); margin: 0 0 6px; }
+      .cx-const-info-text p sup { font-family: var(--cx-mono); font-size: 8.5px; color: var(--cx-accent); margin-right: 5px; opacity: 0.8; }
+      .cx-const-info-more, .cx-const-info-src { font-family: var(--cx-mono) !important; font-size: 9.5px !important; letter-spacing: 0.08em; color: var(--cx-fg-dim) !important; }
+      .cx-const-info-text.is-loading { display: flex; align-items: center; gap: 8px; font-family: var(--cx-mono); font-size: 9.5px; letter-spacing: 0.12em; color: var(--cx-fg-dim); }
+      .cx-const-orb { width: 10px; height: 10px; border-radius: 50%; flex: none;
+        background: radial-gradient(circle, var(--cx-accent) 0%, color-mix(in oklab, var(--cx-accent) 40%, transparent) 60%, transparent 100%);
+        animation: cx-orb-pulse 1.1s ease-in-out infinite; }
+      @keyframes cx-orb-pulse { 0%, 100% { transform: scale(0.7); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) { .cx-const-orb { animation: none; opacity: 0.9; } }
+    `;
+    document.head.appendChild(el);
+  }, []);
+
   // ── Color: testament hues, or natural families when FAMILIES is on ─────
   const hueOf = (idx) => {
     if (famOn && famRef.current) {
@@ -752,6 +818,31 @@ function VerseConstellation({ onClose }) {
                   <button onClick={() => { setQuery(`${info.label} → `); setInfo(null); }}
                     title="Start a PATH query from this star">⌖ PATH FROM</button>
                 </div>
+                {/* THE WORD ITSELF — whole chapter if it fits the dossier,
+                    an honest preview if long; orb while it travels. */}
+                {info.text && info.text.state === "loading" ? (
+                  <div className="cx-const-info-text is-loading" role="status" aria-label="Fetching the chapter">
+                    <span className="cx-const-orb" aria-hidden="true" />
+                    <span>FETCHING THE WORD…</span>
+                  </div>
+                ) : info.text && info.text.state === "ready" ? (
+                  <div className="cx-const-info-text" aria-label={`${info.label} — text`}>
+                    {(info.text.verses.length <= 14 ? info.text.verses : info.text.verses.slice(0, 6)).map(v => (
+                      <p key={v.n}><sup>{v.n}</sup>{v.text}</p>
+                    ))}
+                    {info.text.verses.length > 14 ? (
+                      <p className="cx-const-info-more">⋯ {info.text.verses.length - 6} more verses — ✦ READ opens the whole chapter</p>
+                    ) : null}
+                    {(() => {
+                      const primary = (window.CODEX_DATA && window.CODEX_DATA.tweaks && window.CODEX_DATA.tweaks.primaryTranslation) || "web";
+                      return info.text.from && info.text.from !== primary
+                        ? <p className="cx-const-info-src">⇄ served from {String(info.text.from).toUpperCase()}</p>
+                        : null;
+                    })()}
+                  </div>
+                ) : info.text && info.text.state === "none" ? (
+                  <p className="cx-const-info-none">No source carries this chapter yet — the corpus is still growing.</p>
+                ) : null}
                 {info.rows.length ? (
                   <ul className="cx-const-info-rows">
                     {info.rows.map(r => (
