@@ -1,266 +1,259 @@
 
-// tweaks-panel.jsx
-// Reusable Tweaks shell + form-control helpers.
+// tweaks-panel.jsx — THE SETTINGS (v12 remake).
 //
-// Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
-// posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
-// individual prototypes don't re-roll it. Ships a consistent set of controls so you
-// don't hand-draw <input type="range">, segmented radios, steppers, etc.
+// One calm, searchable surface. A single search field filters every control
+// live; settings sit in quiet sections:
 //
-// Usage (in an HTML file that loads React + Babel):
+//   APPEARANCE · SCRIPTURE · THE NAME · AI & KEYS · READING · INSTRUMENTS ·
+//   SYSTEM · DANGER (isolated at the foot)
 //
-//   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-//     "primaryColor": "#D97757",
-//     "palette": ["#D97757", "#29261b", "#f6f4ef"],
-//     "fontSize": 16,
-//     "density": "regular",
-//     "dark": false
-//   }/*EDITMODE-END*/;
+// Contracts kept intact (nothing upstream changes):
+//   · useTweaks(defaults) → [values, setTweak]   (codex.tweaks.v1 store)
+//   · setTweak persists, posts __edit_mode_set_keys, dispatches 'tweakchange'
+//   · NEW: every useTweaks instance ALSO subscribes to 'tweakchange', so a
+//     write from any surface (this panel, kernel.settings_set, the reader's
+//     Aa pill) reaches every other instance — the panel and the app can no
+//     longer drift apart.
+//   · host protocol: __activate_edit_mode / __deactivate_edit_mode /
+//     __edit_mode_available / __edit_mode_dismissed
+//   · app-wide open intent: window event "codex:open-settings"
+//     (detail.section routes to a group, "help" opens the Help wiki)
+//   · window exports: same names as before (TweaksPanel, TweakToggle, …)
 //
-//   function App() {
-//     const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-//     return (
-//       <div style={{ fontSize: t.fontSize, color: t.primaryColor }}>
-//         Hello
-//         <TweaksPanel>
-//           <TweakSection label="Typography" />
-//           <TweakSlider label="Font size" value={t.fontSize} min={10} max={32} unit="px"
-//                        onChange={(v) => setTweak('fontSize', v)} />
-//           <TweakRadio  label="Density" value={t.density}
-//                        options={['compact', 'regular', 'comfy']}
-//                        onChange={(v) => setTweak('density', v)} />
-//           <TweakSection label="Theme" />
-//           <TweakColor  label="Primary" value={t.primaryColor}
-//                        options={['#D97757', '#2A6FDB', '#1F8A5B', '#7A5AE0']}
-//                        onChange={(v) => setTweak('primaryColor', v)} />
-//           <TweakColor  label="Palette" value={t.palette}
-//                        options={[['#D97757', '#29261b', '#f6f4ef'],
-//                                  ['#475569', '#0f172a', '#f1f5f9']]}
-//                        onChange={(v) => setTweak('palette', v)} />
-//           <TweakToggle label="Dark mode" value={t.dark}
-//                        onChange={(v) => setTweak('dark', v)} />
-//         </TweaksPanel>
-//       </div>
-//     );
-//   }
+// Machine-checkable feature inventory (smoke-settings.mjs verifies it):
+//   · window.CODEX_SETTINGS_INDEX      — [{key, label, kind, group}] for every
+//     live setting. Rebuilt lazily, so tweak keys registered later by other
+//     modules (window.CODEX_TWEAK_DEFAULTS grows when any useTweaks mounts)
+//     are surfaced automatically as generic controls in the right group.
+//   · window.CODEX_SETTINGS_DEPRECATED — keys that once existed and were
+//     retired on purpose (never silently dropped).
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
-const __TWEAKS_STYLE = `
-  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
-    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
-    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
-    background:rgba(250,249,247,.78);color:#29261b;
-    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
-    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
-    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
-    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
-  .twk-hd{display:flex;align-items:center;justify-content:space-between;
-    padding:10px 8px 10px 14px;cursor:move;user-select:none}
-  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
-  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
-    min-width:44px;min-height:44px;border-radius:6px;cursor:default;font-size:13px;line-height:1;
-    display:inline-flex;align-items:center;justify-content:center}
-  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
-  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
-    overflow-y:auto;overflow-x:hidden;min-height:0;
-    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
-  .twk-body::-webkit-scrollbar{width:8px}
-  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
-  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
-    border:2px solid transparent;background-clip:content-box}
-  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
-    border:2px solid transparent;background-clip:content-box}
-  .twk-row{display:flex;flex-direction:column;gap:5px}
-  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px;
-    min-height:44px;cursor:pointer}
-  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
-    color:rgba(41,38,27,.72)}
-  .twk-lbl>span:first-child{font-weight:500}
-  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
-
-  .twk-sect{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
-    color:rgba(41,38,27,.45);padding:10px 0 0}
-  .twk-sect:first-child{padding-top:0}
-
-  .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:26px;padding:0 8px;
-    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
-    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
-  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
-  select.twk-field{padding-right:22px;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
-    background-repeat:no-repeat;background-position:right 8px center}
-
-  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:10px 0;
-    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
-  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
-    width:28px;height:28px;border-radius:50%;background:#fff;
-    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
-  .twk-slider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;
-    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
-
-  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
-    background:rgba(0,0,0,.06);user-select:none}
-  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
-    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
-    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
-  .twk-seg.dragging .twk-seg-thumb{transition:none}
-  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
-    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
-    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
-    overflow-wrap:anywhere}
-
-  /* Subtle, CODEX-aesthetic toggle. Used to be a chunky iOS-green capsule;
-     now a thin track with a hairline border at rest, accent fill when on.
-     The 44×44 hit area is preserved via padding (the user wins the tap;
-     the visible footprint is just the 26×12 track). */
-  /* Proper PILL switch (was rendering as a full 46x46 circle: a 26x12 track
-     with 16/9 content-box padding squared the button, and border-radius:999px
-     on a square is a circle). Now a clean 42x24 horizontal pill with a sliding
-     thumb — professional, unmistakably a toggle. */
-  .twk-toggle{position:relative;flex:0 0 auto;width:42px;height:24px;border:0;border-radius:999px;
-    background:rgba(0,0,0,.14);
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);
-    transition:background .14s ease,box-shadow .14s ease;
-    cursor:pointer;padding:0;box-sizing:border-box;opacity:.9}
-  .twk-toggle:hover{opacity:1}
-  .twk-toggle[data-on="1"]{background:var(--cx-accent,#34c759);box-shadow:none;opacity:1}
-  .twk-toggle i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
-    background:#fff;
-    box-shadow:0 1px 2px rgba(0,0,0,.25);
-    transition:transform .16s cubic-bezier(.3,.7,.4,1)}
-  .twk-toggle[data-on="1"] i{transform:translateX(18px);background:#fff}
-
-  .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:26px;padding:0 0 0 8px;
-    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
-  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
-    user-select:none;padding-right:8px}
-  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
-    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
-    outline:none;color:inherit;-moz-appearance:textfield}
-  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
-    -webkit-appearance:none;margin:0}
-  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
-
-  .twk-btn{appearance:none;min-height:44px;padding:0 12px;border:0;border-radius:7px;
-    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
-  .cx-mini-btn{min-height:44px}
-  .twk-btn:hover{background:rgba(0,0,0,.88)}
-  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
-  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
-
-  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
-    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
-    background:transparent;flex-shrink:0}
-  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
-  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
-  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
-
-  .twk-chips{display:flex;gap:6px}
-  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:46px;
-    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:default;
-    box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.06);
-    transition:transform .12s cubic-bezier(.3,.7,.4,1),box-shadow .12s}
-  .twk-chip:hover{transform:translateY(-1px);
-    box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
-  .twk-chip[data-on="1"]{box-shadow:0 0 0 1.5px rgba(0,0,0,.85),
-    0 2px 6px rgba(0,0,0,.15)}
-  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;
-    display:flex;flex-direction:column;box-shadow:-1px 0 0 rgba(0,0,0,.1)}
-  .twk-chip>span>i{flex:1;box-shadow:0 -1px 0 rgba(0,0,0,.1)}
-  .twk-chip>span>i:first-child{box-shadow:none}
-  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
-    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
-
-  /* ── Fullscreen tabbed mode (default for CODEX) ──────────────── */
-  .twk-scrim{position:fixed;inset:0;z-index:2147483645;
-    background:rgba(8,10,14,.55);
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-    animation:twk-scrim-in 180ms ease}
-  @keyframes twk-scrim-in{from{opacity:0}to{opacity:1}}
-  @keyframes twk-panel-in{
-    from{opacity:0;transform:translateY(8px) scale(.985)}
-    to{opacity:1;transform:none}
-  }
-  .twk-fullscreen{
-    /* override the floating-card defaults. Sized dynamically so the
-       panel breathes on a Studio Display (5K) and stays usable on a
-       laptop — was previously hard-capped at 960×720, making the Help
-       wiki feel cramped and unscrollable on huge monitors. */
-    right:auto !important;bottom:auto !important;
-    top:50% !important;left:50% !important;
-    transform:translate(-50%,-50%) scale(var(--dc-inv-zoom,1)) !important;
-    transform-origin:center !important;
-    width:clamp(720px, 78vw, 1600px) !important;
-    height:clamp(560px, 84dvh, 1200px) !important;
-    max-width:96vw !important;
-    max-height:92dvh !important;
-    border-radius:18px;
-    animation:twk-panel-in 220ms cubic-bezier(.3,.7,.4,1)
-  }
-  .twk-fullscreen .twk-hd{cursor:default;padding:14px 14px 10px 20px;
-    border-bottom:.5px solid rgba(0,0,0,.08)}
-  .twk-fullscreen .twk-hd b{font-size:14px;letter-spacing:.005em}
-  .twk-fullscreen .twk-x{min-width:44px;min-height:44px;font-size:15px}
-  .twk-shell{display:grid;grid-template-columns:180px 1fr;flex:1;min-height:0}
-  .twk-tabs{display:flex;flex-direction:column;gap:2px;padding:14px 8px;
-    border-right:.5px solid rgba(0,0,0,.08);
-    background:rgba(0,0,0,.025);overflow-y:auto;min-height:0}
-  .twk-tab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
-    appearance:none;border:0;background:transparent;color:inherit;
-    padding:9px 12px;border-radius:8px;font:inherit;font-weight:500;
-    cursor:default;transition:background .12s,color .12s;
-    -webkit-tap-highlight-color:transparent}
-  .twk-tab:hover{background:rgba(0,0,0,.04)}
-  .twk-tab.is-active{background:rgba(0,0,0,.08);color:#000}
-  .twk-tab-icon{display:inline-flex;align-items:center;justify-content:center;
-    width:18px;font-size:13px;opacity:.55}
-  .twk-tab.is-active .twk-tab-icon{opacity:1}
-  .twk-tab-label{flex:1;font-size:12.5px}
-  .twk-fullscreen .twk-body{padding:18px 22px 22px;gap:12px}
-
-  /* Mobile: top-row wrapping tabs instead of sidebar; true fullscreen.
-     Wraps to 2 rows on phones so System / Help don't hide off-screen
-     behind a horizontal scroll the user never thinks to swipe. */
-  @media (max-width: 700px){
-    .twk-fullscreen{
-      width:100vw !important;height:100dvh !important;
-      max-width:100vw !important;
-      max-height:100dvh !important;
-      min-height:100dvh !important;
-      border-radius:0 !important;
-      top:0 !important;left:0 !important;right:auto !important;bottom:auto !important;
-      transform:none !important;
-      padding-bottom:env(safe-area-inset-bottom,0) !important;
-    }
-    .twk-shell{grid-template-columns:1fr;grid-template-rows:auto 1fr;min-height:0}
-    .twk-tabs{flex-direction:row;flex-wrap:wrap;border-right:0;
-      border-bottom:.5px solid rgba(0,0,0,.08);
-      padding:8px;gap:4px;overflow-x:visible;overflow-y:visible;
-      scrollbar-width:none}
-    .twk-tabs::-webkit-scrollbar{display:none}
-    .twk-tab{flex:1 1 auto;flex-shrink:0;padding:7px 10px;min-height:44px;
-      justify-content:center;min-width:64px}
-    .twk-tab-label{font-size:12px;flex:0 1 auto}
-    .twk-fullscreen .twk-body{padding:14px 16px calc(env(safe-area-inset-bottom,16px) + 16px);
-      overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
-  }
-  @media (max-width: 380px){
-    .twk-tab{padding:7px 8px;min-width:56px}
-    .twk-tab-label{font-size:11px}
-    .twk-tab-icon{width:14px;font-size:12px}
-  }
-`;
-
-// ── useTweaks ───────────────────────────────────────────────────────────────
-// Single source of truth for tweak values. setTweak persists via the host
-// (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
-// CODEX_TWEAKS_KEY — persisted user settings. Rides the codex.* export so
-// switching browsers/devices restores font, theme, accent, default mark
-// colour, distraction-free preference, etc.
 const CODEX_TWEAKS_KEY = 'codex.tweaks.v1';
 
+// ── tiny store helpers (shared by useTweaks + the panel's own controls) ──────
+function __cxTweaksRead() {
+  try { return JSON.parse(localStorage.getItem(CODEX_TWEAKS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function __cxTweaksWrite(edits) {
+  const next = { ...__cxTweaksRead(), ...edits };
+  try { localStorage.setItem(CODEX_TWEAKS_KEY, JSON.stringify(next)); } catch (e) { /* quota */ }
+  try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*'); } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits })); } catch (e) {}
+  return next;
+}
+
+// ── DEPRECATED keys — retired on purpose, listed so nothing is silently
+// dropped. The settings index check treats these as "accounted for". ─────────
+const CODEX_SETTINGS_DEPRECATED = [
+  // The old self-injected "Continuity" group wrote its own parallel quartet;
+  // the app's canonical keys are continuityEnabled/continuityThreshold/
+  // notifyCadence (migrated below on first load).
+  'engageEnabled', 'engageDailyThreshold', 'engageNotifyCadence', 'engageReduceMotion',
+  // yhwhMode — the clunky v1 golden-Name implementation, ripped out in the
+  // v11.3 reader-soul rebuild; divineGold/divineHebrew are its successors.
+  'yhwhMode',
+  // OS·7 "Nocturne" stopped being optional in v9.2 SHED — the desk IS the
+  // app; the classic layout and the codex.os7 flag are gone.
+  'os7',
+  // The omelette deck thumbnail rail (deck-stage.railVisible) — the deck
+  // surface no longer exists anywhere in CODEX.
+  'railVisible',
+  // Theater-era key (distraction-free absorbed it; the tweak is distractionFree).
+  'theaterMode',
+];
+window.CODEX_SETTINGS_DEPRECATED = CODEX_SETTINGS_DEPRECATED;
+
+// One-time migration: users who flipped the old engage* controls keep their
+// choices under the canonical continuity keys.
+(function __cxMigrateEngage() {
+  try {
+    const s = __cxTweaksRead();
+    const edits = {};
+    if ('engageEnabled' in s && !('continuityEnabled' in s)) edits.continuityEnabled = !!s.engageEnabled;
+    if ('engageDailyThreshold' in s && !('continuityThreshold' in s)) edits.continuityThreshold = s.engageDailyThreshold;
+    if ('engageNotifyCadence' in s && !('notifyCadence' in s)) {
+      edits.notifyCadence = s.engageNotifyCadence === 'off' ? 'off'
+        : s.engageNotifyCadence === 'all' ? 'all' : 'subtle';
+    }
+    if (Object.keys(edits).length) {
+      const next = { ...s, ...edits };
+      localStorage.setItem(CODEX_TWEAKS_KEY, JSON.stringify(next));
+    }
+  } catch (e) { /* never throw at module load */ }
+})();
+
+// ── THE REGISTRY — every setting CODEX knows about. ─────────────────────────
+// owner: 'self'  — this panel renders the control
+//        'child' — the host (app.jsx) passes the control in as a child;
+//                  we route it into the right group and index it here
+//        'external' — lives on another surface; we point at it honestly
+const SETTINGS_GROUPS = ['APPEARANCE', 'SCRIPTURE', 'THE NAME', 'AI & KEYS', 'READING', 'INSTRUMENTS', 'SYSTEM', 'DANGER'];
+
+const SETTINGS_REGISTRY = [
+  // APPEARANCE
+  { key: 'autoTheme',  label: 'Theme · follow the sun', kind: 'segment', group: 'APPEARANCE', owner: 'self',
+    kw: 'theme dark light night day auto solar mode appearance lights' },
+  { key: 'manualDark', label: 'Theme · day / night',    kind: 'segment', group: 'APPEARANCE', owner: 'self',
+    kw: 'theme dark light night day manual appearance' },
+  { key: 'accent',     label: 'Accent color',           kind: 'color',   group: 'APPEARANCE', owner: 'child',
+    kw: 'accent color cyan amber green violet glow' },
+  { key: 'lightTheme', label: 'Day-mode palette',       kind: 'swatch',  group: 'APPEARANCE', owner: 'child',
+    kw: 'palette parchment vellum linen sandstone sage solarized slate rose old book day light' },
+  { key: 'scanlines',  label: 'Scanlines',              kind: 'toggle',  group: 'APPEARANCE', owner: 'child',
+    kw: 'scanlines crt texture grain' },
+  { key: 'schizo',     label: 'Schizo Mode',            kind: 'toggle',  group: 'APPEARANCE', owner: 'child',
+    kw: 'schizo easter egg glitch' },
+  // SCRIPTURE
+  { key: 'primaryTranslation', label: 'Primary translation', kind: 'select', group: 'SCRIPTURE', owner: 'self',
+    kw: 'translation bible version kjv web primary text' },
+  { key: 'fontScale',     label: 'Scripture size',  kind: 'slider',  group: 'SCRIPTURE', owner: 'self',
+    kw: 'font size text scale scripture aa bigger smaller type reader' },
+  { key: 'scriptureFont', label: 'Scripture face',  kind: 'segment', group: 'SCRIPTURE', owner: 'self',
+    kw: 'font face serif mono typeface family' },
+  { key: 'redLetter',     label: 'Red-letter words', kind: 'toggle', group: 'SCRIPTURE', owner: 'self',
+    kw: 'red letter words of jesus christ crimson' },
+  { key: 'sideBySide',    label: 'Side-by-side translations', kind: 'toggle', group: 'SCRIPTURE', owner: 'self',
+    kw: 'side by side parallel two translations columns compare' },
+  // THE NAME (yhwhMode retired with the v11.3 golden-Name rebuild —
+  // divineGold/divineHebrew are its clean successors; see DEPRECATED set)
+  { key: 'divineGold', label: 'The Name in covenant gold', kind: 'toggle', group: 'THE NAME', owner: 'self',
+    kw: 'divine gold golden name yhwh tetragrammaton yahweh jehovah lord restore sacred covenant color reader' },
+  { key: 'divineHebrew', label: 'Tetragrammaton in Hebrew (יהוה)', kind: 'toggle', group: 'THE NAME', owner: 'self',
+    kw: 'divine hebrew tetragrammaton yhwh script name reader' },
+  // AI & KEYS
+  { key: 'apiKeys',  label: 'API keys (Anthropic · Grok · Groq · Gemini · Ollama)', kind: 'keys', group: 'AI & KEYS', owner: 'child',
+    kw: 'api key keys secret token anthropic claude grok xai groq gemini google ollama local engine' },
+  { key: 'provider', label: 'Oracle engine',  kind: 'segment', group: 'AI & KEYS', owner: 'child',
+    kw: 'provider engine anthropic claude xai grok groq gemini google ollama local ai' },
+  { key: 'model',    label: 'Oracle model',   kind: 'select',  group: 'AI & KEYS', owner: 'child',
+    kw: 'model haiku sonnet opus llama deepseek ai' },
+  { key: 'hermeneuticDriftCompensation', label: 'Hermeneutic drift compensation', kind: 'toggle', group: 'AI & KEYS', owner: 'child',
+    kw: 'drift hermeneutic advanced inference experimental' },
+  // READING
+  { key: 'distractionFree', label: 'Distraction-free reading', kind: 'toggle', group: 'READING', owner: 'self',
+    kw: 'distraction free focus zen hide chrome quiet theater' },
+  { key: 'caffeinate',   label: 'Keep screen awake', kind: 'toggle', group: 'READING', owner: 'child',
+    kw: 'caffeinate keep screen awake wake lock sleep' },
+  { key: 'notesEnabled', label: 'Margin notes',      kind: 'toggle', group: 'READING', owner: 'child',
+    kw: 'notes margin notebook write' },
+  { key: 'oracleFontScale', label: 'Oracle font size', kind: 'slider', group: 'READING', owner: 'child',
+    kw: 'oracle font size chat text scale' },
+  { key: 'highlightColor', label: 'Default mark color', kind: 'color', group: 'READING', owner: 'child',
+    kw: 'highlight color marks amber cyan violet green rose default' },
+  { key: 'autoBundle', label: 'Auto-bundle translations', kind: 'toggle', group: 'READING', owner: 'child',
+    kw: 'auto bundle download translations offline as i read' },
+  { key: 'overlayGnosis', label: 'Reader overlay · Gnosis', kind: 'toggle', group: 'READING', owner: 'self',
+    kw: 'overlay gnosis reader margin esoteric glyph' },
+  { key: 'overlayTalmud', label: 'Reader overlay · Talmud', kind: 'toggle', group: 'READING', owner: 'self',
+    kw: 'overlay talmud reader margin rabbinic glyph' },
+  { key: 'overlayCommentary', label: 'Reader overlay · Commentary', kind: 'toggle', group: 'READING', owner: 'self',
+    kw: 'overlay commentary reader margin voices glyph' },
+  // INSTRUMENTS
+  { key: 'continuityEnabled',   label: 'Continuity layer',      kind: 'toggle', group: 'INSTRUMENTS', owner: 'self',
+    kw: 'continuity streak engagement mastery analyst quests' },
+  { key: 'continuityThreshold', label: 'Depth actions per day', kind: 'slider', group: 'INSTRUMENTS', owner: 'self',
+    kw: 'continuity threshold depth actions per day' },
+  { key: 'notifyCadence',       label: 'Announcements',         kind: 'segment', group: 'INSTRUMENTS', owner: 'self',
+    kw: 'announcements milestones toasts cadence notifications quiet' },
+  { key: 'gnosis', label: 'Gnosis overlay', kind: 'external', group: 'INSTRUMENTS', owner: 'external',
+    kw: 'gnosis overlay esoteric ring engaged dormant' },
+  { key: 'modules', label: 'Module marketplace', kind: 'action', group: 'INSTRUMENTS', owner: 'child',
+    kw: 'modules marketplace plugins install browse' },
+  // SYSTEM
+  { key: 'lang',     label: 'Language',         kind: 'select', group: 'SYSTEM', owner: 'child',
+    kw: 'language english español deutsch français idioma langue sprache' },
+  { key: 'install',  label: 'Install CODEX',    kind: 'action', group: 'SYSTEM', owner: 'child',
+    kw: 'install pwa app offline home screen standalone' },
+  { key: 'sync',     label: 'Cross-device sync', kind: 'panel', group: 'SYSTEM', owner: 'child',
+    kw: 'sync cross device qr transfer' },
+  { key: 'dataPortable', label: 'Export / import everything', kind: 'action', group: 'SYSTEM', owner: 'child',
+    kw: 'export import backup restore json portable data' },
+  { key: 'cache',    label: 'Cache & offline status', kind: 'panel', group: 'SYSTEM', owner: 'child',
+    kw: 'cache offline chapters panels clear storage status' },
+  { key: 'offlineBibles', label: 'Offline Bibles', kind: 'panel', group: 'SYSTEM', owner: 'child',
+    kw: 'offline bibles download bundles translations' },
+  { key: 'bootIntro', label: 'Boot intro sequence', kind: 'toggle', group: 'SYSTEM', owner: 'child',
+    kw: 'boot intro animation startup terminal first impression' },
+  { key: 'keyboard', label: 'Keyboard shortcuts', kind: 'action', group: 'SYSTEM', owner: 'child',
+    kw: 'keyboard shortcuts keys reference arrows' },
+  { key: 'tour', label: 'Welcome tour', kind: 'action', group: 'SYSTEM', owner: 'self',
+    kw: 'tour welcome replay onboarding first run' },
+  // DANGER
+  { key: 'personalization', label: 'Clear personalization', kind: 'action', group: 'DANGER', owner: 'self',
+    kw: 'personalization profile taste reels oracle context clear privacy' },
+  { key: 'factoryReset', label: 'Factory reset (settings only)', kind: 'action', group: 'DANGER', owner: 'child',
+    kw: 'reset factory defaults wipe settings danger' },
+];
+
+// Route an unknown (newly registered) tweak key to a group by its name.
+function __cxGroupForKey(k) {
+  const s = String(k);
+  if (/yhwh|golden|tetragram|sacred|name/i.test(s)) return 'THE NAME';
+  if (/overlay|font|letter|verse|scripture|translat|interlinear|margin/i.test(s)) return 'SCRIPTURE';
+  if (/theme|accent|scanline|glow|light|dark|palette/i.test(s)) return 'APPEARANCE';
+  if (/oracle|provider|model|api|drift|engine/i.test(s)) return 'AI & KEYS';
+  if (/note|mark|highlight|caffeinate|read|distraction/i.test(s)) return 'READING';
+  if (/continuity|quest|engage|gnosis|reel|cadence/i.test(s)) return 'INSTRUMENTS';
+  return 'SYSTEM';
+}
+function __cxHumanize(k) {
+  return String(k)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_.-]+/g, ' ')
+    .replace(/^./, c => c.toUpperCase());
+}
+function __cxInferKind(v) {
+  if (typeof v === 'boolean') return 'toggle';
+  if (typeof v === 'number') return 'number';
+  return 'text';
+}
+
+// Keys in CODEX_TWEAK_DEFAULTS / the stored blob that the registry doesn't
+// know and that weren't deliberately retired → auto-surfaced.
+function __cxUnknownTweaks() {
+  const known = new Set(SETTINGS_REGISTRY.map(r => r.key));
+  const dep = new Set(CODEX_SETTINGS_DEPRECATED);
+  const defaults = (typeof window !== 'undefined' && window.CODEX_TWEAK_DEFAULTS) || {};
+  const stored = __cxTweaksRead();
+  const out = [];
+  const seen = new Set();
+  for (const k of [...Object.keys(defaults), ...Object.keys(stored)]) {
+    if (known.has(k) || dep.has(k) || seen.has(k)) continue;
+    seen.add(k);
+    const v = (k in defaults) ? defaults[k] : stored[k];
+    out.push({
+      key: k, label: __cxHumanize(k), kind: __cxInferKind(v),
+      group: __cxGroupForKey(k), owner: 'auto', kw: __cxHumanize(k).toLowerCase(), value: v,
+    });
+  }
+  return out;
+}
+
+function __cxRefreshSettingsIndex() {
+  const idx = SETTINGS_REGISTRY.concat(__cxUnknownTweaks())
+    .map(r => ({ key: r.key, label: r.label, kind: r.kind, group: r.group }));
+  window.CODEX_SETTINGS_INDEX = idx;
+  return idx;
+}
+__cxRefreshSettingsIndex();
+
+// ── useTweaks ────────────────────────────────────────────────────────────────
+// Single source of truth for tweak values. Persists to codex.tweaks.v1 and
+// now also LISTENS on 'tweakchange', so every instance converges. Defaults
+// are registered on window.CODEX_TWEAK_DEFAULTS so the settings index can
+// surface tweaks it has never heard of.
 function useTweaks(defaults) {
+  React.useMemo(() => {
+    try {
+      window.CODEX_TWEAK_DEFAULTS = Object.assign({}, window.CODEX_TWEAK_DEFAULTS, defaults);
+      __cxRefreshSettingsIndex();
+    } catch (e) { /* defensive */ }
+    return null;
+  }, []);
+
   const [values, setValues] = React.useState(() => {
     try {
       const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
@@ -269,9 +262,7 @@ function useTweaks(defaults) {
     return defaults;
   });
 
-  // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
-  // useState-style call doesn't write a "[object Object]" key into the persisted
-  // JSON block.
+  // Accepts setTweak('key', value) or setTweak({ key: value, ... }).
   const setTweak = React.useCallback((keyOrEdits, val) => {
     const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
       ? keyOrEdits : { [keyOrEdits]: val };
@@ -280,408 +271,255 @@ function useTweaks(defaults) {
       try { localStorage.setItem(CODEX_TWEAKS_KEY, JSON.stringify(next)); } catch (e) { /* quota */ }
       return next;
     });
-    // Still post to the host so author-time editing keeps working in the
-    // omelette frame; harmless when running standalone.
     try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*'); } catch (e) {}
     window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
   }, []);
+
+  // Converge on writes from ANY other surface (panel, kernel, reader pills).
+  React.useEffect(() => {
+    const onChange = (e) => {
+      const edits = e && e.detail;
+      if (!edits || typeof edits !== 'object') return;
+      setValues((prev) => {
+        let changed = false;
+        for (const k in edits) { if (prev[k] !== edits[k]) { changed = true; break; } }
+        return changed ? { ...prev, ...edits } : prev;
+      });
+    };
+    window.addEventListener('tweakchange', onChange);
+    return () => window.removeEventListener('tweakchange', onChange);
+  }, []);
+
   return [values, setTweak];
 }
 
-// ── TweaksPanel ─────────────────────────────────────────────────────────────
-// Floating shell. Registers the protocol listener BEFORE announcing
-// availability — if the announce ran first, the host's activate could land
-// before our handler exists and the toolbar toggle would silently no-op.
-// The close button posts __edit_mode_dismissed so the host's toolbar toggle
-// flips off in lockstep; the host echoes __deactivate_edit_mode back which
-// is what actually hides the panel.
-function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
-  const [open, setOpen] = React.useState(false);
-  const dragRef = React.useRef(null);
-  // Auto-inject a rail toggle when a <deck-stage> is on the page. The
-  // toggle drives the deck's per-viewer _railVisible via window message;
-  // state is mirrored from the same localStorage key the deck reads so
-  // the control reflects reality across reloads. The mechanism is the
-  // message — authors who want custom placement can post it directly
-  // and pass noDeckControls to suppress this one.
-  const hasDeckStage = React.useMemo(
-    () => typeof document !== 'undefined' && !!document.querySelector('deck-stage'),
-    [],
-  );
-  // Hide the toggle until the host has actually enabled the rail (the
-  // __omelette_rail_enabled window message, posted only when the
-  // omelette_deck_rail_enabled flag is on for this user). The initial read
-  // covers TweaksPanel mounting after the message already arrived; the
-  // listener covers the common case of mounting first.
-  const [railEnabled, setRailEnabled] = React.useState(
-    () => hasDeckStage && !!document.querySelector('deck-stage')?._railEnabled,
-  );
-  React.useEffect(() => {
-    if (!hasDeckStage || railEnabled) return undefined;
-    const onMsg = (e) => {
-      if (e.data && e.data.type === '__omelette_rail_enabled') setRailEnabled(true);
-    };
-    window.addEventListener('message', onMsg);
-    return () => window.removeEventListener('message', onMsg);
-  }, [hasDeckStage, railEnabled]);
-  const [railVisible, setRailVisible] = React.useState(() => {
-    try { return localStorage.getItem('deck-stage.railVisible') !== '0'; } catch (e) { return true; }
-  });
-  const toggleRail = (on) => {
-    setRailVisible(on);
-    window.postMessage({ type: '__deck_rail_visible', on }, '*');
-  };
-  const offsetRef = React.useRef({ x: 16, y: 16 });
-  const PAD = 16;
-
-  const clampToViewport = React.useCallback(() => {
-    const panel = dragRef.current;
-    if (!panel) return;
-    const w = panel.offsetWidth, h = panel.offsetHeight;
-    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
-    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
-    offsetRef.current = {
-      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
-      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
-    };
-    panel.style.right = offsetRef.current.x + 'px';
-    panel.style.bottom = offsetRef.current.y + 'px';
-  }, []);
-
-  React.useEffect(() => {
-    if (!open) return;
-    clampToViewport();
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', clampToViewport);
-      return () => window.removeEventListener('resize', clampToViewport);
-    }
-    const ro = new ResizeObserver(clampToViewport);
-    ro.observe(document.documentElement);
-    return () => ro.disconnect();
-  }, [open, clampToViewport]);
-
-  React.useEffect(() => {
-    const onMsg = (e) => {
-      const t = e?.data?.type;
-      if (t === '__activate_edit_mode') setOpen(true);
-      else if (t === '__deactivate_edit_mode') setOpen(false);
-    };
-    window.addEventListener('message', onMsg);
-    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
-    return () => window.removeEventListener('message', onMsg);
-  }, []);
-
-  const dismiss = () => {
-    setOpen(false);
-    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
-  };
-
-  const onDragStart = (e) => {
-    const panel = dragRef.current;
-    if (!panel) return;
-    const r = panel.getBoundingClientRect();
-    const sx = e.clientX, sy = e.clientY;
-    const startRight = window.innerWidth - r.right;
-    const startBottom = window.innerHeight - r.bottom;
-    const move = (ev) => {
-      offsetRef.current = {
-        x: startRight - (ev.clientX - sx),
-        y: startBottom - (ev.clientY - sy),
-      };
-      clampToViewport();
-    };
-    const up = () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
-    };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-  };
-
-  // Outside-click + Escape close, with a tiny defer so the click that
-  // OPENED the panel doesn't immediately close it.
-  React.useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      const panel = dragRef.current;
-      if (!panel) return;
-      if (panel.contains(e.target)) return;
-      // Ignore clicks on the very button that opens settings to avoid
-      // an open→close→open flicker.
-      if (e.target.closest && e.target.closest('[data-tweaks-trigger]')) return;
-      dismiss();
-    };
-    const onKey = (e) => { if (e.key === 'Escape') dismiss(); };
-    const t = setTimeout(() => document.addEventListener('mousedown', onDown), 0);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  // Tab state has to live ABOVE the early-return below — React's
-  // rules-of-hooks require the same hook count every render.
-  const [activeTab, setActiveTab] = React.useState("reading");
-
-  // Filter state ALSO must live above the early-return. The previous
-  // location (post-`if (!open) return null`) caused "Rendered more
-  // hooks than during the previous render" the first time the panel
-  // was opened (hook count jumped from 8 → 11).
-  const [twkQuery, setTwkQuery] = React.useState("");
-  const twkBodyRef = React.useRef(null);
-
-  // The two effects that filter the rendered tweak rows and reset
-  // the query on tab change ALSO must be called unconditionally on
-  // every render. They early-bail internally when the panel is closed
-  // or the body isn't mounted yet, but the hook count stays constant.
-  React.useEffect(() => {
-    if (!open) return;
-    const body = twkBodyRef.current;
-    if (!body) return;
-    const q = twkQuery.trim().toLowerCase();
-    const rows = body.querySelectorAll(".twk-row");
-    if (!q) {
-      rows.forEach(r => r.classList.remove("twk-hidden"));
-      body.querySelectorAll(".twk-sect").forEach(s => s.classList.remove("twk-hidden"));
-      return;
-    }
-    rows.forEach(r => {
-      const text = (r.textContent || "").toLowerCase();
-      const aria = (r.getAttribute("aria-label") || "").toLowerCase();
-      const match = text.includes(q) || aria.includes(q);
-      r.classList.toggle("twk-hidden", !match);
-    });
-    const nodes = Array.from(body.children);
-    nodes.forEach((n, i) => {
-      if (!n.classList || !n.classList.contains("twk-sect")) return;
-      let anyVisible = false;
-      for (let j = i + 1; j < nodes.length; j++) {
-        const next = nodes[j];
-        if (next.classList && next.classList.contains("twk-sect")) break;
-        if (next.classList && next.classList.contains("twk-row") && !next.classList.contains("twk-hidden")) {
-          anyVisible = true; break;
-        }
-      }
-      n.classList.toggle("twk-hidden", !anyVisible);
-    });
-  }, [twkQuery, activeTab, open]);
-  // Reset query when switching tabs so each tab starts fresh.
-  React.useEffect(() => { setTwkQuery(""); }, [activeTab]);
-
-  // App-wide "open settings" intent — the welcome tour and Oracle's
-  // [[do:open-settings]] one-tap action both dispatch this. This panel IS
-  // the settings surface, so honor it here; detail.section routes to the
-  // matching tab (e.g. "api-keys" / "ai" → AI).
-  React.useEffect(() => {
-    const onOpen = (e) => {
-      setOpen(true);
-      const sect = String(e?.detail?.section || "").toLowerCase();
-      if (!sect) return;
-      if (/api|ai|model|engine|infer/.test(sect)) setActiveTab("ai");
-      else if (/sync|cache|offline|data|export|import/.test(sect)) setActiveTab("sync");
-      else if (/read|look|mark|font|theme/.test(sect)) setActiveTab("reading");
-      else if (/help|wiki/.test(sect)) setActiveTab("help");
-      else setActiveTab("system");
-    };
-    window.addEventListener("codex:open-settings", onOpen);
-    return () => window.removeEventListener("codex:open-settings", onOpen);
-  }, []);
-
-  if (!open) return null;
-
-  // ── Tab grouping ───────────────────────────────────────────────────
-  // Walk children, partition by <TweakSection label="X" /> markers, and
-  // route each label into a high-level tab. Anything between a section
-  // marker and the next is that section's "rows." Result: a tabbed
-  // fullscreen panel instead of a single scrolling list of 13 sections.
-  const TAB_OF = {
-    // Reading & visual
-    "Look":              "reading",
-    "Marks":             "reading",
-    "Reading":           "reading",
-    "First impression":  "reading",
-    // AI & engines
-    "AI Engines":        "ai",
-    "AI Model":          "ai",
-    "Advanced inference":"ai",
-    // Cross-device sync + data
-    "Cross-device sync": "sync",
-    "Offline · Bibles":  "sync",
-    "Cache":             "sync",
-    "Data · portable":   "sync",
-    // System / app-level
-    "Language":          "system",
-    "Idioma":            "system",
-    "Langue":            "system",
-    "Sprache":           "system",
-    "Install":           "system",
-    "Instalar":          "system",
-    "Installer":         "system",
-    "Installation":      "system",
-    "Modules":           "system",
-    "Keyboard":          "system",
-    "Danger zone":       "system",
-    // i18n strings (Spanish/etc translations of canonical labels)
-    "Look · Apariencia": "reading",
-    "AI · Motores":      "ai",
-    "Lectura":           "reading",
-    "Leitura":           "reading",
-    "Lecture":           "reading",
-    "Lesen":             "reading",
-    "Marcas":            "reading",
-    "Marques":           "reading",
-    "Markierungen":      "reading",
-    "Caché":             "sync",
-    "Datos · portátiles":"sync",
-    "Dados · portáteis": "sync",
-    "Données · portables":"sync",
-    "Daten · portabel":  "sync",
-  };
-  // Catch-all unmapped labels fall into "system" so nothing disappears.
-  function tabFor(label) {
-    if (TAB_OF[label]) return TAB_OF[label];
-    // Heuristic fallback for translated labels — covers ES/DE/PT/FR/LA/HE/HI
-    const lc = String(label || "").toLowerCase();
-    if (/look|reading|marks|first|fuente|tipograf|marcas|lectura|apari|aparê|erschein|apparen|aspect|markier|marque|notae|lesen|leitur|lectur|impres|מראה|रूप|glamour/.test(lc)) return "reading";
-    if (/ai|engine|drift|infer|motor/.test(lc)) return "ai";
-    if (/sync|sincron|cache|caché|offline|export|import|bibles|biblias|portab|dados|daten|données/.test(lc)) return "sync";
-    if (/language|idioma|langue|sprache|install|instalar|installation|module|keyboard|teclado|tastatur|clavier|danger|peligro|gefahr|zone/.test(lc)) return "system";
-    return "system";
+// ── Panel CSS — self-injected, tokens only. ────────────────────────────────
+const __TWEAKS_STYLE = `
+  /* ── shell ───────────────────────────────────────────────────────────── */
+  .twkx-scrim{position:fixed;inset:0;z-index:2147483645;
+    background:color-mix(in oklab, var(--cx-bg, #06080e) 62%, transparent);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    animation:twkx-in 160ms ease}
+  .twkx-panel{position:fixed;z-index:2147483646;top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:clamp(680px,72vw,1240px);height:clamp(540px,84dvh,1100px);
+    max-width:96vw;max-height:94dvh;
+    display:flex;flex-direction:column;overflow:hidden;
+    background:var(--cx-bg,#06080e);color:var(--cx-fg,#c9d6e6);
+    border:1px solid color-mix(in oklab, var(--cx-accent,#7ee0ff) 30%, transparent);
+    border-radius:10px;
+    box-shadow:0 32px 80px -20px rgba(0,0,0,.6),
+      0 0 0 1px color-mix(in oklab, var(--cx-accent,#7ee0ff) 12%, transparent);
+    font:12px/1.45 var(--cx-mono, ui-monospace, monospace);
+    animation:twkx-pop 200ms cubic-bezier(.3,.7,.4,1)}
+  @keyframes twkx-in{from{opacity:0}to{opacity:1}}
+  @keyframes twkx-pop{from{opacity:0;transform:translate(-50%,-49%) scale(.99)}to{opacity:1;transform:translate(-50%,-50%)}}
+  @media (prefers-reduced-motion: reduce){
+    .twkx-scrim,.twkx-panel{animation:none}
+    .twkx-panel *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
   }
 
-  const TABS = [
-    { id: "reading", label: "Reading", icon: "✎" },
-    { id: "ai",      label: "AI",      icon: "✦" },
-    { id: "sync",    label: "Sync",    icon: "↔" },
-    { id: "system",  label: "System",  icon: "⚙" },
-    { id: "help",    label: "Help",    icon: "?" },
-  ];
-  // Children come in as a flat array of nodes — partition into tabs.
-  const childArr = React.Children.toArray(children);
-  const buckets = { reading: [], ai: [], sync: [], system: [], help: [] };
-  // Help tab: pre-fill with the wiki component if it's been loaded. Help is
-  // driven by data/help/articles.json so the content updates with each
-  // release without touching this file. Marker entry keeps the tab visible
-  // even if HelpWiki hasn't registered yet (rare race during cold boot).
-  if (window.CODEX_HelpWiki) {
-    buckets.help.push(<window.CODEX_HelpWiki key="__help" />);
-  } else {
-    buckets.help.push(<div key="__help-pending" style={{padding:"24px 12px",textAlign:"center",color:"var(--cx-fg-dim)",fontFamily:"var(--cx-mono)",fontSize:12}}>Help wiki loading…</div>);
-  }
-  // Replay the first-run welcome tour — app.jsx listens for codex:open-tour
-  // (this was the intended Help-tab trigger; it never got wired).
-  buckets.help.push(
-    <div key="__help-tour" style={{padding:"8px 12px 16px",textAlign:"center"}}>
-      <button
-        type="button"
-        className="twk-btn"
-        onClick={() => {
-          dismiss();
-          try { window.dispatchEvent(new CustomEvent("codex:open-tour")); } catch (e) {}
-        }}
-      >↻ Replay the welcome tour</button>
-    </div>
-  );
-  let currentTab = "system";  // anything before the first TweakSection goes to system
-  for (const node of childArr) {
-    if (node && node.type === TweakSection) {
-      currentTab = tabFor(node.props.label);
-    }
-    buckets[currentTab].push(node);
-  }
-  if (hasDeckStage && railEnabled && !noDeckControls) {
-    buckets.system.push(
-      <TweakSection key="__deck" label="Deck" />,
-      <TweakToggle key="__deck-rail" label="Thumbnail rail" value={railVisible} onChange={toggleRail} />,
-    );
-  }
-  // Shell — OS·7 "Nocturne" desktop surface toggle. Self-injected (like
-  // Personalization below) so it's always reachable; gated on the host
-  // actually exposing window.codexOS7 so no orphan section header renders
-  // when the os7 module isn't loaded.
-  if (typeof window.codexOS7 === 'function') {
-    buckets.system.push(
-      <TweakSection key="__os7" label="Shell" />,
-      <TweakOS7 key="__os7-ctl" />,
-    );
-  }
-  // Personalization — lets the user wipe the learned taste profile and Oracle
-  // context. Injected here (rather than supplied as a child by the consumer)
-  // so it's always present regardless of how the panel is composed.
-  buckets.system.push(
-    <TweakSection key="__personalization" label="Personalization" />,
-    <TweakPersonalization key="__personalization-ctl" />,
-  );
-  // Continuity — the Phase 2.5 engagement layer (continuity / mastery / quests).
-  // Self-injected (like Personalization) so it's always present regardless of
-  // how the host composes the panel. Label resolves via i18n ("Continuity"),
-  // which tabFor() routes to the System tab.
-  buckets.system.push(
-    <TweakSection key="__continuity" label={(window.t && window.t("cx.tweak.section")) || "Continuity"} />,
-    <TweakContinuity key="__continuity-ctl" />,
-  );
-  // If the currently-selected tab is empty (because children changed),
-  // silently fall back to the first non-empty tab without re-rendering.
-  const firstNonEmpty = TABS.find(t => buckets[t.id].length)?.id || "reading";
-  const effectiveTab = buckets[activeTab]?.length ? activeTab : firstNonEmpty;
+  .twkx-head{display:flex;align-items:center;gap:14px;flex:0 0 auto;
+    padding:10px 10px 10px 18px;
+    border-bottom:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 22%, transparent);
+    background:color-mix(in oklab, var(--cx-accent,#7ee0ff) 5%, var(--cx-bg,#06080e))}
+  .twkx-title{font-weight:700;font-size:11px;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--cx-fg,#c9d6e6);white-space:nowrap}
+  .twkx-title::before{content:"⚙ ";color:var(--cx-accent,#7ee0ff)}
+  .twkx-mode{display:flex;gap:2px;padding:2px;border-radius:6px;
+    background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 10%, transparent)}
+  .twkx-mode button{appearance:none;border:0;background:transparent;color:var(--cx-fg-dim,#8295ae);
+    font:inherit;font-size:10.5px;font-weight:600;letter-spacing:.14em;
+    min-height:32px;min-width:44px;padding:0 14px;border-radius:5px;cursor:pointer}
+  .twkx-mode button[aria-selected="true"]{background:var(--cx-accent,#7ee0ff);color:var(--cx-bg,#06080e)}
+  .twkx-mode button:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:1px}
+  .twkx-spacer{flex:1}
+  .twkx-x{appearance:none;border:0;background:transparent;color:var(--cx-fg-dim,#8295ae);
+    min-width:44px;min-height:44px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center}
+  .twkx-x:hover{background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 14%, transparent);color:var(--cx-fg,#c9d6e6)}
+  .twkx-x:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:1px}
 
-  // (Filter effects live above the early-return so the hook count is
-  // stable across open/closed renders — see comment above.)
+  .twkx-shell{display:grid;grid-template-columns:172px 1fr;flex:1;min-height:0}
+  /* ── nav rail (desktop) ─────────────────────────────────────────────── */
+  .twkx-nav{display:flex;flex-direction:column;gap:2px;padding:14px 8px;
+    border-right:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 18%, transparent);
+    background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 4%, transparent);
+    overflow-y:auto;min-height:0}
+  .twkx-nav button{appearance:none;border:0;background:transparent;color:var(--cx-fg-dim,#8295ae);
+    font:inherit;font-size:10px;font-weight:600;letter-spacing:.16em;text-align:left;
+    min-height:44px;padding:0 12px;border-radius:6px;cursor:pointer;white-space:nowrap}
+  .twkx-nav button:hover{background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 10%, transparent);color:var(--cx-fg,#c9d6e6)}
+  .twkx-nav button.is-on{color:var(--cx-accent,#7ee0ff);
+    background:color-mix(in oklab, var(--cx-accent,#7ee0ff) 10%, transparent)}
+  .twkx-nav button.is-empty{display:none}
+  .twkx-nav button:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:1px}
+  .twkx-nav button.is-danger{color:color-mix(in oklab, #ff8291 80%, var(--cx-fg-dim,#8295ae))}
 
-  return (
-    <>
-      <style>{__TWEAKS_STYLE}</style>
-      <div className="twk-scrim" data-noncommentable="" onMouseDown={dismiss} />
-      <div ref={dragRef} className="twk-panel twk-fullscreen" data-noncommentable=""
-           role="dialog" aria-modal="true" aria-label={title}>
-        <div className="twk-hd">
-          <b>{title}</b>
-          <button className="twk-x" aria-label="Close tweaks" onClick={dismiss}>✕</button>
-        </div>
-        <div className="twk-shell">
-          <nav className="twk-tabs" role="tablist" aria-label="Settings sections">
-            {TABS.map(t => {
-              const count = buckets[t.id].filter(n => n && n.type !== TweakSection).length;
-              if (!buckets[t.id].length) return null;
-              const isActive = effectiveTab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  className={`twk-tab ${isActive ? "is-active" : ""}`}
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveTab(t.id)}
-                >
-                  <span className="twk-tab-icon" aria-hidden="true">{t.icon}</span>
-                  <span className="twk-tab-label">{t.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-          <div className="twk-body" role="tabpanel" aria-label={effectiveTab} ref={twkBodyRef}>
-            <div className="twk-filter">
-              <input
-                type="text"
-                value={twkQuery}
-                onChange={e => setTwkQuery(e.target.value)}
-                placeholder="search settings…"
-                aria-label="Search settings"
-                spellCheck={false}
-              />
-              {twkQuery ? <button className="twk-x" style={{position:"static",fontSize:14}} onClick={() => setTwkQuery("")} aria-label="Clear">×</button> : null}
-            </div>
-            {buckets[effectiveTab]}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
+  /* ── body ───────────────────────────────────────────────────────────── */
+  .twkx-main{display:flex;flex-direction:column;min-height:0;min-width:0}
+  .twkx-search{flex:0 0 auto;display:flex;align-items:center;gap:8px;
+    padding:12px 18px 10px;
+    border-bottom:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 14%, transparent)}
+  .twkx-search input{flex:1;min-width:0;height:36px;padding:0 12px;
+    border-radius:7px;font:inherit;font-size:12px;letter-spacing:.04em;outline:none;
+    color:var(--cx-fg,#c9d6e6);
+    background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 7%, transparent);
+    border:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 26%, transparent)}
+  .twkx-search input:focus{border-color:var(--cx-accent,#7ee0ff);
+    box-shadow:0 0 0 1px color-mix(in oklab, var(--cx-accent,#7ee0ff) 30%, transparent)}
+  .twkx-search input::placeholder{color:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 80%, transparent)}
+  .twkx-count{flex:0 0 auto;font-size:10px;color:var(--cx-fg-dim,#8295ae);letter-spacing:.08em;
+    min-width:70px;text-align:right}
+  .twkx-body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
+    padding:6px 18px 26px;scroll-behavior:smooth;
+    scrollbar-width:thin;scrollbar-color:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 30%, transparent) transparent}
+  .twkx-body::-webkit-scrollbar{width:8px}
+  .twkx-body::-webkit-scrollbar-thumb{background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 25%, transparent);border-radius:4px}
+  .twkx-help-body{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:14px 18px}
+  .twkx-help-body .cx-help{height:100%}
 
-// ── Layout helpers ──────────────────────────────────────────────────────────
+  .twkx-group{padding:18px 0 4px}
+  .twkx-group[data-hidden="1"]{display:none}
+  .twkx-group-h{font-size:10px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;
+    color:var(--cx-accent,#7ee0ff);padding:0 0 4px;
+    border-bottom:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 20%, transparent);
+    margin-bottom:10px}
+  .twkx-group[data-group="DANGER"] .twkx-group-h{color:#ff8291;border-bottom-color:color-mix(in oklab, #ff8291 35%, transparent)}
+  .twkx-group[data-group="DANGER"]{margin-top:18px;padding-top:14px}
 
+  .twkx-item{padding:5px 0}
+  .twkx-item.twkx-hide{display:none}
+  .twkx-sub{font-size:9.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--cx-fg-dim,#8295ae);padding:12px 0 4px;opacity:.85}
+  .twkx-sub.twkx-hide{display:none}
+  .twkx-hint{font-size:10.5px;color:var(--cx-fg-dim,#8295ae);line-height:1.5;margin:2px 0 0}
+  .twkx-note{font-size:10.5px;color:var(--cx-fg-dim,#8295ae);line-height:1.5}
+  .twkx-empty{padding:40px 12px;text-align:center;color:var(--cx-fg-dim,#8295ae);
+    font-size:11px;letter-spacing:.08em}
+
+  /* ── controls (kept structurally compatible with the app's children) ── */
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px;
+    min-height:44px;cursor:pointer}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+    color:var(--cx-fg,#c9d6e6);font-size:11px;letter-spacing:.05em}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:var(--cx-fg-dim,#8295ae);font-variant-numeric:tabular-nums}
+  .twk-sect{font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--cx-fg-dim,#8295ae);padding:10px 0 0}
+
+  .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:32px;padding:0 10px;
+    border:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 26%, transparent);
+    border-radius:6px;font:inherit;font-size:11px;outline:none;
+    background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 7%, transparent);
+    color:var(--cx-fg,#c9d6e6)}
+  .twk-field:focus{border-color:var(--cx-accent,#7ee0ff)}
+  select.twk-field{padding-right:24px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%238295ae' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:14px 0;
+    border-radius:999px;background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 25%, transparent);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:26px;height:26px;border-radius:50%;background:var(--cx-accent,#7ee0ff);
+    border:2px solid var(--cx-bg,#06080e);box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:pointer}
+  .twk-slider::-moz-range-thumb{width:24px;height:24px;border-radius:50%;
+    background:var(--cx-accent,#7ee0ff);border:2px solid var(--cx-bg,#06080e);cursor:pointer}
+  .twk-slider:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:4px}
+
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:6px;
+    background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 9%, transparent);
+    border:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 18%, transparent);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:4px;
+    background:var(--cx-accent,#7ee0ff);
+    transition:left .14s cubic-bezier(.3,.7,.4,1),width .14s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:var(--cx-fg-dim,#8295ae);font:inherit;font-size:10.5px;font-weight:600;
+    letter-spacing:.08em;min-height:38px;border-radius:4px;cursor:pointer;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+  .twk-seg button[aria-checked="true"]{color:var(--cx-bg,#06080e);font-weight:700}
+  .twk-seg button:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:1px}
+
+  .twk-toggle{position:relative;flex:0 0 auto;width:42px;height:24px;border:0;border-radius:999px;
+    background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 30%, transparent);
+    transition:background .14s ease;cursor:pointer;padding:0;box-sizing:border-box}
+  .twk-toggle[data-on="1"]{background:var(--cx-accent,#7ee0ff)}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+    background:var(--cx-bg,#06080e);box-shadow:0 1px 2px rgba(0,0,0,.4);
+    transition:transform .16s cubic-bezier(.3,.7,.4,1)}
+  .twk-toggle[data-on="1"] i{transform:translateX(18px)}
+  .twk-toggle:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:2px}
+
+  .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:32px;padding:0 0 0 10px;
+    border:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 26%, transparent);border-radius:6px;
+    background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 7%, transparent)}
+  .twk-num-lbl{font-weight:500;color:var(--cx-fg-dim,#8295ae);cursor:ew-resize;user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:var(--cx-fg-dim,#8295ae)}
+
+  .twk-btn{appearance:none;min-height:44px;padding:0 14px;border:1px solid color-mix(in oklab, var(--cx-accent,#7ee0ff) 40%, transparent);
+    border-radius:6px;background:color-mix(in oklab, var(--cx-accent,#7ee0ff) 12%, transparent);
+    color:var(--cx-fg,#c9d6e6);font:inherit;font-size:11px;font-weight:600;letter-spacing:.08em;cursor:pointer}
+  .twk-btn:hover{background:color-mix(in oklab, var(--cx-accent,#7ee0ff) 22%, transparent)}
+  .twk-btn.secondary{background:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 8%, transparent);
+    border-color:color-mix(in oklab, var(--cx-fg-dim,#8295ae) 26%, transparent)}
+  .twk-btn:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:1px}
+  .cx-mini-btn{min-height:44px}
+
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:24px;
+    border:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 26%, transparent);border-radius:6px;padding:0;cursor:pointer;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5px}
+
+  .twk-chips{display:flex;gap:6px}
+  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:44px;
+    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:pointer;
+    box-shadow:0 0 0 1px color-mix(in oklab, var(--cx-fg-dim,#8295ae) 28%, transparent);
+    transition:transform .12s,box-shadow .12s}
+  .twk-chip:hover{transform:translateY(-1px)}
+  .twk-chip[data-on="1"]{box-shadow:0 0 0 2px var(--cx-accent,#7ee0ff)}
+  .twk-chip:focus-visible{outline:2px solid var(--cx-accent,#7ee0ff);outline-offset:2px}
+  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;display:flex;flex-direction:column}
+  .twk-chip>span>i{flex:1}
+  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+
+  /* key field with reveal-eye + test (AIModelSection) */
+  .twkx-keyrow{display:flex;gap:6px;align-items:stretch}
+  .twkx-keyrow input{flex:1;min-width:0}
+  .twkx-eye{appearance:none;border:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 26%, transparent);
+    border-radius:6px;background:transparent;color:var(--cx-fg-dim,#8295ae);min-width:44px;min-height:32px;
+    cursor:pointer;font-size:13px}
+  .twkx-eye:hover{color:var(--cx-fg,#c9d6e6)}
+
+  /* ── mobile sheet (≤700px) ──────────────────────────────────────────── */
+  @media (max-width: 700px){
+    .twkx-panel{top:0;left:0;transform:none;width:100vw;height:100dvh;max-width:100vw;max-height:100dvh;
+      border-radius:0;border:0;
+      padding-bottom:env(safe-area-inset-bottom,0)}
+    @keyframes twkx-pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .twkx-shell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    .twkx-nav{flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:6px 8px;gap:4px;
+      border-right:0;border-bottom:1px solid color-mix(in oklab, var(--cx-fg-dim,#8295ae) 18%, transparent);
+      scrollbar-width:none}
+    .twkx-nav::-webkit-scrollbar{display:none}
+    .twkx-nav button{flex:0 0 auto;font-size:9.5px;padding:0 10px}
+    .twkx-head{padding:8px 6px 8px 14px}
+    .twkx-title{letter-spacing:.16em}
+    .twkx-body{padding:4px 14px calc(env(safe-area-inset-bottom,16px) + 20px)}
+    .twkx-search{padding:10px 14px 8px}
+    .twkx-count{display:none}
+  }
+`;
+
+// ── Layout helpers (exported names kept) ────────────────────────────────────
 function TweakSection({ label, children }) {
   return (
     <>
@@ -703,13 +541,13 @@ function TweakRow({ label, value, children, inline = false }) {
   );
 }
 
-// ── Controls ────────────────────────────────────────────────────────────────
-
+// ── Controls (exported names kept; markup compatible with app children) ─────
 function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
   return (
     <TweakRow label={label} value={`${value}${unit}`}>
       <input type="range" className="twk-slider" min={min} max={max} step={step}
-             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+             value={value} aria-label={label}
+             onChange={(e) => onChange(Number(e.target.value))} />
     </TweakRow>
   );
 }
@@ -728,22 +566,13 @@ function TweakToggle({ label, value, onChange }) {
 function TweakRadio({ label, value, options, onChange }) {
   const trackRef = React.useRef(null);
   const [dragging, setDragging] = React.useState(false);
-  // The active value is read by pointer-move handlers attached for the lifetime
-  // of a drag — ref it so a stale closure doesn't fire onChange for every move.
   const valueRef = React.useRef(value);
   valueRef.current = value;
 
-  // Segments wrap mid-word once per-segment width runs out. The track is
-  // ~248px (280 panel − 28 body pad − 4 seg pad), each button loses 12px
-  // to its own padding, and 11.5px system-ui averages ~6.3px/char — so 2
-  // options fit ~16 chars each, 3 fit ~10. Past that (or >3 options), fall
-  // back to a dropdown rather than wrap.
   const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
   const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
-  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 11, 4: 8 }[options.length] ?? 0);
   if (!fitsAsSegments) {
-    // <select> emits strings — map back to the original option value so the
-    // fallback stays type-preserving (numbers, booleans) like the segment path.
     const resolve = (s) => {
       const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === s);
       return m === undefined ? s : typeof m === 'object' ? m.value : m;
@@ -782,13 +611,14 @@ function TweakRadio({ label, value, options, onChange }) {
 
   return (
     <TweakRow label={label}>
-      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+      <div ref={trackRef} role="radiogroup" aria-label={label} onPointerDown={onPointerDown}
            className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
         <div className="twk-seg-thumb"
              style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
                       width: `calc((100% - 4px) / ${n})` }} />
         {opts.map((o) => (
-          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}
+                  onClick={() => onChange(o.value)}>
             {o.label}
           </button>
         ))}
@@ -800,7 +630,8 @@ function TweakRadio({ label, value, options, onChange }) {
 function TweakSelect({ label, value, options, onChange }) {
   return (
     <TweakRow label={label}>
-      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select className="twk-field" value={value} aria-label={label}
+              onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => {
           const v = typeof o === 'object' ? o.value : o;
           const l = typeof o === 'object' ? o.label : o;
@@ -815,7 +646,7 @@ function TweakText({ label, value, placeholder, onChange }) {
   return (
     <TweakRow label={label}>
       <input className="twk-field" type="text" value={value} placeholder={placeholder}
-             onChange={(e) => onChange(e.target.value)} />
+             aria-label={label} onChange={(e) => onChange(e.target.value)} />
     </TweakRow>
   );
 }
@@ -847,16 +678,13 @@ function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) 
   return (
     <div className="twk-num">
       <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
-      <input type="number" value={value} min={min} max={max} step={step}
+      <input type="number" value={value} min={min} max={max} step={step} aria-label={label}
              onChange={(e) => onChange(clamp(Number(e.target.value)))} />
       {unit && <span className="twk-num-unit">{unit}</span>}
     </div>
   );
 }
 
-// Relative-luminance contrast pick — checkmarks drawn over a swatch need to
-// read on both #111 and #fafafa without per-option configuration. Hex input
-// only (#rgb / #rrggbb); named or rgb()/hsl() colors fall through to "light".
 function __twkIsLight(hex) {
   const h = String(hex).replace('#', '');
   const x = h.length === 3 ? h.replace(/./g, (c) => c + c) : h.padEnd(6, '0');
@@ -874,30 +702,21 @@ const __TwkCheck = ({ light }) => (
   </svg>
 );
 
-// TweakColor — curated color/palette picker. Each option is either a single
-// hex string or an array of 1-5 hex strings; the card adapts — a lone color
-// renders solid, a palette renders colors[0] as the hero (left ~2/3) with the
-// rest stacked in a sharp column on the right. onChange emits the
-// option in the shape it was passed (string stays string, array stays array).
-// Without options it falls back to the native color input for back-compat.
 function TweakColor({ label, value, options, onChange }) {
   if (!options || !options.length) {
     return (
       <div className="twk-row twk-row-h">
         <div className="twk-lbl"><span>{label}</span></div>
-        <input type="color" className="twk-swatch" value={value}
+        <input type="color" className="twk-swatch" value={value} aria-label={label}
                onChange={(e) => onChange(e.target.value)} />
       </div>
     );
   }
-  // Native <input type=color> emits lowercase hex per the HTML spec, so
-  // compare case-insensitively. String() guards JSON.stringify(undefined),
-  // which returns the primitive undefined (no .toLowerCase).
   const key = (o) => String(JSON.stringify(o)).toLowerCase();
   const cur = key(value);
   return (
     <TweakRow label={label}>
-      <div className="twk-chips" role="radiogroup">
+      <div className="twk-chips" role="radiogroup" aria-label={label}>
         {options.map((o, i) => {
           const colors = Array.isArray(o) ? o : [o];
           const [hero, ...rest] = colors;
@@ -930,112 +749,88 @@ function TweakButton({ label, onClick, secondary = false }) {
   );
 }
 
-// TweakPersonalization — clears the CODEX taste profile (likes + Oracle topics
-// learned for Reels tailoring) and resets the Oracle conversation context.
-// Everything is wrapped in try/catch so a missing engine never throws and
-// breaks the settings panel render.
+// ── TweakPersonalization — clears the learned taste profile + Oracle context.
 function TweakPersonalization() {
   const [done, setDone] = React.useState(false);
   const onClear = () => {
+    if (!window.confirm('Clear the learned taste profile and the Oracle conversation context?\n\nMarks, notes, and cached scripture are untouched.')) return;
+    try { window.CODEX_ENGAGE && window.CODEX_ENGAGE.clearProfile && window.CODEX_ENGAGE.clearProfile(); } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('codex:oracle-reset')); } catch (e) {}
     try {
-      if (window.CODEX_ENGAGE && window.CODEX_ENGAGE.clearProfile) {
-        window.CODEX_ENGAGE.clearProfile();
-      }
-    } catch (e) { /* never throw from settings */ }
-    try {
-      window.dispatchEvent(new CustomEvent("codex:oracle-reset"));
-    } catch (e) { /* ignore */ }
-    try {
-      window.dispatchEvent(new CustomEvent("codex:toast",
-        { detail: { msg: "Personalization cleared", kind: "ok" } }));
-    } catch (e) { /* ignore */ }
-    try { setDone(true); } catch (e) { /* ignore */ }
+      window.dispatchEvent(new CustomEvent('codex:toast',
+        { detail: { msg: 'Personalization cleared', kind: 'ok' } }));
+    } catch (e) {}
+    setDone(true);
   };
   return (
     <div className="twk-row">
-      <div className="twk-lbl" style={{ display: 'block' }}>
-        <span style={{ display: 'block', fontWeight: 400, color: 'rgba(41,38,27,.6)', lineHeight: 1.4 }}>
-          CODEX learns from your likes, Oracle questions, and highlights to tailor Reels.
-        </span>
-      </div>
+      <p className="twkx-hint">
+        CODEX learns from your likes, Oracle questions, and highlights to tailor Reels.
+      </p>
       <TweakButton label="Clear profile & Oracle context" secondary onClick={onClear} />
-      {done && (
-        <span className="twk-val" style={{ marginTop: 2 }}>Personalization cleared</span>
-      )}
+      {done && <span className="twk-val">Personalization cleared</span>}
     </div>
   );
 }
 
-// ── AIModelSection ─────────────────────────────────────────────────────────
-// Provider + model selector used in the CODEX Settings panel. Reads the live
-// /providers map (passed in from /api/health) so the segmented control can
-// grey out engines we can't reach (no key for anthropic/xai, no daemon for
-// ollama). Persists the user's pick via the parent's setTweak("provider"/
-// "model") so it lives in codex.tweaks.v1.
+// ── AIModelSection — provider + model + key + honest TEST. ──────────────────
 function AIModelSection({ provider, model, availableProviders, onChange }) {
-  const [keyInput, setKeyInput] = React.useState("");
+  const [keyInput, setKeyInput] = React.useState('');
+  const [showKey, setShowKey]   = React.useState(false);
   const [keyBusy, setKeyBusy]   = React.useState(false);
-  const [keyMsg, setKeyMsg]     = React.useState("");
-  const [testMsg, setTestMsg]   = React.useState("");
+  const [keyMsg, setKeyMsg]     = React.useState('');
+  const [testMsg, setTestMsg]   = React.useState('');
   const [testBusy, setTestBusy] = React.useState(false);
 
   const PROVIDERS = [
-    { id: "anthropic", label: "Anthropic", sub: "Claude" },
-    { id: "xai",       label: "xAI",       sub: "Grok"   },
-    { id: "groq",      label: "Groq",      sub: "free"   },
-    { id: "gemini",    label: "Gemini",    sub: "Google" },
-    { id: "ollama",    label: "Local",     sub: "Ollama" },
+    { id: 'anthropic', label: 'Anthropic', sub: 'Claude' },
+    { id: 'xai',       label: 'xAI',       sub: 'Grok'   },
+    { id: 'groq',      label: 'Groq',      sub: 'free'   },
+    { id: 'gemini',    label: 'Gemini',    sub: 'Google' },
+    { id: 'ollama',    label: 'Local',     sub: 'Ollama' },
   ];
 
   const reg = availableProviders || {};
   const curReg = reg[provider] || { available: false, models: [] };
-  // Model list: prefer the live /api/health list (Node mode, includes Ollama's
-  // runtime models); fall back to the client-side catalog (window.CODEX_MODELS)
-  // so the picker works on GitHub Pages where there is no server. The catalog
-  // is keyed by the internal routing id ("grok", not "xai").
-  const catalogKey = provider === "xai" ? "grok" : provider;
-  const catalog = (typeof window !== "undefined" && window.CODEX_MODELS && window.CODEX_MODELS[catalogKey]) || [];
+  const catalogKey = provider === 'xai' ? 'grok' : provider;
+  const catalog = (typeof window !== 'undefined' && window.CODEX_MODELS && window.CODEX_MODELS[catalogKey]) || [];
   const models = (curReg.models && curReg.models.length) ? curReg.models : catalog;
-  const needsKey = (provider === "anthropic" || provider === "xai" || provider === "groq" || provider === "gemini") && !curReg.available;
+  const needsKey = (provider === 'anthropic' || provider === 'xai' || provider === 'groq' || provider === 'gemini') && !curReg.available;
 
-  // When the user flips provider, snap model to the first available one so
-  // we never POST a stale model id from a different provider.
   const pickProvider = (p) => {
     const r = reg[p];
-    const ck = p === "xai" ? "grok" : p;
-    const cat = (typeof window !== "undefined" && window.CODEX_MODELS && window.CODEX_MODELS[ck]) || [];
-    // First model from /api/health if present, else from the client catalog.
-    const first = (r && r.models && r.models[0] && r.models[0].id) || (cat[0] && cat[0].id) || "";
+    const ck = p === 'xai' ? 'grok' : p;
+    const cat = (typeof window !== 'undefined' && window.CODEX_MODELS && window.CODEX_MODELS[ck]) || [];
+    const first = (r && r.models && r.models[0] && r.models[0].id) || (cat[0] && cat[0].id) || '';
     onChange({ provider: p, model: first });
   };
 
   const tooltipFor = (p) => {
     const r = reg[p];
     if (r && r.available) return `Use ${p}`;
-    if (p === "ollama")   return "Local: no Ollama detected (start the daemon)";
-    if (p === "xai")      return "xAI: no key configured";
-    if (p === "groq")     return "Groq: no key configured — get a free key at console.groq.com";
-    if (p === "gemini")   return "Gemini: no key configured — get a free key at aistudio.google.com/apikey";
-    if (p === "anthropic") return "Anthropic: no key configured";
-    return "";
+    if (p === 'ollama')   return 'Local: no Ollama detected (start the daemon)';
+    if (p === 'xai')      return 'xAI: no key configured';
+    if (p === 'groq')     return 'Groq: no key configured — get a free key at console.groq.com';
+    if (p === 'gemini')   return 'Gemini: no key configured — get a free key at aistudio.google.com/apikey';
+    if (p === 'anthropic') return 'Anthropic: no key configured';
+    return '';
   };
 
   const submitKey = async () => {
     const key = keyInput.trim();
     if (!key) return;
-    setKeyBusy(true); setKeyMsg("");
+    setKeyBusy(true); setKeyMsg('');
     try {
-      const r = await fetch("/api/key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const r = await fetch('/api/key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, provider }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-      setKeyMsg("✓ saved");
-      setKeyInput("");
-      // Tell the rest of the app to re-probe /api/health.
-      try { window.dispatchEvent(new CustomEvent("codex:engine-change")); } catch {}
+      setKeyMsg('✓ saved');
+      setKeyInput('');
+      try { window.dispatchEvent(new CustomEvent('codex:engine-change')); } catch (e) {}
     } catch (e) {
       setKeyMsg(String(e.message || e));
     } finally {
@@ -1043,16 +838,19 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
     }
   };
 
+  // Honest ping: round-trip time + token count on success, the real error
+  // (truncated) on failure. Works through /api/chat in server mode and the
+  // direct-api fetch shim on static hosting.
   const runTest = async () => {
-    setTestBusy(true); setTestMsg("");
+    setTestBusy(true); setTestMsg('');
     const t0 = performance.now();
     try {
-      const r = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const r = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider, model,
-          messages: [{ role: "user", content: "ping" }],
+          messages: [{ role: 'user', content: 'ping' }],
           max_tokens: 5,
         }),
       });
@@ -1061,9 +859,9 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
       const ms = Math.round(performance.now() - t0);
       const u  = d.usage || {};
       const toks = (u.input_tokens || 0) + (u.output_tokens || 0);
-      setTestMsg(`✓ ${ms}ms · ${toks} tok`);
+      setTestMsg(`✓ ${ms}ms${toks ? ` · ${toks} tok` : ''}`);
     } catch (e) {
-      setTestMsg("✗ " + String(e.message || e).slice(0, 60));
+      setTestMsg('✗ ' + String(e.message || e).slice(0, 80));
     } finally {
       setTestBusy(false);
     }
@@ -1082,12 +880,12 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
               type="button"
               role="radio"
               aria-checked={on}
-              className={`cx-tp-provider-btn ${on ? "is-on" : ""} ${off ? "is-off" : ""}`}
+              className={`cx-tp-provider-btn ${on ? 'is-on' : ''} ${off ? 'is-off' : ''}`}
               title={tooltipFor(p.id)}
               onClick={() => pickProvider(p.id)}
             >
               <b>{p.label}</b>
-              <i>{p.sub}{off ? " · off" : ""}</i>
+              <i>{p.sub}{off ? ' · off' : ''}</i>
             </button>
           );
         })}
@@ -1097,14 +895,14 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
         <label className="cx-tp-model-lbl">Model</label>
         <select
           className="cx-tp-model-sel"
-          value={model || ""}
+          value={model || ''}
           onChange={(e) => onChange({ provider, model: e.target.value })}
           disabled={!models.length}
         >
           {!models.length && <option value="">— none available —</option>}
           {models.map(m => (
             <option key={m.id} value={m.id}>
-              {m.label}{m.tier ? `  · ${m.tier}` : ""}
+              {m.label}{m.tier ? `  · ${m.tier}` : ''}
             </option>
           ))}
         </select>
@@ -1113,27 +911,30 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
       {needsKey && (
         <div className="cx-tp-key">
           <label className="cx-tp-key-lbl">
-            {provider === "xai"  ? "xAI API key (xai-…)"
-             : provider === "groq" ? "Groq API key (gsk_…)"
-             : provider === "gemini" ? "Gemini API key (AIza… / aistudio.google.com)"
-             : "Anthropic API key (sk-ant-…)"}
-            {keyMsg ? <em className={`cx-tp-key-msg ${keyMsg.startsWith("✓") ? "is-ok" : "is-err"}`}>{keyMsg}</em> : null}
+            {provider === 'xai'  ? 'xAI API key (xai-…)'
+             : provider === 'groq' ? 'Groq API key (gsk_…)'
+             : provider === 'gemini' ? 'Gemini API key (AIza… / aistudio.google.com)'
+             : 'Anthropic API key (sk-ant-…)'}
+            {keyMsg ? <em className={`cx-tp-key-msg ${keyMsg.startsWith('✓') ? 'is-ok' : 'is-err'}`}>{keyMsg}</em> : null}
           </label>
-          <div className="cx-tp-key-row">
+          <div className="cx-tp-key-row twkx-keyrow">
             <input
               className="cx-tp-key-input"
-              type="password"
+              type={showKey ? 'text' : 'password'}
               value={keyInput}
-              placeholder={provider === "xai" ? "xai-…" : provider === "groq" ? "gsk_…" : provider === "gemini" ? "AIza…" : "sk-ant-…"}
+              placeholder={provider === 'xai' ? 'xai-…' : provider === 'groq' ? 'gsk_…' : provider === 'gemini' ? 'AIza…' : 'sk-ant-…'}
               onChange={(e) => setKeyInput(e.target.value)}
               autoComplete="off"
               spellCheck={false}
             />
+            <button type="button" className="twkx-eye" onClick={() => setShowKey(s => !s)}
+                    aria-label={showKey ? 'Hide key' : 'Reveal key'}
+                    title={showKey ? 'Hide key' : 'Reveal key'}>{showKey ? '◐' : '◌'}</button>
             <button
               className="cx-tp-key-btn"
               onClick={submitKey}
               disabled={keyBusy || !keyInput.trim()}
-            >{keyBusy ? "…" : "Save"}</button>
+            >{keyBusy ? '…' : 'Save'}</button>
           </div>
         </div>
       )}
@@ -1142,30 +943,26 @@ function AIModelSection({ provider, model, availableProviders, onChange }) {
         <button
           className="cx-tp-test-btn"
           onClick={runTest}
-          disabled={testBusy || !model || (needsKey)}
-          title="Send a 1-token ping to verify connectivity"
-        >{testBusy ? "Testing…" : "Test"}</button>
+          disabled={testBusy || !model || needsKey}
+          title="Send a tiny ping to verify connectivity — reports real latency or the real error"
+        >{testBusy ? 'Testing…' : 'Test'}</button>
         {testMsg ? (
-          <span className={`cx-tp-test-msg ${testMsg.startsWith("✓") ? "is-ok" : "is-err"}`}>{testMsg}</span>
+          <span className={`cx-tp-test-msg ${testMsg.startsWith('✓') ? 'is-ok' : 'is-err'}`}>{testMsg}</span>
         ) : null}
       </div>
     </div>
   );
 }
 
-// Day-mode theme picker — 9 light palettes selectable as swatches.
-// Reads/writes via the window.CODEX_LIGHT_THEMES global from light-themes.js.
-// Renders as a grid of mini swatches inside the Theme section of the tweaks
-// panel. Visible regardless of dark/light state so user can preview, but the
-// chosen variant only visibly applies when the app is in light mode.
+// ── LightThemePicker — 9 day-mode palettes as swatches. ─────────────────────
 function LightThemePicker() {
   const [current, setCurrent] = React.useState(
-    (window.CODEX_LIGHT_THEMES && window.CODEX_LIGHT_THEMES.get()) || "parchment"
+    (window.CODEX_LIGHT_THEMES && window.CODEX_LIGHT_THEMES.get()) || 'parchment'
   );
   React.useEffect(() => {
     const onChange = (e) => setCurrent(e.detail?.theme || current);
-    window.addEventListener("codex:light-theme-change", onChange);
-    return () => window.removeEventListener("codex:light-theme-change", onChange);
+    window.addEventListener('codex:light-theme-change', onChange);
+    return () => window.removeEventListener('codex:light-theme-change', onChange);
   }, [current]);
   if (!window.CODEX_LIGHT_THEMES) return null;
   const themes = window.CODEX_LIGHT_THEMES.list();
@@ -1177,10 +974,10 @@ function LightThemePicker() {
           <button
             key={t.id}
             type="button"
-            className={`cx-tp-theme-swatch ${isActive ? "is-active" : ""}`}
+            className={`cx-tp-theme-swatch ${isActive ? 'is-active' : ''}`}
             onClick={() => window.CODEX_LIGHT_THEMES.set(t.id)}
             title={`Day mode: ${t.label}`}
-            aria-label={`Day mode theme: ${t.label}${isActive ? " (active)" : ""}`}
+            aria-label={`Day mode theme: ${t.label}${isActive ? ' (active)' : ''}`}
             aria-pressed={isActive}
           >
             <div
@@ -1200,52 +997,12 @@ function LightThemePicker() {
   );
 }
 
-// ── TweakOS7 (OS·7 "Nocturne" shell toggle) ─────────────────────────────────
-// One settings row controlling the OS·7 desktop surface (body.cx-os7,
-// persisted under localStorage "codex.os7", default ON). Mirrors the
-// TweakToggle row markup exactly, plus a dim sub-line describing the shell.
-// Defensive: renders nothing when window.codexOS7 isn't installed, and reads
-// truth from the live <body> class (falling back to the storage key) so the
-// switch never drifts from what's actually on screen.
-function TweakOS7() {
-  const read = () => {
-    try {
-      if (document.body) return document.body.classList.contains('cx-os7');
-    } catch (e) { /* fall through */ }
-    try { return localStorage.getItem('codex.os7') !== '0'; } catch (e) { return true; }
-  };
-  const [on, setOn] = React.useState(read);
-  if (typeof window.codexOS7 !== 'function') return null;
-  const flip = (next) => {
-    try { window.codexOS7(next); } catch (e) { /* never throw from settings */ }
-    setOn(read());
-  };
-  const lbl = 'OS·7 Nocturne shell';
-  return (
-    <div className="twk-row twk-row-h" onClick={() => flip(!on)}>
-      <div className="twk-lbl">
-        <span>
-          {lbl}
-          <span style={{ display: 'block', fontWeight: 400, fontSize: 11,
-                         color: 'var(--cx-fg-dim, rgba(41,38,27,.6))', lineHeight: 1.4 }}>
-            desktop, glass windows, starfield — turn off for the classic layout
-          </span>
-        </span>
-      </div>
-      <button type="button" className="twk-toggle" data-on={on ? '1' : '0'}
-              role="switch" aria-checked={!!on} aria-label={lbl}
-              onClick={(e) => { e.stopPropagation(); flip(!on); }}><i /></button>
-    </div>
-  );
-}
+// ── TweakOS7 — RETIRED. The OS·7 desk stopped being optional in v9.2; the
+// codex.os7 flag and window.codexOS7() are gone. Kept as an inert export so
+// any straggling composition renders nothing instead of crashing.
+function TweakOS7() { return null; }
 
-// ── Schizo Mode toggle (easter egg) ────────────────────────────────────
-// Renders nothing unless `eligible` is true — eligibility is set by App
-// once the user has actually landed on Acts 16:26 (the prison earthquake —
-// "every one's bands were loosed"). The label inherits
-// a faint glitch animation from .cx-schizo-toggle in styles.css so it's
-// easy to miss unless you're looking. Kept here so the gating logic
-// lives next to the other Tweak primitives.
+// ── TweakSchizoToggle — easter egg, gated by eligibility upstream. ──────────
 function TweakSchizoToggle({ eligible, value, onChange }) {
   if (!eligible) return null;
   return (
@@ -1255,73 +1012,29 @@ function TweakSchizoToggle({ eligible, value, onChange }) {
   );
 }
 
-// ── TweakContinuity (Phase 2.5 engagement layer) ───────────────────────────
-// Self-contained "Continuity" settings group for the engagement engine
-// (window.CODEX_ENGAGEMENT). Injected by TweaksPanel into the System tab the
-// same way TweakPersonalization is, so it is present regardless of how the
-// host composes the panel and never requires touching app.jsx.
-//
-// Controls (grace-shaped, conservative defaults):
-//   · engageEnabled        — turn the layer on/off (default ON)
-//   · engageDailyThreshold — qualifying depth actions to count a day; ALSO
-//                            pushed to the engine via setConfig({dailyThreshold})
-//   · engageNotifyCadence  — announcement cadence: off | milestones | all
-//                            (conservative default: "milestones")
-//   · engageReduceMotion   — static form for every engagement "celebration"
-//
-// Reads/writes the same persisted blob (codex.tweaks.v1) the rest of the app
-// uses, merge-preserving so it never clobbers other keys, and listens for
-// 'tweakchange' so it stays in sync if the host edits the same keys. Every
-// engine call is wrapped in try/catch — settings must never throw.
-const __CX_ENGAGE_DEFAULTS = {
-  engageEnabled: true,
-  engageDailyThreshold: 1,
-  engageNotifyCadence: 'milestones',
-  engageReduceMotion: false,
-};
-
-function __cxReadEngageTweaks() {
-  let stored = {};
-  try {
-    const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
-    if (raw) stored = JSON.parse(raw) || {};
-  } catch (e) { /* fall through to defaults */ }
-  return { ...__CX_ENGAGE_DEFAULTS, ...stored };
-}
-
-function __cxWriteEngageTweak(key, value) {
-  let stored = {};
-  try {
-    const raw = localStorage.getItem(CODEX_TWEAKS_KEY);
-    if (raw) stored = JSON.parse(raw) || {};
-  } catch (e) { /* start fresh */ }
-  const next = { ...stored, [key]: value };
-  try { localStorage.setItem(CODEX_TWEAKS_KEY, JSON.stringify(next)); } catch (e) { /* quota */ }
-  // Keep author-time editing + the rest of the app in sync (same channel
-  // useTweaks/setTweak use), so the host's tweak state mirrors ours.
-  try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: value } }, '*'); } catch (e) {}
-  try { window.dispatchEvent(new CustomEvent('tweakchange', { detail: { [key]: value } })); } catch (e) {}
-}
-
+// ── TweakContinuity — drives the CANONICAL continuity keys the app consumes
+// (continuityEnabled / continuityThreshold / notifyCadence). The old engage*
+// quartet is deprecated (migrated at module load). ──────────────────────────
 function TweakContinuity() {
   const tt = (k, fb) => { try { return (window.t && window.t(k)) || fb; } catch (e) { return fb; } };
-  const [v, setV] = React.useState(__cxReadEngageTweaks);
-
-  // Stay in sync if the host (or another surface) edits the same keys.
+  const read = () => ({
+    continuityEnabled: true, continuityThreshold: 1, notifyCadence: 'subtle',
+    ...((typeof window !== 'undefined' && window.CODEX_TWEAK_DEFAULTS) || {}),
+    ...__cxTweaksRead(),
+  });
+  const [v, setV] = React.useState(read);
   React.useEffect(() => {
     const onChange = (e) => {
       const d = (e && e.detail) || {};
-      if (Object.keys(d).some(k => k.startsWith('engage'))) setV(__cxReadEngageTweaks());
+      if ('continuityEnabled' in d || 'continuityThreshold' in d || 'notifyCadence' in d) setV(read());
     };
     window.addEventListener('tweakchange', onChange);
     return () => window.removeEventListener('tweakchange', onChange);
   }, []);
-
   const set = (key, value) => {
-    __cxWriteEngageTweak(key, value);
+    __cxTweaksWrite({ [key]: value });
     setV(prev => ({ ...prev, [key]: value }));
-    // engageDailyThreshold is the one tweak the engine itself consumes.
-    if (key === 'engageDailyThreshold') {
+    if (key === 'continuityThreshold') {
       try {
         if (window.CODEX_ENGAGEMENT && window.CODEX_ENGAGEMENT.setConfig) {
           window.CODEX_ENGAGEMENT.setConfig({ dailyThreshold: value });
@@ -1329,35 +1042,569 @@ function TweakContinuity() {
       } catch (e) { /* never throw from settings */ }
     }
   };
-
   return (
     <>
       <TweakToggle
-        label={tt('cx.tweak.enable', 'Engagement layer')}
-        value={!!v.engageEnabled}
-        onChange={(val) => set('engageEnabled', val)} />
-      {v.engageEnabled && (
+        label={tt('cx.tweak.enable', 'Continuity layer')}
+        value={v.continuityEnabled !== false}
+        onChange={(val) => set('continuityEnabled', val)} />
+      {v.continuityEnabled !== false && (
         <>
           <TweakSlider
             label={tt('cx.tweak.threshold', 'Depth actions per day')}
-            value={v.engageDailyThreshold}
+            value={Number(v.continuityThreshold) || 1}
             min={1} max={5} step={1}
-            onChange={(val) => set('engageDailyThreshold', val)} />
+            onChange={(val) => set('continuityThreshold', val)} />
           <TweakRadio
             label={tt('cx.tweak.cadence', 'Announcements')}
-            value={v.engageNotifyCadence}
+            value={v.notifyCadence || 'subtle'}
             options={[
-              { value: 'off',        label: tt('cx.tweak.cadence.off', 'Off') },
-              { value: 'milestones', label: tt('cx.tweak.cadence.milestones', 'Milestones') },
-              { value: 'all',        label: tt('cx.tweak.cadence.all', 'All') },
+              { value: 'off',    label: tt('cx.tweak.cadence.off', 'Off') },
+              { value: 'subtle', label: tt('cx.tweak.cadence.milestones', 'Subtle') },
+              { value: 'all',    label: tt('cx.tweak.cadence.all', 'All') },
             ]}
-            onChange={(val) => set('engageNotifyCadence', val)} />
-          <TweakToggle
-            label={tt('cx.tweak.motion', 'Reduce motion')}
-            value={!!v.engageReduceMotion}
-            onChange={(val) => set('engageReduceMotion', val)} />
+            onChange={(val) => set('notifyCadence', val)} />
         </>
       )}
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE PANEL — calm, searchable, grouped.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Section-label → group routing for host-provided children. Covers the
+// canonical English labels plus the i18n variants app.jsx may emit.
+function __cxGroupForSection(label) {
+  const FIXED = {
+    'AI Engines': 'AI & KEYS', 'AI Model': 'AI & KEYS', 'Advanced inference': 'AI & KEYS',
+    'Modules': 'INSTRUMENTS', 'Continuity': 'INSTRUMENTS',
+    'Danger zone': 'DANGER',
+    'First impression': 'SYSTEM', 'Keyboard': 'SYSTEM', 'Install': 'SYSTEM',
+    'Cross-device sync': 'SYSTEM', 'Shell': 'SYSTEM', 'Personalization': 'DANGER',
+    'Deck': 'SYSTEM',
+  };
+  if (FIXED[label] != null) return FIXED[label];
+  const lc = String(label || '').toLowerCase();
+  if (/look|apari|aparê|erschein|apparen|aspect|glamour|מראה|रूप/.test(lc)) return 'APPEARANCE';
+  if (/marks|marcas|marques|markier|notae/.test(lc)) return 'READING';
+  if (/reading|lectura|leitur|lectur|lesen/.test(lc)) return 'READING';
+  if (/ai|engine|drift|infer|motor/.test(lc)) return 'AI & KEYS';
+  if (/sync|sincron|cache|caché|offline|export|import|bibles|biblias|portab|dados|daten|données|data/.test(lc)) return 'SYSTEM';
+  if (/danger|peligro|gefahr|zone/.test(lc)) return 'DANGER';
+  if (/language|idioma|langue|sprache|install|instalar|installation|module|keyboard|teclado|tastatur|clavier/.test(lc)) return 'SYSTEM';
+  if (/continuity|continuidad|engage/.test(lc)) return 'INSTRUMENTS';
+  return 'SYSTEM';
+}
+
+// Search keywords injected per child section so plain words hit ('api key',
+// 'dark', 'font' …) even when the rendered text says something else.
+const __CX_SECTION_KW = {
+  'AI Engines': 'api key keys secret token anthropic claude grok xai groq gemini google ollama local engine active',
+  'AI Model': 'ai model provider engine anthropic claude grok groq gemini ollama test ping',
+  'Advanced inference': 'drift hermeneutic experimental easter',
+  'Look': 'appearance accent color scanlines palette day light dark theme',
+  'Marks': 'marks highlight color clear amber cyan violet green rose',
+  'Reading': 'reading caffeinate awake notes oracle font size bundle translations',
+  'Cross-device sync': 'sync cross device transfer qr',
+  'Install': 'install pwa offline app home screen',
+  'Cache': 'cache offline chapters panels clear storage',
+  'Offline · Bibles': 'offline bibles download bundle',
+  'Data · portable': 'export import backup restore json data portable',
+  'First impression': 'boot intro animation startup',
+  'Keyboard': 'keyboard shortcuts keys arrows',
+  'Danger zone': 'reset factory defaults wipe danger',
+  'Modules': 'modules marketplace plugins',
+  'Language': 'language english idioma langue sprache',
+};
+
+// Wrapper for every filterable row.
+function TwkItem({ kw, passive, children }) {
+  return (
+    <div className="twkx-item" data-kw={kw || ''} data-passive={passive ? '1' : '0'}>
+      {children}
+    </div>
+  );
+}
+
+// Generic control for tweak keys this panel has never heard of (registered
+// by other modules via useTweaks defaults, or already sitting in the store).
+function AutoTweakRow({ entry }) {
+  const [v, setV] = React.useState(() => {
+    const s = __cxTweaksRead();
+    if (entry.key in s) return s[entry.key];
+    const d = (window.CODEX_TWEAK_DEFAULTS || {});
+    return (entry.key in d) ? d[entry.key] : entry.value;
+  });
+  React.useEffect(() => {
+    const onChange = (e) => {
+      const d = (e && e.detail) || {};
+      if (entry.key in d) setV(d[entry.key]);
+    };
+    window.addEventListener('tweakchange', onChange);
+    return () => window.removeEventListener('tweakchange', onChange);
+  }, [entry.key]);
+  const write = (val) => { setV(val); __cxTweaksWrite({ [entry.key]: val }); };
+  if (typeof v === 'boolean') {
+    return <TweakToggle label={entry.label} value={v} onChange={write} />;
+  }
+  if (typeof v === 'number') {
+    return <TweakNumber label={entry.label} value={v} onChange={(n) => write(n)} />;
+  }
+  if (typeof v === 'string') {
+    return <TweakText label={entry.label} value={v} onChange={write} />;
+  }
+  return (
+    <TweakRow label={entry.label} value={String(v)}>
+      <p className="twkx-hint">registered tweak · no editor for this shape yet</p>
+    </TweakRow>
+  );
+}
+
+// ── The panel's own (self-rendered) controls ────────────────────────────────
+function __cxApplyFontPreview(v) {
+  try { if (window.CODEX_DATA && window.CODEX_DATA.tweaks) window.CODEX_DATA.tweaks.fontScale = v; } catch (e) {}
+  try {
+    document.querySelectorAll('.cxr').forEach(el => el.style.setProperty('--cxr-fs', v + 'px'));
+  } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('codex:fontscale', { detail: { fontScale: v } })); } catch (e) {}
+}
+
+function SelfControls({ group, t, setTweak }) {
+  const themeVal = t.autoTheme ? 'auto' : (t.manualDark ? 'night' : 'day');
+  const setTheme = (v) => {
+    if (v === 'auto') setTweak({ autoTheme: true });
+    else setTweak({ autoTheme: false, manualDark: v === 'night' });
+  };
+  const translations = (window.CODEX_DATA && window.CODEX_DATA.translations) || [];
+
+  if (group === 'APPEARANCE') {
+    return (
+      <TwkItem kw="theme dark light night day auto solar lights appearance mode">
+        <TweakRadio label="Theme" value={themeVal}
+          options={[
+            { value: 'auto',  label: '☉ AUTO' },
+            { value: 'day',   label: 'DAY' },
+            { value: 'night', label: 'NIGHT' },
+          ]}
+          onChange={setTheme} />
+        <p className="twkx-hint">Auto follows the sun at your hour — day pages, night glass.</p>
+      </TwkItem>
+    );
+  }
+
+  if (group === 'SCRIPTURE') {
+    return (
+      <>
+        <TwkItem kw="font size text scale scripture aa bigger smaller reader type">
+          <TweakSlider label="Scripture size" value={Number(t.fontScale) || 22}
+            min={16} max={30} step={1} unit="px"
+            onChange={(v) => { setTweak('fontScale', v); __cxApplyFontPreview(v); }} />
+          <p className="twkx-hint">Live — the reader behind repaints as you slide.</p>
+        </TwkItem>
+        <TwkItem kw="font face serif mono typeface family scripture">
+          <TweakRadio label="Scripture face" value={t.scriptureFont || 'serif'}
+            options={[{ value: 'serif', label: 'SERIF' }, { value: 'mono', label: 'MONO' }]}
+            onChange={(v) => {
+              setTweak('scriptureFont', v);
+              try {
+                const app = document.querySelector('.cx-app');
+                if (app) { app.classList.remove('font-serif', 'font-mono'); app.classList.add('font-' + v); }
+              } catch (e) {}
+            }} />
+        </TwkItem>
+        {translations.length > 0 && (
+          <TwkItem kw="translation bible version primary kjv web text">
+            <TweakSelect label="Primary translation" value={t.primaryTranslation || 'kjv'}
+              options={translations.map(x => ({ value: x.id, label: x.name || x.id }))}
+              onChange={(id) => {
+                setTweak('primaryTranslation', id);
+                try { window.dispatchEvent(new CustomEvent('codex:primary', { detail: { id } })); } catch (e) {}
+              }} />
+          </TwkItem>
+        )}
+        <TwkItem kw="red letter words of jesus christ crimson">
+          <TweakToggle label="Red-letter words of Jesus" value={t.redLetter !== false}
+            onChange={(v) => setTweak('redLetter', v)} />
+        </TwkItem>
+        <TwkItem kw="side by side parallel two translations columns compare">
+          <TweakToggle label="Side-by-side translations" value={!!t.sideBySide}
+            onChange={(v) => setTweak('sideBySide', v)} />
+        </TwkItem>
+      </>
+    );
+  }
+
+  if (group === 'THE NAME') {
+    return (
+      <>
+        <TwkItem kw="divine gold golden name covenant color reader yhwh tetragrammaton yahweh jehovah lord restore sacred">
+          <TweakToggle label="The Name in covenant gold" value={t.divineGold !== false}
+            onChange={(v) => setTweak('divineGold', v)} />
+        </TwkItem>
+        <TwkItem kw="divine hebrew tetragrammaton script reader yhwh">
+          <TweakToggle label="Tetragrammaton in Hebrew (יהוה)" value={!!t.divineHebrew}
+            onChange={(v) => setTweak('divineHebrew', v)} />
+          <p className="twkx-hint">The reader renders the Name in its own script where the Hebrew carries it.</p>
+        </TwkItem>
+      </>
+    );
+  }
+
+  if (group === 'READING') {
+    return (
+      <>
+        <TwkItem kw="distraction free focus zen hide chrome quiet theater">
+          <TweakToggle label="Distraction-free reading" value={!!t.distractionFree}
+            onChange={(v) => setTweak('distractionFree', v)} />
+          <p className="twkx-hint">Only the Word on screen. Also: the ⊟ button in the footer, or F to focus.</p>
+        </TwkItem>
+        <TwkItem kw="overlay gnosis reader margin esoteric glyph">
+          <TweakToggle label="Reader overlay · Gnosis" value={!!t.overlayGnosis}
+            onChange={(v) => setTweak('overlayGnosis', v)} />
+        </TwkItem>
+        <TwkItem kw="overlay talmud reader margin rabbinic glyph">
+          <TweakToggle label="Reader overlay · Talmud" value={!!t.overlayTalmud}
+            onChange={(v) => setTweak('overlayTalmud', v)} />
+        </TwkItem>
+        <TwkItem kw="overlay commentary reader margin voices glyph">
+          <TweakToggle label="Reader overlay · Commentary" value={!!t.overlayCommentary}
+            onChange={(v) => setTweak('overlayCommentary', v)} />
+          <p className="twkx-hint">Overlays paint quiet glyphs in the reader's margin — also togglable from the reader itself.</p>
+        </TwkItem>
+      </>
+    );
+  }
+
+  if (group === 'INSTRUMENTS') {
+    return (
+      <>
+        <TwkItem kw="continuity streak engagement mastery analyst depth announcements cadence">
+          <TweakContinuity />
+        </TwkItem>
+        <TwkItem kw="gnosis overlay esoteric ring engaged dormant" passive>
+          <div className="twkx-note">
+            ⟁ <b>Gnosis overlay</b> — lives on the master ring in the desk footer
+            (DORMANT / ENGAGED). One tap there; it never hides in a menu.
+          </div>
+        </TwkItem>
+      </>
+    );
+  }
+
+  if (group === 'SYSTEM') {
+    return (
+      <TwkItem kw="tour welcome replay onboarding first run">
+        <TweakButton label="↻ Replay the welcome tour" secondary
+          onClick={() => {
+            try { window.dispatchEvent(new CustomEvent('codex:open-tour')); } catch (e) {}
+            try { window.dispatchEvent(new CustomEvent('codex:close-settings')); } catch (e) {}
+          }} />
+      </TwkItem>
+    );
+  }
+
+  if (group === 'DANGER') {
+    return (
+      <TwkItem kw="personalization profile taste reels oracle context clear privacy">
+        <TweakPersonalization />
+      </TwkItem>
+    );
+  }
+
+  return null;
+}
+
+// ── TweaksPanel ─────────────────────────────────────────────────────────────
+function TweaksPanel({ title = 'Settings', noDeckControls = false, children }) {
+  const [open, setOpen] = React.useState(false);
+  const [mode, setMode] = React.useState('settings'); // settings | help
+  const [query, setQuery] = React.useState('');
+  const [matchCount, setMatchCount] = React.useState(null);
+  const panelRef = React.useRef(null);
+  const bodyRef = React.useRef(null);
+  const searchRef = React.useRef(null);
+  const [activeGroup, setActiveGroup] = React.useState(SETTINGS_GROUPS[0]);
+  const [, forceTick] = React.useState(0);
+
+  // The panel's own store hook (synced with the app's instance via
+  // 'tweakchange'); defaults come from whatever the host registered.
+  const [t, setTweak] = useTweaks(window.CODEX_TWEAK_DEFAULTS || {});
+
+  // ── host protocol ──────────────────────────────────────────────────
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const ty = e?.data?.type;
+      if (ty === '__activate_edit_mode') setOpen(true);
+      else if (ty === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = React.useCallback(() => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  }, []);
+
+  // App-wide open intent (welcome tour, Oracle [[do:open-settings]], omnibar).
+  React.useEffect(() => {
+    const scrollToGroup = (g) => {
+      setTimeout(() => {
+        try {
+          const el = bodyRef.current && bodyRef.current.querySelector(`[data-group="${g}"]`);
+          if (el) el.scrollIntoView({ block: 'start' });
+        } catch (e) {}
+      }, 60);
+    };
+    const onOpen = (e) => {
+      setOpen(true);
+      __cxRefreshSettingsIndex();
+      const sect = String(e?.detail?.section || '').toLowerCase();
+      if (!sect) { setMode('settings'); return; }
+      if (/help|wiki|doc/.test(sect)) { setMode('help'); return; }
+      setMode('settings');
+      if (/api|ai|model|engine|infer|key/.test(sect)) scrollToGroup('AI & KEYS');
+      else if (/name|yhwh/.test(sect)) scrollToGroup('THE NAME');
+      else if (/scripture|font|translat/.test(sect)) scrollToGroup('SCRIPTURE');
+      else if (/look|theme|appear/.test(sect)) scrollToGroup('APPEARANCE');
+      else if (/read|mark|note/.test(sect)) scrollToGroup('READING');
+      else if (/sync|cache|offline|data|export|import|install|lang|system/.test(sect)) scrollToGroup('SYSTEM');
+    };
+    const onClose = () => dismiss();
+    window.addEventListener('codex:open-settings', onOpen);
+    window.addEventListener('codex:close-settings', onClose);
+    return () => {
+      window.removeEventListener('codex:open-settings', onOpen);
+      window.removeEventListener('codex:close-settings', onClose);
+    };
+  }, [dismiss]);
+
+  // Escape + outside click.
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      if (panel.contains(e.target)) return;
+      if (e.target.closest && e.target.closest('[data-tweaks-trigger]')) return;
+      dismiss();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') dismiss(); };
+    const timer = setTimeout(() => document.addEventListener('mousedown', onDown), 0);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, dismiss]);
+
+  // On open: refresh the index (new tweak keys may have registered since),
+  // focus the search, reset the query.
+  React.useEffect(() => {
+    if (!open) return;
+    __cxRefreshSettingsIndex();
+    forceTick(n => n + 1);
+    setQuery('');
+    const timer = setTimeout(() => { try { searchRef.current && searchRef.current.focus(); } catch (e) {} }, 80);
+    return () => clearTimeout(timer);
+  }, [open, mode]);
+
+  // ── live filter — plain words over label text + keyword aliases ─────
+  React.useEffect(() => {
+    if (!open || mode !== 'settings') return;
+    const body = bodyRef.current;
+    if (!body) return;
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const items = Array.from(body.querySelectorAll('.twkx-item'));
+    if (!words.length) {
+      items.forEach(el => el.classList.remove('twkx-hide'));
+      body.querySelectorAll('.twkx-sub').forEach(el => el.classList.remove('twkx-hide'));
+      body.querySelectorAll('.twkx-group').forEach(el => el.removeAttribute('data-hidden'));
+      setMatchCount(null);
+      return;
+    }
+    const matches = (el) => {
+      const hay = ((el.textContent || '') + ' ' + (el.getAttribute('data-kw') || '')).toLowerCase();
+      return words.every(w => hay.includes(w));
+    };
+    const vis = new Map();
+    items.forEach(el => vis.set(el, matches(el)));
+    // Passive rows (hints, pointers) ride along with a visible neighbor.
+    items.forEach((el, i) => {
+      if (el.getAttribute('data-passive') !== '1' || vis.get(el)) return;
+      const prev = items[i - 1], next = items[i + 1];
+      if ((prev && vis.get(prev)) || (next && vis.get(next))) vis.set(el, true);
+    });
+    let shown = 0;
+    items.forEach(el => {
+      const on = !!vis.get(el);
+      el.classList.toggle('twkx-hide', !on);
+      if (on && el.getAttribute('data-passive') !== '1') shown++;
+    });
+    // Sub-headers show iff any visible item before the next sub-header.
+    body.querySelectorAll('.twkx-group').forEach(g => {
+      const kids = Array.from(g.children);
+      kids.forEach((k, i) => {
+        if (!k.classList.contains('twkx-sub')) return;
+        let any = false;
+        for (let j = i + 1; j < kids.length; j++) {
+          if (kids[j].classList.contains('twkx-sub')) break;
+          if (kids[j].classList.contains('twkx-item') && !kids[j].classList.contains('twkx-hide')) { any = true; break; }
+        }
+        k.classList.toggle('twkx-hide', !any);
+      });
+      const anyItem = g.querySelector('.twkx-item:not(.twkx-hide)');
+      if (anyItem) g.removeAttribute('data-hidden'); else g.setAttribute('data-hidden', '1');
+    });
+    setMatchCount(shown);
+  }, [query, open, mode]);
+
+  // Scroll-spy for the nav rail.
+  React.useEffect(() => {
+    if (!open || mode !== 'settings') return;
+    const body = bodyRef.current;
+    if (!body) return;
+    const onScroll = () => {
+      const groups = Array.from(body.querySelectorAll('.twkx-group'));
+      let cur = groups[0];
+      for (const g of groups) {
+        if (g.getAttribute('data-hidden') === '1') continue;
+        if (g.offsetTop - body.scrollTop <= 90) cur = g;
+      }
+      if (cur) setActiveGroup(cur.getAttribute('data-group'));
+    };
+    onScroll();
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => body.removeEventListener('scroll', onScroll);
+  }, [open, mode]);
+
+  if (!open) return null;
+
+  // ── partition host children into groups, preserving section labels ──
+  const childArr = React.Children.toArray(children);
+  const clusters = []; // { label, group, kw, items: [] }
+  let cur = null;
+  for (const node of childArr) {
+    if (node && node.type === TweakSection) {
+      const label = node.props.label;
+      cur = { label, group: __cxGroupForSection(label), kw: __CX_SECTION_KW[label] || '', items: [] };
+      clusters.push(cur);
+      continue;
+    }
+    if (!cur) { cur = { label: '', group: 'SYSTEM', kw: '', items: [] }; clusters.push(cur); }
+    cur.items.push(node);
+  }
+  const clustersByGroup = {};
+  for (const g of SETTINGS_GROUPS) clustersByGroup[g] = [];
+  for (const c of clusters) (clustersByGroup[c.group] || clustersByGroup.SYSTEM).push(c);
+
+  // Auto-surfaced unknown tweaks per group.
+  const unknown = __cxUnknownTweaks();
+  const unknownByGroup = {};
+  for (const u of unknown) (unknownByGroup[u.group] = unknownByGroup[u.group] || []).push(u);
+
+  const isPassiveNode = (node) =>
+    typeof node === 'object' && node && typeof node.type === 'string' && (node.type === 'p' || node.type === 'div');
+
+  const groupHasContent = (g) =>
+    true; // every group always has at least its self controls or a header; empty ones hide via search only
+
+  const switchMode = (m) => { setMode(m); };
+
+  const jumpTo = (g) => {
+    setMode('settings');
+    setTimeout(() => {
+      try {
+        const el = bodyRef.current && bodyRef.current.querySelector(`[data-group="${g}"]`);
+        if (el && bodyRef.current) bodyRef.current.scrollTo({ top: el.offsetTop - 8 });
+      } catch (e) {}
+    }, 30);
+  };
+
+  const HelpWiki = window.CODEX_HelpWiki;
+
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div className="twkx-scrim" data-noncommentable="" onMouseDown={dismiss} />
+      <div ref={panelRef} className="twkx-panel" data-noncommentable=""
+           role="dialog" aria-modal="true" aria-label={title}>
+        <div className="twkx-head">
+          <span className="twkx-title">{title}</span>
+          <div className="twkx-mode" role="tablist" aria-label="Settings or help">
+            <button role="tab" aria-selected={mode === 'settings'} onClick={() => switchMode('settings')}>SETTINGS</button>
+            <button role="tab" aria-selected={mode === 'help'} onClick={() => switchMode('help')}>HELP</button>
+          </div>
+          <span className="twkx-spacer" />
+          <button className="twkx-x" aria-label="Close settings" onClick={dismiss}>✕</button>
+        </div>
+
+        {mode === 'help' ? (
+          <div className="twkx-help-body">
+            {HelpWiki ? <HelpWiki /> : (
+              <div className="twkx-empty">Help wiki loading…</div>
+            )}
+          </div>
+        ) : (
+          <div className="twkx-shell">
+            <nav className="twkx-nav" aria-label="Setting groups">
+              {SETTINGS_GROUPS.map(g => (
+                <button key={g}
+                        className={(activeGroup === g ? 'is-on ' : '') + (g === 'DANGER' ? 'is-danger' : '')}
+                        onClick={() => jumpTo(g)}>
+                  {g}
+                </button>
+              ))}
+            </nav>
+            <div className="twkx-main">
+              <div className="twkx-search">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="search settings — try 'dark', 'font', 'api key'…"
+                  aria-label="Search settings"
+                  spellCheck={false}
+                />
+                <span className="twkx-count" aria-live="polite">
+                  {matchCount == null ? '' : matchCount === 0 ? 'no matches' : `${matchCount} match${matchCount === 1 ? '' : 'es'}`}
+                </span>
+              </div>
+              <div className="twkx-body" ref={bodyRef} role="region" aria-label="Settings">
+                {SETTINGS_GROUPS.map(g => (
+                  <section key={g} className="twkx-group" data-group={g}>
+                    <h2 className="twkx-group-h">{g}</h2>
+                    <SelfControls group={g} t={t} setTweak={setTweak} />
+                    {(clustersByGroup[g] || []).map((c, ci) => (
+                      <React.Fragment key={`${g}-${ci}`}>
+                        {c.label ? <div className="twkx-sub">{c.label}</div> : null}
+                        {c.items.map((node, ni) => (
+                          <TwkItem key={ni} kw={`${c.label} ${c.kw}`} passive={isPassiveNode(node)}>
+                            {node}
+                          </TwkItem>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                    {(unknownByGroup[g] || []).map(u => (
+                      <TwkItem key={u.key} kw={`${u.kw} ${u.key} tweak`}>
+                        <AutoTweakRow entry={u} />
+                      </TwkItem>
+                    ))}
+                  </section>
+                ))}
+                {matchCount === 0 && (
+                  <div className="twkx-empty">nothing matches “{query}” — try ‘theme’, ‘font’, ‘key’, ‘offline’…</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

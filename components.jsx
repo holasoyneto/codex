@@ -724,174 +724,18 @@ function LeftRail({ activeBookId, activeChapter, marks = [], highlightColors, on
 // Centre · scripture reader
 // ─────────────────────────────────────────────────────────────────────────────
 
-// YHWH substitution — when active, swap English-translation conventions for
-// the Hebrew names of God across every translation. Three rules:
-//   LORD  (small-caps in print / all-caps in plain text) → יהוה  (Tetragrammaton)
-//   GOD   (caps standalone)                              → אלהים (Elohim)
-//   God   (mixed case — universally Elohim / Theos)      → אלהים (Elohim)
-// We deliberately leave mixed-case "Lord" alone because in the NT it most
-// often refers to Jesus / Adonai / generic kyrios, where substitution would
-// misrepresent the source. "God" (mixed case) is consistently Elohim/Theos
-// across both testaments, so substituting it is safe and makes the toggle
-// visibly active on the most-read passages (Gen 1, Jn 1, etc.).
-function applyYHWH(text, on) {
-  if (!on || !text) return text;
-  return text
-    .replace(/\bLORD\b/g, "יהוה")
-    .replace(/\bGOD\b/g,  "אלהים")
-    .replace(/\bGod\b/g,  "אלהים");
-}
+// (v11.3 — the old yhwhMode substitution and the GOLDEN_WORD / cx-divine
+// detector were ripped out of the dead legacy Reader. Divine-name rendering
+// now lives in reader.jsx as the pure-data engine window.CODEX_DIVINE:
+// covenant-gold .cxr-name spans + the divineGold / divineHebrew tweaks.)
 
-// ── Golden Word · multi-alphabet divine-name detector ───────────────────
-// Wraps the literal Tetragrammaton + Elohim + their cross-language
-// equivalents in <span class="cx-divine"> so the golden shimmer fires
-// regardless of script — Hebrew, Greek, Latin, Devanagari, the Romance
-// translations' all-caps SEÑOR/HERR/SEIGNEUR/DOMINUS, Spanish "Jehová",
-// Hindi "यहोवा", Greek "Κύριος", etc. Patterns are ordered longest-first
-// so "the LORD God" doesn't get half-matched.
-//
-// `getGoldenWords` returns the matched substrings to feed into the same
-// segment-wrap pass that handles red-letter + divineQuotes — guaranteed
-// to compose cleanly with both, never paint over a Jesus quote.
-const GOLDEN_WORD_PATTERNS = [
-  // ── Hebrew (Tanakh) ──
-  /יְ?הֹ?וָ?ה[ ֳָֻ֖֯]*/g,           // יהוה with optional niqqud / cantillation
-  /אֱלֹהִים/g,
-  /אֲדֹנָי/g,
-  /יהוה/g,                             // bare consonantal Tetragrammaton (Aleppo)
-  /אלהים/g,                            // bare consonantal Elohim
-  /אדני/g,                             // bare consonantal Adonai
-  // ── Greek (LXX / NT) — Unicode-aware (`u` flag), surrounded by anything
-  // that's not a Letter. Source-code Greek literals are .normalize("NFC")
-  // ed at the call site so precomposed/decomposed accents both match.
-  /(?<![\p{L}])(?:Κύριος|ΚΥΡΙΟΣ|κύριος|κυρίου)(?![\p{L}])/gu,
-  /(?<![\p{L}])(?:Θεός|Θεὸς|θεός|θεὸς|θεοῦ|θεῷ|Θεόν|θεόν|ΘΕΟΣ)(?![\p{L}])/gu,
-  // ── English ── all-caps (small-caps YHWH typographic convention) AND
-  // capitalised-noun forms (most APIs strip the small-caps so the named
-  // entity is what we have to match).
-  /\bLORD\b|\bLord\b/g,
-  /\bGOD\b|\bGod\b/g,
-  /\bYahweh\b|\bYHWH\b|\bJehovah\b/g,
-  // ── Spanish (RV all-caps SEÑOR / Jehová / capitalised Dios / Señor) ──
-  /\bSEÑOR\b|\bSeñor\b/g,
-  /\bDIOS\b|\bDios\b/g,
-  /\bJehová\b|\bJehova\b/g,
-  // ── French (Segond ÉTERNEL/l'Éternel/SEIGNEUR/Dieu) ──
-  /\bÉTERNEL\b|\bÉternel\b/g,
-  /\bSEIGNEUR\b|\bSeigneur\b/g,
-  /\bDIEU\b|\bDieu\b/g,
-  // ── German (Luther/Schlachter HERR/Herr/Gott) ──
-  /\bHERR\b|\bHerr\b/g,
-  /\bGOTT\b|\bGott\b/g,
-  // ── Portuguese (Almeida SENHOR/Senhor/Deus) ──
-  /\bSENHOR\b|\bSenhor\b/g,
-  /\bDEUS\b|\bDeus\b/g,
-  // ── Latin (Vulgate; mixed-case is canonical) ──
-  /\bDominus\b|\bDOMINUS\b/g,
-  /\bDeus\b|\bDEUS\b/g,
-  // ── Hindi (Devanagari) ──
-  /यहोवा/g,
-  /परमेश्‍?वर/g,
-];
-function getGoldenWords(text) {
-  if (!text) return [];
-  // Normalize to NFC so the regex source (e.g. precomposed ό) matches
-  // text variants that use combining diacritics — Greek source data
-  // notoriously mixes the two.
-  const norm = text.normalize ? text.normalize("NFC") : text;
-  const out = new Set();
-  for (const re of GOLDEN_WORD_PATTERNS) {
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(norm)) !== null) {
-      out.add(m[0]);
-      if (re.lastIndex === m.index) re.lastIndex++;
-    }
-  }
-  return [...out];
-}
-
-// Detect quoted divine speech across any translation. Looks for the common
-// English attributions ("God said", "LORD said unto", "thus saith the LORD",
-// "spake unto") and captures the quoted run that follows. Returns an array
-// of substrings to mark with shimmer. This is applied AFTER red-letter so
-// the two layers don't clash on Jesus's words (which already render red).
-// Two attribution patterns to capture both modern (quoted) and KJV-style
-// (comma + small caps ALL upper / Capitalised) divine-speech rendering.
-//
-//   modern: God said, "Let there be light"
-//   KJV:    God said, Let there be light: and there was light.
-//
-// In both cases we anchor on the actor + a "speaking" verb, then scan
-// forward to the next clause-terminator. For YHWH-substituted text the
-// actor may be the literal Hebrew glyphs יהוה or אלהים.
-const DIVINE_ACTOR = "(?:(?:and\\s+)?God|the\\s+(?:LORD|Lord|L[Oo][Rr][Dd])|the\\s+Lord\\s+God|Yahweh|Yhwh|Adonai|Elohim|יהוה|אלהים)";
-const DIVINE_VERB  = "(?:said|saith|spake|spoke|answered|commanded|replied|declared|promised|called|cried)";
-// Quoted form
-const DIVINE_QUOTED   = new RegExp(`\\b${DIVINE_ACTOR}\\s+(?:also\\s+|then\\s+|unto[^,"]{1,40},\\s*)?${DIVINE_VERB}\\b[^"'""]{0,40}["'""]([^"'""]{4,400})["'""]`, "g");
-const DIVINE_KJV  = new RegExp(`\\b${DIVINE_ACTOR}\\s+(?:also\\s+|then\\s+)?${DIVINE_VERB}(?:\\s+unto\\s+[A-Z][a-zA-Z']{1,18})?,\\s+([A-Z][^.;:]{6,400}?)(?=[.;:]|$)`, "g");
-
-// ── Multi-language divine-speech patterns ────────────────────────────────
-// Each tuple: { actor, verb } substrings the language uses for "[divine
-// name] said". After matching the attribution, we capture either a quoted
-// run (",") or the rest of the verse up to a sentence-ending punctuation.
-// Quote variants accepted: " " ' ' « » " " ' ' ¿ ¡ ։ ׃
-const QUOTE_OPEN  = `["'"'«¿¡]`;
-const QUOTE_CLOSE = `["'"'»?!.]`;
-const SENTENCE_END = `[.;:?!·։׃]`;
-const LANG_ATTRIBUTIONS = [
-  // Spanish
-  { name: "es", re: /\b(?:Dios|Jehová|Jehova|el SEÑOR|el Señor|Yahweh)\s+(?:le\s+)?(?:dijo|habló|respondió|preguntó|prometió|llamó|ordenó|declaró|exclamó)\b\s*[:,]?\s*[«"'"]?([^«»"'""]{6,400}?)(?=[«»"'""]|[.;]|$)/g },
-  { name: "es-rev", re: /\b(?:dijo|habló|respondió|prometió|ordenó|declaró)\s+(?:Dios|Jehová|el SEÑOR|el Señor)\b\s*[:,]?\s*[«"'"]?([^«»"'""]{6,400}?)(?=[«»"'""]|[.;]|$)/g },
-  // French
-  { name: "fr", re: /\b(?:Dieu|l'Éternel|L'Éternel|le SEIGNEUR|le Seigneur)\s+(?:lui\s+)?(?:dit|dira|parla|répondit|cria|déclara|promit|ordonna)\b\s*[:,]?\s*[«"'"]?([^«»"'""]{6,400}?)(?=[«»"'""]|[.;]|$)/g },
-  // German
-  { name: "de", re: /\b(?:Gott|der HERR|der Herr|JAHWE)\s+(?:zu\s+\w+\s+)?(?:sprach|sagte|antwortete|gebot|rief|verhieß|verkündete|sprach\s+zu)\b\s*[:,]?\s*[„"'"]?([^"'""„]{6,400}?)(?=["'""„]|[.;]|$)/g },
-  // Portuguese
-  { name: "pt", re: /\b(?:Deus|Jeová|o SENHOR|o Senhor)\s+(?:lhe\s+)?(?:disse|falou|respondeu|ordenou|prometeu|declarou|chamou|exclamou)\b\s*[:,]?\s*[«"'"]?([^«»"'""]{6,400}?)(?=[«»"'""]|[.;]|$)/g },
-  { name: "pt-rev", re: /\b(?:[Dd]isse|[Ff]alou|[Rr]espondeu|[Oo]rdenou|[Pp]rometeu|[Dd]eclarou)\s+(?:[oO]\s+)?(?:Deus|SENHOR|Senhor|Jeová)\b\s*[:,]?\s*[«"'"]?([^«»"'""]{6,400}?)(?=[«»"'""]|[.;]|$)/g },
-  // Latin (Vulgate uses no quote marks; capture run to end of sentence)
-  { name: "la", re: /\b(?:[Dd]ixit|[Aa]it|[Ll]ocutus\s+est|[Pp]raecepit|[Vv]ocavit|[Rr]espondit)\s+(?:\w+\s+)?(?:Deus|Dominus|Dominus\s+Deus)\b\s*[:,]?\s*([^.;:]{6,400}?)(?=[.;:]|$)/g },
-  { name: "la-rev", re: /\b(?:Deus|Dominus|Dominus\s+Deus)\s+(?:[Dd]ixit|[Aa]it|[Ll]ocutus\s+est|[Pp]raecepit|[Vv]ocavit|[Rr]espondit)\b\s*[:,]?\s*([^.;:]{6,400}?)(?=[.;:]|$)/g },
-  // Hebrew (Tanakh narrative; וַיֹּאמֶר אֱלֹהִים …)
-  { name: "he", re: /(?:ו?[\u0591-\u05C7]*י[\u0591-\u05C7]*א[\u0591-\u05C7]*מ[\u0591-\u05C7]*ר|ו?[\u0591-\u05C7]*י[\u0591-\u05C7]*ד[\u0591-\u05C7]*ב[\u0591-\u05C7]*ר|ו?[\u0591-\u05C7]*י[\u0591-\u05C7]*ק[\u0591-\u05C7]*ר[\u0591-\u05C7]*א|א[\u0591-\u05C7]*מ[\u0591-\u05C7]*ר)\s+(?:א[\u0591-\u05C7]*ל[\u0591-\u05C7]*ה[\u0591-\u05C7]*י[\u0591-\u05C7]*ם|י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה|א[\u0591-\u05C7]*ד[\u0591-\u05C7]*נ[\u0591-\u05C7]*י)\s*[,:.]?\s*([^.;:׃]{6,400}?)(?=[.;:׃]|$)/gu },
-  // Greek (LXX + NT: εἶπεν ὁ θεός / ὁ Κύριος εἶπεν, with NFC)
-  { name: "el", re: /(?<![\p{L}])(?:εἶπεν|εἶπε|ἐλάλησεν|ἐκέλευσεν)\s+(?:ὁ\s+)?(?:Θεός|θεός|Κύριος|κύριος)(?![\p{L}])\s*[,:.]?\s*([^.;:·]{6,400}?)(?=[.;:·]|$)/gu },
-  { name: "el-rev", re: /(?<![\p{L}])(?:ὁ\s+)?(?:Θεός|θεός|Κύριος|κύριος)\s+(?:εἶπεν|εἶπε|ἐλάλησεν)(?![\p{L}])\s*[,:.]?\s*([^.;:·]{6,400}?)(?=[.;:·]|$)/gu },
-  // Hindi (परमेश्‍वर ने कहा / यहोवा ने कहा)
-  { name: "hi", re: /(?:परमेश्‍?वर|यहोवा|प्रभु)\s+(?:ने\s+)?(?:कहा|बोला|पुकारा|घोषित\s+किया|वचन\s+दिया)\s*[,:।]?\s*[“"'"]?([^"'"""।]{6,400}?)(?=["'""”।]|$)/gu },
-];
-
-function detectDivineQuotes(text) {
-  if (!text) return [];
-  const seen = new Set();
-  const out = [];
-  const norm = text.normalize ? text.normalize("NFC") : text;
-  for (const re of [DIVINE_QUOTED, DIVINE_KJV]) {
-    re.lastIndex = 0; let m;
-    while ((m = re.exec(text)) !== null) {
-      const q = (m[1] || "").trim();
-      if (q.length > 4 && !seen.has(q)) { seen.add(q); out.push(q); }
-    }
-  }
-  for (const { re } of LANG_ATTRIBUTIONS) {
-    re.lastIndex = 0; let m;
-    while ((m = re.exec(norm)) !== null) {
-      const q = (m[1] || "").trim();
-      if (q.length > 4 && q.length < 500 && !seen.has(q)) { seen.add(q); out.push(q); }
-      if (re.lastIndex === m.index) re.lastIndex++;
-    }
-  }
-  return out;
-}
 
 // Wrap any substrings in `redQuotes` with a <span class="cx-red">. If
 // `wholeVerse` is true and no per-string quotes were detected for this
 // translation, fall back to painting the entire verse red — used for
 // translations that don't use quotation marks (Latin Vulgata, Geneva, etc.)
 // when our cross-translation Jesus-verses database tells us this verse
-// contains Jesus's words. Divine (Father / God / LORD) quoted speech gets
-// a shimmer span — runs in parallel with red so theology stacks visually.
+// contains Jesus's words.
 // Final-resort Jesus-quote extractor — used when the cross-translation DB
 // flags a verse as containing Jesus's words but the per-translation parser
 // (in bible.js) failed to find them in this particular language. Looks for
@@ -904,12 +748,11 @@ function extractJesusQuoteHeuristic(text) {
   return m && m[1].trim().length > 4 ? [m[1].trim()] : null;
 }
 
-function renderScripture(rawText, redQuotes, wholeVerse, yhwhMode) {
+function renderScripture(rawText, redQuotes, wholeVerse) {
   // NFC-normalise so accent forms (decomposed vs precomposed) compose
   // identically across regex match → indexOf wrap → display. Greek LXX
   // and Hebrew with niqqud both depend on this.
-  const normalized = (rawText && rawText.normalize) ? rawText.normalize("NFC") : rawText;
-  const text = applyYHWH(normalized, yhwhMode);
+  const text = (rawText && rawText.normalize) ? rawText.normalize("NFC") : rawText;
   // Whole-verse fallback escalation: if the DB knows Jesus speaks but the
   // per-translation parser found nothing, try one more heuristic to extract
   // just the quoted clause. Only paint the WHOLE verse red as a last resort
@@ -921,15 +764,8 @@ function renderScripture(rawText, redQuotes, wholeVerse, yhwhMode) {
       wholeVerse = false;
     }
   }
-  // Find divine quotes (full quoted clauses, English-only) AND multi-script
-  // divine-name tokens (Tetragrammaton, Theos, Dominus, यहोवा, etc.). Both
-  // get the same `cx-divine` golden shimmer treatment.
-  const divineQuotes = [
-    ...detectDivineQuotes(text),
-    ...getGoldenWords(text),
-  ];
-  // Build span list keyed by class. Apply red first (longer/sorted), then
-  // divine (skip overlaps with red).
+  // Build span list keyed by class — red letters only (the divine-name
+  // gold moved to reader.jsx · window.CODEX_DIVINE).
   let parts = [{ t: text, kind: null }];
 
   const wrap = (quotes, kind, onlyOnPlain) => {
@@ -962,18 +798,16 @@ function renderScripture(rawText, redQuotes, wholeVerse, yhwhMode) {
     return <span className="cx-red">{text}</span>;
   }
   wrap(redQuotes, "red", true);
-  wrap(divineQuotes, "divine", true);
 
   return parts.map((p, i) => {
     if (p.kind === "red")    return <span key={i} className="cx-red">{p.t}</span>;
-    if (p.kind === "divine") return <span key={i} className="cx-divine">{p.t}</span>;
     return <React.Fragment key={i}>{p.t}</React.Fragment>;
   });
 }
 
 // Back-compat alias — old call sites can keep working unchanged.
 function renderRedLetter(text, redQuotes, wholeVerse) {
-  return renderScripture(text, redQuotes, wholeVerse, false);
+  return renderScripture(text, redQuotes, wholeVerse);
 }
 
 // Long-press hook for touch devices — fires onLongPress after `ms` ms of
@@ -1151,7 +985,7 @@ function SchizoMargin({ text }) {
   );
 }
 
-function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSelectVerse, onToggleHighlight, onOpenVerseMenu, yhwhMode, passage, schizo }) {
+function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSelectVerse, onToggleHighlight, onOpenVerseMenu, passage, schizo }) {
   const longPress = useLongPress((rect) => onOpenVerseMenu?.(v, rect));
   const onCtx = (e) => { e.preventDefault(); onOpenVerseMenu?.(v, e.currentTarget.getBoundingClientRect()); };
   // Drag a verse out into Notes (or any drop target). Carries the ref +
@@ -1189,7 +1023,7 @@ function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSel
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onOpenVerseMenu?.(v, e.currentTarget.closest(".cx-verse").getBoundingClientRect()); }}
       >{v.n}</sup>
       <span className="cx-vtext">
-        {renderScripture(text, redLetter ? v.red?.[primary] : null, redLetter && v._jesusVerse, yhwhMode)}
+        {renderScripture(text, redLetter ? v.red?.[primary] : null, redLetter && v._jesusVerse)}
       </span>
       <VerseActions
         onMark={(e) => { e.stopPropagation(); onToggleHighlight?.(v.n); }}
@@ -1202,7 +1036,7 @@ function VerseRow({ v, isHl, isLatin, markColor, text, redLetter, primary, onSel
 }
 
 // Side-by-side verse — same affordances applied to the row container.
-function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSelectVerse, onToggleHighlight, onOpenVerseMenu, yhwhMode, schizo, passage }) {
+function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSelectVerse, onToggleHighlight, onOpenVerseMenu, schizo, passage }) {
   const longPress = useLongPress((rect) => onOpenVerseMenu?.(v, rect));
   const onCtx = (e) => { e.preventDefault(); onOpenVerseMenu?.(v, e.currentTarget.getBoundingClientRect()); };
   return (
@@ -1230,7 +1064,7 @@ function VerseSideRow({ v, colsMeta, isHl, markColor, redLetter, verseText, onSe
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleHighlight?.(v.n); } }}
             >{v.n}</sup>
             <span className="cx-vtext">
-              {renderScripture(text, redLetter ? v.red?.[t.id] : null, redLetter && v._jesusVerse, yhwhMode)}
+              {renderScripture(text, redLetter ? v.red?.[t.id] : null, redLetter && v._jesusVerse)}
             </span>
           </p>
         );
@@ -1373,7 +1207,6 @@ if (typeof window !== "undefined") window.CODEX_NormieToggle = NormieToggle;
 // in the reader head with one ⊕ that opens a tidy panel below.
 function ReaderViewPopover({
   redLetter, onToggleRedLetter,
-  yhwhMode, onToggleYHWH,
   fontScale, onCycleFontSize,
   sideBySide, onToggleSideBySide,
 }) {
@@ -1409,7 +1242,7 @@ function ReaderViewPopover({
     return () => { clearTimeout(t); document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
   }, [open]);
   // Surface a tiny indicator dot when at least one non-default toggle is on.
-  const anyOn = redLetter || yhwhMode || sideBySide || fontScale !== 22;
+  const anyOn = redLetter || sideBySide || fontScale !== 22;
   return (
     <span className="cx-vp" ref={ref}>
       <button
@@ -1446,17 +1279,6 @@ function ReaderViewPopover({
               role="switch"
               aria-checked={redLetter}
               aria-label="Red letter mode"
-            ><i /></button>
-          </div>
-          <div className="cx-vp-row" style={{ minHeight: 44, cursor: 'pointer' }} onClick={onToggleYHWH} role="none">
-            <span className="cx-vp-lbl" title="Show the Tetragrammaton in place of LORD">יהוה</span>
-            <button
-              type="button"
-              className={`cx-vp-toggle ${yhwhMode ? "is-on" : ""}`}
-              onClick={(e) => { e.stopPropagation(); onToggleYHWH && onToggleYHWH(); }}
-              role="switch"
-              aria-checked={yhwhMode}
-              aria-label="YHWH mode"
             ><i /></button>
           </div>
           <div className="cx-vp-row" style={{ minHeight: 44, cursor: 'pointer' }} onClick={onToggleSideBySide} role="none">
@@ -1602,7 +1424,7 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                   fontScale, highlightedVerse, onSelectVerse, onToggleSideBySide,
                   onToggleRedLetter, onCycleFontSize, onPrevChapter, onNextChapter,
                   highlights, highlightColor, onToggleHighlight, onOpenVerseMenu,
-                  panelData, yhwhMode, onToggleYHWH, schizo }) {
+                  panelData, schizo }) {
   const bodyRef = useRef(null);
   const [chapterGridAnchor, setChapterGridAnchor] = useState(null);
   // Swipe / horizontal-scroll-to-navigate. Tracks touch + trackpad
@@ -1760,7 +1582,6 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
             {gnosisOn ? <Pill accent>⟁</Pill> : null}
             <ReaderViewPopover
               redLetter={redLetter} onToggleRedLetter={onToggleRedLetter}
-              yhwhMode={yhwhMode} onToggleYHWH={onToggleYHWH}
               fontScale={fontScale} onCycleFontSize={onCycleFontSize}
               sideBySide={sideBySide} onToggleSideBySide={onToggleSideBySide}
             />
@@ -1819,7 +1640,6 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                     onSelectVerse={onSelectVerse}
                     onToggleHighlight={onToggleHighlight}
                     onOpenVerseMenu={onOpenVerseMenu}
-                    yhwhMode={yhwhMode}
                     passage={passage}
                     schizo={schizo}
                   />
@@ -1846,7 +1666,6 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                     onSelectVerse={onSelectVerse}
                     onToggleHighlight={onToggleHighlight}
                     onOpenVerseMenu={onOpenVerseMenu}
-                    yhwhMode={yhwhMode}
                     passage={passage}
                     schizo={schizo}
                   />,
@@ -1877,7 +1696,6 @@ function Reader({ passage, primary, compareTranslations, sideBySide, gnosisOn, r
                     onSelectVerse={onSelectVerse}
                     onToggleHighlight={onToggleHighlight}
                     onOpenVerseMenu={onOpenVerseMenu}
-                    yhwhMode={yhwhMode}
                     passage={passage}
                     schizo={schizo}
                   />,

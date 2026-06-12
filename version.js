@@ -10,12 +10,12 @@
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
   v: "12.0",     // user-facing app version
-  sw: "v266",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  sw: "v267",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "THE ORACLE ASCENDED: rich interactive answers — live verse chips, working buttons, charts and flowcharts; tabs for your threads; ⚒ TOOLS lets it drive the whole app (every action shown, never silent)",
-    "◎ THE MAP IS CINEMATIC: the camera flies to each verse; drag the time scrub and watch empires recolor the land; click a place for its dossier",
-    "⏳ THE TIMELINE IS A RIVER: zoom with the wheel, pan with inertia, the gold marker tracks what you're reading; clusters unfold as you dive",
-    "A quiet orb pulses bottom-right whenever AI is thinking — you always know",
+    "THE NAME IN GOLD: divine names glow covenant gold as you read — and one setting renders the Tetragrammaton as יהוה, always",
+    "OVERLAYS: engage gnosis ⟁, talmud ת, or commentary § and quiet glosses appear beneath the verses they touch — read the Word with the whispers on",
+    "Chapters have their poetic AI titles again; the verse menu is six calm rows (⌘ more… opens the omnibar); ⧉ opens secondary readers with their own cursor",
+    "SETTINGS REBORN: searchable, grouped, nothing forgotten (the smoke proves it) — and Help now describes the app as it actually is",
   ],
 };
 

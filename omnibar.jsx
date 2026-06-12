@@ -317,8 +317,10 @@ function omniIndexRows(text) {
   return { strong, weak };
 }
 
-function Omnibar({ onClose }) {
-  const [q, setQ] = useState("");
+function Omnibar({ onClose, seed }) {
+  // `seed` — optional initial query (the verse menu's '⌘ more…' passes its
+  // ref, e.g. "John 1:14 ") so the bar opens already aimed at the verse.
+  const [q, setQ] = useState(() => seed || "");
   const [items, setItems] = useState([]);
   const [sel, setSel] = useState(0);
   const [preview, setPreview] = useState(null); // { ref, text } | null

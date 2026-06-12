@@ -1083,7 +1083,11 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "sideBySide": false,
   "highlightColor": "amber",
   "distractionFree": false,
-  "yhwhMode": false,
+  "divineGold": true,
+  "divineHebrew": false,
+  "overlayGnosis": false,
+  "overlayTalmud": false,
+  "overlayCommentary": false,
   "lang": "en",
   "caffeinate": false,
   "notesEnabled": false,
@@ -1410,7 +1414,7 @@ function deskCapable() {
 // One desk window. Mirrors the v8 MONAD cx-win chrome exactly so wm.js
 // treats it like every other window (drag, resize, snap, dock chip,
 // persisted geometry under cx-wm-geo:win:sys:*).
-function DeskWin({ id, glyph, title, ctx, onClose, onFocusMode, focusOn, bodyClass, children }) {
+function DeskWin({ id, glyph, title, ctx, onClose, onFocusMode, focusOn, bodyClass, headerExtra, children }) {
   return (
     <div className="cx-win-backdrop cx-desk-bd" data-wm-id={`win:${id}`} data-wm-glyph={glyph} data-desk={id}>
       <div className="cx-win cx-desk-win" role="region" aria-label={title}>
@@ -1418,6 +1422,7 @@ function DeskWin({ id, glyph, title, ctx, onClose, onFocusMode, focusOn, bodyCla
           <span className="cx-win-h-glyph" aria-hidden="true">{glyph}</span>
           <span className="cx-win-h-title">{title}</span>
           <span className="cx-win-h-ctx">{ctx || ""}</span>
+          {headerExtra || null}
           {onFocusMode ? (
             <button
               className="cx-win-focus"
@@ -2038,9 +2043,12 @@ function App() {
   }, []);
 
   // ── OMNIBAR — ⌘K, the one door. ───────────────────────────────────────
+  // false | true | { seed } — the verse menu's '⌘ more…' pre-seeds the
+  // query with its ref ("John 1:14 ") so every door opens already aimed.
   const [omniOpen, setOmniOpen] = useState(false);
   useEffect(() => {
-    window.codexOpenOmni = () => setOmniOpen(true);
+    window.codexOpenOmni = (seed) =>
+      setOmniOpen(typeof seed === "string" && seed ? { seed } : true);
     return () => { delete window.codexOpenOmni; };
   }, []);
 
@@ -2371,6 +2379,54 @@ function App() {
     };
     return () => { delete window.codexDesk; };
   }, [deskMode, desk]);
+
+  // ── v11.3 — SECONDARY (PINNED) READERS ────────────────────────────────
+  // '⧉ new reader' spawns another reader window with an INDEPENDENT cursor:
+  // it does NOT follow codex:now (reader.jsx independent prop), navigates
+  // with its own ‹ › arrows, and persists its pinned ref + open set in
+  // codex.pinnedReaders.v1. Geometry rides wm.js per data-wm-id like every
+  // other window. Satellites (?surface=) never restore pinned readers.
+  const [pinnedReaders, setPinnedReaders] = useState(() => {
+    try { if (new URLSearchParams(window.location.search).get("surface")) return []; } catch {}
+    try {
+      const arr = JSON.parse(localStorage.getItem("codex.pinnedReaders.v1") || "null");
+      if (Array.isArray(arr)) return arr.filter(p => p && p.id && p.now && p.now.bookId).slice(0, 8);
+    } catch {}
+    return [];
+  });
+  useEffect(() => {
+    try { if (new URLSearchParams(window.location.search).get("surface")) return; } catch {}
+    try { localStorage.setItem("codex.pinnedReaders.v1", JSON.stringify(pinnedReaders)); } catch {}
+  }, [pinnedReaders]);
+  useEffect(() => {
+    window.codexNewReader = (seed) => {
+      const id = "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const src = (seed && seed.bookId) ? seed
+        : (window.CODEX_NOW && window.CODEX_NOW.bookId) ? window.CODEX_NOW
+        : { bookId: "jhn", book: "John", chapter: 1, verse: 1 };
+      setPinnedReaders(rs => [...rs, {
+        id,
+        now: { bookId: src.bookId, book: src.book, chapter: src.chapter || 1, verse: src.verse || 1 },
+      }]);
+      return id;
+    };
+    return () => { delete window.codexNewReader; };
+  }, []);
+  const updatePinnedReader = useCallback((id, n) => {
+    if (!n || !n.bookId) return;
+    setPinnedReaders(rs => {
+      const i = rs.findIndex(p => p.id === id);
+      if (i < 0) return rs;
+      const cur = rs[i].now || {};
+      if (cur.bookId === n.bookId && cur.chapter === n.chapter && cur.verse === n.verse) return rs;
+      const next = rs.slice();
+      next[i] = { ...rs[i], now: { bookId: n.bookId, book: n.book, chapter: n.chapter, verse: n.verse } };
+      return next;
+    });
+  }, []);
+  const closePinnedReader = useCallback((id) => {
+    setPinnedReaders(rs => rs.filter(p => p.id !== id));
+  }, []);
   // (v12: the leftOpen/rightOpen → desk redirect effects died with the
   // drawer flags — codex:open-library / codex:open-panel route directly.)
   // Keyboard shortcut overlay — `?` opens it, Esc closes.
@@ -2906,7 +2962,14 @@ function App() {
     return () => { delete window.codexGoto; };
   }, [loadPassage]);
   useEffect(() => {
-    window.codexOpenVerseMenu = (n, rect) => {
+    // (n, rect[, loc]) — loc is the pinned-reader escape hatch: an
+    // independent reader passes { bookId, book, chapter, v } so the menu
+    // anchors to ITS location, not the shared cursor's passage.
+    window.codexOpenVerseMenu = (n, rect, loc) => {
+      if (loc && loc.v && rect) {
+        setVerseMenu({ verse: loc.v, anchor: rect, loc: { bookId: loc.bookId, book: loc.book, chapter: loc.chapter } });
+        return;
+      }
       const v = passage.verses.find(x => x.n === n);
       if (v && rect) openVerseMenu(v, rect);
     };
@@ -3278,8 +3341,25 @@ function App() {
                   onFocusMode={() => setDesk(d => ({ ...d, focus: !d.focus }))}
                   focusOn={desk.focus}
                   bodyClass="cx-desk-body-reader"
+                  headerExtra={window.CxrSpawn ? React.createElement(window.CxrSpawn) : null}
                 >{centerColEl}</DeskWin>
               ) : null}
+              {/* v11.3 — secondary readers: independent cursors, own windows */}
+              {pinnedReaders.map((p) => (
+                <DeskWin
+                  key={p.id}
+                  id={`pinned:${p.id}`} glyph="⧉"
+                  title={`${p.now.book || p.now.bookId} ${p.now.chapter}`}
+                  ctx="PINNED"
+                  onClose={() => closePinnedReader(p.id)}
+                  bodyClass="cx-desk-body-reader"
+                >{window.CodexReaderX ? React.createElement(window.CodexReaderX, {
+                    surface: "window",
+                    independent: true,
+                    initialNow: p.now,
+                    onNowChange: (n) => updatePinnedReader(p.id, n),
+                  }) : null}</DeskWin>
+              ))}
               {/* v11 — the study deck is DEAD: every open builtin panel
                   floats as its own window with its own persisted geometry. */}
               {deskPanels.map((pid) => BUILTIN_WIN[pid] ? (
@@ -3414,70 +3494,33 @@ function App() {
         </div>
       ) : null}
 
-      {verseMenu && window.VerseMenu ? (
-        <VerseMenu
-          anchor={verseMenu.anchor}
-          verse={verseMenu.verse}
-          passage={passage}
-          primary={primary}
-          translations={data.translations}
-          sideBySide={sideBySide}
-          gnosisOn={gnosisOn}
-          highlightColor={t.highlightColor}
-          highlightColors={HIGHLIGHT_COLORS}
-          currentHighlight={highlights[`${passage.bookId}.${passage.chapter}.${verseMenu.verse?.n}`]?.color || null}
-          onClose={closeVerseMenu}
-          onCompare={(n) => {
-            setCurrentVerse(n);
-            if (!sideBySide) { setSideBySide(true); setTweak("sideBySide", true); }
-          }}
-          onSetPrimary={setPrimaryAndPersist}
-          onAskOracle={(verse, refStr, text) => {
-            // v12 — the oracle is a desk window / mobile sheet, not a drawer.
-            if (deskMode) setDesk(d => ({ ...d, oracle: true, focus: false }));
-            else if (window.codexMobile) window.codexMobile.open("oracle");
-            // Let the surface mount before the prefill lands.
-            setTimeout(() => {
-              try { window.dispatchEvent(new CustomEvent("oracle:prefill", { detail: { ref: refStr, text } })); } catch {}
-            }, 120);
-          }}
-          onToggleGnosis={setGnosisOn}
-          onToggleHighlight={(color) => {
-            const v = verseMenu.verse;
-            const text = v ? (v[primary] || v.kjv || v.web || "") : "";
-            toggleHighlight(passage.bookId, passage.chapter, v.n, color, text);
-          }}
-          onClearHighlight={() => clearHighlight(passage.bookId, passage.chapter, verseMenu.verse.n)}
-          onOpenMap={openVerseMap}
-          onOpenArt={openVerseArt}
-          onOpenCompare={openVerseCompare}
-          onOpenMirror={openVerseMirror}
-          onOpenSword={openVerseSword}
-          onOpenOps={(v, refStr) => openOps(`Build a cited study of ${refStr} — context, cross-references, original language, and what this verse divides.`)}
-          pluginVersion={pluginVersion}
-          onOpenNote={(v, refStr) => {
-            if (window.CODEX_ENGAGE) window.CODEX_ENGAGE.trackNote();
-            // Pre-seed the draft in localStorage BEFORE the widget mounts so
-            // its initial state already has the verse pinned. Bulletproof
-            // against race conditions between enabling notes + the open
-            // event reaching a not-yet-mounted listener.
-            try {
-              const cur = localStorage.getItem("codex.notes.draft") || "";
-              const prefix = `[${refStr}] `;
-              if (!cur.startsWith(prefix)) {
-                localStorage.setItem("codex.notes.draft", prefix + cur);
-              }
-              localStorage.setItem("codex.notes.visible", "1");
-            } catch {}
-            if (!t.notesEnabled) setTweak("notesEnabled", true);
-            // Also dispatch the event so already-mounted widgets pick up
-            // the new ref immediately (without overwriting drafts).
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("codex:notes:show", { detail: { ref: refStr } }));
-            }, 60);
-          }}
-        />
-      ) : null}
+      {/* v11.3 — the verse menu remade MINIMAL: ref · ⚔⌬◎ verbs · ✦ mark ·
+          ⊕ compare · ⌘ more… (omnibar). Everything else it used to carry
+          reaches the same engines through codex:os-open / the omnibar.
+          verseMenu.loc (set by pinned readers) overrides the shared
+          passage so marks land on the pinned reader's own chapter. */}
+      {verseMenu && window.VerseMenu ? (() => {
+        const vmLoc = verseMenu.loc || passage;
+        const vmKey = `${vmLoc.bookId}.${vmLoc.chapter}.${verseMenu.verse?.n}`;
+        return (
+          <VerseMenu
+            anchor={verseMenu.anchor}
+            verse={verseMenu.verse}
+            passage={vmLoc}
+            primary={primary}
+            highlightColor={t.highlightColor}
+            currentHighlight={highlights[vmKey]?.color || null}
+            onClose={closeVerseMenu}
+            onToggleHighlight={() => {
+              const v = verseMenu.verse;
+              if (!v) return;
+              if (highlights[vmKey]) { clearHighlight(vmLoc.bookId, vmLoc.chapter, v.n); return; }
+              const text = v[primary] || v.kjv || v.web || "";
+              toggleHighlight(vmLoc.bookId, vmLoc.chapter, v.n, null, text);
+            }}
+          />
+        );
+      })() : null}
 
       {verseMap && window.VerseMap ? (
         <VerseMap
@@ -3553,7 +3596,10 @@ function App() {
       ) : null}
 
       {omniOpen && window.Omnibar ? (
-        <Omnibar onClose={() => setOmniOpen(false)} />
+        <Omnibar
+          onClose={() => setOmniOpen(false)}
+          seed={typeof omniOpen === "object" ? omniOpen.seed : ""}
+        />
       ) : null}
 
       {constOpen && window.VerseConstellation ? (

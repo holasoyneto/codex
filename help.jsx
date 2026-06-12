@@ -49,7 +49,7 @@
   // if articles.json adds a category we don't yet have art for.
   const CATEGORY_META = {
     "Basics":            { icon: "🜨", blurb: "Get oriented. The shortest path to reading scripture in CODEX." },
-    "Reading":           { icon: "📜", blurb: "Typography, themes, translations, side-by-side, theater mode." },
+    "Reading":           { icon: "📜", blurb: "Typography, themes, translations, side-by-side, distraction-free." },
     "Study Tools":       { icon: "⌖", blurb: "Verse menu, maps, art, mirrors, marks, notes, cross-refs, quests." },
     "AI Features":       { icon: "✦", blurb: "Oracle, panels, reels — AI as a humble study companion." },
     "Power User":        { icon: "⌘", blurb: "Offline, shortcuts, sync, custom repos, terminal CLI." },
@@ -864,3 +864,12 @@
 
   window.CODEX_HelpWiki = HelpWiki;
 })();
+
+// ─────────────────────────────────────────────────────────────────────────
+// RELEASE RULE — help updates with every release. Before shipping, diff
+// version.js notes against data/help/articles.json: every surface named in
+// the notes must have a current article, and no article may describe a
+// surface that no longer exists (the rails, the deck, the classic layout
+// and theater mode are dead — articles about them were deleted, not left
+// to rot). scripts/smoke-settings.mjs enforces the floor mechanically.
+// ─────────────────────────────────────────────────────────────────────────

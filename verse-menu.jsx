@@ -1,55 +1,76 @@
-// CODEX — verse context menu
+// CODEX — verse menu · v11.3, remade from zero. MINIMAL BY LAW.
 // In the name of Jesus Christ, may this serve the careful reading of His word.
 //
-// Floating menu that anchors next to the clicked verse. Actions:
-//   ✦ MARK       — add this verse to bookmarks
-//   Α/Ω COMPARE  — engage side-by-side compare, focus this verse
-//   ↔  TRANSLATE — quick primary-translation switch
-//   ◉ ASK ORACLE — prefill Oracle in the left rail with this verse
-//   ⎘ COPY       — copy verse text to clipboard
-//   ⟁ GNOSIS     — engage gnosis overlay on this verse
+// The omnibar is the point of origin now; this float is only the few
+// gestures a reader wants AT the verse, nothing else:
+//
+//   ref header            — where you are
+//   ⚔ ⌬ ◎  verb row       — sword / mirror / map via codex:os-open
+//   ✦ MARK                — toggle the highlight
+//   ⊕ COMPARE             — the verse across translations
+//   ⌘ more…               — opens the omnibar pre-seeded with the ref
+//
+// Everything the old menu carried (oracle, art, ops, notes, translate,
+// color grid, plugin rows) lives on in the omnibar and the panels.
+// Keyboard: Esc closes · ↑/↓ walk the rows · Enter activates.
+//
+// Cross-IIFE law: the menu drives the app through window.* and events only
+// (codex:os-open · codexOpenOmni · the onToggleHighlight prop from app.jsx).
 
 const { useLayoutEffect } = React;
-const vmt = (k) => (window.t && window.t(k)) || k;
+const vmt = (k, fb) => { const s = window.t && window.t(k); return (s && s !== k) ? s : (fb || k); };
+
+// Self-injected CSS — the float inherits the legacy .cx-vm shell from
+// styles.css; these rules carry only what the minimal remake adds.
+const CX_VM_CSS = `
+.cx-vm.cx-vm-min { min-width: 218px; max-width: 260px; }
+.cx-vm-verbs { display: flex; gap: 4px; padding: 6px 8px 4px; }
+.cx-vm-verb {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: 1px solid color-mix(in oklab, currentColor 14%, transparent);
+  border-radius: 8px; color: inherit; cursor: pointer; padding: 7px 2px 5px;
+  font: inherit;
+}
+.cx-vm-verb i { font-style: normal; font-size: 15px; line-height: 1; }
+.cx-vm-verb span { font-size: 8.5px; letter-spacing: 0.12em; opacity: 0.55; }
+.cx-vm-verb:hover, .cx-vm-verb:focus-visible {
+  border-color: var(--cx-accent, #7ee0ff);
+  color: var(--cx-accent, #7ee0ff);
+  outline: none;
+}
+.cx-vm-min .cx-vm-row { gap: 9px; }
+.cx-vm-min .cx-vm-row .cx-vm-sub { margin-left: auto; }
+`;
+(function injectVmCss() {
+  try {
+    if (typeof document === "undefined" || document.getElementById("cx-vm-min-style")) return;
+    const s = document.createElement("style");
+    s.id = "cx-vm-min-style";
+    s.textContent = CX_VM_CSS;
+    document.head.appendChild(s);
+  } catch {}
+})();
 
 function VerseMenu({
   anchor,           // DOMRect of the clicked verse
   verse,            // verse object {n, kjv, web, ...}
-  passage,          // {book, chapter, ...}
+  passage,          // {book, bookId, chapter}
   primary,
-  translations,
-  sideBySide,
-  gnosisOn,
-  highlightColor,
-  highlightColors,  // { amber: { name, swatch }, ... }
   currentHighlight, // string | null — current colour for this verse
+  highlightColor,
   onClose,
-  onCompare,
-  onSetPrimary,
-  onAskOracle,
-  onToggleGnosis,
   onToggleHighlight,
-  onClearHighlight,
-  onOpenMap,
-  onOpenArt,
-  onOpenCompare,
-  onOpenNote,
-  onOpenMirror,
-  onOpenSword,
-  onOpenOps,
-  pluginVersion,
 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0, side: "right" });
-  const [view, setView] = useState("root"); // root | translate | highlight
 
   // Position the menu next to the verse, flipping if it would overflow.
   useLayoutEffect(() => {
     if (!anchor) return;
     const el = ref.current;
     if (!el) return;
-    const w = el.offsetWidth || 240;
-    const h = el.offsetHeight || 200;
+    const w = el.offsetWidth || 230;
+    const h = el.offsetHeight || 190;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const margin = 8;
@@ -68,308 +89,118 @@ function VerseMenu({
     if (top + h + margin > vh) top = Math.max(margin, vh - h - margin);
     if (top < margin) top = margin;
     setPos({ top, left, side });
-  }, [anchor, view]);
+  }, [anchor]);
 
-  // A11y — remember the element that had focus when the menu opened so we can
-  // restore it on close (Esc / outside-click). Captured once at mount.
+  // A11y — restore focus to the opener on close.
   const triggerRef = useRef(null);
   if (triggerRef.current === null) {
     try { triggerRef.current = document.activeElement; } catch (_) { triggerRef.current = false; }
   }
-  const restoreFocus = () => {
+  const close = () => {
     try {
       const el = triggerRef.current;
-      if (el && el !== false && typeof el.focus === "function" && document.contains(el)) {
-        el.focus();
-      }
-    } catch (_) { /* never throw from focus restore */ }
+      if (el && el !== false && typeof el.focus === "function" && document.contains(el)) el.focus();
+    } catch (_) {}
+    onClose();
   };
 
-  // On open, move focus into the menu (first focusable row).
+  // Focus the first row on open; Esc closes; ↑/↓ walk every actionable
+  // control (verb buttons + rows) in document order.
   useEffect(() => {
     try {
+      const first = ref.current && ref.current.querySelector(".cx-vm-verb, .cx-vm-row");
+      if (first) first.focus();
+    } catch (_) {}
+    // eslint-disable-next-line
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); close(); return; }
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
       const root = ref.current;
       if (!root) return;
-      const first = root.querySelector(".cx-vm-row, .cx-vm-back, button");
-      if (first && typeof first.focus === "function") first.focus();
-    } catch (_) { /* defensive: focusing must never throw */ }
-  }, []);
-
-  // Close on outside click or Escape; trap Tab within the menu; restore focus.
-  useEffect(() => {
-    const close = () => { restoreFocus(); onClose(); };
-    const onKey = (e) => {
-      if (e.key === "Escape") { close(); return; }
-      if (e.key !== "Tab") return;
-      try {
-        const root = ref.current;
-        if (!root) return;
-        const items = Array.prototype.slice.call(
-          root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-        ).filter((n) => !n.disabled && n.offsetParent !== null);
-        if (!items.length) return;
-        const firstEl = items[0];
-        const lastEl = items[items.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey) {
-          if (active === firstEl || !root.contains(active)) { e.preventDefault(); lastEl.focus(); }
-        } else {
-          if (active === lastEl || !root.contains(active)) { e.preventDefault(); firstEl.focus(); }
-        }
-      } catch (_) { /* trap is best-effort; never throw */ }
+      e.preventDefault();
+      const items = Array.prototype.slice.call(root.querySelectorAll(".cx-vm-verb, .cx-vm-row"));
+      if (!items.length) return;
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === "ArrowDown"
+        ? items[Math.min(items.length - 1, i + 1)] || items[0]
+        : items[Math.max(0, i - 1)] || items[items.length - 1];
+      try { next.focus(); } catch (_) {}
     };
     const onDown = (e) => {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target)) close();
+      if (ref.current && !ref.current.contains(e.target)) close();
     };
     document.addEventListener("keydown", onKey);
-    // Defer so the click that opened the menu doesn't immediately close it.
     const t = setTimeout(() => document.addEventListener("mousedown", onDown), 0);
     return () => {
       document.removeEventListener("keydown", onKey);
       clearTimeout(t);
       document.removeEventListener("mousedown", onDown);
     };
+    // eslint-disable-next-line
   }, [onClose]);
 
-  const verseText = verse ? (verse[primary] || verse.kjv || verse.web || "") : "";
   const ref$ = `${passage.book} ${passage.chapter}:${verse?.n ?? "?"}`;
-
-  // CODEX Phase 2.5 — depth-action emitter (additive, defensive).
-  // At the moment the user invokes a depth surface from this menu, dispatch the
-  // engagement bus event so the (optional) CODEX_ENGAGEMENT engine can record a
-  // qualifying depth event. Guarded so nothing breaks if the engine is absent /
-  // in Lite mode. ref shape per frozen contract: "book.chapter.verse".
   const depthRef = `${passage.book}.${passage.chapter}.${verse?.n ?? ""}`;
   const emitDepth = (type, weight) => {
     try {
-      window.dispatchEvent(new CustomEvent("codex:depth-action", {
-        detail: { type, ref: depthRef, weight },
-      }));
-    } catch (_) { /* never throw from a UI handler */ }
+      window.dispatchEvent(new CustomEvent("codex:depth-action", { detail: { type, ref: depthRef, weight } }));
+    } catch (_) {}
+  };
+  const osOpen = (kind, depthType) => {
+    if (depthType) emitDepth(depthType, 2);
+    try { window.dispatchEvent(new CustomEvent("codex:os-open", { detail: { kind, ref: ref$ } })); } catch (_) {}
+    close();
   };
 
-  const copy = async () => {
-    const payload = `“${verseText}” — ${ref$}`;
-    const toast = (msg, kind = "ok") => {
-      try { window.dispatchEvent(new CustomEvent("codex:toast", { detail: { msg, kind } })); } catch {}
-    };
-    // Prefer Web Share API when available (mobile + supported desktop).
-    // Fall back to clipboard on any error / dismissal that returns rejection.
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: ref$, text: payload });
-        toast("Shared.");
-        onClose();
-        return;
-      } catch (_) {
-        // AbortError when user cancels — fall through to clipboard silently.
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(payload);
-      toast("Copied to clipboard.");
-    } catch (e) {
-      toast(`Copy failed: ${e.message || e}`, "err");
-    }
-    onClose();
-  };
+  const VERBS = [
+    { kind: "sword", glyph: "⚔", label: "SWORD", title: "Sword — fourfold edge · pardes × quadriga", depth: "sword-cleave" },
+    { kind: "mirror", glyph: "⌬", label: "MIRROR", title: vmt("vm.mirror", "Mirror — the verse across every translation"), depth: null },
+    { kind: "map", glyph: "◎", label: "MAP", title: vmt("vm.map", "Map — place · era · timeline"), depth: "map-place-study" },
+  ];
 
   return (
-    <div ref={ref} className={`cx-vm cx-vm-${pos.side}`}
+    <div ref={ref} className={`cx-vm cx-vm-min cx-vm-${pos.side}`}
          style={{ top: pos.top + "px", left: pos.left + "px" }}
-         role="menu" onClick={(e) => e.stopPropagation()}>
+         role="menu" aria-label={`Verse menu — ${ref$}`}
+         onClick={(e) => e.stopPropagation()}>
       <div className="cx-vm-head">
         <span className="cx-vm-ref">{ref$}</span>
-        <button className="cx-vm-x" onClick={onClose} aria-label="Close">×</button>
+        <button className="cx-vm-x" onClick={close} aria-label="Close">×</button>
       </div>
 
-      {view === "root" ? (
-        <div className="cx-vm-body">
-          {/* v6.1 — MARK / CHOOSE COLOR / TRANSLATE / COPY compressed into a
-              compact icon strip. Handlers identical to the old full rows. */}
-          <div className="cx-vm-strip" role="group" aria-label="Quick actions">
-            <button
-              className={`cx-vm-strip-btn ${currentHighlight ? "is-on" : ""}`}
-              role="menuitem"
-              onClick={() => { onToggleHighlight?.(); onClose(); }}
-              title={currentHighlight ? `${vmt("vm.unmark")} — clear ${currentHighlight}` : `${vmt("vm.mark")} — highlight in ${highlightColor || "amber"}`}
-              aria-label={currentHighlight ? vmt("vm.unmark") : vmt("vm.mark")}
-            >
-              <span className="cx-vm-icon" style={currentHighlight && highlightColors?.[currentHighlight] ? { color: highlightColors[currentHighlight].swatch } : null}>
-                {currentHighlight ? "✓" : "✦"}
-              </span>
+      <div className="cx-vm-body">
+        {/* the verb row — sword / mirror / map */}
+        <div className="cx-vm-verbs" role="group" aria-label="Depth verbs">
+          {VERBS.map(v => (
+            <button key={v.kind} className="cx-vm-verb" role="menuitem"
+                    title={v.title} onClick={() => osOpen(v.kind, v.depth)}>
+              <i aria-hidden>{v.glyph}</i><span>{v.label}</span>
             </button>
-
-            {highlightColors ? (
-              <button
-                className="cx-vm-strip-btn"
-                role="menuitem"
-                onClick={() => setView("highlight")}
-                title={`${vmt("vm.choose.color")} — 5 hues`}
-                aria-label={vmt("vm.choose.color")}
-              >
-                <span className="cx-vm-icon">◐</span>
-              </button>
-            ) : null}
-
-            <button
-              className="cx-vm-strip-btn"
-              role="menuitem"
-              onClick={() => setView("translate")}
-              title={`${vmt("vm.translate")} — switch primary corpus`}
-              aria-label={vmt("vm.translate")}
-            >
-              <span className="cx-vm-icon">↔</span>
-            </button>
-
-            <button
-              className="cx-vm-strip-btn"
-              role="menuitem"
-              onClick={copy}
-              title={`${vmt("vm.copy")} — verse + reference`}
-              aria-label={vmt("vm.copy")}
-            >
-              <span className="cx-vm-icon">⎘</span>
-            </button>
-          </div>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { onAskOracle(verse, ref$, verseText); onClose(); }}>
-            <span className="cx-vm-icon">◉</span>
-            <span className="cx-vm-lbl">{vmt("vm.ask.oracle")}</span>
-            <span className="cx-vm-sub">load into the chatbot</span>
-          </button>
-
-          <button className={`cx-vm-row ${gnosisOn ? "is-on" : ""}`}
-                  role="menuitem"
-                  onClick={() => { if (!gnosisOn) emitDepth("gnosis-read", 2); onToggleGnosis(!gnosisOn); onClose(); }}>
-            <span className="cx-vm-icon">⟁</span>
-            <span className="cx-vm-lbl">{vmt("vm.gnosis")}</span>
-            <span className="cx-vm-sub">{gnosisOn ? "disengage overlay" : "engage overlay"}</span>
-          </button>
-
-          <div className="cx-vm-group" aria-hidden="true">DEPTH CONSOLES</div>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { emitDepth("map-place-study", 2); onOpenMap?.(verse, ref$, verseText); onClose(); }}>
-            <span className="cx-vm-icon">◎</span>
-            <span className="cx-vm-lbl">{vmt("vm.map")}</span>
-            <span className="cx-vm-sub">place · era · timeline</span>
-          </button>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenArt?.(verse, ref$, verseText); onClose(); }}>
-            <span className="cx-vm-icon">▦</span>
-            <span className="cx-vm-lbl">{vmt("vm.art")}</span>
-            <span className="cx-vm-sub">paintings · illustrations</span>
-          </button>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenCompare?.(verse, ref$); onClose(); }}>
-            <span className="cx-vm-icon">≡</span>
-            <span className="cx-vm-lbl">{vmt("vm.compare")}</span>
-            <span className="cx-vm-sub">across all translations</span>
-          </button>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenMirror?.(verse, ref$, verseText); onClose(); }}>
-            <span className="cx-vm-icon">⌬</span>
-            <span className="cx-vm-lbl">{vmt("vm.mirror")}</span>
-            <span className="cx-vm-sub">{vmt("vm.mirror.sub")}</span>
-          </button>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenSword?.(verse, ref$, verseText); onClose(); }}>
-            <span className="cx-vm-icon">⚔</span>
-            <span className="cx-vm-lbl">SWORD</span>
-            <span className="cx-vm-sub">fourfold edge · pardes × quadriga</span>
-          </button>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { onOpenOps?.(verse, ref$, verseText); onClose(); }}>
-            <span className="cx-vm-icon">◎</span>
-            <span className="cx-vm-lbl">OPS</span>
-            <span className="cx-vm-sub">task the kernel · build a study</span>
-          </button>
-
-          <div className="cx-vm-group" aria-hidden="true">STUDY TOOLS</div>
-
-          <button className="cx-vm-row" role="menuitem" onClick={() => { emitDepth("note-written", 2); onOpenNote?.(verse, ref$); onClose(); }}>
-            <span className="cx-vm-icon">✎</span>
-            <span className="cx-vm-lbl">{vmt("vm.note")}</span>
-            <span className="cx-vm-sub">{vmt("vm.note.sub")}</span>
-          </button>
-
-          {/* Plugin-registered verse actions — appended after built-ins. */}
-          {(window.CODEX_PLUGINS_API ? window.CODEX_PLUGINS_API.getVerseActions() : []).map((a, i) => {
-            const verseRef = {
-              book: passage.book, bookId: passage.bookId,
-              chapter: passage.chapter, verse: verse?.n,
-              text: verseText, translation: primary,
-            };
-            return (
-              <button
-                key={`plugin-${a.pluginId}-${i}`}
-                className="cx-vm-row is-plugin"
-                role="menuitem"
-                onClick={() => {
-                  try { a.handler(verseRef); }
-                  catch (e) { console.warn(`CODEX plugin "${a.pluginId}" verseAction threw:`, e); }
-                  onClose();
-                }}
-              >
-                <span className="cx-vm-icon">{a.icon}</span>
-                <span className="cx-vm-lbl">{a.label}</span>
-                <span className="cx-vm-sub">{a.pluginId}</span>
-              </button>
-            );
-          })}
+          ))}
         </div>
-      ) : view === "highlight" ? (
-        <div className="cx-vm-body cx-vm-hl">
-          <button className="cx-vm-back" onClick={() => setView("root")}>◂ back</button>
-          <div className="cx-vm-hl-grid">
-            {Object.entries(highlightColors || {}).map(([key, c]) => (
-              <button
-                key={key}
-                className={`cx-vm-hl-swatch ${currentHighlight === key ? "is-on" : ""}`}
-                role="menuitem"
-                style={{ background: c.swatch }}
-                onClick={() => { onToggleHighlight?.(key); onClose(); }}
-                title={c.name}
-                aria-label={`Highlight in ${c.name}`}
-              >{currentHighlight === key ? "✓" : ""}</button>
-            ))}
-            {currentHighlight ? (
-              <button
-                className="cx-vm-hl-clear"
-                role="menuitem"
-                onClick={() => { onClearHighlight?.(); onClose(); }}
-                title="Remove highlight"
-              >×</button>
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <div className="cx-vm-body cx-vm-translate">
-          <button className="cx-vm-back" onClick={() => setView("root")}>◂ back</button>
-          {translations.map(t => {
-            const isActive = primary === t.id;
-            const text = verse?.[t.id];
-            return (
-              <button
-                key={t.id}
-                className={`cx-vm-tr ${isActive ? "is-active" : ""}`}
-                role="menuitem"
-                onClick={() => { onSetPrimary(t.id); onClose(); }}
-                disabled={!text}
-                title={text || "not loaded"}
-              >
-                <span className="cx-vm-tr-glyph">{t.glyph}</span>
-                <span className="cx-vm-tr-name">
-                  <b>{t.name}</b>
-                  <i>{t.year} · {t.lang}</i>
-                </span>
-                {isActive ? <span className="cx-vm-tr-on">PRIMARY</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      )}
+
+        <button className={`cx-vm-row ${currentHighlight ? "is-on" : ""}`} role="menuitem"
+                onClick={() => { onToggleHighlight && onToggleHighlight(); close(); }}>
+          <span className="cx-vm-icon">{currentHighlight ? "✓" : "✦"}</span>
+          <span className="cx-vm-lbl">{currentHighlight ? vmt("vm.unmark", "UNMARK") : vmt("vm.mark", "MARK")}</span>
+          <span className="cx-vm-sub">{currentHighlight ? currentHighlight : (highlightColor || "amber")}</span>
+        </button>
+
+        <button className="cx-vm-row" role="menuitem" onClick={() => osOpen("compare")}>
+          <span className="cx-vm-icon">⊕</span>
+          <span className="cx-vm-lbl">{vmt("vm.compare", "COMPARE")}</span>
+          <span className="cx-vm-sub">all translations</span>
+        </button>
+
+        <button className="cx-vm-row" role="menuitem"
+                onClick={() => { close(); if (window.codexOpenOmni) window.codexOpenOmni(`${ref$} `); }}>
+          <span className="cx-vm-icon">⌘</span>
+          <span className="cx-vm-lbl">more…</span>
+          <span className="cx-vm-sub">everything, via the omnibar</span>
+        </button>
+      </div>
     </div>
   );
 }
