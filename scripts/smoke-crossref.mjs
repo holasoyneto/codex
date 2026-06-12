@@ -1,9 +1,18 @@
-// One-off interaction smoke: open the verse menu → click Cross-References →
-// verify the right rail opens, the tab switches, and the panel renders refs.
+// smoke-crossref.mjs — THE THREAD WEB contract.
+// Opens the TSK cross-references panel as a floating MONAD window
+// (codexOpenWindow, the smoke-monad pattern) and proves the ego-graph:
+//   · canvas.cx-xrefg-canvas present, node count > 3 for John 1:1
+//   · window.codexXrefCenter(ref) re-centers programmatically and the
+//     breadcrumb trail (.cx-xrefg-crumb) GROWS
+//   · a real canvas click on an orbit node re-centers too (one gesture deep)
+//   · double-click ground truth (optional): reader navigates to the node
+//   · accessibility mirror: .cx-xrefg-alist real buttons present
+//   · zero pageerrors
 import puppeteer from "puppeteer-core";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const URL = process.env.SMOKE_URL || "http://localhost:7777/";
 const log = (...a) => console.log("[xref]", ...a);
+const PW = '[data-wm-id="win:plugin:crossrefs-tsk:crossrefs"]';
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox","--disable-gpu","--disable-dev-shm-usage"] });
 try {
@@ -11,114 +20,147 @@ try {
   const jsErrors = [];
   page.on("pageerror", (e) => jsErrors.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type()==="error" && !/Failed to load resource/i.test(m.text())) jsErrors.push(m.text()); });
+  await page.setViewport({ width: 1680, height: 1050 });
 
   await page.goto(URL, { waitUntil: "load", timeout: 30000 });
   await page.waitForFunction(() => window.__CODEX_READY__ === true, { timeout: 45000 });
   await page.waitForFunction(() => document.querySelectorAll(".cx-verse,.cx-verse-row").length > 0, { timeout: 20000 });
+  await new Promise(r => setTimeout(r, 900)); // plugins register
   log("booted; verses present");
 
-  // Inspect the plugin registry + tab ids BEFORE interacting.
-  const reg = await page.evaluate(() => {
-    const api = window.CODEX_PLUGINS_API;
-    const panels = api && api.getPanels ? api.getPanels() : [];
-    const actions = api && api.getVerseActions ? api.getVerseActions() : [];
-    return {
-      panelIds: panels.map(p => `plugin:${p.pluginId}:${p.id}`),
-      verseActions: actions.map(a => ({ label: a.label, pluginId: a.pluginId })),
-      railTabIds: (window.railTabs ? window.railTabs() : []).map(t => t.id),
-    };
-  });
-  log("registered panel tab ids:", JSON.stringify(reg.panelIds));
-  log("xref verse action present:", reg.verseActions.some(a => /cross-ref/i.test(a.label)));
-  log("railTabs has crossrefs tab:", reg.railTabIds.filter(id => /crossref/i.test(id)));
+  // ── 1. open the panel as a floating window ────────────────────────────
+  const opened = await page.evaluate(() =>
+    window.codexOpenWindow && window.codexOpenWindow({ id: "plugin:crossrefs-tsk:crossrefs", title: "CROSS-REFS", glyph: "✝" }));
+  log("codexOpenWindow:", opened);
+  if (!opened) { console.error("[xref] FAIL — codexOpenWindow refused"); process.exit(1); }
 
-  // Open the verse menu via contextmenu on a verse number.
-  const opened = await (async () => {
-    // v10: rows are .cxr-v — a REAL right-click (synthetic contextmenu
-    // dispatches don't reliably reach React 18's delegated listener), and
-    // Escape first to clear any first-run chrome over the desk.
-    await page.keyboard.press("Escape");
-    await new Promise(r => setTimeout(r, 400));
-    const row = await page.$(".cxr-v, .cx-vnum");
-    if (!row) return false;
-    const rb = await row.boundingBox();
-    await page.mouse.click(rb.x + rb.width / 2, rb.y + 5, { button: "right" });
+  // TSK is a 5 MB module — first parse can take a while. Poll for the real
+  // instrument: the canvas AND the a11y mirror buttons.
+  await page.waitForFunction((PW) => {
+    const sc = document.querySelector(PW);
+    return !!(sc && sc.querySelector("canvas.cx-xrefg-canvas") &&
+      sc.querySelectorAll(".cx-xrefg-alist button").length > 3 &&
+      typeof window.codexXrefState === "function");
+  }, { timeout: 60000 }, PW);
+  await new Promise(r => setTimeout(r, 600)); // settle layout tween
+
+  const st0 = await page.evaluate((PW) => {
+    const sc = document.querySelector(PW);
+    const cv = sc.querySelector("canvas.cx-xrefg-canvas");
+    const r = cv.getBoundingClientRect();
+    const s = window.codexXrefState();
+    return {
+      canvas: !!cv, cw: Math.round(r.width), ch: Math.round(r.height),
+      center: s.center, count: s.count, chain: s.chain.length,
+      crumbs: sc.querySelectorAll(".cx-xrefg-crumb").length,
+      alistBtns: sc.querySelectorAll(".cx-xrefg-alist button").length,
+      alistRole: (sc.querySelector(".cx-xrefg-alist") || {}).getAttribute?.("role") || "",
+      counts: (sc.querySelector(".cx-xrefg-counts") || {}).textContent || "",
+    };
+  }, PW);
+  log("initial:", JSON.stringify(st0));
+  const canvasOk = st0.canvas && st0.cw > 50 && st0.ch > 50;
+  const nodesOk = st0.count > 3; // John 1:1 → 41 in TSK
+  const a11yOk = st0.alistBtns > 3 && st0.alistRole === "list";
+  log("canvas ok:", canvasOk, "· nodes>3:", nodesOk, "· a11y list buttons:", a11yOk);
+
+  // ── 2. programmatic re-center via the automation hook ─────────────────
+  const hookKey = await page.evaluate(() => window.codexXrefCenter("gen.1.1"));
+  await new Promise(r => setTimeout(r, 800)); // 300ms tween + render
+  const st1 = await page.evaluate((PW) => {
+    const sc = document.querySelector(PW);
+    const s = window.codexXrefState();
+    return { center: s.center, count: s.count, chain: s.chain.length,
+      crumbs: sc.querySelectorAll(".cx-xrefg-crumb").length };
+  }, PW);
+  log("after codexXrefCenter('gen.1.1'):", JSON.stringify({ hookKey, ...st1 }));
+  const recenterOk = hookKey === "gen.1.1" && st1.center === "gen.1.1" && st1.crumbs > st0.crumbs;
+  log("programmatic recenter + breadcrumb grew:", recenterOk);
+
+  // ── 3. real canvas click on an orbit node re-centers (one gesture) ────
+  const target = await page.evaluate((PW) => {
+    const sc = document.querySelector(PW);
+    const cv = sc.querySelector("canvas.cx-xrefg-canvas");
+    const r = cv.getBoundingClientRect();
+    const s = window.codexXrefState();
+    const nd = s.nodes.find(n => Number.isFinite(n.x) && Number.isFinite(n.y));
+    return nd ? { key: nd.key, px: r.left + nd.x, py: r.top + nd.y } : null;
+  }, PW);
+  let clickOk = false;
+  if (target) {
+    await page.mouse.click(target.px, target.py);
+    await new Promise(r => setTimeout(r, 900)); // 240ms dbl-click window + tween
+    const st2 = await page.evaluate((PW) => {
+      const sc = document.querySelector(PW);
+      const s = window.codexXrefState();
+      return { center: s.center, crumbs: sc.querySelectorAll(".cx-xrefg-crumb").length };
+    }, PW);
+    clickOk = st2.center === target.key && st2.crumbs > st1.crumbs;
+    log("canvas click on", target.key, "→", JSON.stringify(st2), "· recentered:", clickOk);
+  } else {
+    log("canvas click: no node coords exposed ✗");
+  }
+
+  // ── 4. crumb click re-centers BACK along the trail ────────────────────
+  const backOk = await page.evaluate((PW) => {
+    const sc = document.querySelector(PW);
+    const crumbs = [...sc.querySelectorAll(".cx-xrefg-crumb")];
+    if (crumbs.length < 2) return false;
+    crumbs[0].click(); // the host crumb — re-center to the start
     return true;
-  })();
-  await new Promise(r => setTimeout(r, 400));
-  const menuOpen = await page.evaluate(() => !!document.querySelector(".cx-vm"));
-  log("verse menu opened:", menuOpen);
-  if (!menuOpen) { console.error("[xref] FAIL — verse menu did not open"); process.exit(1); }
+  }, PW);
+  await new Promise(r => setTimeout(r, 600));
+  const st3 = await page.evaluate((PW) => {
+    const sc = document.querySelector(PW);
+    const s = window.codexXrefState();
+    return { center: s.center, chain: s.chain.length, crumbs: sc.querySelectorAll(".cx-xrefg-crumb").length };
+  }, PW);
+  const trailOk = backOk && st3.chain === 0 && st3.crumbs === 1;
+  log("crumb-back to host:", JSON.stringify(st3), "· trail ok:", trailOk);
 
-  // Click the Cross-References row.
-  const clicked = await page.evaluate(() => {
-    const rows = [].slice.call(document.querySelectorAll(".cx-vm-row"));
-    const row = rows.find(b => /cross-ref/i.test(b.textContent||""));
-    if (!row) return { found:false };
-    row.click();
-    return { found:true };
-  });
-  log("clicked Cross-References row:", JSON.stringify(clicked));
-  if (!clicked.found) { console.error("[xref] FAIL — no Cross-References row in the menu"); process.exit(1); }
+  // ── 5. double-click ground truth (OPTIONAL — logged, not gating) ──────
+  let dblNavigated = false;
+  try {
+    const titleBefore = await page.evaluate(() => (document.querySelector(".cxr-loc b, .cx-reader-titles h1")||{}).textContent || "");
+    const t2 = await page.evaluate((PW) => {
+      const sc = document.querySelector(PW);
+      const cv = sc.querySelector("canvas.cx-xrefg-canvas");
+      const r = cv.getBoundingClientRect();
+      const s = window.codexXrefState();
+      const nd = s.nodes.find(n => Number.isFinite(n.x) && Number.isFinite(n.y) && n.key.split(".")[0] !== s.center.split(".")[0]);
+      return nd ? { key: nd.key, px: r.left + nd.x, py: r.top + nd.y } : null;
+    }, PW);
+    if (t2) {
+      // headless Chrome never synthesizes dblclick — the panel detects two
+      // clicks on the same node within 350ms itself, so click twice.
+      await page.mouse.click(t2.px, t2.py);
+      await new Promise(r => setTimeout(r, 120));
+      await page.mouse.click(t2.px, t2.py);
+      await new Promise(r => setTimeout(r, 2500));
+      const titleAfter = await page.evaluate(() => (document.querySelector(".cxr-loc b, .cx-reader-titles h1")||{}).textContent || "");
+      dblNavigated = !!titleAfter && titleAfter !== titleBefore;
+      log("dblclick", t2.key, "· reader title:", JSON.stringify(titleBefore), "→", JSON.stringify(titleAfter), "· navigated:", dblNavigated, "(optional)");
+    } else log("dblclick: no cross-book node found (optional, skipped)");
+  } catch (e) { log("dblclick optional check errored:", e.message); }
 
-  // Give the panel time to switch + load TSK (a 5 MB module — first parse
-  // can take >10s under load). Poll for actual ref buttons, not a timer.
-  await page.waitForFunction(() => {
-    const app = document.querySelector(".cx-app");
-    return app && /right-open/.test(app.className);
-  }, { timeout: 8000 }).catch(() => {});
-  await page.waitForFunction(() => {
-    // v8+: codexOpenPanel prefers a floating MONAD window for plugin ids —
-    // the refs may live in .cx-win instead of the rail. Search both.
-    const scopes = [...document.querySelectorAll(".cx-rail-r, .cx-win")];
-    return scopes.some(sc => [...sc.querySelectorAll("button")].some(b => /\d+:\d+/.test(b.textContent || "")));
-  }, { timeout: 40000 }).catch(() => {});
-  await new Promise(r => setTimeout(r, 500));
+  // ── 6. ¶ text zoom-in summons prose under the canvas ──────────────────
+  await page.evaluate((PW) => {
+    const sc = document.querySelector(PW);
+    const b = [...sc.querySelectorAll(".cx-xrefg-chip")].find(x => /¶/.test(x.textContent || ""));
+    if (b) b.click();
+  }, PW);
+  await new Promise(r => setTimeout(r, 1500));
+  const textState = await page.evaluate((PW) => {
+    const sc = document.querySelector(PW);
+    const el = sc.querySelector(".cx-xrefg-text");
+    return { present: !!el, sample: el ? (el.textContent || "").slice(0, 80) : "" };
+  }, PW);
+  log("¶ text unfold:", JSON.stringify(textState), "(informational)");
 
-  const after = await page.evaluate(() => {
-    const app = document.querySelector(".cx-app");
-    const rail = document.querySelector(".cx-rail-r");
-    const railText = rail ? rail.textContent.slice(0, 400) : "(no rail)";
-    // active tab
-    const activeTab = document.querySelector("[class*='tab'].is-active, .cx-pane-tab.is-active, .cx-rail-tab.is-active");
-    return {
-      rightOpen: !!(app && /right-open/.test(app.className)),
-      activeTabText: activeTab ? activeTab.textContent.trim().slice(0,40) : "(none)",
-      crossrefNodes: document.querySelectorAll("[class*='xref'],[class*='crossref'],.cx-cr,.cx-crossrefs").length,
-      mentionsTSK: /treasury|cross|xref/i.test(railText),
-      refLinks: document.querySelectorAll(".cx-rail-r a, .cx-rail-r [role='link'], .cx-rail-r [class*='ref']").length,
-      railText,
-    };
-  });
-  log("AFTER click:", JSON.stringify({ rightOpen: after.rightOpen, activeTabText: after.activeTabText, crossrefNodes: after.crossrefNodes, mentionsTSK: after.mentionsTSK, refLinks: after.refLinks }, null, 1));
-  log("rail text sample:", JSON.stringify(after.railText));
-  log("js errors:", JSON.stringify(jsErrors));
-
-  const ok = after.rightOpen && (after.crossrefNodes > 0 || after.mentionsTSK);
-  log(ok ? "panel opened and rendered ✓" : "panel did NOT open/render ✗");
-
-  // Now test ref-click navigation: click the first ref (not a chain/back btn)
-  // and confirm the reader navigates away from John 1.
-  const titleBefore = await page.evaluate(() => (document.querySelector(".cxr-loc b, .cx-reader-titles h1")||{}).textContent || "");
-  const navClick = await page.evaluate(() => {
-    // refs may render in the rail OR a floating MONAD window (.cx-win)
-    const scopes = [...document.querySelectorAll(".cx-rail-r, .cx-win")];
-    if (!scopes.length) return { found:false };
-    const btns = scopes.flatMap(sc => [...sc.querySelectorAll("button")]);
-    // a ref button looks like "Genesis 1:1" — has a digit:digit, not "chain"/"back"
-    const ref = btns.find(b => /\d+:\d+/.test(b.textContent||"") && !/chain|back/i.test(b.textContent||""));
-    if (!ref) return { found:false, sample: btns.slice(0,8).map(b=>b.textContent.trim()) };
-    ref.click();
-    return { found:true, label: ref.textContent.trim() };
-  });
-  log("ref-click:", JSON.stringify(navClick));
-  await new Promise(r => setTimeout(r, 2500));
-  const titleAfter = await page.evaluate(() => (document.querySelector(".cxr-loc b, .cx-reader-titles h1")||{}).textContent || "");
-  const navigated = !!navClick.found && titleAfter && titleAfter !== titleBefore;
-  log("reader title before:", JSON.stringify(titleBefore), "→ after:", JSON.stringify(titleAfter), "| navigated:", navigated);
-
-  console.log((ok && navigated) ? "[xref] PASS — panel renders AND ref-click navigates." : "[xref] PARTIAL/FAIL — see above.");
-  process.exit(ok && navigated && jsErrors.length === 0 ? 0 : 1);
+  log("js errors:", JSON.stringify(jsErrors.slice(0, 5)));
+  const ok = canvasOk && nodesOk && a11yOk && recenterOk && clickOk && trailOk && jsErrors.length === 0;
+  log(ok ? "PASS — the thread web breathes." : "FAIL — see above.");
+  process.exitCode = ok ? 0 : 1;
 } finally {
   await browser.close();
 }
