@@ -1,5 +1,7 @@
-// smoke-omnibar.mjs — ⌘K omnibar smoke: open, ref preview, verb rows,
-// live search rows, mission row, execute a jump. Zero JS pageerrors.
+// smoke-omnibar.mjs — ⌘K omnibar smoke: open, GUIDE MODE empty-state (living
+// example rows that execute), forgiving input ('Jhon 3 16' → did-you-mean),
+// never-a-dead-end fallbacks ('xqzzt' → kernel/search/Oracle), ref preview,
+// verb rows, live search rows, mission row, execute a jump. Zero JS pageerrors.
 import puppeteer from "puppeteer-core";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const URL = process.env.SMOKE_URL || "http://localhost:7777/";
@@ -16,13 +18,49 @@ try {
   await page.waitForFunction(() => window.__CODEX_READY__ === true, { timeout: 45000 });
   await page.waitForFunction(() => document.querySelectorAll(".cx-verse,.cx-verse-row").length > 0, { timeout: 20000 });
 
-  // ⌘K opens
-  await page.keyboard.down("Meta"); await page.keyboard.press("k"); await page.keyboard.up("Meta");
-  await new Promise(r => setTimeout(r, 400));
-  const open1 = await page.evaluate(() => !!document.querySelector(".cx-omni"));
-  log("⌘K opens:", open1);
+  const setOmniValue = (v) => page.evaluate((val) => {
+    const inp = document.querySelector(".cx-omni-input");
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    setter.call(inp, val);
+    inp.dispatchEvent(new Event("input", { bubbles: true }));
+  }, v);
+  const openOmni = async () => {
+    await page.keyboard.down("Meta"); await page.keyboard.press("k"); await page.keyboard.up("Meta");
+    await new Promise(r => setTimeout(r, 400));
+    return page.evaluate(() => !!document.querySelector(".cx-omni"));
+  };
+  const readerTitle = () => page.evaluate(() =>
+    (document.querySelector(".cxr-loc b, .cx-reader-titles h1, h1")||{}).textContent || "");
 
-  // Ref mode: preview + verb fan
+  // ── 1 · ⌘K opens INTO GUIDE MODE — living example rows, first-run line ──
+  const open1 = await openOmni();
+  const guide = await page.evaluate(() => ({
+    rows: document.querySelectorAll(".cx-omni-row.is-guide").length,
+    firstline: !!document.querySelector(".cx-omni-firstline"),
+    titles: [...document.querySelectorAll(".cx-omni-row.is-guide b")].map(b => b.textContent),
+    allHaveSubs: [...document.querySelectorAll(".cx-omni-row.is-guide .cx-omni-row-txt span")].length >= 4,
+  }));
+  log("⌘K opens:", open1, "guide:", JSON.stringify(guide));
+
+  // ── 2 · clicking a guide example EXECUTES (reader jumps to John 3:16) ──
+  const guideClicked = await page.evaluate(() => {
+    const row = [...document.querySelectorAll(".cx-omni-row.is-guide")]
+      .find(r => /John 3:16/.test(r.textContent));
+    if (!row) return false;
+    row.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    return true;
+  });
+  await new Promise(r => setTimeout(r, 1800));
+  const afterGuide = {
+    clicked: guideClicked,
+    omniClosed: await page.evaluate(() => !document.querySelector(".cx-omni")),
+    title: await readerTitle(),
+    firstRunDismissed: await page.evaluate(() => { try { return localStorage.getItem("codex.omni.guided.v1") === "1"; } catch { return false; } }),
+  };
+  log("guide exec:", JSON.stringify(afterGuide));
+
+  // ── 3 · ref mode: preview + verb fan (existing contract) ──
+  await openOmni();
   await page.type(".cx-omni-input", "Genesis 1:1", { delay: 12 });
   await new Promise(r => setTimeout(r, 1200));
   const refState = await page.evaluate(() => ({
@@ -32,13 +70,35 @@ try {
   }));
   log("ref mode:", JSON.stringify({ rows: refState.rows, firstRow: refState.firstRow, preview: refState.preview.slice(0, 60) }));
 
-  // Search mode
-  await page.evaluate(() => {
-    const inp = document.querySelector(".cx-omni-input");
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-    setter.call(inp, "light");
-    inp.dispatchEvent(new Event("input", { bubbles: true }));
+  // ── 4 · FORGIVING INPUT — 'Jhon 3 16' resolves via did-you-mean ──
+  await setOmniValue("Jhon 3 16");
+  await new Promise(r => setTimeout(r, 900));
+  const fuzzy = await page.evaluate(() => ({
+    firstRow: (document.querySelector(".cx-omni-row b")||{}).textContent || "",
+    rows: document.querySelectorAll(".cx-omni-row").length,
+  }));
+  log("fuzzy 'Jhon 3 16':", JSON.stringify(fuzzy));
+  await page.keyboard.press("Enter");
+  await new Promise(r => setTimeout(r, 1600));
+  const fuzzyTitle = await readerTitle();
+  log("after fuzzy jump:", fuzzyTitle);
+
+  // ── 5 · NEVER A DEAD END — gibberish gets kernel/search/Oracle rows ──
+  await openOmni();
+  await setOmniValue("xqzzt");
+  await new Promise(r => setTimeout(r, 1000));
+  const deadEnd = await page.evaluate(() => {
+    const titles = [...document.querySelectorAll(".cx-omni-row b")].map(b => b.textContent);
+    return {
+      rows: titles.length,
+      fallbacks: titles.filter(t => /ask the kernel|search the text|ask the Oracle/i.test(t)).length,
+      titles: titles.slice(0, 4),
+    };
   });
+  log("gibberish 'xqzzt':", JSON.stringify(deadEnd));
+
+  // ── 6 · search mode (existing contract) ──
+  await setOmniValue("light");
   await new Promise(r => setTimeout(r, 900));
   const searchState = await page.evaluate(() => ({
     rows: document.querySelectorAll(".cx-omni-row").length,
@@ -47,13 +107,8 @@ try {
   }));
   log("search mode:", JSON.stringify(searchState));
 
-  // Execute a ref jump end-to-end
-  await page.evaluate(() => {
-    const inp = document.querySelector(".cx-omni-input");
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-    setter.call(inp, "Psalms 23");
-    inp.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  // ── 7 · execute a ref jump end-to-end (existing contract) ──
+  await setOmniValue("Psalms 23");
   await new Promise(r => setTimeout(r, 700));
   await page.keyboard.press("Enter");
   await new Promise(r => setTimeout(r, 1800));
@@ -68,7 +123,11 @@ try {
 
   log("jsErrors:", JSON.stringify(jsErrors.slice(0,5)));
   const ok = open1
+    && guide.rows >= 4 && guide.firstline && guide.allHaveSubs
+    && afterGuide.clicked && afterGuide.omniClosed && /john/i.test(afterGuide.title) && afterGuide.firstRunDismissed
     && refState.rows >= 5 && refState.preview.length > 10
+    && /did you mean john 3:16/i.test(fuzzy.firstRow) && /john/i.test(fuzzyTitle)
+    && deadEnd.rows >= 2 && deadEnd.fallbacks >= 2
     && searchState.rows >= 1 && searchState.missionRow !== undefined
     && after.omniClosed && /psalm/i.test(after.title)
     && jsErrors.length === 0;
