@@ -27,16 +27,47 @@
   var SURFACE = params.get("surface");
   var FOLLOW = params.get("follow") === "1" || !!SURFACE;
 
+  // Each builtin panel that lives in its own window (panels.jsx /
+  // codexDeskPanels) gets a satellite surface too — ?surface=trans opens a
+  // window with only the TRANSLATIONS instrument on the second monitor, and
+  // so on. The surface key is just the panel id; open() routes through
+  // codexOpenPanel once the app is ready.
+  function panelSurface(id, label) {
+    return { label: label, open: function () { if (window.codexOpenPanel) window.codexOpenPanel(id); } };
+  }
   var SURFACES = {
     reader:  { label: "Reader",  open: function () { var d = window.codexDesk; if (d) { d.open("reader"); } } },
-    // (v11: the "study" surface died with the deck — builtin panels are
-    // independent windows; satellites boot with none open, see app.jsx
-    // deskPanelsLoad's ?surface= guard.)
     library: { label: "Library", open: function () { var d = window.codexDesk; if (d) { d.open("library"); } } },
     oracle:  { label: "Oracle",  open: function () { var d = window.codexDesk; if (d) { d.open("oracle"); } } },
     marks:   { label: "Marks",   open: function () { var d = window.codexDesk; if (d) { d.open("marks"); } } },
     galaxy:  { label: "Galaxy",  open: function () { if (window.codexOpenConstellation) window.codexOpenConstellation(); } },
+    // v11.5 — every builtin panel can ride its own monitor.
+    trans:   panelSurface("trans",  "Translations"),
+    talmud:  panelSurface("talmud", "Talmud"),
+    comm:    panelSurface("comm",   "Commentary"),
+    gem:     panelSurface("gem",    "Gematria"),
+    gnosis:  panelSurface("gnosis", "Gnosis"),
+    disarm:  panelSurface("disarm", "Disarm"),
+    exeg:    panelSurface("exeg",   "Exegesis"),
+    txan:    panelSurface("txan",   "Words"),
   };
+
+  // wm.js asks "which surface (if any) can pop this window id onto another
+  // monitor?" — it owns the header ⧉ button, this owns the surface routing.
+  // Map the WM's window ids (data-wm-id / console spec id) → surface key.
+  function surfaceForWid(wid) {
+    if (!wid) return null;
+    var map = {
+      "win:sys:reader": "reader", "win:sys:library": "library",
+      "win:sys:oracle": "oracle", "win:sys:marks": "marks",
+      "const": "galaxy",
+    };
+    if (map[wid]) return map[wid];
+    // builtin panels: win:builtin:<id> → that panel's surface.
+    var m = /^win:builtin:(.+)$/.exec(wid);
+    if (m && SURFACES[m[1]]) return m[1];
+    return null;
+  }
 
   // ── The shared cursor bus ────────────────────────────────────────────
   var chan = null;
@@ -99,6 +130,7 @@
   // ── Public API ───────────────────────────────────────────────────────
   window.codexDisplays = {
     surfaces: Object.keys(SURFACES),
+    surfaceForWid: surfaceForWid,
     isFollower: function () { return FOLLOW; },
     surface: function () { return SURFACE; },
     open: function (s) {

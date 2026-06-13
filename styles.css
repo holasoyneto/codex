@@ -17760,9 +17760,21 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   padding: 0;
 }
 .cx-wm-win {
-  position: fixed;
+  /* !important is load-bearing: every console card (.cx-const, .cx-mirror,
+     .cx-map, .cx-sword, .cx-ops, …) ships `position: relative` in a rule
+     that appears LATER in this file, so without !important those win the
+     cascade and the card stays flow-positioned inside its flex-centered
+     backdrop — the inline left/top the WM writes then read as RELATIVE
+     offsets from a centered origin, which is exactly why such windows
+     could never be dragged flush to the true left edge. Fixed + inline
+     left/top is the whole geometry contract; pin it. */
+  position: fixed !important;
+  /* NOTE: do NOT add `inset: auto !important` here — `inset` is the
+     shorthand for top/right/bottom/left, so an !important inset would
+     beat the INLINE left/top the WM writes and pin the window to 0,0.
+     None of the console base rules set inset; fixed is enough. */
   pointer-events: auto;
-  margin: 0;
+  margin: 0 !important;
   max-width: none !important;
   max-height: none !important;
   border-radius: 10px;
@@ -20457,6 +20469,156 @@ body.cx-focus .cx-wm-dock:focus-within { opacity: 1; }
 .cx-wm-dockpop-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .cx-wm-dockpop-row input { accent-color: var(--cx-accent); }
 .cx-wm-dockpop-row span { font-size: 10px; color: var(--cx-fg); }
+
+/* ═══ v11.5 DESK FREEDOM — line icons, header controls, arrange, setups,
+   live-preview cards, instant tooltips, drag-reorder ═══════════════════ */
+
+/* Line-icon glyphs sit inside the chip's <i>; SVG inherits currentColor so
+   theme + hover + is-focus light them with no extra rules. In the classic
+   (non-os7) dock the <i> sets the box; under os7 the chip is a 34px tile and
+   the icon centers in it. */
+.cx-wm-dock-chip i svg { display: block; width: 16px; height: 16px; }
+.cx-wm-dock-chip .cx-wm-glyph-txt { font-style: normal; }
+body.cx-os7 .cx-wm-dock-chip i svg { width: 17px; height: 17px; }
+
+/* Instant tooltip — no native-title delay. A small mono label floats above
+   the chip the moment you hover (or focus). Reduced-motion-safe (no anim). */
+.cx-wm-dock-chip[data-tip]::before,
+.cx-wm-ctl-btn[data-tip]::before {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--cx-mono); font-size: 9px; letter-spacing: 0.08em;
+  color: var(--cx-fg); background: color-mix(in oklab, var(--cx-bg) 94%, black 6%);
+  border: 1px solid var(--cx-line-strong, color-mix(in oklab, var(--cx-fg-dim) 30%, transparent));
+  border-radius: 6px; padding: 4px 8px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 90ms ease-out;
+  z-index: 10001;
+  box-shadow: 0 6px 18px -8px rgba(0,0,0,0.6);
+}
+.cx-wm-ctl-btn[data-tip]::before { bottom: auto; top: calc(100% + 7px); }
+.cx-wm-dock-chip[data-tip]:hover::before,
+.cx-wm-dock-chip[data-tip]:focus-visible::before,
+.cx-wm-ctl-btn[data-tip]:hover::before,
+.cx-wm-ctl-btn[data-tip]:focus-visible::before { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .cx-wm-dock-chip[data-tip]::before, .cx-wm-ctl-btn[data-tip]::before { transition: none; }
+}
+
+/* A chip being drag-reordered floats slightly above its neighbours. */
+.cx-wm-dock-chip.cx-wm-chip-dragging {
+  opacity: 0.92; cursor: grabbing;
+  box-shadow: 0 8px 22px -8px rgba(0,0,0,0.6);
+}
+
+/* ── WINDOW HEADER CONTROLS — minimize · arrange · pop-out ────────────── */
+.cx-wm-ctl { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.cx-wm-ctl-btn {
+  position: relative;
+  appearance: none; cursor: pointer;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 5px; color: var(--cx-fg-dim);
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.cx-wm-ctl-btn svg { display: block; width: 15px; height: 15px; }
+.cx-wm-ctl-btn:hover {
+  color: var(--cx-fg);
+  border-color: color-mix(in oklab, var(--cx-fg-dim) 30%, transparent);
+  background: color-mix(in oklab, var(--cx-fg-dim) 12%, transparent);
+}
+body.cx-os7 .cx-wm-ctl-btn:hover { background: var(--os7-glass-hi); border-color: var(--os7-line); }
+
+/* ── ARRANGE popover — layout tiles + saved setups ───────────────────── */
+.cx-wm-arrangepop { width: 300px; }
+.cx-wm-arrange-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.cx-wm-arrange-opt {
+  display: flex !important; align-items: center; gap: 8px;
+  text-align: left; justify-content: flex-start !important;
+  letter-spacing: 0.04em !important; text-transform: none !important;
+}
+.cx-wm-arrange-opt:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.cx-wm-arrange-ico { display: inline-flex; flex: none; color: var(--cx-accent); }
+.cx-wm-arrange-ico svg { width: 18px; height: 18px; }
+.cx-wm-setup-row { display: flex; align-items: stretch; gap: 4px; }
+.cx-wm-setup-open {
+  flex: 1; display: flex !important; align-items: center; gap: 7px;
+  justify-content: flex-start !important; text-transform: none !important;
+  letter-spacing: 0.04em !important;
+}
+.cx-wm-setup-open i { display: inline-flex; flex: none; color: var(--cx-accent); }
+.cx-wm-setup-open i svg { width: 15px; height: 15px; }
+.cx-wm-setup-open em { margin-left: auto; font-style: normal; opacity: 0.6; font-size: 8.5px; }
+.cx-wm-setup-del { flex: none; width: 32px; padding: 0 !important; display: grid; place-items: center; }
+.cx-wm-setup-del svg { width: 13px; height: 13px; }
+.cx-wm-setup-save {
+  display: flex !important; align-items: center; gap: 7px;
+  justify-content: center !important; text-transform: none !important;
+  opacity: 0.85;
+}
+.cx-wm-setup-save i { font-style: normal; font-size: 13px; }
+
+/* ── LIVE PREVIEW CARD (right-click / long-press a running chip) ──────── */
+.cx-wm-prevcard {
+  position: fixed; z-index: 10002; width: 254px;
+  background: color-mix(in oklab, var(--cx-bg) 93%, transparent);
+  border: 1px solid var(--cx-line-strong, color-mix(in oklab, var(--cx-accent) 36%, transparent));
+  border-radius: 12px; padding: 10px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 22px 60px -16px rgba(0,0,0,0.7);
+  display: flex; flex-direction: column; gap: 8px;
+  font-family: var(--cx-mono); color: var(--cx-fg);
+  animation: cx-wm-prev-in 140ms ease-out;
+}
+@keyframes cx-wm-prev-in { from { opacity: 0; transform: translateY(4px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cx-wm-prevcard { animation: none; } }
+.cx-wm-prevcard-h { display: flex; flex-direction: column; gap: 2px; }
+.cx-wm-prevcard-h b { font-size: 9.5px; letter-spacing: 0.14em; color: var(--cx-fg); }
+.cx-wm-prevcard-h span { font-size: 9px; color: var(--cx-fg-dim); letter-spacing: 0.05em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cx-wm-prevcard-stage {
+  position: relative; overflow: hidden; border-radius: 8px;
+  background: color-mix(in oklab, var(--cx-bg) 80%, black 20%);
+  border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 16%, transparent);
+}
+.cx-wm-prevcard-acts { display: flex; gap: 4px; }
+.cx-wm-prevcard-acts button {
+  flex: 1; appearance: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 2px; border-radius: 7px;
+  background: transparent; border: 1px solid color-mix(in oklab, var(--cx-fg-dim) 20%, transparent);
+  color: var(--cx-fg-dim);
+  font-family: var(--cx-mono); font-size: 8px; letter-spacing: 0.06em;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.cx-wm-prevcard-acts button:hover { color: var(--cx-fg); border-color: var(--cx-fg-dim);
+  background: color-mix(in oklab, var(--cx-fg-dim) 10%, transparent); }
+.cx-wm-prevcard-acts button i { display: inline-flex; }
+.cx-wm-prevcard-acts button svg { width: 15px; height: 15px; }
+
+/* ── FIRST-BOOT WINK — chips breathe once (a wink, not a tutorial) ────── */
+@keyframes cx-wm-chip-wink {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 14px 1px color-mix(in oklab, var(--cx-accent) 55%, transparent); }
+}
+.cx-wm-dock.cx-wm-wink .cx-wm-dock-chip {
+  animation: cx-wm-chip-wink 2s ease-out 1;
+}
+.cx-wm-dock.cx-wm-wink .cx-wm-dock-chip:nth-child(2) { animation-delay: 0.06s; }
+.cx-wm-dock.cx-wm-wink .cx-wm-dock-chip:nth-child(3) { animation-delay: 0.12s; }
+.cx-wm-dock.cx-wm-wink .cx-wm-dock-chip:nth-child(4) { animation-delay: 0.18s; }
+.cx-wm-dock.cx-wm-wink .cx-wm-dock-chip:nth-child(5) { animation-delay: 0.24s; }
+.cx-wm-dock.cx-wm-wink .cx-wm-dock-chip:nth-child(n+6) { animation-delay: 0.30s; }
+@media (prefers-reduced-motion: reduce) {
+  .cx-wm-dock.cx-wm-wink .cx-wm-dock-chip { animation: none; }
+}
 
 /* mobile: the reader fills the drawerless center column */
 @media (max-width: 880px) {

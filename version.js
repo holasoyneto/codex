@@ -10,11 +10,11 @@
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
   v: "12.0",     // user-facing app version
-  sw: "v268",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  sw: "v269",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "THE GALAXY FOLLOWS YOU: open the constellation on one screen and read on another — every verse you turn to, the canon zooms out and draws the gold trail of where you've walked",
-    "THE OMNIBAR GUIDES: open it and it teaches by example; it forgives typos ('Jhon 3 16' → John 3:16); it never dead-ends — there is always something to do",
-    "Type anything — a verse, a question, a word — the one door understands",
+    "THE WHOLE DESKTOP IS YOURS: every window now drags flush to any edge — the bug that pinned the galaxy is gone; spread your study across the entire screen",
+    "⊞ ARRANGE: one tap lays your open windows side-by-side, in thirds, or quad — and you can NAME and save study setups to recall later",
+    "EVERY WINDOW: − to minimize, ⧉ to pop out onto another monitor; the dock has clear line icons now, live previews on right-click, and you can drag to reorder",
   ],
 };
 
