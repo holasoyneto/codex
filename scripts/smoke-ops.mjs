@@ -13,7 +13,11 @@ try {
   const page = await browser.newPage();
   const jsErrors = [];
   page.on("pageerror", (e) => jsErrors.push("pageerror: " + e.message));
-  page.on("console", (m) => { if (m.type()==="error" && !/Failed to load resource/i.test(m.text())) jsErrors.push(m.text()); });
+  // External network noise (bible-api.com / bolls CORS + rate-limit) is not
+  // an app error — the loader's mirror chain handles the fallback. Only
+  // real in-app errors count.
+  const EXTERNAL = /Failed to load resource|Access to fetch|CORS policy|bible-api\.com|bolls\.life|ERR_FAILED|net::/i;
+  page.on("console", (m) => { if (m.type()==="error" && !EXTERNAL.test(m.text())) jsErrors.push(m.text()); });
 
   await page.goto(URL, { waitUntil: "load", timeout: 30000 });
   await page.waitForFunction(() => window.__CODEX_READY__ === true, { timeout: 45000 });
@@ -25,26 +29,12 @@ try {
   }));
   log("kernel:", JSON.stringify(kernel));
 
-  // Open OPS via the verse menu
-  {
-    // v10: rows are .cxr-v — a REAL right-click (synthetic contextmenu
-    // dispatches don't reliably reach React 18's delegated listener), and
-    // Escape first to clear any first-run chrome over the desk.
-    await page.keyboard.press("Escape");
-    await new Promise(r => setTimeout(r, 400));
-    const row = await page.$(".cxr-v, .cx-vnum");
-    const rb = await row.boundingBox();
-    await page.mouse.click(rb.x + rb.width / 2, rb.y + 5, { button: "right" });
-  }
+  // Open OPS. v11.3 SHED the OPS row from the minimal verse menu — the
+  // omnibar is the point of origin now, so OPS opens via its public API
+  // (also how the omnibar "ops" command + dock chip reach it).
+  await page.keyboard.press("Escape");
   await new Promise(r => setTimeout(r, 400));
-  const clicked = await page.evaluate(() => {
-    const rows = [].slice.call(document.querySelectorAll(".cx-vm-row"));
-    const row = rows.find(b => /ops/i.test(b.textContent||""));
-    if (!row) return { found: false };
-    row.click();
-    return { found: true };
-  });
-  log("clicked OPS row:", JSON.stringify(clicked));
+  await page.evaluate(() => window.codexOpenOps(""));
   await new Promise(r => setTimeout(r, 800));
   const opened = await page.evaluate(() => ({
     console: !!document.querySelector(".cx-ops"),
@@ -85,7 +75,7 @@ try {
   const healthy = state.status.includes("COMPLETE")
     ? (state.toolCalls >= 1 && state.sections >= 1)
     : true; // a clean provider failure is tolerable; JS errors are not
-  const ok = kernel.loaded && opened.console && clicked.found && terminal && healthy && jsErrors.length === 0;
+  const ok = kernel.loaded && opened.console && terminal && healthy && jsErrors.length === 0;
   log(ok ? "PASS" : "FAIL");
   process.exitCode = ok ? 0 : 1;
 } finally {
