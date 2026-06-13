@@ -10,12 +10,11 @@
 // Classic script: `self` works in both window and worker scopes.
 self.CODEX_VERSION = {
   v: "12.0",     // user-facing app version
-  sw: "v267",    // service-worker cache generation — MIRRORED in sw.js line ~21
+  sw: "v268",    // service-worker cache generation — MIRRORED in sw.js line ~21
   notes: [
-    "THE NAME IN GOLD: divine names glow covenant gold as you read — and one setting renders the Tetragrammaton as יהוה, always",
-    "OVERLAYS: engage gnosis ⟁, talmud ת, or commentary § and quiet glosses appear beneath the verses they touch — read the Word with the whispers on",
-    "Chapters have their poetic AI titles again; the verse menu is six calm rows (⌘ more… opens the omnibar); ⧉ opens secondary readers with their own cursor",
-    "SETTINGS REBORN: searchable, grouped, nothing forgotten (the smoke proves it) — and Help now describes the app as it actually is",
+    "THE GALAXY FOLLOWS YOU: open the constellation on one screen and read on another — every verse you turn to, the canon zooms out and draws the gold trail of where you've walked",
+    "THE OMNIBAR GUIDES: open it and it teaches by example; it forgives typos ('Jhon 3 16' → John 3:16); it never dead-ends — there is always something to do",
+    "Type anything — a verse, a question, a word — the one door understands",
   ],
 };
 
