@@ -377,6 +377,156 @@ function VerseConstellation({ onClose }) {
   const degRef = useRef(null);                        // node degree (sizes)
   const spriteRef = useRef({});                       // hue → glow sprite canvas
 
+  // ── v11.4 THE GALAXY FOLLOWS THE READER — true multi-display soul. ────
+  // While the galaxy is open, every reader chapter-change (this window or a
+  // sibling display via the codex-displays cursor bus) flies the camera OUT
+  // to frame old + new focus, draws the WALKED TRAIL (gold polyline through
+  // every chapter visited this session, max 12 hops), then settles on the
+  // new star and refreshes the dossier. The reader controls the galaxy.
+  const trailRef = useRef([]);                        // [chapterIdx] — session trail
+  const lastNowRef = useRef(null);                    // last chapter idx handled (verse moves ignored)
+  const flightRef = useRef({ flights: 0, state: "idle", lastMaxDist: 0 }); // smoke telemetry
+  const flightSeqRef = useRef(0);                     // a newer flight cancels an older one
+  const [trailTick, setTrailTick] = useState(0);      // chip re-render only
+
+  const pushTrail = (idx) => {
+    const t = trailRef.current;
+    if (t.length && t[t.length - 1] === idx) return;
+    t.push(idx);
+    while (t.length > 12) t.shift();                  // honest ring — max ~12 hops
+    try { window.__CODEX_CONST_TRAIL = t.length; } catch {}
+    setTrailTick(x => x + 1);
+  };
+  const clearTrail = () => {
+    trailRef.current = [];
+    try { window.__CODEX_CONST_TRAIL = 0; } catch {}
+    setTrailTick(x => x + 1);
+  };
+
+  // two-phase camera: OUT to the midpoint at a distance that frames both
+  // stars, then SETTLE onto the new one. Reduced motion: a hard cut.
+  const flyFollow = (fromIdx, toIdx) => {
+    const p = galaxyRef.current, cam = camRef.current;
+    const F = flightRef.current;
+    if (!p) { selRef.current = toIdx; inspect(toIdx); return; }
+    const seq = ++flightSeqRef.current;
+    const a = fromIdx >= 0 ? fromIdx : toIdx;
+    const ax = a * 3, bx = toIdx * 3;
+    const mid = [(p[ax] + p[bx]) / 2, (p[ax + 1] + p[bx + 1]) / 2, (p[ax + 2] + p[bx + 2]) / 2];
+    const gap = Math.hypot(p[bx] - p[ax], p[bx + 1] - p[ax + 1], p[bx + 2] - p[ax + 2]);
+    const outDist = Math.min(2400, Math.max(cam.dist + 140, gap * 1.5 + 320));
+    F.flights += 1; F.lastMaxDist = outDist; F.state = "out";
+    if (I.intelReducedMotion()) {
+      cam.tx = p[bx]; cam.ty = p[bx + 1]; cam.tz = p[bx + 2]; cam.dist = 300;
+      F.state = "idle";
+      inspect(toIdx);
+      return;
+    }
+    const lerpCam = (from, to, dur, done) => {
+      const T0 = performance.now();
+      const ease = (t) => 1 - Math.pow(1 - t, 3);
+      const step = (now) => {
+        if (flightSeqRef.current !== seq) return;     // superseded
+        const t = Math.min(1, (now - T0) / dur);
+        const e = ease(t);
+        cam.tx = from.tx + (to.tx - from.tx) * e;
+        cam.ty = from.ty + (to.ty - from.ty) * e;
+        cam.tz = from.tz + (to.tz - from.tz) * e;
+        cam.dist = from.dist + (to.dist - from.dist) * e;
+        if (t < 1) requestAnimationFrame(step);
+        else if (done) done();
+      };
+      requestAnimationFrame(step);
+    };
+    lerpCam(
+      { tx: cam.tx, ty: cam.ty, tz: cam.tz, dist: cam.dist },
+      { tx: mid[0], ty: mid[1], tz: mid[2], dist: outDist },
+      620,
+      () => {
+        F.state = "settle";
+        inspect(toIdx);                               // dossier refreshes during the descent
+        lerpCam(
+          { tx: cam.tx, ty: cam.ty, tz: cam.tz, dist: cam.dist },
+          { tx: p[bx], ty: p[bx + 1], tz: p[bx + 2], dist: 300 },
+          700,
+          () => { F.state = "idle"; }
+        );
+      }
+    );
+  };
+
+  const followTo = (idx) => {
+    const d = dataRef.current;
+    if (!d || idx < 0 || idx >= d.canon.count) return;
+    const prev = selRef.current >= 0
+      ? selRef.current
+      : (trailRef.current.length ? trailRef.current[trailRef.current.length - 1] : -1);
+    pushTrail(idx);
+    if (idx === prev) return;                         // already focused — trail only
+    flyFollow(prev, idx);
+  };
+
+  // codex:now reaches satellites too (displays.js jumps the local reader,
+  // which re-fires codex:now here). The BroadcastChannel bridge below is
+  // belt-and-braces for a satellite whose local cursor never moves —
+  // typeof-guarded, read-only: displays.js stays untouched.
+  useEffect(() => {
+    if (phase !== "ready") return;
+    const handle = (n) => {
+      const d = dataRef.current;
+      if (!d || !n) return;
+      let idx = -1;
+      if (n.bookId != null && d.canon.offset[n.bookId] !== undefined && n.chapter >= 1) {
+        idx = d.canon.offset[n.bookId] + n.chapter - 1;
+      } else if (n.ref && window.CODEX_KERNEL && window.CODEX_KERNEL.parseRef) {
+        const p = window.CODEX_KERNEL.parseRef(String(n.ref));
+        if (p && d.canon.offset[p.bookId] !== undefined) idx = d.canon.offset[p.bookId] + p.chapter - 1;
+      }
+      if (idx < 0 || idx >= d.canon.count) return;
+      if (lastNowRef.current === idx) return;         // same chapter — verse moves don't fly
+      lastNowRef.current = idx;
+      followTo(idx);
+    };
+    // seed: the chapter the reader was on when the galaxy opened is hop 0 —
+    // the trail tells the story FROM the original constellation click.
+    try {
+      const n0 = window.CODEX_NOW;
+      if (n0 && n0.bookId != null) {
+        const d = dataRef.current;
+        const off = d && d.canon.offset[n0.bookId];
+        if (off !== undefined && n0.chapter >= 1) {
+          const i0 = off + n0.chapter - 1;
+          if (i0 >= 0 && i0 < d.canon.count) { lastNowRef.current = i0; pushTrail(i0); }
+        }
+      }
+    } catch {}
+    const onNow = (e) => handle((e && e.detail) || window.CODEX_NOW || null);
+    window.addEventListener("codex:now", onNow);
+    let chan = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        chan = new BroadcastChannel("codex-displays");
+        chan.onmessage = (ev) => {
+          const m = ev && ev.data;
+          if (m && m.kind === "now" && m.ref) handle({ ref: m.ref });
+        };
+      }
+    } catch {}
+    return () => {
+      window.removeEventListener("codex:now", onNow);
+      try { if (chan) chan.close(); } catch {}
+    };
+  }, [phase]);
+
+  // telemetry mounts with the galaxy, dies with it (smoke reads these)
+  useEffect(() => {
+    try {
+      window.__CODEX_CONST_FLIGHT = flightRef.current;
+      window.__CODEX_CONST_TRAIL = trailRef.current.length;
+    } catch {}
+    return () => { try { delete window.__CODEX_CONST_FLIGHT; delete window.__CODEX_CONST_TRAIL; } catch {} };
+  }, []);
+
   const enterGalaxy = async () => {
     const d = dataRef.current;
     if (!d) return;
@@ -525,6 +675,38 @@ function VerseConstellation({ onClose }) {
       ctx.fillStyle = hueOf(i);
       ctx.fillText(`${c.bookName.toUpperCase()} ${c.ch}`, sx, sy - (3 + Math.sqrt(deg[i] || 1) * f));
     });
+
+    // THE WALKED TRAIL — the reader's session path, gold over everything:
+    // a polyline through every chapter visited since the galaxy opened,
+    // beads + honest small labels at the hops. Cleared by the ⌫ TRAIL chip.
+    const trail = trailRef.current;
+    if (trail.length > 1) {
+      ctx.lineWidth = 1.7;
+      ctx.strokeStyle = CONST_GOLD;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      let started = false;
+      trail.forEach((idx) => {
+        const pt = proj[idx];
+        if (!pt) { started = false; return; }
+        if (!started) { ctx.moveTo(pt[0], pt[1]); started = true; }
+        else ctx.lineTo(pt[0], pt[1]);
+      });
+      ctx.stroke();
+      ctx.font = "600 8px ui-monospace, monospace";
+      ctx.textAlign = "left";
+      trail.forEach((idx, k) => {
+        const pt = proj[idx];
+        if (!pt) return;
+        ctx.fillStyle = CONST_GOLD;
+        ctx.globalAlpha = 0.95;
+        ctx.beginPath(); ctx.arc(pt[0], pt[1], 2.3, 0, Math.PI * 2); ctx.fill();
+        const c = d.canon.chapters[idx];
+        ctx.globalAlpha = 0.75;
+        ctx.fillText(`${k + 1}·${c.bookName.toUpperCase()} ${c.ch}`, pt[0] + 6, pt[1] - 5);
+      });
+      ctx.textAlign = "center";
+    }
     ctx.globalAlpha = 1;
   };
 
@@ -706,6 +888,11 @@ function VerseConstellation({ onClose }) {
         animation: cx-orb-pulse 1.1s ease-in-out infinite; }
       @keyframes cx-orb-pulse { 0%, 100% { transform: scale(0.7); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
       @media (prefers-reduced-motion: reduce) { .cx-const-orb { animation: none; opacity: 0.9; } }
+      .cx-const-trailchip { position: absolute; left: 14px; bottom: 14px; z-index: 5;
+        font-family: var(--cx-mono, ui-monospace, monospace); font-size: 9.5px; letter-spacing: 0.12em;
+        color: #ffd479; background: rgba(20, 16, 8, 0.55); border: 1px solid rgba(255, 212, 121, 0.45);
+        border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+      .cx-const-trailchip:hover { background: rgba(255, 212, 121, 0.16); }
     `;
     document.head.appendChild(el);
   }, []);
@@ -819,6 +1006,15 @@ function VerseConstellation({ onClose }) {
               <span>{d ? d.threads.toLocaleString() : "—"} THREADS</span>
               <span>STARS SIZED BY THREAD-WEIGHT · YOUR TRAIL BURNS GOLD</span>
             </div>
+            {trailRef.current.length > 1 ? (
+              <button
+                className="cx-const-trailchip"
+                onClick={clearTrail}
+                title="Clear the walked trail — the gold path of every chapter visited since the galaxy opened"
+                aria-label={`Clear walked trail (${trailRef.current.length} hops)`}
+                data-tick={trailTick}
+              >⌫ TRAIL · {trailRef.current.length}</button>
+            ) : null}
             {info ? (
               <aside className="cx-const-info" aria-label={`${info.label} — star dossier`}>
                 <header>
