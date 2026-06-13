@@ -14890,17 +14890,22 @@ input.cx-vox-slider::-moz-range-thumb {
   max-width: min(360px, 90vw);
 }
 .cx-toast {
+  /* Notifications wear the same glass as every window — same blur, border
+     token, radius and layered shadow as .cx-win. The accent left-edge
+     stays as the honest kind signal (ok/warn/err). */
   pointer-events: auto;
-  background: rgba(10, 14, 22, 0.96);
+  background: var(--os7-glass, rgba(13, 18, 28, 0.72));
+  -webkit-backdrop-filter: var(--os7-blur, blur(16px) saturate(1.25));
+  backdrop-filter: var(--os7-blur, blur(16px) saturate(1.25));
   color: var(--cx-fg, #d8dee5);
-  border: 1px solid var(--cx-line-strong, #2a3340);
+  border: 1px solid var(--os7-line, rgba(168, 198, 235, 0.13));
   border-left: 3px solid var(--cx-accent, #7ee0ff);
-  border-radius: 8px;
-  padding: 10px 14px;
+  border-radius: var(--os7-radius, 14px);
+  padding: 11px 15px;
   font-family: var(--cx-sans, system-ui), sans-serif;
   font-size: 12.5px; line-height: 1.45;
   letter-spacing: 0.01em;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--os7-shadow, 0 8px 24px rgba(0, 0, 0, 0.45));
   animation: cx-toast-in .25s ease, cx-toast-out .35s ease 3.85s forwards;
 }
 .cx-toast-ok   { border-left-color: #8de8a8; }
